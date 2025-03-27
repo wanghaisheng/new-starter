@@ -1,0 +1,22 @@
+{
+  "home": {
+    "title": "SwipeMeet",
+    "noMoreUsers": "No more users for now",
+    "comeBackLater": "Come back later!",
+    "restart": "Restart",
+    "match": "Congratulations! You matched with {{name}}!"
+  },
+  "profile": {
+    "title": "Profile",
+    "aboutMe": "About Me",
+    "interests": "Interests",
+    "photos": "Photos",
+    "loading": "Loading..."
+  },
+  "actions": {
+    "edit": "Edit",
+    "settings": "Settings",
+    "like": "Like",
+    "dislike": "Dislike"
+  }
+} 

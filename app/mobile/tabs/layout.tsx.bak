@@ -1,0 +1,42 @@
+'use client';
+
+import { IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel, IonRouterOutlet } from '@ionic/react';
+import { home, person, settings } from 'ionicons/icons';
+import { PropsWithChildren, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+
+export default function TabsLayout({ children }: PropsWithChildren) {
+  const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  // 在客户端渲染之前不显示Tabs
+  if (!mounted) {
+    return <>{children}</>;
+  }
+  
+  return (
+    <IonTabs>
+      <IonRouterOutlet>
+        {children}
+      </IonRouterOutlet>
+      <IonTabBar slot="bottom">
+        <IonTabButton tab="home" href="/tabs/home" selected={pathname === '/tabs/home'}>
+          <IonIcon icon={home} />
+          <IonLabel>首页</IonLabel>
+        </IonTabButton>
+        <IonTabButton tab="profile" href="/tabs/profile" selected={pathname === '/tabs/profile'}>
+          <IonIcon icon={person} />
+          <IonLabel>我的</IonLabel>
+        </IonTabButton>
+        <IonTabButton tab="settings" href="/tabs/settings" selected={pathname === '/tabs/settings'}>
+          <IonIcon icon={settings} />
+          <IonLabel>设置</IonLabel>
+        </IonTabButton>
+      </IonTabBar>
+    </IonTabs>
+  );
+}

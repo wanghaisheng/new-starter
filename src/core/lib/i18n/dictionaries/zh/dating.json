@@ -1,0 +1,22 @@
+{
+  "home": {
+    "title": "SwipeMeet",
+    "noMoreUsers": "暂时没有更多用户了",
+    "comeBackLater": "稍后再来看看吧！",
+    "restart": "重新开始",
+    "match": "恭喜！你与 {{name}} 匹配成功！"
+  },
+  "profile": {
+    "title": "个人资料",
+    "aboutMe": "关于我",
+    "interests": "兴趣爱好",
+    "photos": "照片集",
+    "loading": "加载中..."
+  },
+  "actions": {
+    "edit": "编辑",
+    "settings": "设置",
+    "like": "喜欢",
+    "dislike": "不喜欢"
+  }
+} 

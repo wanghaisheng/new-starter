@@ -1,0 +1,68 @@
+# Capacitor-Next.js 15 + Ionic + Tailwind 全栈启动项目规则
+
+## 项目结构规则
+
+1. 所有移动端特定页面必须放在 `app/(mobile)` 目录下
+2. 所有Web特定页面必须放在 `app/(web)` 目录下
+3. 共享组件必须放在 `src/core/components` 目录下
+4. 移动端特定组件必须放在 `src/mobile/components` 目录下
+5. Web特定组件必须放在 `src/web/components` 目录下
+6. 所有数据模型必须放在 `src/core/models` 目录下
+7. Capacitor插件封装必须放在 `src/mobile/plugins` 目录下
+8. 全局样式必须放在 `src/styles` 目录下
+9. 全局Providers必须放在 `src/providers` 目录下
+
+## 编码规则
+
+1. 所有组件必须使用TypeScript编写
+2. 所有组件必须使用函数式组件
+3. 所有组件必须使用命名导出
+4. 所有组件必须使用PascalCase命名
+5. 所有钩子必须使用camelCase命名，并以"use"开头
+6. 所有工具函数必须使用camelCase命名
+7. 所有常量必须使用UPPER_SNAKE_CASE命名
+8. 所有类型和接口必须使用PascalCase命名
+9. 所有文件名必须使用kebab-case命名
+10. 所有组件必须有适当的注释
+11. 所有API请求必须使用src/core/lib/api中的函数
+12. 所有数据库操作必须使用src/core/lib/db中的函数
+
+## Git规则
+
+1. 主分支为main和develop
+2. 功能分支必须以feature/开头
+3. 修复分支必须以bugfix/开头
+4. 发布分支必须以release/开头
+5. 提交消息必须遵循以下格式：<type>(<scope>): <subject>
+6. 提交类型必须是以下之一：feat, fix, docs, style, refactor, test, chore
+7. 所有提交必须通过docs/tasks/commit-code.sh脚本进行
+
+## 文档规则
+
+1. 所有功能必须有相应的任务计划文档
+2. 所有代码必须有JSDoc格式的注释
+3. README.md必须保持更新
+4. 所有文档模板必须放在docs/templates目录下
+5. 所有任务脚本必须放在docs/tasks目录下
+
+## 发布规则
+
+1. 所有发布必须遵循docs/templates/app-release-workflow.md中的流程
+2. 所有发布必须使用docs/tasks/prepare-release.sh脚本准备
+3. 所有发布必须使用docs/tasks/release.sh脚本执行
+4. 所有回滚必须使用docs/tasks/rollback.sh脚本执行
+5. 所有发布必须有相应的版本号和CHANGELOG更新
+
+## 依赖管理规则
+
+1. 所有依赖必须通过bun或npm安装
+2. 所有依赖必须在package.json中声明
+3. 所有依赖版本必须固定
+4. 依赖安装问题必须使用docs/tasks/fix-dependencies.sh脚本修复
+5. 项目环境必须使用docs/tasks/check-minimal-env.sh脚本检查
+
+## 项目管理规则
+
+1. 项目进度必须使用docs/tasks/update-project-progress.sh脚本更新
+2. 项目状态必须使用docs/tasks/check-project-status.sh脚本检查
+3. 所有问题和解决方案必须记录在docs/project-progress.md文件中

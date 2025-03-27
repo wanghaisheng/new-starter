@@ -1,0 +1,159 @@
+{
+  "project": {
+    "name": "Capacitor-Next.js 15 + Ionic + Tailwind 全栈启动项目",
+    "description": "一个集成了Next.js 15、Ionic、Tailwind CSS 和 Capacitor 的全栈移动应用启动项目",
+    "version": "1.0.0"
+  },
+  "initialization": {
+    "checkEnvironment": {
+      "command": "bash docs/tasks/check-environment.sh",
+      "description": "在首次克隆项目或未确认项目初始化状态时运行环境检查脚本，确认项目环境是否已正确初始化"
+    },
+    "setupSteps": [
+      {
+        "name": "项目初始化",
+        "command": "bash docs/tasks/init-project.sh",
+        "description": "创建基础项目结构和配置文件"
+      },
+      {
+        "name": "Git初始化",
+        "command": "bash docs/tasks/git-init.sh",
+        "description": "初始化Git仓库并设置.gitignore"
+      },
+      {
+        "name": "安装依赖",
+        "command": "bash docs/tasks/install-dependencies.sh",
+        "description": "安装项目所需的依赖"
+      },
+      {
+        "name": "创建移动端页面",
+        "command": "bash docs/tasks/create-mobile-pages.sh",
+        "description": "创建移动端的基本页面结构"
+      }
+    ],
+    "verificationFiles": [
+      "docs/tasks/environment-check-results.txt",
+      "docs/tasks/git-init-results.txt",
+      "docs/tasks/dependencies-results.txt",
+      "docs/tasks/environment-check-results.txt",
+      "docs/tasks/mobile-pages-results.txt"
+    ],
+    "initializationFlag": ".env.local",
+    "troubleshooting": {
+      "dependencyIssues": {
+        "command": "bash docs/tasks/fix-dependencies.sh",
+        "description": "修复依赖安装过程中的常见问题"
+      },
+      "minimalEnvironmentCheck": {
+        "command": "bash docs/tasks/check-minimal-env.sh",
+        "description": "检查项目是否可以正常运行的最小要求"
+      },
+      "hydrationErrors": {
+        "command": "bash docs/tasks/fix-hydration-error.sh",
+        "description": "修复Next.js与Ionic组件之间的水合错误"
+      },
+      "routingIssues": {
+        "command": "bash docs/tasks/fix-mobile-routes.sh",
+        "description": "修复移动端路由结构问题"
+      }
+    }
+  },
+  "development": {
+    "routing": {
+      "web": "app/(web)",
+      "mobile": "app/mobile",
+      "shared": "app"
+    },
+    "components": {
+      "web": "src/web/components",
+      "mobile": "src/mobile/components",
+      "shared": "src/core/components"
+    },
+    "models": "src/core/models",
+    "api": "src/core/lib/api",
+    "db": "src/core/lib/db",
+    "plugins": "src/mobile/plugins"
+  },
+  "docs": {
+    "importantFiles": [
+      "docs/README.md",
+      "docs/CONTRIBUTING.md",
+      "docs/ARCHITECTURE.md",
+      "docs/API.md",
+      "docs/MOBILE.md",
+      "docs/WEB.md",
+      "docs/DEPLOYMENT.md",
+      "docs/TESTING.md",
+      "docs/project-progress-report.md",
+      "docs/project-status-report.md"
+    ]
+  },
+  "helpfulCommands": {
+    "development": [
+      {
+        "name": "启动开发服务器",
+        "command": "bun run dev",
+        "description": "启动Next.js开发服务器"
+      },
+      {
+        "name": "构建项目",
+        "command": "bun run build",
+        "description": "构建Next.js项目"
+      },
+      {
+        "name": "启动生产服务器",
+        "command": "bun run start",
+        "description": "启动Next.js生产服务器"
+      }
+    ],
+    "capacitor": [
+      {
+        "name": "同步Capacitor",
+        "command": "bun run cap:sync",
+        "description": "将Web构建同步到原生项目"
+      },
+      {
+        "name": "打开Android项目",
+        "command": "bun run cap:android",
+        "description": "在Android Studio中打开项目"
+      },
+      {
+        "name": "打开iOS项目",
+        "command": "bun run cap:ios",
+        "description": "在Xcode中打开项目"
+      }
+    ],
+    "automation": [
+      {
+        "name": "环境检查",
+        "command": "bash docs/tasks/check-environment.sh",
+        "description": "检查项目环境是否已正确初始化"
+      },
+      {
+        "name": "修复依赖问题",
+        "command": "bash docs/tasks/fix-dependencies.sh",
+        "description": "修复依赖安装过程中的常见问题"
+      },
+      {
+        "name": "最小环境检查",
+        "command": "bash docs/tasks/check-minimal-env.sh",
+        "description": "检查项目是否可以正常运行的最小要求"
+      },
+      {
+        "name": "修复水合错误",
+        "command": "bash docs/tasks/fix-hydration-error.sh",
+        "description": "修复Next.js与Ionic组件之间的水合错误"
+      },
+      {
+        "name": "修复移动端路由",
+        "command": "bash docs/tasks/fix-mobile-routes.sh",
+        "description": "修复移动端路由结构问题"
+      },
+      {
+        "name": "更新移动端结构",
+        "command": "bash docs/tasks/update-mobile-structure.sh",
+        "description": "更新移动端目录结构，删除旧的(mobile)文件夹"
+      }
+    ]
+  }
+} 

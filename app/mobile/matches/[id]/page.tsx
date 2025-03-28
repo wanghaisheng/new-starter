@@ -1,12 +1,28 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton, IonFooter, IonItem, IonInput, IonButton, IonIcon, IonAvatar, IonLabel } from '@ionic/react';
+import { 
+  IonContent, 
+  IonPage, 
+  IonHeader, 
+  IonToolbar, 
+  IonTitle, 
+  IonButtons, 
+  IonBackButton, 
+  IonFooter, 
+  IonItem, 
+  IonInput, 
+  IonButton, 
+  IonIcon, 
+  IonAvatar, 
+  IonLabel,
+  IonLoading,
+  IonToast
+} from '@ionic/react';
 import { send } from 'ionicons/icons';
 import { useParams } from 'next/navigation';
 import { Match, Message, User } from '@/core/models/user';
-import { mockMatches } from '@/core/lib/db/mock/matches';
-import { mockUsers } from '@/core/lib/db/mock/users';
+import { UserService } from '@/core/services/user-service';
 
 export default function ChatPage() {
   const params = useParams();
@@ -16,85 +32,105 @@ export default function ChatPage() {
   const [matchedUser, setMatchedUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   
   const contentRef = useRef<HTMLIonContentElement>(null);
-  
-  // 当前用户ID（在实际应用中会从认证服务获取）
-  const currentUserId = '1';
+  const userService = UserService.getInstance();
   
   useEffect(() => {
-    // 获取匹配信息
-    const foundMatch = mockMatches.find(m => m.id === matchId);
-    if (foundMatch) {
-      setMatch(foundMatch);
-      
-      // 获取匹配的用户信息
-      const otherUserId = foundMatch.users[0] === currentUserId ? foundMatch.users[1] : foundMatch.users[0];
-      const user = mockUsers.find(u => u.id === otherUserId);
-      if (user) {
-        setMatchedUser(user);
-      }
-      
-      // 在实际应用中，这里会从API获取消息历史
-      // 这里我们模拟一些消息
-      const mockMessages: Message[] = [
-        {
-          id: '1',
-          matchId,
-          senderId: otherUserId,
-          text: '你好，很高兴认识你！',
-          timestamp: new Date(Date.now() - 3600000 * 2), // 2小时前
-          read: true
-        },
-        {
-          id: '2',
-          matchId,
-          senderId: currentUserId,
-          text: '你好！我也很高兴认识你 😊',
-          timestamp: new Date(Date.now() - 3600000), // 1小时前
-          read: true
-        }
-      ];
-      
-      setMessages(mockMessages);
-    }
+    loadChatData();
   }, [matchId]);
   
-  // 滚动到底部
-  useEffect(() => {
+  const loadChatData = async () => {
+    try {
+      setIsLoading(true);
+      const currentUser = await userService.getCurrentUser();
+      if (!currentUser) {
+        setError('无法加载用户数据');
+        return;
+      }
+
+      // 获取匹配信息
+      const userMatches = await userService.getMatches(currentUser.id);
+      const currentMatch = userMatches.find(m => m.id === matchId);
+      if (!currentMatch) {
+        setError('找不到匹配信息');
+        return;
+      }
+      setMatch(currentMatch);
+
+      // 获取匹配用户信息
+      const otherUserId = currentMatch.users[0] === currentUser.id ? currentMatch.users[1] : currentMatch.users[0];
+      const user = await userService.getUserById(otherUserId);
+      if (!user) {
+        setError('找不到用户信息');
+        return;
+      }
+      setMatchedUser(user);
+
+      // 获取消息历史
+      const chatMessages = await userService.getMessages(matchId);
+      setMessages(chatMessages);
+    } catch (err) {
+      console.error('Error loading chat data:', err);
+      setError('加载聊天数据时出错');
+      setToastMessage('加载失败，请重试');
+      setShowToast(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const scrollToBottom = () => {
     if (contentRef.current) {
       contentRef.current.scrollToBottom(300);
     }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages]);
-  
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !match) return;
-    
-    // 创建新消息
-    const newMsg: Message = {
-      id: `msg-${Date.now()}`,
-      matchId,
-      senderId: currentUserId,
-      text: newMessage,
-      timestamp: new Date(),
-      read: false
-    };
-    
-    // 添加到消息列表
-    setMessages(prev => [...prev, newMsg]);
-    
-    // 清空输入框
-    setNewMessage('');
-    
-    // 在实际应用中，这里会调用API发送消息
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !match || !matchedUser) return;
+
+    try {
+      setIsSending(true);
+      const currentUser = await userService.getCurrentUser();
+      if (!currentUser) {
+        setToastMessage('发送失败：用户未登录');
+        setShowToast(true);
+        return;
+      }
+
+      const result = await userService.sendMessage(matchId, currentUser.id, newMessage.trim());
+      
+      if (result.success && result.message) {
+        setMessages(prev => [...prev, result.message as Message]);
+        setNewMessage('');
+      } else {
+        setToastMessage(result.errors.join(', '));
+        setShowToast(true);
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setToastMessage('发送失败，请重试');
+      setShowToast(true);
+    } finally {
+      setIsSending(false);
+    }
   };
-  
-  // 格式化消息时间
+
   const formatMessageTime = (timestamp: Date) => {
-    return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
-  
-  if (!matchedUser || !match) {
+
+  if (isLoading) {
     return (
       <IonPage>
         <IonHeader>
@@ -107,7 +143,33 @@ export default function ChatPage() {
         </IonHeader>
         <IonContent className="ion-padding">
           <div className="flex items-center justify-center h-full">
-            <p>加载中...</p>
+            <IonLoading isOpen={true} message="加载中..." />
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (error || !match || !matchedUser) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>聊天</IonTitle>
+            <IonButtons slot="start">
+              <IonBackButton defaultHref="/matches" />
+            </IonButtons>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          <div className="flex flex-col items-center justify-center h-full">
+            <p className="text-red-500 mb-4">{error || '无法加载聊天数据'}</p>
+            <button 
+              onClick={loadChatData}
+              className="px-4 py-2 bg-primary-500 text-white rounded-lg"
+            >
+              重试
+            </button>
           </div>
         </IonContent>
       </IonPage>
@@ -118,10 +180,10 @@ export default function ChatPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
+          <IonTitle>{matchedUser.name}</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/matches" />
           </IonButtons>
-          <IonTitle>{matchedUser.name}</IonTitle>
         </IonToolbar>
       </IonHeader>
       
@@ -130,9 +192,9 @@ export default function ChatPage() {
           {messages.map(message => (
             <div 
               key={message.id} 
-              className={`flex ${message.senderId === currentUserId ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.senderId === matchedUser.id ? 'justify-start' : 'justify-end'}`}
             >
-              {message.senderId !== currentUserId && (
+              {message.senderId === matchedUser.id && (
                 <IonAvatar className="mr-2 w-8 h-8">
                   <img src={matchedUser.images[0]} alt={matchedUser.name} />
                 </IonAvatar>
@@ -140,17 +202,17 @@ export default function ChatPage() {
               
               <div 
                 className={`p-3 rounded-lg max-w-[70%] ${
-                  message.senderId === currentUserId 
-                    ? 'bg-primary-600 text-white' 
-                    : 'bg-gray-100 text-gray-800'
+                  message.senderId === matchedUser.id
+                    ? 'bg-gray-100 text-gray-800' 
+                    : 'bg-primary-600 text-white'
                 }`}
               >
                 <p>{message.text}</p>
                 <div 
                   className={`text-xs mt-1 ${
-                    message.senderId === currentUserId 
-                      ? 'text-primary-100' 
-                      : 'text-gray-500'
+                    message.senderId === matchedUser.id
+                      ? 'text-gray-500' 
+                      : 'text-primary-100'
                   }`}
                 >
                   {formatMessageTime(message.timestamp)}
@@ -162,24 +224,37 @@ export default function ChatPage() {
       </IonContent>
       
       <IonFooter>
-        <div className="p-2 bg-white border-t">
-          <div className="flex items-center">
+        <IonToolbar>
+          <IonItem lines="none">
             <IonInput
-              placeholder="输入消息..."
               value={newMessage}
               onIonChange={e => setNewMessage(e.detail.value || '')}
-              className="flex-grow bg-gray-100 rounded-full px-4"
+              placeholder="输入消息..."
+              onKeyPress={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
             />
             <IonButton 
-              fill="clear" 
+              slot="end" 
               onClick={handleSendMessage}
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || isSending}
             >
-              <IonIcon icon={send} slot="icon-only" color="primary" />
+              <IonIcon icon={send} slot="icon-only" />
             </IonButton>
-          </div>
-        </div>
+          </IonItem>
+        </IonToolbar>
       </IonFooter>
+
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={toastMessage}
+        duration={2000}
+        position="bottom"
+      />
     </IonPage>
   );
 } 

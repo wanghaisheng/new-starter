@@ -1,25 +1,28 @@
+export interface Location {
+  latitude: number;
+  longitude: number;
+}
+
 export interface User {
   id: string;
   name: string;
   age: number;
   bio: string;
   images: string[];
-  location: string;
   interests: string[];
-  gender: 'male' | 'female' | 'other';
-  lookingFor: ('male' | 'female' | 'other')[];
-  lastActive: Date;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Match {
   id: string;
-  users: [string, string]; // 两个用户ID
-  timestamp: Date;
-  lastMessage?: {
-    text: string;
-    senderId: string;
-    timestamp: Date;
-  };
+  users: string[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Message {

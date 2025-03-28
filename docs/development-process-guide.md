@@ -77,7 +77,7 @@ bash docs/tasks/check-environment.sh --force
 
 1. 在`src/mock/data/`目录下创建对应功能的mock数据文件
 2. 创建Mock数据服务，实现与真实服务相同的接口
-3. 在`.env.local`中配置使用Mock数据：
+3. 在`.env.development`中配置使用Mock数据：
    ```
    NEXT_PUBLIC_DATABASE_ENV=mock
    NEXT_PUBLIC_MOCK_DB_TYPE=memory  # 或 json
@@ -92,20 +92,28 @@ bash docs/tasks/check-environment.sh --force
 4. 在`.env.local`中配置使用本地数据库：
    ```
    NEXT_PUBLIC_DATABASE_ENV=local
-   NEXT_PUBLIC_LOCAL_DB_TYPE=indexeddb  # 或 sqlite
+   NEXT_PUBLIC_LOCAL_DB_TYPE=sqlite  # 或 indexeddb
    ```
 5. 验证数据持久化和查询性能
 
 ### 2.3 生产环境数据库阶段
 
-1. 创建生产环境数据库SQL脚本
-2. 实现云端数据库服务
+1. 实现云端数据库服务（Firebase/Supabase/Cloudflare D1）
+2. 实现离线数据存储（移动端使用Capacitor SQLite，Web端使用IndexedDB）
 3. 在`.env.production`中配置使用云端数据库：
    ```
-   NEXT_PUBLIC_DATABASE_ENV=cloud
-   NEXT_PUBLIC_CLOUD_DB_TYPE=supabase  # 或 mysql, cloudflare_d1
+   NEXT_PUBLIC_DATABASE_ENV=production
+   NEXT_PUBLIC_CLOUD_DB_TYPE=supabase  # 或 firebase, cloudflare_d1
+   NEXT_PUBLIC_CLOUD_DB_URL=your_db_url
+   NEXT_PUBLIC_CLOUD_DB_KEY=your_db_key
+   
+   # 离线存储配置
+   NEXT_PUBLIC_OFFLINE_STORAGE_TYPE=indexeddb  # 可选: capacitor-sqlite, indexeddb, localstorage, websql
+   NEXT_PUBLIC_OFFLINE_STORAGE_NAME=app_db
+   NEXT_PUBLIC_OFFLINE_STORAGE_VERSION=1
    ```
-4. 优化数据库性能和安全性
+4. 实现数据同步策略
+5. 优化数据库性能和安全性
 
 详细流程请参考[数据库开发工作流程](./templates/database-development-workflow.md)文档。
 
@@ -143,7 +151,10 @@ nextjs15-tailwind-ionic-capacitor-starter/
 │   │   │   ├── db/           # 数据库访问层
 │   │   │   ├── i18n/         # 国际化核心
 │   │   │   └── api/          # API客户端
-│   │   └── models/           # 数据模型
+│   │   ├── models/           # 数据模型
+│   │   ├── services/         # 核心服务
+│   │   ├── config/           # 核心配置
+│   │   └── test/             # 核心测试
 │   ├── mobile/               # 移动端特定
 │   │   ├── components/       # 原生增强组件
 │   │   ├── plugins/          # Capacitor插件封装
@@ -152,6 +163,12 @@ nextjs15-tailwind-ionic-capacitor-starter/
 │   ├── providers/            # 全局Providers
 │   ├── styles/               # 全局样式
 │   └── utils/                # 通用工具
+├── tools/                    # 开发工具脚本
+│   ├── screenshot_utils.py   # 截图工具
+│   ├── get_browser.py        # 浏览器自动化
+│   ├── web_scraper.py        # 网页抓取
+│   ├── search_engine.py      # 搜索引擎
+│   └── llm_api.py           # LLM API集成
 ├── capacitor/                # 原生项目
 │   ├── android/              # Android平台
 │   └── ios/                  # iOS平台
@@ -263,7 +280,7 @@ nextjs15-tailwind-ionic-capacitor-starter/
 
 1. **安装插件**：
    ```bash
-   npm install @capacitor-community/bluetooth-le
+   bun install @capacitor-community/bluetooth-le
    npx cap sync
    ```
 
@@ -448,13 +465,13 @@ nextjs15-tailwind-ionic-capacitor-starter/
 
 1. **安装插件**：
    ```bash
-   npm install @capacitor-community/sqlite
+   bun install @capacitor-community/sqlite
    npx cap sync
    ```
 
 2. **Web平台支持**：
    ```bash
-   npm install jeep-sqlite sql.js
+   bun install jeep-sqlite sql.js
    ```
    
    并在`public`目录下创建`sql-wasm.wasm`文件。
@@ -640,7 +657,7 @@ nextjs15-tailwind-ionic-capacitor-starter/
 
 1. **安装插件**：
    ```bash
-   npm install @capacitor-community/oauth2
+   bun install @capacitor-community/oauth2
    npx cap sync
    ```
 

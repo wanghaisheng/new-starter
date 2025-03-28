@@ -1,0 +1,7 @@
+[test]
+preload = ["./src/test/setup.ts"]
+env = { NODE_ENV = "test" }
+
+[install]
+peer = true
+optional = true 

@@ -1,93 +1,140 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton, IonButton, IonItem, IonLabel, IonInput, IonTextarea, IonChip, IonIcon, IonList, IonItemDivider } from '@ionic/react';
-import { add, close, camera } from 'ionicons/icons';
+import {
+  IonContent,
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonBackButton,
+  IonItem,
+  IonLabel,
+  IonInput,
+  IonTextarea,
+  IonButton,
+  IonIcon,
+  IonLoading,
+  IonToast,
+  IonChip,
+  IonGrid,
+  IonRow,
+  IonCol
+} from '@ionic/react';
+import { add, remove, camera } from 'ionicons/icons';
 import { useRouter } from 'next/navigation';
 import { User } from '@/core/models/user';
-import { mockUsers } from '@/core/lib/db/mock/users';
-import { CameraService } from '@/mobile/plugins/camera-service';
+import { UserService } from '@/core/services/user-service';
+import { CameraService } from '@/core/services/camera-service';
 
-export default function ProfileEditPage() {
+export default function EditProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [name, setName] = useState('');
-  const [age, setAge] = useState('');
-  const [bio, setBio] = useState('');
-  const [location, setLocation] = useState('');
-  const [interests, setInterests] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const [newInterest, setNewInterest] = useState('');
-  const [images, setImages] = useState<string[]>([]);
-  
-  // 当前用户ID（在实际应用中会从认证服务获取）
-  const currentUserId = '1';
-  
+  const userService = UserService.getInstance();
+  const cameraService = CameraService.getInstance();
+
   useEffect(() => {
-    // 在实际应用中，这里会从API获取当前用户数据
-    const currentUser = mockUsers.find(u => u.id === currentUserId);
-    if (currentUser) {
-      setUser(currentUser);
-      setName(currentUser.name);
-      setAge(currentUser.age.toString());
-      setBio(currentUser.bio);
-      setLocation(currentUser.location);
-      setInterests([...currentUser.interests]);
-      setImages([...currentUser.images]);
-    }
+    loadUserData();
   }, []);
-  
+
+  const loadUserData = async () => {
+    try {
+      setIsLoading(true);
+      const user = await userService.getCurrentUser();
+      if (!user) {
+        setError('无法加载用户数据');
+        return;
+      }
+      setCurrentUser(user);
+    } catch (err) {
+      console.error('Error loading user data:', err);
+      setError('加载用户数据时出错');
+      setToastMessage('加载失败，请重试');
+      setShowToast(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImageUpload = async () => {
+    try {
+      const image = await cameraService.takePicture();
+      if (image && currentUser) {
+        setCurrentUser({
+          ...currentUser,
+          images: [...currentUser.images, image]
+        });
+      }
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      setToastMessage('上传图片失败');
+      setShowToast(true);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    if (!currentUser) return;
+    const newImages = [...currentUser.images];
+    newImages.splice(index, 1);
+    setCurrentUser({
+      ...currentUser,
+      images: newImages
+    });
+  };
+
   const handleAddInterest = () => {
-    if (newInterest.trim() && !interests.includes(newInterest.trim())) {
-      setInterests([...interests, newInterest.trim()]);
+    if (!currentUser || !newInterest.trim()) return;
+    
+    if (!currentUser.interests.includes(newInterest.trim())) {
+      setCurrentUser({
+        ...currentUser,
+        interests: [...currentUser.interests, newInterest.trim()]
+      });
       setNewInterest('');
     }
   };
-  
+
   const handleRemoveInterest = (interest: string) => {
-    setInterests(interests.filter(i => i !== interest));
+    if (!currentUser) return;
+    setCurrentUser({
+      ...currentUser,
+      interests: currentUser.interests.filter(i => i !== interest)
+    });
   };
-  
-  const handleAddImage = async () => {
+
+  const handleSave = async () => {
+    if (!currentUser) return;
+
     try {
-      const cameraService = CameraService.getInstance();
-      const imagePath = await cameraService.takePicture();
-      
-      if (imagePath) {
-        setImages([...images, imagePath]);
-      }
-    } catch (error) {
-      console.error('Error taking picture:', error);
-      alert('无法访问相机，请检查权限设置');
+      setIsSaving(true);
+      await userService.updateUser(currentUser.id, currentUser);
+      setToastMessage('保存成功');
+      setShowToast(true);
+      setTimeout(() => {
+        router.push('/profile');
+      }, 1500);
+    } catch (err) {
+      console.error('Error saving user data:', err);
+      setToastMessage('保存失败，请重试');
+      setShowToast(true);
+    } finally {
+      setIsSaving(false);
     }
   };
-  
-  const handleRemoveImage = (image: string) => {
-    setImages(images.filter(i => i !== image));
-  };
-  
-  const handleSave = () => {
-    if (!name || !age || !bio || !location) {
-      alert('请填写所有必填字段');
-      return;
-    }
-    
-    if (images.length === 0) {
-      alert('请至少上传一张照片');
-      return;
-    }
-    
-    // 在实际应用中，这里会调用API保存用户数据
-    // 这里我们只是模拟保存
-    alert('个人资料已更新');
-    router.push('/profile');
-  };
-  
-  if (!user) {
+
+  if (isLoading) {
     return (
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>编辑个人资料</IonTitle>
+            <IonTitle>编辑资料</IonTitle>
             <IonButtons slot="start">
               <IonBackButton defaultHref="/profile" />
             </IonButtons>
@@ -95,129 +142,146 @@ export default function ProfileEditPage() {
         </IonHeader>
         <IonContent className="ion-padding">
           <div className="flex items-center justify-center h-full">
-            <p>加载中...</p>
+            <IonLoading isOpen={true} message="加载中..." />
           </div>
         </IonContent>
       </IonPage>
     );
   }
-  
+
+  if (error || !currentUser) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>编辑资料</IonTitle>
+            <IonButtons slot="start">
+              <IonBackButton defaultHref="/profile" />
+            </IonButtons>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          <div className="flex flex-col items-center justify-center h-full">
+            <p className="text-red-500 mb-4">{error || '未找到用户数据'}</p>
+            <button 
+              onClick={loadUserData}
+              className="px-4 py-2 bg-primary-500 text-white rounded-lg"
+            >
+              重试
+            </button>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>编辑个人资料</IonTitle>
+          <IonTitle>编辑资料</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/profile" />
           </IonButtons>
           <IonButtons slot="end">
-            <IonButton onClick={handleSave}>保存</IonButton>
+            <IonButton onClick={handleSave} disabled={isSaving}>
+              {isSaving ? '保存中...' : '保存'}
+            </IonButton>
           </IonButtons>
         </IonToolbar>
       </IonHeader>
-      
       <IonContent className="ion-padding">
-        <IonList>
-          <IonItemDivider>基本信息</IonItemDivider>
-          
-          <IonItem>
-            <IonLabel position="stacked">姓名 *</IonLabel>
-            <IonInput 
-              value={name} 
-              onIonChange={e => setName(e.detail.value || '')}
-              placeholder="输入你的姓名"
-            />
-          </IonItem>
-          
-          <IonItem>
-            <IonLabel position="stacked">年龄 *</IonLabel>
-            <IonInput 
-              type="number" 
-              value={age} 
-              onIonChange={e => setAge(e.detail.value || '')}
-              placeholder="输入你的年龄"
-            />
-          </IonItem>
-          
-          <IonItem>
-            <IonLabel position="stacked">所在地 *</IonLabel>
-            <IonInput 
-              value={location} 
-              onIonChange={e => setLocation(e.detail.value || '')}
-              placeholder="输入你的所在地"
-            />
-          </IonItem>
-          
-          <IonItem>
-            <IonLabel position="stacked">个人简介 *</IonLabel>
-            <IonTextarea 
-              value={bio} 
-              onIonChange={e => setBio(e.detail.value || '')}
-              placeholder="介绍一下自己..."
-              rows={4}
-            />
-          </IonItem>
-          
-          <IonItemDivider>兴趣爱好</IonItemDivider>
-          
-          <div className="p-4 flex flex-wrap gap-2">
-            {interests.map(interest => (
-              <IonChip key={interest} className="bg-primary-100 text-primary-800">
-                <IonLabel>{interest}</IonLabel>
-                <IonIcon icon={close} onClick={() => handleRemoveInterest(interest)} />
-              </IonChip>
-            ))}
+        <div className="space-y-6">
+          {/* 基本信息 */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">基本信息</h2>
+            <IonItem>
+              <IonLabel position="stacked">姓名</IonLabel>
+              <IonInput
+                value={currentUser.name}
+                onIonChange={e => setCurrentUser({ ...currentUser, name: e.detail.value || '' })}
+              />
+            </IonItem>
+            <IonItem>
+              <IonLabel position="stacked">年龄</IonLabel>
+              <IonInput
+                type="number"
+                value={currentUser.age}
+                onIonChange={e => setCurrentUser({ ...currentUser, age: parseInt(e.detail.value || '0') })}
+              />
+            </IonItem>
+            <IonItem>
+              <IonLabel position="stacked">个人简介</IonLabel>
+              <IonTextarea
+                value={currentUser.bio}
+                onIonChange={e => setCurrentUser({ ...currentUser, bio: e.detail.value || '' })}
+                rows={4}
+              />
+            </IonItem>
           </div>
-          
-          <IonItem>
-            <IonInput 
-              value={newInterest} 
-              onIonChange={e => setNewInterest(e.detail.value || '')}
-              placeholder="添加兴趣爱好"
-            />
-            <IonButton 
-              slot="end" 
-              fill="clear"
-              onClick={handleAddInterest}
-              disabled={!newInterest.trim()}
-            >
-              <IonIcon icon={add} slot="icon-only" />
-            </IonButton>
-          </IonItem>
-          
-          <IonItemDivider>照片</IonItemDivider>
-          
-          <div className="p-4">
-            <div className="grid grid-cols-3 gap-2">
-              {images.map((image, index) => (
-                <div key={index} className="relative">
-                  <img 
-                    src={image} 
-                    alt={`照片 ${index + 1}`} 
-                    className="w-full h-24 object-cover rounded-md"
-                  />
-                  <button 
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-                    onClick={() => handleRemoveImage(image)}
-                  >
-                    <IonIcon icon={close} size="small" />
-                  </button>
-                </div>
-              ))}
-              
-              {images.length < 6 && (
-                <div 
-                  className="w-full h-24 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer"
-                  onClick={handleAddImage}
-                >
-                  <IonIcon icon={camera} size="large" className="text-gray-400" />
-                </div>
-              )}
+
+          {/* 照片 */}
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">照片</h2>
+              <IonButton onClick={handleImageUpload}>
+                <IonIcon icon={camera} slot="start" />
+                添加照片
+              </IonButton>
             </div>
-            <p className="text-xs text-gray-500 mt-2">最多上传6张照片</p>
+            <IonGrid>
+              <IonRow>
+                {currentUser.images.map((image, index) => (
+                  <IonCol size="4" key={index}>
+                    <div className="relative">
+                      <img src={image} alt={`照片 ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
+                      <IonButton
+                        fill="clear"
+                        color="danger"
+                        className="absolute top-0 right-0"
+                        onClick={() => handleRemoveImage(index)}
+                      >
+                        <IonIcon icon={remove} />
+                      </IonButton>
+                    </div>
+                  </IonCol>
+                ))}
+              </IonRow>
+            </IonGrid>
           </div>
-        </IonList>
+
+          {/* 兴趣爱好 */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">兴趣爱好</h2>
+            <div className="flex gap-2 mb-4">
+              <IonInput
+                value={newInterest}
+                placeholder="添加兴趣爱好"
+                onIonChange={e => setNewInterest(e.detail.value || '')}
+              />
+              <IonButton onClick={handleAddInterest}>
+                <IonIcon icon={add} slot="icon-only" />
+              </IonButton>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {currentUser.interests.map((interest, index) => (
+                <IonChip key={index}>
+                  <IonLabel>{interest}</IonLabel>
+                  <IonIcon icon={remove} onClick={() => handleRemoveInterest(interest)} />
+                </IonChip>
+              ))}
+            </div>
+          </div>
+        </div>
       </IonContent>
+
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={toastMessage}
+        duration={2000}
+        position="bottom"
+      />
     </IonPage>
   );
 } 

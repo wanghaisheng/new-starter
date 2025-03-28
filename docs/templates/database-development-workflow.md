@@ -1,233 +1,302 @@
 # 数据库开发工作流程
 
-本文档详细说明了从Mock数据到本地数据库再到生产环境数据库的渐进式开发流程，确保数据结构在各环境中保持一致性。
+## 1. 概述
 
-## 1. 开发流程概述
+本文档描述了从开发到生产环境的数据库演进策略，包括Mock数据、本地数据库和生产环境数据库三个阶段。
 
-数据库开发遵循以下三个阶段的渐进式流程：
+## 2. 开发阶段
 
-1. **Mock数据阶段**：快速原型验证，无需真实数据库
-2. **本地数据库阶段**：在开发环境中使用真实数据库
-3. **生产环境数据库阶段**：最终部署到生产环境
+### 2.1 Mock数据阶段
 
-## 2. Mock数据阶段
+#### 目的
+- 快速开发和测试UI组件
+- 验证业务逻辑
+- 不依赖实际数据库环境
 
-### 2.1 目的
+#### 实现方式
+1. 在`src/mock/data/`目录下创建JSON格式的模拟数据
+2. 实现Mock数据服务，提供与真实服务相同的接口
+3. 在`.env.development`中配置：
+   ```
+   NEXT_PUBLIC_DATABASE_ENV=mock
+   NEXT_PUBLIC_MOCK_DB_TYPE=memory  # 或 json
+   ```
 
-- 快速验证业务逻辑和UI交互
-- 无需配置真实数据库
-- 便于前端开发并行工作
+#### 验收标准
+- [ ] Mock数据服务接口完整
+- [ ] 数据结构符合设计规范
+- [ ] 测试用例覆盖主要场景
 
-### 2.2 实现步骤
+### 2.2 本地数据库阶段
 
-1. 在`src/mock/data/`目录下创建对应功能的mock数据文件
+#### 目的
+- 实现本地数据持久化
+- 测试数据库操作性能
+- 验证数据模型设计
 
-```typescript
-// src/mock/data/[feature-name].ts
-export const mockData = {
-  // 定义与实际数据结构一致的Mock数据
-};
-```
-
-2. 创建Mock数据服务
-
-```typescript
-// src/core/lib/db/mock/[service-name].ts
-import { mockData } from '@/mock/data/[feature-name]';
-
-export class MockService implements ServiceInterface {
-  // 实现与真实服务相同的接口
-}
-```
-
-3. 在`.env.local`中配置使用Mock数据
-
-```
-NEXT_PUBLIC_DATABASE_ENV=mock
-NEXT_PUBLIC_MOCK_DB_TYPE=memory  # 或 json
-```
-
-### 2.3 验收标准
-
-- Mock数据结构应与最终数据库结构保持一致
-- 所有UI交互和业务逻辑可以通过Mock数据正常工作
-- 完成相关单元测试
-
-## 3. 本地数据库阶段
-
-### 3.1 目的
-
-- 验证真实数据库交互
-- 测试数据持久化
-- 验证数据库查询性能
-
-### 3.2 实现步骤
-
-1. 设计数据模型
-
-```typescript
-// src/core/lib/db/models/[model-name].ts
-export interface ModelName {
-  // 定义与Mock数据结构一致的数据模型
-}
-```
-
+#### 实现方式
+1. 设计数据库Schema
 2. 创建数据库迁移脚本
+3. 实现本地数据库服务
+4. 在`.env.local`中配置：
+   ```
+   NEXT_PUBLIC_DATABASE_ENV=local
+   NEXT_PUBLIC_LOCAL_DB_TYPE=sqlite  # 或 indexeddb
+   ```
 
-```typescript
-// src/core/lib/db/local/migrations/[timestamp]_create_[table_name].ts
-export const up = async (db) => {
-  // 创建表结构，确保与数据模型一致
-};
+#### 验收标准
+- [ ] 数据库Schema设计合理
+- [ ] 迁移脚本可重复执行
+- [ ] CRUD操作性能达标
 
-export const down = async (db) => {
-  // 回滚表结构
-};
-```
+## 3. 生产环境阶段
 
-3. 实现数据库服务
+### 3.1 云端数据库
 
-```typescript
-// src/core/lib/db/local/[service-name].ts
-export class LocalDbService implements ServiceInterface {
-  // 实现与Mock服务相同的接口，但使用真实数据库
-}
-```
+#### 目的
+- 实现数据云端存储
+- 支持多用户访问
+- 确保数据安全性
 
-4. 在`.env.local`中配置使用本地数据库
+#### 实现方式
+1. 选择云端数据库服务：
+   - Firebase Realtime Database/Firestore
+   - Supabase
+   - Cloudflare D1
 
-```
-NEXT_PUBLIC_DATABASE_ENV=local
-NEXT_PUBLIC_LOCAL_DB_TYPE=indexeddb  # 或 sqlite
-```
+2. 在`.env.production`中配置：
+   ```
+   NEXT_PUBLIC_DATABASE_ENV=production
+   NEXT_PUBLIC_CLOUD_DB_TYPE=supabase  # 或 firebase, cloudflare_d1
+   NEXT_PUBLIC_CLOUD_DB_URL=your_db_url
+   NEXT_PUBLIC_CLOUD_DB_KEY=your_db_key
+   ```
 
-### 3.3 验收标准
+3. 实现云端数据库服务：
+   ```typescript
+   // src/core/lib/db/cloud/cloud-database-service.ts
+   export class CloudDatabaseService {
+     constructor(private config: CloudConfig) {}
+     
+     async connect(): Promise<void> {
+       // 实现数据库连接
+     }
+     
+     async query<T>(sql: string, params: any[]): Promise<T[]> {
+       // 实现查询操作
+     }
+     
+     async transaction<T>(callback: (client: DatabaseClient) => Promise<T>): Promise<T> {
+       // 实现事务操作
+     }
+   }
+   ```
 
-- 数据可以正确持久化到本地数据库
-- 所有查询和业务逻辑在真实数据库环境中正常工作
-- 数据库迁移脚本可以正确执行
-- 完成集成测试
+#### 验收标准
+- [ ] 数据库连接稳定可靠
+- [ ] 查询性能满足要求
+- [ ] 数据安全性符合标准
 
-## 4. 生产环境数据库阶段
+### 3.2 离线数据存储
 
-### 4.1 目的
+#### 目的
+- 支持离线数据访问
+- 实现数据本地缓存
+- 确保数据同步机制
 
-- 准备生产环境部署
-- 优化数据库性能
-- 确保数据安全
+#### 实现方式
+1. 根据平台选择合适的存储方案：
+   - 移动端：Capacitor SQLite
+   - Web端：IndexedDB/LocalStorage
 
-### 4.2 实现步骤
+2. 在`.env.production`中配置：
+   ```
+   # 离线存储配置
+   NEXT_PUBLIC_OFFLINE_STORAGE_TYPE=indexeddb  # 可选: capacitor-sqlite, indexeddb, localstorage, websql
+   NEXT_PUBLIC_OFFLINE_STORAGE_NAME=app_db
+   NEXT_PUBLIC_OFFLINE_STORAGE_VERSION=1
+   ```
 
-1. 创建生产环境数据库SQL脚本
+3. 实现离线存储服务：
+   ```typescript
+   // src/core/lib/db/offline/offline-database-service.ts
+   export class OfflineDatabaseService {
+     constructor(private config: OfflineConfig) {}
+     
+     async initialize(): Promise<void> {
+       // 初始化数据库
+     }
+     
+     async save<T>(key: string, data: T): Promise<void> {
+       // 保存数据
+     }
+     
+     async get<T>(key: string): Promise<T | null> {
+       // 获取数据
+     }
+   }
+   ```
 
-```sql
--- db/migrations/[timestamp]_create_[table_name].sql
-CREATE TABLE table_name (
-  -- 定义与本地数据库一致的表结构
-);
+#### 验收标准
+- [ ] 离线数据访问正常
+- [ ] 数据同步机制可靠
+- [ ] 存储性能满足要求
 
--- 创建索引
-CREATE INDEX idx_name ON table_name(column_name);
-```
+### 3.3 数据同步服务
 
-2. 实现云端数据库服务
+#### 目的
+- 确保云端和本地数据一致性
+- 处理数据冲突
+- 优化同步性能
 
-```typescript
-// src/core/lib/db/cloud/[service-name].ts
-export class CloudDbService implements ServiceInterface {
-  // 实现与本地数据库服务相同的接口，但连接到云端数据库
-}
-```
+#### 实现方式
+1. 实现数据同步服务：
+   ```typescript
+   // src/core/lib/db/sync/data-sync-service.ts
+   export class DataSyncService {
+     constructor(
+       private cloudDb: CloudDatabaseService,
+       private offlineDb: OfflineDatabaseService
+     ) {}
+     
+     async sync(): Promise<void> {
+       // 实现数据同步逻辑
+     }
+     
+     async resolveConflict(local: any, remote: any): Promise<any> {
+       // 实现冲突解决策略
+     }
+   }
+   ```
 
-3. 在`.env.production`中配置使用云端数据库
+2. 配置同步策略：
+   - 定时同步
+   - 网络恢复时同步
+   - 手动触发同步
 
-```
-NEXT_PUBLIC_DATABASE_ENV=cloud
-NEXT_PUBLIC_CLOUD_DB_TYPE=supabase  # 或 mysql, cloudflare_d1
-```
+#### 验收标准
+- [ ] 数据同步机制可靠
+- [ ] 冲突解决策略合理
+- [ ] 同步性能满足要求
 
-### 4.3 验收标准
+## 4. 数据库工厂
 
-- 生产环境数据库脚本可以正确执行
-- 数据库性能满足需求
-- 数据安全措施到位
-- 完成性能测试和安全测试
-
-## 5. 数据库工厂实现
-
-为了实现不同环境间的无缝切换，使用数据库工厂模式：
-
+### 4.1 工厂实现
 ```typescript
 // src/core/lib/db/factory.ts
-import { Capacitor } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core'
 
-export function createDatabaseClient(config) {
-  const { databaseEnv, localDbType, cloudDbType, mockDbType } = config;
-  
-  // 根据环境和平台选择合适的数据库实现
-  switch (databaseEnv) {
+export function createDatabaseClient(engine: DatabaseEngine) {
+  // 移动端优先使用SQLite
+  if (Capacitor.isNativePlatform() && engine === 'indexeddb') {
+    engine = 'sqlite'
+  }
+
+  switch (engine) {
     case 'mock':
-      return createMockDatabase(mockDbType);
-    case 'local':
-      // 移动端优先使用SQLite
-      if (Capacitor.isNativePlatform() && localDbType === 'indexeddb') {
-        return createLocalDatabase('sqlite');
-      }
-      return createLocalDatabase(localDbType);
-    case 'cloud':
-      return createCloudDatabase(cloudDbType);
-    default:
-      throw new Error(`Unsupported database environment: ${databaseEnv}`);
+      return new MockDatabaseClient(process.env.MOCK_DB_TYPE)
+    case 'indexeddb':
+      return new IndexedDBClient(process.env.INDEXEDDB_NAME)
+    case 'sqlite':
+      return new SQLiteClient({
+        encryptionKey: process.env.SQLITE_ENCRYPTION_KEY
+      })
+    case 'supabase':
+      return new SupabaseClient({
+        url: process.env.SUPABASE_URL,
+        key: process.env.SUPABASE_KEY
+      })
+    // 其他数据库实现...
   }
 }
 ```
 
-## 6. 数据同步策略
-
-对于需要在线离线都能工作的应用，实现数据同步策略：
-
+### 4.2 使用示例
 ```typescript
-// src/core/lib/db/sync/sync-service.ts
-export class DataSyncService {
-  // 实现本地数据和云端数据的同步逻辑
-  async syncData() {
-    // 1. 获取上次同步时间
-    // 2. 从云端获取新数据
-    // 3. 将本地新数据上传到云端
-    // 4. 解决冲突
-    // 5. 更新同步时间
-  }
-}
+// src/core/lib/db/index.ts
+const db = createDatabaseClient(process.env.NEXT_PUBLIC_DATABASE_ENV)
+
+export default db
 ```
 
-## 7. 最佳实践
+## 5. 测试策略
 
-1. **保持一致性**：确保所有环境中的数据结构保持一致
-2. **版本控制**：使用迁移脚本管理数据库版本
-3. **类型安全**：使用TypeScript接口确保类型安全
-4. **测试覆盖**：为每个环境编写测试
-5. **错误处理**：实现健壮的错误处理机制
-6. **性能优化**：根据实际使用情况添加索引和优化查询
-7. **安全性**：实施适当的安全措施，如数据加密和访问控制
+### 5.1 单元测试
+```typescript
+// test/lib/db/mock-database.test.ts
+describe('MockDatabase', () => {
+  it('should handle CRUD operations', async () => {
+    const db = createDatabaseClient('mock')
+    // 测试CRUD操作
+  })
+})
 
-## 8. 开发流程检查清单
+// test/lib/db/local/sqlite.test.ts
+describe('SQLiteDatabase', () => {
+  it('should persist data', async () => {
+    const db = createDatabaseClient('sqlite')
+    // 测试数据持久化
+  })
+})
+```
 
-### Mock数据阶段
-- [ ] 创建Mock数据结构
-- [ ] 实现Mock服务
-- [ ] 验证UI和业务逻辑
-- [ ] 编写单元测试
+### 5.2 集成测试
+```typescript
+// test/lib/db/sync/data-sync.test.ts
+describe('DataSync', () => {
+  it('should sync data between cloud and offline storage', async () => {
+    const cloudDb = createDatabaseClient('supabase')
+    const offlineDb = createDatabaseClient('indexeddb')
+    const syncService = new DataSyncService(cloudDb, offlineDb)
+    // 测试数据同步
+  })
+})
+```
 
-### 本地数据库阶段
-- [ ] 设计数据模型
-- [ ] 创建迁移脚本
-- [ ] 实现本地数据库服务
-- [ ] 验证数据持久化
-- [ ] 编写集成测试
+## 6. 部署检查清单
 
-### 生产环境数据库阶段
-- [ ] 创建生产环境SQL脚本
-- [ ] 实现云端数据库服务
-- [ ] 优化性能和安全性
-- [ ] 编写性能测试
-- [ ] 更新文档
+### 6.1 云端数据库
+- [ ] 创建数据库实例
+- [ ] 配置安全规则
+- [ ] 设置备份策略
+- [ ] 验证连接配置
+
+### 6.2 离线存储
+- [ ] 选择存储方案
+- [ ] 配置存储参数
+- [ ] 测试离线功能
+- [ ] 验证数据同步
+
+### 6.3 性能优化
+- [ ] 优化查询性能
+- [ ] 实现数据缓存
+- [ ] 配置连接池
+- [ ] 监控数据库指标
+
+## 7. 维护指南
+
+### 7.1 日常维护
+- 监控数据库性能
+- 检查数据一致性
+- 优化查询性能
+- 更新数据库配置
+
+### 7.2 问题处理
+- 诊断连接问题
+- 修复数据错误
+- 处理同步冲突
+- 优化存储空间
+
+## 8. 安全考虑
+
+### 8.1 数据安全
+- 加密敏感数据
+- 实现访问控制
+- 定期数据备份
+- 监控异常访问
+
+### 8.2 应用安全
+- 验证用户输入
+- 防止SQL注入
+- 实现请求限流
+- 记录安全日志

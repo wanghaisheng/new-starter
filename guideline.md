@@ -10,7 +10,7 @@
 bash docs/tasks/check-environment.sh
 ```
 
-如果检查发现问题，请按照脚本输出的建议进行修复。详细的初始化指南请参考 [项目初始化指南](./docs/project-initialization-guide.md)。
+如果检查发现问题，请按照脚本输出的建议进行修复。详细的初始化指南请参考 ](./docs/project-initialization-guide.md)。
 
 脚本会在环境检查通过后创建初始化完成标记（`.env.local` 文件中的 `NEXT_PUBLIC_ENV_INITIALIZED=true`），后续开发无需再次运行环境检查。
 
@@ -41,7 +41,10 @@ nextjs15-tailwind-ionic-capacitor-starter/
 │   │   │   ├── db/           # 数据库访问层
 │   │   │   ├── i18n/         # 国际化核心
 │   │   │   └── api/          # API客户端
-│   │   └── models/           # 数据模型
+│   │   ├── models/           # 数据模型
+│   │   ├── services/         # 核心服务
+│   │   ├── config/           # 核心配置
+│   │   └── test/             # 核心测试
 │   ├── mobile/               # 移动端特定
 │   │   ├── components/       # 原生增强组件
 │   │   ├── plugins/          # Capacitor插件封装
@@ -50,6 +53,12 @@ nextjs15-tailwind-ionic-capacitor-starter/
 │   ├── providers/            # 全局Providers
 │   ├── styles/               # 全局样式
 │   └── utils/                # 通用工具
+├── tools/                    # 开发工具脚本
+│   ├── screenshot_utils.py   # 截图工具
+│   ├── get_browser.py        # 浏览器自动化
+│   ├── web_scraper.py        # 网页抓取
+│   ├── search_engine.py      # 搜索引擎
+│   └── llm_api.py           # LLM API集成
 ├── capacitor/                # 原生项目
 │   ├── android/              # Android平台
 │   └── ios/                  # iOS平台
@@ -63,7 +72,109 @@ nextjs15-tailwind-ionic-capacitor-starter/
 └── test/                     # 测试代码
 ```
 
-### 1.3 自动化脚本
+### 1.3 导入路径规范
+
+#### 1.3.1 路径别名
+
+项目使用以下路径别名，必须优先使用这些别名而不是相对路径：
+
+```typescript
+// tsconfig.json
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@core/*": ["./src/core/*"],
+      "@mobile/*": ["./src/mobile/*"],
+      "@web/*": ["./src/web/*"]
+    }
+  }
+}
+```
+
+#### 1.3.2 导入规则
+
+1. **优先使用路径别名**：
+   ```typescript
+   // ✅ 正确
+   import { User } from '@/core/types';
+   import { Button } from '@core/components';
+   
+   // ❌ 错误
+   import { User } from '../../../core/types';
+   import { Button } from '../../components';
+   ```
+
+2. **按模块组织导入**：
+   ```typescript
+   // ✅ 正确
+   // 第三方库导入
+   import { useState, useEffect } from 'react';
+   import { Capacitor } from '@capacitor/core';
+   
+   // 项目内部导入
+   import { User } from '@/core/types';
+   import { Button } from '@core/components';
+   ```
+
+3. **类型导入**：
+   ```typescript
+   // ✅ 正确
+   import type { User } from '@/core/types';
+   
+   // ❌ 错误
+   import { User } from '@/core/types';
+   ```
+
+4. **测试文件导入**：
+   ```typescript
+   // ✅ 正确
+   import { mockIndexedDB } from '@/core/test/mock-indexeddb';
+   import { User } from '@/core/types';
+   
+   // ❌ 错误
+   import { mockIndexedDB } from '../../../../test/mock-indexeddb';
+   import { User } from '../../../../types';
+   ```
+
+5. **样式导入**：
+   ```typescript
+   // ✅ 正确
+   import '@/styles/global.css';
+   
+   // ❌ 错误
+   import '../../styles/global.css';
+   ```
+
+#### 1.3.3 导入顺序
+
+1. 第三方库导入
+2. 项目内部类型导入
+3. 项目内部组件导入
+4. 项目内部工具函数导入
+5. 样式导入
+
+示例：
+```typescript
+// 1. 第三方库
+import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+
+// 2. 类型导入
+import type { User, Match } from '@/core/types';
+
+// 3. 组件导入
+import { Button } from '@core/components';
+import { UserCard } from '@mobile/components';
+
+// 4. 工具函数
+import { formatDate } from '@/utils/date';
+
+// 5. 样式
+import '@/styles/global.css';
+```
+
+### 1.4 自动化脚本
 
 项目提供以下自动化脚本，用于简化环境设置和开发流程：
 
@@ -91,14 +202,63 @@ nextjs15-tailwind-ionic-capacitor-starter/
 1. 所有数据模型定义放在 `src/core/models` 目录
 2. 使用 TypeScript 接口定义数据结构
 3. 模型应包含必要的注释说明字段用途
+4. 遵循数据库演进策略：
+   - Mock数据阶段：使用内存数据结构
+   - 本地数据库阶段：实现本地持久化
+   - 生产环境阶段：支持云端和离线存储
 
-### 2.4 API 调用
+### 2.4 数据库开发流程
+
+1. **Mock数据阶段**
+   - 在`src/mock/data/`目录下创建JSON格式的模拟数据
+   - 实现Mock数据服务，提供与真实服务相同的接口
+   - 在`.env.development`中配置使用Mock数据
+   - 验证UI和业务逻辑
+
+2. **本地数据库阶段**
+   - 设计数据库Schema
+   - 创建数据库迁移脚本
+   - 实现本地数据库服务
+   - 在`.env.local`中配置使用本地数据库
+   - 验证数据持久化和查询性能
+
+3. **生产环境阶段**
+   - 云端数据库：
+     - 选择云端数据库服务（Firebase/Supabase/Cloudflare D1）
+     - 实现云端数据库服务
+     - 配置云端数据库连接
+   - 离线存储：
+     - 移动端：使用Capacitor SQLite
+     - Web端：使用IndexedDB/LocalStorage
+     - 实现数据同步机制
+   - 数据同步：
+     - 实现云端和本地数据同步
+     - 处理数据冲突
+     - 优化同步性能
+
+4. **数据库工厂**
+   - 实现统一的数据库客户端工厂
+   - 根据环境和平台选择合适的存储方案
+   - 提供一致的数据库操作接口
+
+5. **测试要求**
+   - 编写单元测试覆盖数据库操作
+   - 实现集成测试验证数据同步
+   - 进行性能测试确保响应时间
+
+6. **安全考虑**
+   - 加密敏感数据
+   - 实现访问控制
+   - 定期数据备份
+   - 监控异常访问
+
+### 2.5 API 调用
 
 1. API 客户端封装在 `src/core/lib/api` 目录
 2. 使用 Axios 或 Fetch API 进行网络请求
 3. 所有 API 调用应处理错误情况
 
-### 2.5 移动端插件
+### 2.6 移动端插件
 
 1. Capacitor 插件封装在 `src/mobile/plugins` 目录
 2. 插件服务应提供平台检测和错误处理
@@ -219,8 +379,8 @@ nextjs15-tailwind-ionic-capacitor-starter/
 
 ### 10.1 构建流程
 
-1. 使用 `npm run build:static` 生成静态文件
-2. 使用 `npm run cap:sync` 同步到原生项目
+1. 使用 `bun run build:static` 生成静态文件
+2. 使用 `bun run cap:sync` 同步到原生项目
 
 ### 10.2 版本发布
 
@@ -234,55 +394,55 @@ nextjs15-tailwind-ionic-capacitor-starter/
 
 | **插件**                     | **功能**                     | **安装命令**                          |
 |------------------------------|-----------------------------|---------------------------------------|
-| **`@capacitor/app`**         | 管理App生命周期（前后台切换、退出等） | `npm install @capacitor/app`         |
-| **`@capacitor/haptics`**     | 触觉反馈（振动）              | `npm install @capacitor/haptics`     |
-| **`@capacitor/keyboard`**    | 键盘弹出/收起事件监听         | `npm install @capacitor/keyboard`    |
-| **`@capacitor/status-bar`**  | 状态栏颜色和样式控制          | `npm install @capacitor/status-bar`  |
-| **`@capacitor/splash-screen`** | 启动页控制（隐藏、延迟等）    | `npm install @capacitor/splash-screen` |
+| **`@capacitor/app`**         | 管理App生命周期（前后台切换、退出等） | `bun install @capacitor/app`         |
+| **`@capacitor/haptics`**     | 触觉反馈（振动）              | `bun install @capacitor/haptics`     |
+| **`@capacitor/keyboard`**    | 键盘弹出/收起事件监听         | `bun install @capacitor/keyboard`    |
+| **`@capacitor/status-bar`**  | 状态栏颜色和样式控制          | `bun install @capacitor/status-bar`  |
+| **`@capacitor/splash-screen`** | 启动页控制（隐藏、延迟等）    | `bun install @capacitor/splash-screen` |
 
 ### 1.2 设备功能插件
 访问手机硬件或系统功能：
 
 | **插件**                     | **功能**                     | **安装命令**                          |
 |------------------------------|-----------------------------|---------------------------------------|
-| **`@capacitor/camera`**      | 拍照或选择相册图片           | `npm install @capacitor/camera`      |
-| **`@capacitor/geolocation`** | 获取GPS位置                | `npm install @capacitor/geolocation` |
-| **`@capacitor/filesystem`**  | 本地文件读写（如缓存、下载）  | `npm install @capacitor/filesystem`  |
-| **`@capacitor/preferences`** | 本地键值存储（类似localStorage） | `npm install @capacitor/preferences` |
-| **`@capacitor/device`**      | 获取设备信息（型号、OS版本等） | `npm install @capacitor/device`      |
+| **`@capacitor/camera`**      | 拍照或选择相册图片           | `bun install @capacitor/camera`      |
+| **`@capacitor/geolocation`** | 获取GPS位置                | `bun install @capacitor/geolocation` |
+| **`@capacitor/filesystem`**  | 本地文件读写（如缓存、下载）  | `bun install @capacitor/filesystem`  |
+| **`@capacitor/preferences`** | 本地键值存储（类似localStorage） | `bun install @capacitor/preferences` |
+| **`@capacitor/device`**      | 获取设备信息（型号、OS版本等） | `bun install @capacitor/device`      |
 
 ### 1.3 网络与通信插件
 
 | **插件**                     | **功能**                     | **安装命令**                          |
 |------------------------------|-----------------------------|---------------------------------------|
-| **`@capacitor/network`**     | 检测网络状态（在线/离线）     | `npm install @capacitor/network`     |
-| **`@capacitor/share`**       | 调用系统分享功能              | `npm install @capacitor/share`       |
-| **`@capacitor/http`**        | 原生HTTP请求（绕过CORS）   | `npm install @capacitor/http`        |
+| **`@capacitor/network`**     | 检测网络状态（在线/离线）     | `bun install @capacitor/network`     |
+| **`@capacitor/share`**       | 调用系统分享功能              | `bun install @capacitor/share`       |
+| **`@capacitor/http`**        | 原生HTTP请求（绕过CORS）   | `bun install @capacitor/http`        |
 
 ### 1.4 高级功能插件
 根据场景按需集成：
 
 | **插件**                     | **功能**                     | **安装命令**                          |
 |------------------------------|-----------------------------|---------------------------------------|
-| **`@capacitor/push-notifications`** | 推送通知（需配置Firebase/APNs） | `npm install @capacitor/push-notifications` |
-| **`@capacitor/local-notifications`** | 本地通知（无需服务器）       | `npm install @capacitor/local-notifications` |
-| **`@capacitor/apple-login`**  | 苹果账号登录（Sign in with Apple） | `npm install @capacitor/apple-login` |
-| **`@capacitor/google-auth`**  | Google登录                  | `npm install @capacitor/google-auth` |
-| **`@capacitor/screen-reader`** | 屏幕阅读器（无障碍功能）      | `npm install @capacitor/screen-reader` |
+| **`@capacitor/push-notifications`** | 推送通知（需配置Firebase/APNs） | `bun install @capacitor/push-notifications` |
+| **`@capacitor/local-notifications`** | 本地通知（无需服务器）       | `bun install @capacitor/local-notifications` |
+| **`@capacitor/apple-login`**  | 苹果账号登录（Sign in with Apple） | `bun install @capacitor/apple-login` |
+| **`@capacitor/google-auth`**  | Google登录                  | `bun install @capacitor/google-auth` |
+| **`@capacitor/screen-reader`** | 屏幕阅读器（无障碍功能）      | `bun install @capacitor/screen-reader` |
 
 ### 1.5 支付与商业化插件
 
 | **插件**                     | **功能**                     | **安装命令**                          |
 |------------------------------|-----------------------------|---------------------------------------|
-| **`capacitor-purchases`**    | 苹果内购/谷歌支付（RevenueCat封装） | `npm install @revenuecat/purchases-capacitor` |
-| **`capacitor-stripe`**       | Stripe支付集成              | `npm install capacitor-stripe`       |
+| **`capacitor-purchases`**    | 苹果内购/谷歌支付（RevenueCat封装） | `bun install @revenuecat/purchases-capacitor` |
+| **`capacitor-stripe`**       | Stripe支付集成              | `bun install capacitor-stripe`       |
 
 ### 1.6 企业级插件
 
 | **插件**                     | **功能**                     | **安装命令**                          |
 |------------------------------|-----------------------------|---------------------------------------|
-| **`@capacitor-community/sqlite`** | 本地SQLite数据库         | `npm install @capacitor-community/sqlite` |
-| **`@capacitor-community/bluetooth-le`** | 蓝牙低功耗（BLE）通信 | `npm install @capacitor-community/bluetooth-le` |
+| **`@capacitor-community/sqlite`** | 本地SQLite数据库         | `bun install @capacitor-community/sqlite` |
+| **`@capacitor-community/bluetooth-le`** | 蓝牙低功耗（BLE）通信 | `bun install @capacitor-community/bluetooth-le` |
 
 ### 1.7 插件使用示例
 
@@ -374,7 +534,10 @@ capacitor-nextjs-ionic-starter/
 │   │   │   ├── db/           # 数据库访问层
 │   │   │   ├── i18n/         # 国际化核心
 │   │   │   └── api/          # API客户端
-│   │   └── models/           # 数据模型
+│   │   ├── models/           # 数据模型
+│   │   ├── services/         # 核心服务
+│   │   ├── config/           # 核心配置
+│   │   └── test/             # 核心测试
 │   ├── mobile/               # 移动端特定
 │   │   ├── components/       # 原生增强组件
 │   │   ├── plugins/          # Capacitor插件封装
@@ -383,6 +546,12 @@ capacitor-nextjs-ionic-starter/
 │   ├── providers/            # 全局Providers
 │   ├── styles/               # 全局样式
 │   └── utils/                # 通用工具
+├── tools/                    # 开发工具脚本
+│   ├── screenshot_utils.py   # 截图工具
+│   ├── get_browser.py        # 浏览器自动化
+│   ├── web_scraper.py        # 网页抓取
+│   ├── search_engine.py      # 搜索引擎
+│   └── llm_api.py           # LLM API集成
 ├── capacitor/                # 原生项目
 │   ├── android/              # Android平台
 │   └── ios/                  # iOS平台
@@ -885,7 +1054,7 @@ export default function ProductPage({
   "scripts": {
     "build:android": "next build && next export && npx cap sync android",
     "build:ios": "next build && next export && npx cap sync ios",
-    "build:i18n": "npm run build && npm run export && node scripts/generate-i18n-files.js"
+    "build:i18n": "bun run build && bun run export && node scripts/generate-i18n-files.js"
   }
 }
 ```
@@ -1377,3 +1546,347 @@ git push origin feature/auth-social-login
 5. **持续学习**：定期分享有效的AI辅助编程实践，更新团队的提示词库和最佳实践。
 
 这套辅助编程工具开发流程为 Capacitor-Next.js 15 + Ionic + Tailwind 全栈项目提供了现代化的开发加速方案，通过结合AI工具与传统开发实践，显著提高开发效率和代码质量，同时保持团队对代码的完全掌控和理解。
+
+## 13. 前端开发规范
+
+### 13.1 组件开发规范
+
+#### 13.1.1 组件结构
+```typescript
+// 组件文件结构
+ComponentName/
+├── index.tsx              # 主组件文件
+├── types.ts               # 类型定义
+├── styles.module.css      # 样式文件（如果需要）
+├── __tests__/             # 测试文件目录
+│   └── ComponentName.test.tsx
+└── __stories__/           # Storybook文档目录
+    └── ComponentName.stories.tsx
+```
+
+#### 13.1.2 组件命名规范
+- 使用 PascalCase 命名组件
+- 使用 camelCase 命名组件文件
+- 使用 kebab-case 命名样式文件
+- 使用 PascalCase 命名类型和接口
+
+#### 13.1.3 组件编写规范
+```typescript
+// 组件模板
+import React from 'react';
+import { useI18n } from '@/core/lib/i18n';
+import type { ComponentProps } from './types';
+
+export function ComponentName({
+  prop1,
+  prop2,
+  ...props
+}: ComponentProps) {
+  const t = useI18n();
+  
+  return (
+    <div className="component-name">
+      {/* 组件内容 */}
+    </div>
+  );
+}
+```
+
+### 13.2 状态管理规范
+
+#### 13.2.1 状态选择原则
+1. 组件内部状态：使用 `useState`
+2. 共享状态：使用 `useContext` + `useReducer`
+3. 复杂状态：考虑使用 Zustand 或 Jotai
+4. 服务端状态：使用 React Query 或 SWR
+
+#### 13.2.2 状态更新规范
+```typescript
+// 状态更新示例
+const [state, setState] = useState<State>(initialState);
+
+// 使用函数式更新
+setState(prev => ({ ...prev, newValue }));
+
+// 批量更新
+const updateMultiple = () => {
+  setState(prev => ({
+    ...prev,
+    value1: newValue1,
+    value2: newValue2
+  }));
+};
+```
+
+### 13.3 样式开发规范
+
+#### 13.3.1 Tailwind 使用规范
+1. 优先使用 Tailwind 类名
+2. 复杂样式使用 CSS Modules
+3. 动态样式使用 clsx 或 classnames
+4. 主题相关样式使用 CSS 变量
+
+#### 13.3.2 响应式设计规范
+```typescript
+// 响应式组件示例
+export function ResponsiveComponent() {
+  return (
+    <div className="
+      w-full
+      md:w-1/2
+      lg:w-1/3
+      p-4
+      md:p-6
+      lg:p-8
+    ">
+      {/* 内容 */}
+    </div>
+  );
+}
+```
+
+### 13.4 性能优化规范
+
+#### 13.4.1 组件优化
+1. 使用 `React.memo` 避免不必要的重渲染
+2. 使用 `useMemo` 和 `useCallback` 缓存值和函数
+3. 使用 `lazy` 和 `Suspense` 实现代码分割
+4. 使用 `useTransition` 处理非紧急更新
+
+#### 13.4.2 图片优化
+1. 使用 Next.js Image 组件
+2. 实现懒加载
+3. 使用适当的图片格式和大小
+4. 实现响应式图片
+
+### 13.5 测试规范
+
+#### 13.5.1 单元测试
+```typescript
+// 组件测试示例
+import { render, screen } from '@testing-library/react';
+import { ComponentName } from './ComponentName';
+
+describe('ComponentName', () => {
+  it('renders correctly', () => {
+    render(<ComponentName prop1="value" />);
+    expect(screen.getByText('expected text')).toBeInTheDocument();
+  });
+});
+```
+
+#### 13.5.2 集成测试
+1. 测试组件交互
+2. 测试状态更新
+3. 测试异步操作
+4. 测试错误处理
+
+## 14. 后端开发规范
+
+### 14.1 API 设计规范
+
+#### 14.1.1 RESTful API 规范
+1. 使用 HTTP 方法表示操作
+2. 使用复数名词表示资源
+3. 使用嵌套表示关系
+4. 使用查询参数进行过滤和排序
+
+#### 14.1.2 API 响应格式
+```typescript
+// 成功响应
+{
+  "data": {
+    // 响应数据
+  },
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 100
+  }
+}
+
+// 错误响应
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "错误信息",
+    "details": {
+      // 详细信息
+    }
+  }
+}
+```
+
+### 14.2 数据库操作规范
+
+#### 14.2.1 查询优化
+1. 使用索引优化查询
+2. 避免 N+1 查询问题
+3. 使用适当的查询方法
+4. 实现查询缓存
+
+#### 14.2.2 事务处理
+```typescript
+// 事务处理示例
+async function handleTransaction() {
+  const transaction = await db.transaction();
+  try {
+    await transaction.begin();
+    // 执行操作
+    await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+```
+
+### 14.3 错误处理规范
+
+#### 14.3.1 错误类型
+1. 业务错误：使用自定义错误类
+2. 验证错误：使用验证库
+3. 系统错误：使用标准错误类
+4. 网络错误：使用 HTTP 错误
+
+#### 14.3.2 错误处理流程
+```typescript
+// 错误处理示例
+try {
+  // 业务逻辑
+} catch (error) {
+  if (error instanceof ValidationError) {
+    // 处理验证错误
+  } else if (error instanceof BusinessError) {
+    // 处理业务错误
+  } else {
+    // 处理系统错误
+  }
+}
+```
+
+### 14.4 日志规范
+
+#### 14.4.1 日志级别
+1. ERROR：错误信息
+2. WARN：警告信息
+3. INFO：一般信息
+4. DEBUG：调试信息
+
+#### 14.4.2 日志格式
+```typescript
+// 日志记录示例
+logger.info('Operation completed', {
+  operation: 'createUser',
+  userId: user.id,
+  timestamp: new Date().toISOString()
+});
+```
+
+### 14.5 安全规范
+
+#### 14.5.1 认证授权
+1. 使用 JWT 进行认证
+2. 实现 RBAC 权限控制
+3. 使用 HTTPS
+4. 实现请求限流
+
+#### 14.5.2 数据安全
+1. 加密敏感数据
+2. 实现数据备份
+3. 实现审计日志
+4. 实现数据验证
+
+## 15. 产品需求开发流程
+
+### 15.1 需求分析阶段
+
+#### 15.1.1 需求文档模板
+```markdown
+# 功能需求文档
+
+## 1. 功能概述
+[描述功能的主要目的和范围]
+
+## 2. 用户故事
+[描述用户使用场景]
+
+## 3. 技术需求
+[描述技术实现要求]
+
+## 4. 验收标准
+[描述功能验收标准]
+
+## 5. 时间规划
+[描述开发时间安排]
+```
+
+#### 15.1.2 技术方案设计
+1. 架构设计
+2. 数据模型设计
+3. API 设计
+4. UI/UX 设计
+
+### 15.2 开发阶段
+
+#### 15.2.1 前端开发流程
+1. 组件开发
+2. 状态管理
+3. API 集成
+4. 测试编写
+5. 文档编写
+
+#### 15.2.2 后端开发流程
+1. 数据库设计
+2. API 实现
+3. 业务逻辑
+4. 测试编写
+5. 文档编写
+
+### 15.3 测试阶段
+
+#### 15.3.1 测试计划
+1. 单元测试
+2. 集成测试
+3. E2E 测试
+4. 性能测试
+
+#### 15.3.2 测试用例模板
+```markdown
+# 测试用例
+
+## 测试场景
+[描述测试场景]
+
+## 前置条件
+[描述测试前置条件]
+
+## 测试步骤
+1. [步骤1]
+2. [步骤2]
+3. [步骤3]
+
+## 预期结果
+[描述预期结果]
+
+## 实际结果
+[记录实际结果]
+```
+
+### 15.4 部署阶段
+
+#### 15.4.1 部署检查清单
+1. 代码审查
+2. 测试通过
+3. 文档更新
+4. 性能检查
+5. 安全检查
+
+#### 15.4.2 发布流程
+1. 版本标记
+2. 构建打包
+3. 环境部署
+4. 监控检查
+5. 回滚计划
+
+这套完整的前后端开发规范和产品需求开发流程为团队提供了统一的开发标准，确保代码质量和项目可维护性，同时提高团队协作效率。

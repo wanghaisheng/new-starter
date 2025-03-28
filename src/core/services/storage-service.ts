@@ -28,11 +28,26 @@ export interface StorageConfig {
   };
 }
 
+// 添加获取Firebase配置的函数
+function getFirebaseConfig(): StorageConfig {
+  return {
+    firebase: {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || ''
+    }
+  };
+}
+
 export class StorageService {
   private static instance: StorageService;
   private db: any;
   private auth: any;
   private isInitialized = false;
+  private useLocalStorage = false; // 添加这个属性如果不存在
   public readonly STORAGE_KEYS = {
     USERS: 'app_users',
     MATCHES: 'app_matches',
@@ -53,6 +68,7 @@ export class StorageService {
     try {
       // 获取当前数据库环境配置
       const dbEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+      console.log('当前数据库环境:', dbEnv); // 添加日志，查看实际环境
       
       // 根据数据库环境决定存储策略
       switch (dbEnv) {
@@ -60,6 +76,10 @@ export class StorageService {
           // Mock数据阶段 - 使用内存存储
           console.log('数据库环境: Mock数据阶段');
           this.useLocalStorage = true;
+          this.isInitialized = true; // 确保设置初始化标志
+          
+          // 初始化 Mock 数据
+          await this.initializeMockData();
           return;
           
         case 'local':
@@ -67,36 +87,40 @@ export class StorageService {
           console.log('数据库环境: 本地数据库阶段');
           const localDbType = process.env.NEXT_PUBLIC_LOCAL_DB_TYPE || 'indexeddb';
           this.useLocalStorage = true;
-          // 这里可以根据localDbType初始化不同的本地数据库
+          this.isInitialized = true; // 添加这行，确保设置初始化标志
           return;
           
+        // 在 initialize 方法中的 production 环境部分
         case 'production':
-          // 生产环境阶段 - 使用Firebase或其他云服务
-          console.log('数据库环境: 生产环境阶段');
-          const cloudDbType = process.env.NEXT_PUBLIC_CLOUD_DB_TYPE || 'firebase';
+        // 生产环境阶段 - 使用Firebase或其他云服务
+        console.log('数据库环境: 生产环境阶段');
+        const cloudDbType = process.env.NEXT_PUBLIC_CLOUD_DB_TYPE || 'firebase';
+        
+        if (cloudDbType === 'firebase') {
+          const config = getFirebaseConfig();
           
-          if (cloudDbType === 'firebase') {
-            const config = getFirebaseConfig();
-            
-            // 检查Firebase配置是否有效
-            if (!config.firebase.apiKey || config.firebase.apiKey === '') {
-              console.warn('Firebase配置无效，回退到本地存储');
-              this.useLocalStorage = true;
-              return;
-            }
-            
-            const app = initializeApp(config.firebase);
-            this.db = getFirestore(app);
-            this.auth = getAuth(app);
-            
-            // 匿名登录
-            await signInAnonymously(this.auth);
-          } else {
-            // 其他云服务的初始化逻辑
-            console.log(`使用云服务: ${cloudDbType}`);
-            this.useLocalStorage = true; // 临时回退，直到实现其他云服务
+          // 检查Firebase配置是否有效
+          if (!config.firebase.apiKey || config.firebase.apiKey === '') {
+            console.warn('Firebase配置无效，回退到本地存储');
+            this.useLocalStorage = true;
+            this.isInitialized = true; // 确保设置初始化标志
+            return;
           }
-          return;
+          
+          const app = initializeApp(config.firebase);
+          this.db = getFirestore(app);
+          this.auth = getAuth(app);
+          
+          // 匿名登录
+          await signInAnonymously(this.auth);
+          this.isInitialized = true; // 添加这行，确保设置初始化标志
+        } else {
+          // 其他云服务的初始化逻辑
+          console.log(`使用云服务: ${cloudDbType}`);
+          this.useLocalStorage = true; // 临时回退，直到实现其他云服务
+          this.isInitialized = true; // 添加这行，确保设置初始化标志
+        }
+        return;
           
         default:
           // 未知环境 - 回退到本地存储
@@ -108,8 +132,7 @@ export class StorageService {
       console.error('初始化存储服务失败:', error);
       console.log('回退到本地存储模式');
       this.useLocalStorage = true;
-      // 不抛出错误，而是回退到本地存储
-      // throw new Error('Failed to initialize storage service');
+      this.isInitialized = true; // 确保即使出错也设置初始化标志
     }
   }
 
@@ -194,6 +217,12 @@ export class StorageService {
     }
 
     try {
+      // 添加检查，确保 this.db 已正确初始化
+      if (!this.db) {
+        console.warn('Firestore 数据库未初始化，返回空数组');
+        return [];
+      }
+
       const q = query(
         collection(this.db, collectionName),
         where(field, '==', value)
@@ -370,4 +399,36 @@ export class StorageService {
       return false;
     }
   }
+
+// 添加初始化 Mock 数据的方法（作为类的成员方法）
+private async initializeMockData(): Promise<void> {
+  try {
+    // 强制重新初始化 mock 数据，忽略现有数据
+    console.log('强制初始化 Mock 数据...');
+    
+    // 导入 mock 数据
+    const { mockUsers, mockCurrentUser, mockMatches, mockMessages } = await import('../../mock/data/user-data');
+    
+    // 保存 mock 数据到本地存储
+    if (mockCurrentUser) {
+      await this.setLocalItem(this.STORAGE_KEYS.CURRENT_USER, mockCurrentUser);
+    }
+    
+    if (mockUsers && mockUsers.length > 0) {
+      await this.setLocalItem(this.STORAGE_KEYS.USERS, mockUsers);
+    }
+    
+    if (mockMatches && mockMatches.length > 0) {
+      await this.setLocalItem(this.STORAGE_KEYS.MATCHES, mockMatches);
+    }
+    
+    if (mockMessages && mockMessages.length > 0) {
+      await this.setLocalItem(this.STORAGE_KEYS.MESSAGES, mockMessages);
+    }
+    
+    console.log('Mock 数据初始化完成');
+  } catch (error) {
+    console.error('初始化 Mock 数据失败:', error);
+  }
+}
 }

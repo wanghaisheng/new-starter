@@ -10,7 +10,7 @@ import {
   IonButtons, 
   IonButton, 
   IonIcon,
-  IonLoading,
+  IonSpinner,
   IonToast
 } from '@ionic/react';
 import { person, chatbubbles, heart, close } from 'ionicons/icons';
@@ -118,7 +118,8 @@ export default function HomePage() {
         </IonHeader>
         <IonContent className="ion-padding">
           <div className="flex items-center justify-center h-full">
-            <IonLoading isOpen={true} message="加载中..." />
+            <IonSpinner name="crescent" />
+            <span className="ml-2">加载中...</span>
           </div>
         </IonContent>
       </IonPage>
@@ -226,4 +227,4 @@ export default function HomePage() {
       />
     </IonPage>
   );
-} 
+}

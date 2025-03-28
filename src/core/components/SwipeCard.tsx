@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { IonCard, IonCardContent, IonImg, IonChip, IonLabel } from '@ionic/react';
+import { IonCard, IonCardContent, IonImg, IonChip, IonLabel, IonSpinner } from '@ionic/react';
 import { motion, PanInfo, useMotionValue, useTransform } from 'framer-motion';
 import { User } from '@/core/models/user';
 
@@ -12,6 +12,7 @@ interface SwipeCardProps {
 
 export const SwipeCard: React.FC<SwipeCardProps> = ({ user, onSwipe }) => {
   const [exitX, setExitX] = useState<number | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-20, 20]);
   const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
@@ -25,6 +26,14 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ user, onSwipe }) => {
       onSwipe('left');
     }
   };
+
+  // Get the profile image with fallback
+  const profileImage = user.photos?.[0] || '/default-avatar.jpg';
+  
+  // Handle location which might be a string or an object
+  const locationText = typeof user.location === 'string' 
+    ? user.location 
+    : `${user.location?.latitude}, ${user.location?.longitude}`;
 
   return (
     <motion.div
@@ -45,10 +54,20 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ user, onSwipe }) => {
     >
       <IonCard className="h-full m-0 overflow-hidden">
         <div className="relative h-4/5">
-          <IonImg src={user.images[0]} className="w-full h-full object-cover" />
+          {!imageLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+              <IonSpinner name="crescent" />
+            </div>
+          )}
+          <IonImg 
+            src={profileImage} 
+            className="w-full h-full object-cover" 
+            onIonImgDidLoad={() => setImageLoaded(true)}
+            onError={() => setImageLoaded(true)} // 即使加载失败也标记为已加载
+          />
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
             <h2 className="text-2xl font-bold">{user.name}, {user.age}</h2>
-            <p className="text-sm">{user.location}</p>
+            <p className="text-sm">{locationText}</p>
           </div>
         </div>
         <IonCardContent className="h-1/5 overflow-y-auto">
@@ -64,4 +83,4 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ user, onSwipe }) => {
       </IonCard>
     </motion.div>
   );
-}; 
+};

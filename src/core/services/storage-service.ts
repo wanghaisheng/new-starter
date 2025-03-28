@@ -183,12 +183,23 @@ export class StorageService {
       throw new Error('Storage service not initialized');
     }
 
+    // 检查是否使用本地存储模式
+    if (this.useLocalStorage) {
+      console.log('使用本地存储模式，跳过云端操作');
+      return;
+    }
+
     try {
+      if (!this.db) {
+        console.warn('Firestore 数据库未初始化，跳过云端操作');
+        return;
+      }
+
       const docRef = doc(this.db, collectionName, docId);
       await setDoc(docRef, data, { merge: true });
     } catch (error) {
       console.error('Error setting cloud storage item:', error);
-      throw error;
+      // 捕获错误但不抛出
     }
   }
 
@@ -197,13 +208,24 @@ export class StorageService {
       throw new Error('Storage service not initialized');
     }
 
+    // 检查是否使用本地存储模式
+    if (this.useLocalStorage) {
+      console.log('使用本地存储模式，跳过云端查询');
+      return null;
+    }
+
     try {
+      if (!this.db) {
+        console.warn('Firestore 数据库未初始化，返回null');
+        return null;
+      }
+
       const docRef = doc(this.db, collectionName, docId);
       const docSnap = await getDoc(docRef);
       return docSnap.exists() ? docSnap.data() as T : null;
     } catch (error) {
       console.error('Error getting cloud storage item:', error);
-      throw error;
+      return null;
     }
   }
 
@@ -215,14 +237,20 @@ export class StorageService {
     if (!this.isInitialized) {
       throw new Error('Storage service not initialized');
     }
-
+  
+    // 检查是否使用本地存储模式
+    if (this.useLocalStorage) {
+      console.log('使用本地存储模式，跳过云端查询');
+      return [];
+    }
+  
     try {
-      // 添加检查，确保 this.db 已正确初始化
+      // 添加更严格的检查，确保 this.db 已正确初始化
       if (!this.db) {
         console.warn('Firestore 数据库未初始化，返回空数组');
         return [];
       }
-
+  
       const q = query(
         collection(this.db, collectionName),
         where(field, '==', value)
@@ -231,7 +259,8 @@ export class StorageService {
       return querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => doc.data() as T);
     } catch (error) {
       console.error('Error getting cloud storage items:', error);
-      throw error;
+      // 捕获错误但不抛出，返回空数组
+      return [];
     }
   }
 
@@ -244,12 +273,23 @@ export class StorageService {
       throw new Error('Storage service not initialized');
     }
 
+    // 检查是否使用本地存储模式
+    if (this.useLocalStorage) {
+      console.log('使用本地存储模式，跳过云端操作');
+      return;
+    }
+
     try {
+      if (!this.db) {
+        console.warn('Firestore 数据库未初始化，跳过云端操作');
+        return;
+      }
+
       const docRef = doc(this.db, collectionName, docId);
       await updateDoc(docRef, data);
     } catch (error) {
       console.error('Error updating cloud storage item:', error);
-      throw error;
+      // 捕获错误但不抛出
     }
   }
 
@@ -258,12 +298,23 @@ export class StorageService {
       throw new Error('Storage service not initialized');
     }
 
+    // 检查是否使用本地存储模式
+    if (this.useLocalStorage) {
+      console.log('使用本地存储模式，跳过云端操作');
+      return;
+    }
+
     try {
+      if (!this.db) {
+        console.warn('Firestore 数据库未初始化，跳过云端操作');
+        return;
+      }
+
       const docRef = doc(this.db, collectionName, docId);
       await deleteDoc(docRef);
     } catch (error) {
       console.error('Error deleting cloud storage item:', error);
-      throw error;
+      // 捕获错误但不抛出
     }
   }
 
@@ -273,6 +324,12 @@ export class StorageService {
     docId: string,
     localKey: string
   ): Promise<void> {
+    // 检查是否使用本地存储模式
+    if (this.useLocalStorage) {
+      console.log('使用本地存储模式，跳过云端同步');
+      return;
+    }
+
     try {
       const localData = await this.getLocalItem<T>(localKey);
       if (localData) {
@@ -280,7 +337,7 @@ export class StorageService {
       }
     } catch (error) {
       console.error('Error syncing to cloud:', error);
-      throw error;
+      // 捕获错误但不抛出
     }
   }
 
@@ -289,6 +346,12 @@ export class StorageService {
     docId: string,
     localKey: string
   ): Promise<void> {
+    // 检查是否使用本地存储模式
+    if (this.useLocalStorage) {
+      console.log('使用本地存储模式，跳过从云端同步');
+      return;
+    }
+
     try {
       const cloudData = await this.getCloudItem<T>(collectionName, docId);
       if (cloudData) {
@@ -296,7 +359,7 @@ export class StorageService {
       }
     } catch (error) {
       console.error('Error syncing from cloud:', error);
-      throw error;
+      // 捕获错误但不抛出
     }
   }
 

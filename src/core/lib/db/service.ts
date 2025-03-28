@@ -1,248 +1,209 @@
-import { DatabaseFactory } from './factory';
-import { DatabaseClient, PlatformDatabaseConfig, User, Match, Message } from './interfaces';
 
+import { DatabaseFactory } from './factory';
+import { IDatabaseClient } from './interfaces';
+import { User } from './models/user';
+import { Match } from './models/match';
+import { Message } from './models/message';
+import { UserRepository } from './repositories/user-repository';
+import { MatchRepository } from './repositories/match-repository';
+import { MessageRepository } from './repositories/message-repository';
+
+/**
+ * 数据库服务类
+ * 管理数据库客户端和仓储
+ */
 export class DatabaseService {
   private static instance: DatabaseService;
-  private client?: DatabaseClient;
-  private factory: DatabaseFactory;
+  private client: IDatabaseClient;
+  private isInitialized = false;
+  
+  // 仓储实例
+  private userRepository: UserRepository;
+  private matchRepository: MatchRepository;
+  private messageRepository: MessageRepository;
 
   private constructor() {
-    this.factory = DatabaseFactory.getInstance();
+    // 使用工厂方法根据环境变量创建客户端
+    this.client = DatabaseFactory.createClientFromEnv();
+    
+    // 初始化仓储
+    this.userRepository = new UserRepository(this.client);
+    this.matchRepository = new MatchRepository(this.client);
+    this.messageRepository = new MessageRepository(this.client);
   }
 
-  static getInstance(): DatabaseService {
+  public static getInstance(): DatabaseService {
     if (!DatabaseService.instance) {
       DatabaseService.instance = new DatabaseService();
     }
     return DatabaseService.instance;
   }
 
-  async initialize(config: PlatformDatabaseConfig): Promise<void> {
-    if (this.client) {
-      await this.client.disconnect();
+  async initialize(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.client.initialize();
+      this.isInitialized = true;
     }
-
-    this.client = this.factory.createClient(config);
-    await this.client.connect();
   }
 
-  // 用户相关操作
-  async createUser(user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
+  async close(): Promise<void> {
+    if (this.isInitialized) {
+      await this.client.close();
+      this.isInitialized = false;
     }
+  }
 
-    const newUser: User = {
-      ...user,
-      id: crypto.randomUUID(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  async clear(): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('数据库服务未初始化');
+    }
+    await this.client.clear();
+  }
 
-    await this.client.execute(
-      'INSERT INTO users (id, username, email, profile_image, bio, preferences, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        newUser.id,
-        newUser.username,
-        newUser.email,
-        newUser.profileImage,
-        newUser.bio,
-        JSON.stringify(newUser.preferences),
-        newUser.createdAt.toISOString(),
-        newUser.updatedAt.toISOString(),
-      ]
-    );
+  // 获取仓储实例
+  getUserRepository(): UserRepository {
+    this.checkInitialized();
+    return this.userRepository;
+  }
+  
+  getMatchRepository(): MatchRepository {
+    this.checkInitialized();
+    return this.matchRepository;
+  }
+  
+  getMessageRepository(): MessageRepository {
+    this.checkInitialized();
+    return this.messageRepository;
+  }
 
-    return newUser;
+  // 向后兼容的方法 - 用户相关操作
+  /**
+   * @deprecated 请使用 getUserRepository().create() 或 update() 代替
+   */
+  async saveUser(user: User): Promise<void> {
+    this.checkInitialized();
+    if (user.id) {
+      await this.userRepository.update(user.id, user);
+    } else {
+      await this.userRepository.create(user);
+    }
   }
 
   async getUser(id: string): Promise<User | null> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
-    }
-
-    const users = await this.client.query<User>(
-      'SELECT * FROM users WHERE id = ? AND deleted_at IS NULL',
-      [id]
-    );
-
-    return users[0] || null;
+    this.checkInitialized();
+    return await this.userRepository.findById(id);
   }
 
-  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
-    }
-
-    const user = await this.getUser(id);
-    if (!user) {
-      return null;
-    }
-
-    const updatedUser: User = {
-      ...user,
-      ...updates,
-      updatedAt: new Date(),
-    };
-
-    await this.client.execute(
-      'UPDATE users SET username = ?, email = ?, profile_image = ?, bio = ?, preferences = ?, updated_at = ? WHERE id = ?',
-      [
-        updatedUser.username,
-        updatedUser.email,
-        updatedUser.profileImage,
-        updatedUser.bio,
-        JSON.stringify(updatedUser.preferences),
-        updatedUser.updatedAt.toISOString(),
-        id,
-      ]
-    );
-
-    return updatedUser;
+  async getUsers(): Promise<User[]> {
+    this.checkInitialized();
+    return await this.userRepository.findAll();
   }
 
-  // 匹配相关操作
-  async createMatch(userId1: string, userId2: string): Promise<Match> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
-    }
-
-    const newMatch: Match = {
-      id: crypto.randomUUID(),
-      userId1,
-      userId2,
-      status: 'pending',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    await this.client.execute(
-      'INSERT INTO matches (id, user_id1, user_id2, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [
-        newMatch.id,
-        newMatch.userId1,
-        newMatch.userId2,
-        newMatch.status,
-        newMatch.createdAt.toISOString(),
-        newMatch.updatedAt.toISOString(),
-      ]
-    );
-
-    return newMatch;
+  async updateUser(user: User): Promise<void> {
+    this.checkInitialized();
+    await this.userRepository.update(user.id, user);
   }
 
-  async updateMatchStatus(id: string, status: Match['status']): Promise<Match | null> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
-    }
-
-    const matches = await this.client.query<Match>(
-      'SELECT * FROM matches WHERE id = ? AND deleted_at IS NULL',
-      [id]
-    );
-
-    if (!matches[0]) {
-      return null;
-    }
-
-    const updatedMatch: Match = {
-      ...matches[0],
-      status,
-      matchedAt: status === 'accepted' ? new Date() : undefined,
-      updatedAt: new Date(),
-    };
-
-    await this.client.execute(
-      'UPDATE matches SET status = ?, matched_at = ?, updated_at = ? WHERE id = ?',
-      [
-        updatedMatch.status,
-        updatedMatch.matchedAt?.toISOString(),
-        updatedMatch.updatedAt.toISOString(),
-        id,
-      ]
-    );
-
-    return updatedMatch;
+  async deleteUser(id: string): Promise<void> {
+    this.checkInitialized();
+    await this.userRepository.delete(id);
   }
 
-  // 消息相关操作
-  async createMessage(matchId: string, senderId: string, content: string, type: Message['type']): Promise<Message> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
+  // 向后兼容的方法 - 匹配相关操作
+  async saveMatch(match: Match): Promise<void> {
+    this.checkInitialized();
+    if (match.id) {
+      await this.matchRepository.update(match.id, match);
+    } else {
+      await this.matchRepository.create(match);
     }
+  }
 
-    const newMessage: Message = {
-      id: crypto.randomUUID(),
-      matchId,
-      senderId,
-      content,
-      type,
-      read: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  async getMatch(id: string): Promise<Match | null> {
+    this.checkInitialized();
+    return await this.matchRepository.findById(id);
+  }
 
-    await this.client.execute(
-      'INSERT INTO messages (id, match_id, sender_id, content, type, read, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        newMessage.id,
-        newMessage.matchId,
-        newMessage.senderId,
-        newMessage.content,
-        newMessage.type,
-        newMessage.read,
-        newMessage.createdAt.toISOString(),
-        newMessage.updatedAt.toISOString(),
-      ]
-    );
+  async getMatches(): Promise<Match[]> {
+    this.checkInitialized();
+    return await this.matchRepository.findAll();
+  }
 
-    return newMessage;
+  async getMatchesByUserId(userId: string): Promise<Match[]> {
+    this.checkInitialized();
+    return await this.matchRepository.findByUserId(userId);
+  }
+
+  async deleteMatch(id: string): Promise<void> {
+    this.checkInitialized();
+    await this.matchRepository.delete(id);
+  }
+
+  // 向后兼容的方法 - 消息相关操作
+  async saveMessage(message: Message): Promise<void> {
+    this.checkInitialized();
+    if (message.id) {
+      await this.messageRepository.update(message.id, message);
+    } else {
+      await this.messageRepository.create(message);
+    }
+  }
+
+  async getMessage(id: string): Promise<Message | null> {
+    this.checkInitialized();
+    return await this.messageRepository.findById(id);
   }
 
   async getMessages(matchId: string): Promise<Message[]> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
-    }
-
-    return this.client.query<Message>(
-      'SELECT * FROM messages WHERE match_id = ? AND deleted_at IS NULL ORDER BY created_at ASC',
-      [matchId]
-    );
+    this.checkInitialized();
+    return await this.messageRepository.findByMatchId(matchId);
   }
 
-  async markMessageAsRead(id: string): Promise<void> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
-    }
-
-    await this.client.execute(
-      'UPDATE messages SET read = true, updated_at = ? WHERE id = ?',
-      [new Date().toISOString(), id]
-    );
+  async deleteMessage(id: string): Promise<void> {
+    this.checkInitialized();
+    await this.messageRepository.delete(id);
   }
 
-  // 数据同步
-  async sync(): Promise<void> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
-    }
-
-    await this.client.sync();
+  // 通用查询接口 - 向后兼容
+  async query<T>(tableName: string, options: any): Promise<T[]> {
+    this.checkInitialized();
+    return await this.client.query<T>(tableName, options);
   }
 
-  async getLastSyncTimestamp(): Promise<number> {
-    if (!this.client) {
-      throw new Error('Database not initialized');
-    }
-
-    return this.client.getLastSyncTimestamp();
+  async findOne<T>(tableName: string, filter: any): Promise<T | null> {
+    this.checkInitialized();
+    const results = await this.client.query<T>(tableName, {
+      where: filter,
+      limit: 1
+    });
+    return results.length > 0 ? results[0] : null;
   }
 
-  // 清理资源
-  async cleanup(): Promise<void> {
-    if (this.client) {
-      await this.client.disconnect();
-      this.client = undefined;
+  async insert<T extends { id: string }>(tableName: string, data: T): Promise<T> {
+    this.checkInitialized();
+    return await this.client.create<T>(tableName, data);
+  }
+
+  async update<T extends { id: string }>(tableName: string, id: string, data: Partial<T>): Promise<void> {
+    this.checkInitialized();
+    await this.client.update<T>(tableName, id, data);
+  }
+
+  async delete(tableName: string, id: string): Promise<void> {
+    this.checkInitialized();
+    await this.client.delete(tableName, id);
+  }
+
+  // 获取原始数据库客户端实例
+  getRawClient(): IDatabaseClient {
+    this.checkInitialized();
+    return this.client;
+  }
+  
+  // 辅助方法
+  private checkInitialized(): void {
+    if (!this.isInitialized) {
+      throw new Error('数据库服务未初始化');
     }
   }
-} 
+}

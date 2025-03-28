@@ -2,119 +2,137 @@ import { User } from '@/core/models/user';
 import { Match } from '@/core/models/match';
 import { Message } from '@/core/models/message';
 
-export type DatabaseEngine = 'mock' | 'indexeddb' | 'sqlite' | 'supabase';
+// 数据库引擎类型
+export type DatabaseEngine = 
+  'mock' | 
+  'indexeddb' | 
+  'sqlite' | 
+  'cloudflare-d1' | 
+  'firebase' | 
+  'supabase' | 
+  'turso' | 
+  'tidb' | 
+  'postgres';
 
-export interface IDatabaseClient {
-  // 用户相关操作
-  saveUser(user: User): Promise<void>;
-  getUser(id: string): Promise<User | null>;
-  getUsers(): Promise<User[]>;
-  updateUser(user: User): Promise<void>;
-  deleteUser(id: string): Promise<void>;
-
-  // 匹配相关操作
-  saveMatch(match: Match): Promise<void>;
-  getMatch(id: string): Promise<Match | null>;
-  getMatchesByUserId(userId: string): Promise<Match[]>;
-  updateMatch(match: Match): Promise<void>;
-  deleteMatch(id: string): Promise<void>;
-
-  // 消息相关操作
-  saveMessage(message: Message): Promise<void>;
-  getMessage(id: string): Promise<Message | null>;
-  getMessagesByMatchId(matchId: string): Promise<Message[]>;
-  updateMessage(message: Message): Promise<void>;
-  deleteMessage(id: string): Promise<void>;
-
-  // 数据库管理
-  initialize(): Promise<void>;
-  clear(): Promise<void>;
-  close(): Promise<void>;
-}
-
+// 数据库配置接口
 export interface DatabaseConfig {
   engine: DatabaseEngine;
   name?: string;
   version?: number;
-  encryptionKey?: string;
+  
+  // 通用连接配置
   url?: string;
   key?: string;
-}
-
-export interface DatabaseFactory {
-  createClient(config: DatabaseConfig): IDatabaseClient;
-}
-
-// 平台特定的数据库配置
-export interface PlatformDatabaseConfig extends DatabaseConfig {
-  // SQLite 特定配置
-  sqlite?: {
-    location?: string;
-    encryptionKey?: string;
-  };
   
-  // IndexedDB 特定配置
-  indexeddb?: {
-    storeNames: string[];
-  };
+  // Firebase 配置
+  apiKey?: string;
+  authDomain?: string;
+  projectId?: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
   
-  // 云端数据库配置
-  cloud?: {
-    url: string;
-    key: string;
-    projectId?: string;
-  };
+  // Cloudflare D1 配置
+  accountId?: string;
+  apiToken?: string;
+  databaseId?: string;
+  
+  // Turso 配置
+  authToken?: string;
+  
+  // TiDB/PostgreSQL 配置
+  host?: string;
+  port?: number;
+  user?: string;
+  password?: string;
+  database?: string;
 }
 
-// 数据同步状态
+// 同步策略类型
+export type SyncStrategy = 'online-first' | 'offline-first' | 'manual';
+
+// 同步状态接口
 export interface SyncStatus {
   lastSyncTimestamp: number;
   pendingChanges: number;
   isSyncing: boolean;
-  error?: string;
 }
 
-// 数据模型接口
-export interface BaseModel {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt?: Date;
+// 同步配置接口
+export interface SyncConfig {
+  localClient: IDatabaseClient;
+  remoteClient: IDatabaseClient;
+  syncStrategy?: SyncStrategy;
+  syncIntervalMs?: number;
+  maxSyncRetries?: number;
+  syncRetryDelayMs?: number;
+  conflictResolution?: 'client-wins' | 'server-wins' | 'last-write-wins' | 'manual';
 }
 
-// 用户数据模型
-export interface User extends BaseModel {
-  username: string;
-  email: string;
-  profileImage?: string;
-  bio?: string;
-  preferences: UserPreferences;
+// 混合数据库客户端配置
+export interface HybridDatabaseConfig extends SyncConfig {
+  syncStrategy: SyncStrategy;
 }
 
-// 用户偏好设置
-export interface UserPreferences {
-  ageRange: {
-    min: number;
-    max: number;
-  };
-  distance: number;
-  gender: string[];
-  interests: string[];
+// 基础数据库客户端接口 - 通用数据访问方法
+export interface IBaseDatabaseClient {
+  // 生命周期方法
+  initialize(): Promise<void>;
+  close(): Promise<void>;
+  clear(): Promise<void>;
+  
+  // 通用数据访问接口
+  findById<T>(tableName: string, id: string): Promise<T | null>;
+  findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
+  create<T extends { id: string }>(tableName: string, data: T): Promise<T>;
+  update<T extends { id: string }>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+  delete(tableName: string, id: string): Promise<void>;
+  
+  // 高级查询接口
+  query<T>(tableName: string, options: {
+    select?: string[];
+    where?: Record<string, any>;
+    orderBy?: string | string[];
+    limit?: number;
+    offset?: number;
+  }): Promise<T[]>;
+  
+  // 原始查询接口
+  executeRawQuery(query: string, params?: any[]): Promise<any>;
+  
+  // 事务支持
+  transaction<T>(callback: (trx: any) => Promise<T>): Promise<T>;
+  
+  // 表操作
+  isTableExists(tableName: string): Promise<boolean>;
 }
 
-// 匹配数据模型
-export interface Match extends BaseModel {
-  userId1: string;
-  userId2: string;
-  status: 'pending' | 'accepted' | 'rejected';
-  matchedAt?: Date;
+// 完整数据库客户端接口 - 包含特定于表的方法（向后兼容）
+// 完整数据库客户端接口 - 使用通用实体方法
+export interface IDatabaseClient extends IBaseDatabaseClient {
+  // 通用实体操作方法
+  saveEntity<T extends { id: string }>(tableName: string, entity: T): Promise<T>;
+  getEntity<T>(tableName: string, id: string): Promise<T | null>;
+  getAllEntities<T>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
+  updateEntity<T extends { id: string }>(tableName: string, entity: T): Promise<T>;
+  deleteEntity(tableName: string, id: string): Promise<boolean>;
+  
+  // 特定业务查询方法
+  getEntitiesByRelation<T>(
+    tableName: string, 
+    relationField: string, 
+    relationId: string
+  ): Promise<T[]>;
 }
 
-// 消息数据模型
-export interface Message extends BaseModel {
-  matchId: string;
-  senderId: string;
-  content: string;
-  type: 'text' | 'image' | 'location';
-  read: boolean;
-} 
+
+
+// 同步客户端接口
+export interface ISyncClient extends IDatabaseClient {
+  // 同步方法
+  manualSync(): Promise<boolean>;
+  getSyncStatus(): Promise<SyncStatus>;
+  getLastSyncTimestamp(): Promise<number>;
+  onSyncStatusChange(listener: (status: SyncStatus) => void): () => void;
+}
+  

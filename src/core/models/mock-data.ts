@@ -6,7 +6,7 @@ export const mockUsers: User[] = [
     name: 'Sarah Chen',
     age: 28,
     bio: '热爱旅行和摄影的软件工程师，喜欢探索新事物。',
-    images: [
+    photos: [
       'https://picsum.photos/400/600?random=1',
       'https://picsum.photos/400/600?random=2',
       'https://picsum.photos/400/600?random=3'
@@ -22,7 +22,7 @@ export const mockUsers: User[] = [
     name: 'Mike Johnson',
     age: 31,
     bio: '产品经理，喜欢户外运动和阅读。',
-    images: [
+    photos: [
       'https://picsum.photos/400/600?random=4',
       'https://picsum.photos/400/600?random=5',
       'https://picsum.photos/400/600?random=6'
@@ -38,7 +38,7 @@ export const mockUsers: User[] = [
     name: 'Emma Wang',
     age: 26,
     bio: 'UI设计师，热爱艺术和创意。',
-    images: [
+    photos: [
       'https://picsum.photos/400/600?random=7',
       'https://picsum.photos/400/600?random=8',
       'https://picsum.photos/400/600?random=9'

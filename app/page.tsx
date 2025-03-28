@@ -31,6 +31,18 @@ export default function Home() {
             访问移动版应用
           </p>
         </Link>
+        
+        <Link
+          href="/mobile/sqlite-demo" 
+          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
+        >
+          <h2 className="mb-3 text-2xl font-semibold">
+            SQLite演示 <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">→</span>
+          </h2>
+          <p className="m-0 max-w-[30ch] text-sm opacity-50">
+            SQLite离线存储演示
+          </p>
+        </Link>
       </div>
     </main>
   );

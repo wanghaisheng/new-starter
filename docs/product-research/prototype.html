@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tinder-like App UI Mockups</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass-card {
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            background-color: rgba(17, 25, 40, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.125);
+        }
+        .mockup-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            padding: 2rem;
+            background-color: #0f172a;
+        }
+        .mockup {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        .mockup-header {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 0.5rem;
+            text-align: center;
+            font-family: sans-serif;
+            color: white;
+            font-size: 0.8rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white">
+    <h1 class="text-3xl font-bold text-center py-6">Premium Dating App UI Mockups</h1>
+    
+    <div class="mockup-container">
+        <!-- Row 1 -->
+        <div class="mockup">
+            <div class="mockup-header">Onboarding Screen</div>
+            <div class="relative h-[600px] bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden">
+                <div class="absolute inset-0 flex flex-col items-center justify-center p-6">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold mb-2">Connect</h2>
+                        <p class="text-slate-300">Find your perfect match with our advanced algorithm</p>
+                    </div>
+                    
+                    <div class="glass-card rounded-2xl p-6 w-full max-w-sm">
+                        <div class="flex justify-center mb-6">
+                            <div class="w-20 h-20 rounded-full bg-slate-700 overflow-hidden">
+                                <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="User" class="w-full h-full object-cover">
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <button class="w-full bg-pink-600 hover:bg-pink-700 text-white py-3 rounded-full font-medium transition-all">
+                                Sign up with phone
+                            </button>
+                            <button class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-full font-medium transition-all flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z"/>
+                                </svg>
+                                Continue with Google
+                            </button>
+                        </div>
+                        
+                        <div class="text-center mt-6 text-sm text-slate-400">
+                            Already have an account? <a href="#" class="text-pink-500 hover:underline">Log in</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mockup">
+            <div class="mockup-header">Profile Setup - Photos</div>
+            <div class="relative h-[600px] bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden">
+                <div class="absolute inset-0 flex flex-col p-4">
+                    <div class="flex justify-between items-center mb-6">
+                        <button class="text-slate-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"/>
+                            </svg>
+                        </button>
+                        <h2 class="text-xl font-bold">Add Photos</h2>
+                        <button class="text-pink-500 font-medium">Skip</button>
+                    </div>
+                    
+                    <div class="glass-card rounded-2xl p-4 flex-1 flex flex-col">
+                        <div class="text-center mb-6">
+                            <h3 class="text-lg font-medium mb-1">Show your best self</h3>
+                            <p class="text-sm text-slate-400">Add at least 2 photos to continue</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3 mb-6">
+                            <div class="aspect-square rounded-xl bg-slate-700/50 border border-dashed border-slate-600 flex items-center justify-center">
+                                <div class="text-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16" class="mx-auto mb-2 text-slate-500">
+                                        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                                        <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+                                    </svg>
+                                    <span class="text-sm text-slate-400">Add photo</span>
+                                </div>
+                            </div>
+                            <div class="aspect-square rounded-xl overflow-hidden relative">
+                                <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="User photo" class="w-full h-full object-cover">
+                                <button class="absolute top-2 right-2 bg-slate-900/70 rounded-full p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="text-white">
+                                        <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="aspect-square rounded-xl bg-slate-700/50 border border-dashed border-slate-600 flex items-center justify-center">
+                                <div class="text-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16" class="mx-auto mb-2 text-slate-500">
+                                        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                                        <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+                                    </svg>
+                                    <span class="text-sm text-slate-400">Add photo</span>
+                                </div>
+                            </div>
+                            <div class="aspect-square rounded-xl bg-slate-700/50 border border-dashed border-slate-600 flex items-center justify-center">
+                                <div class="text-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16" class="mx-auto mb-2 text-slate-500">
+                                        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                                        <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+                                    </svg>
+                                    <span class="text-sm text-slate-400">Add photo</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button class="mt-auto bg-pink-600 hover:bg-pink-700 text-white py-3 rounded-full font-medium transition-all">
+                            Continue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Row 2 -->
+        <div class="mockup">
+            <div class="mockup-header">Main Swiping Screen</div>
+            <div class="relative h-[600px] bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden">
+                <div class="absolute inset-0 flex flex-col">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center p-4">
+                        <button class="text-slate-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
+                            </svg>
+                        </button>
+                        <div class="flex items-center gap-2">
+                            <div class="w-10 h-10 rounded-full overflow-hidden">
+                                <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="User" class="w-full h-full object-cover">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Card Stack -->
+                    <div class="flex-1 relative flex items-center justify-center p-4">
+                        <!-- Main Card -->
+                        <div class="absolute w-full max-w-sm h-[70%] rounded-2xl overflow-hidden glass-card">
+                            <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce" alt="Profile" class="w-full h-full object-cover">
+                            
+                            <!-- Gradient Overlay -->
+                            <div class="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent"></div>
+                            
+                            <!-- Profile Info -->
+                            <div class="absolute bottom-0 left-0 right-0 p-6">
+                                <div class="flex justify-between items-end">
+                                    <div>
+                                        <h3 class="text-2xl font-bold">Sarah, 28</h3>
+                                        <p class="text-slate-300">5 miles away</p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button class="bg-slate-800/70 hover:bg-slate-700/70 rounded-full p-3 transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                                <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                                            </svg>
+                                        </button>
+                                        <button class="bg-pink-600/70 hover:bg-pink-700/70 rounded-full p-3 transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                                <path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Photo Indicators -->
+                            <div class="absolute bottom-20 left-0 right-0 flex justify-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-white"></div>
+                                <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                                <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                                <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bottom Navigation -->
+                    <div class="flex justify-around items-center p-4 border-t border-slate-800">
+                        <button class="text-slate-400 hover:text-pink-500 p-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L8 2.207l6.646 6.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.707 1.5Z"/>
+                                <path d="m8 3.293 6 6V13.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 13.5V9.293l6-6Z"/>
+                            </svg>
+                        </button>
+                        <button class="text-slate-400 hover:text-pink-500 p-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H1zM11 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5zm.5 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1h-4zm2 3a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1h-2zm0 3a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1h-2z"/>
+                            </svg>
+                        </button>
+                        <button class="bg-pink-600 text-white p-4 rounded-full -mt-8 hover:bg-pink-700 transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M2 1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h9.586a2 2 0 0 1 1.414.586l2 2V2a1 1 0 0 0-1-1H2zm12-1a2 2 0 0 1 2 2v12.793a.5.5 0 0 1-.854.353l-2.853-2.853a1 1 0 0 0-.707-.293H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h12z"/>
+                            </svg>
+                        </button>
+                        <button class="text-slate-400 hover:text-pink-500 p-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zM8 1.918l-.797.161A4.002 4.002 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 0 0-3.203-3.92L8 1.917zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5.002 5.002 0 0 1 13 6c0 .88.32 4.2 1.22 6z"/>
+                            </svg>
+                        </button>
+                        <button class="text-slate-400 hover:text-pink-500 p-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3Zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mockup">
+            <div class="mockup-header">Match Screen</div>
+            <div class="relative h-[600px] bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden">
+                <div class="absolute inset-0 flex flex-col items-center justify-center p-6">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-pink-500 mb-2">It's a Match!</h2>
+                        <p class="text-slate-300">You and Sarah have liked each other</p>
+                    </div>
+                    
+                    <div class="flex justify-center items-end gap-6 mb-8">
+                        <div class="text-center">
+                            <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-pink-500 mb-2">
+                                <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="User" class="w-full h-full object-cover">
+                            </div>
+                            <span class="text-sm">You</span>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-pink-500 mb-2">
+                                <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="Match" class="w-full h-full object-cover">
+                            </div>
+                            <span class="text-sm">Sarah</span>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card rounded-2xl p-6 w-full max-w-sm">
+                        <div class="space-y-4">
+                            <button class="w-full bg-pink-600 hover:bg-pink-700 text-white py-3 rounded-full font-medium transition-all">
+                                Send Message
+                            </button>
+                            <button class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-full font-medium transition-all">
+                                Keep Swiping
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Row 3 -->
+        <div class="mockup">
+            <div class="mockup-header">Chat List</div>
+            <div class="relative h-[600px] bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden">
+                <div class="absolute inset-0 flex flex-col">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center p-4 border-b border-slate-800">
+                        <h2 class="text-xl font-bold">Messages</h2>
+                        <button class="text-pink-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                                <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Search -->
+                    <div class="p-4">
+                        <div class="glass-card rounded-full px-4 py-2 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="text-slate-400 mr-2">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                            </svg>
+                            <input type="text" placeholder="Search matches" class="bg-transparent border-none outline-none w-full text-sm placeholder-slate-400">
+                        </div>
+                    </div>
+                    
+                    <!-- Chat List -->
+                    <div class="flex-1 overflow-y-auto">
+                        <div class="divide-y divide-slate-800">
+                            <!-- Chat Item 1 -->
+                            <div class="p-4 flex items-center hover:bg-slate-800/50 cursor-pointer transition-all">
+                                <div class="relative mr-3">
+                                    <div class="w-12 h-12 rounded-full overflow-hidden">
+                                        <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="Sarah" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-slate-900"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center">
+                                        <h3 class="font-medium">Sarah</h3>
+                                        <span class="text-xs text-slate-400">2h ago</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 truncate">Hey! How are you doing today?</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Chat Item 2 -->
+                            <div class="p-4 flex items-center hover:bg-slate-800/50 cursor-pointer transition-all">
+                                <div class="relative mr-3">
+                                    <div class="w-12 h-12 rounded-full overflow-hidden">
+                                        <img src="https://randomuser.me/api/portraits/women/65.jpg" alt="Emma" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-slate-500 border-2 border-slate-900"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center">
+                                        <h3 class="font-medium">Emma</h3>
+                                        <span class="text-xs text-slate-400">1d ago</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 truncate">Let's meet this weekend!</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Chat Item 3 -->
+                            <div class="p-4 flex items-center hover:bg-slate-800/50 cursor-pointer transition-all">
+                                <div class="relative mr-3">
+                                    <div class="w-12 h-12 rounded-full overflow-hidden">
+                                        <img src="https://randomuser.me/api/portraits/women/76.jpg" alt="Olivia" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-slate-900"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center">
+                                        <h3 class="font-medium">Olivia</h3>
+                                        <span class="text-xs text-slate-400">2d ago</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 truncate">Thanks for the great time yesterday 😊</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Chat Item 4 -->
+                            <div class="p-4 flex items-center hover:bg-slate-800/50 cursor-pointer transition-all">
+                                <div class="relative mr-3">
+                                    <div class="w-12 h-12 rounded-full overflow-hidden">
+                                        <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="James" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-slate-500 border-2 border-slate-900"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center">
+                                        <h3 class="font-medium">James</h3>
+                                        <span class="text-xs text-slate-400">3d ago</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 truncate">Are you free for coffee tomorrow?</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mockup">
+            <div class="mockup-header">Chat Conversation</div>
+            <div class="relative h-[600px] bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden">
+                <div class="absolute inset-0 flex flex-col">
+                    <!-- Chat Header -->
+                    <div class="flex justify-between items-center p-4 border-b border-slate-800">
+                        <div class="flex items-center">
+                            <button class="mr-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"/>
+                                </svg>
+                            </button>
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full overflow-hidden mr-3">
+                                    <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="Sarah" class="w-full h-full object-cover">
+                                </div>
+                                <div>
+                                    <h3 class="font-medium">Sarah</h3>
+                                    <p class="text-xs text-slate-400">Online now</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="text-slate-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3zm-8.322.12C1.72 3.042 1.95 3 2.19 3h5.396l-.707-.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Messages -->
+                    <div class="flex-1 p-4 overflow-y-auto space-y-3">
+                        <!-- Date Divider -->
+                        <div class="flex justify-center my-4">
+                            <div class="text-xs text-slate-400 bg-slate-800/50 px-3 py-1 rounded-full">
+                                Today
+                            </div>
+                        </div>
+                        
+                        <!-- Received Message -->
+                        <div class="flex items-start">
+                            <div class="w-8 h-8 rounded-full overflow-hidden mr-2">
+                                <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="Sarah" class="w-full h-full object-cover">
+                            </div>
+                            <div class="max-w-xs">
+                                <div class="bg-slate-700/50 rounded-2xl rounded-tl-none px-4 py-2">
+                                    <p>Hey there! How's your day going?</p>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">10:24 AM</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Sent Message -->
+                        <div class="flex justify-end">
+                            <div class="max-w-xs">
+                                <div class="bg-pink-600 rounded-2xl rounded-tr-none px-4 py-2">
+                                    <p>Pretty good! Just finished work. How about you?</p>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1 text-right">10:26 AM</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Received Message -->
+                        <div class="flex items-start">
+                            <div class="w-8 h-8 rounded-full overflow-hidden mr-2">
+                                <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="Sarah" class="w-full h-full object-cover">
+                            </div>
+                            <div class="max-w-xs">
+                                <div class="bg-slate-700/50 rounded-2xl rounded-tl-none px-4 py-2">
+                                    <p>Not bad! I was thinking, would you like to grab coffee this weekend?</p>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">10:27 AM</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Sent Message -->
+                        <div class="flex justify-end">
+                            <div class="max-w-xs">
+                                <div class="bg-pink-600 rounded-2xl rounded-tr-none px-4 py-2">
+                                    <p>That sounds great! Saturday morning?</p>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1 text-right">10:28 AM</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Received Message -->
+                        <div class="flex items-start">
+                            <div class="w-8 h-8 rounded-full overflow-hidden mr-2">
+                                <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="Sarah" class="w-full h-full object-cover">
+                            </div>
+                            <div class="max-w-xs">
+                                <div class="bg-slate-700/50 rounded-2xl rounded-tl-none px-4 py-2">
+                                    <p>Perfect! There's a nice place downtown called The Daily Grind. 10am?</p>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">10:29 AM</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Message Input -->
+                    <div class="p-4 border-t border-slate-800">
+                        <div class="flex items-center">
+                            <button class="text-slate-400 p-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                    <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"/>
+                                </svg>
+                            </button>
+                            <div class="flex-1 mx-2">
+                                <input type="text" placeholder="Type a message" class="w-full bg-slate-800/50 rounded-full px-4 py-2 outline-none border border-slate-700 focus:border-pink-500 transition-all">
+                            </div>
+                            <button class="text-pink-500 p-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Row 4 -->
+        <div class="mockup">
+            <div class="mockup-header">User Profile</div>
+            <div class="relative h-[600px] bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden">
+                <div class="absolute inset-0 flex flex-col">
+                    <!-- Cover Photo -->
+                    <div class="h-48 bg-gradient-to-r from-purple-600 to-pink-600 relative">
+                        <button class="absolute top-4 left-4 bg-slate-900/50 rounded-full p-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"/>
+                            </svg>
+                        </button>
+                        <button class="absolute top-4 right-4 bg-slate-900/50 rounded-full p-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3zm-8.322.12C1.72 3.042 1.95 3 2.19 3h5.396l-.707-.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Profile Content -->
+                    <div class="flex-1 overflow-y-auto">
+                        <!-- Profile Picture and Basic Info -->
+                        <div class="px-6 -mt-12 relative z-10">
+                            <div class="flex justify-between items-end">
+                                <div class="w-24 h-24 rounded-full border-4 border-slate-900 overflow-hidden">
+                                    <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="User" class="w-full h-full object-cover">
+                                </div>
+                                <button class="bg-pink-600 hover:bg-pink-700 text-white px-6 py-2 rounded-full font-medium transition-all mb-4">
+                                    Edit Profile
+                                </button>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <h2 class="text-2xl font-bold">Jessica, 26</h2>
+                                <p class="text-slate-400">Software Developer</p>
+                                <div class="flex items-center mt-1 text-sm text-slate-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" class="mr-1">
+                                        <path fill-rule="evenodd" d="M4 4a4 4 0 1 1 4.5 3.969V13.5a.5.5 0 0 1-1 0V7.97A4 4 0 0 1 4 3.999zm2.493 8.574a.5.5 0 0 1-.411.575c-.712.118-1.28.295-1.655.493a1.319 1.319 0 0 0-.37.265.301.301 0 0 0-.057.09V14l.002.008a.147.147 0 0 0 .016.033.617.617 0 0 0 .145.15c.165.13.435.27.813.395.751.25 1.82.414 3.024.414s2.273-.163 3.024-.414c.378-.126.648-.265.813-.395a.619.619 0 0 0 .146-.15.148.148 0 0 0 .015-.033L12 14v-.004a.301.301 0 0 0-.057-.09 1.318 1.318 0 0 0-.37-.264c-.376-.198-.943-.375-1.655-.493a.5.5 0 1 1 .164-.986c.77.127 1.452.328 1.957.594C12.5 13 13 13.4 13 14c0 .426-.26.752-.544.977-.29.228-.68.413-1.116.558-.878.293-2.059.465-3.34.465-1.281 0-2.462-.172-3.34-.465-.436-.145-.826-.33-1.116-.558C3.26 14.752 3 14.426 3 14c0-.599.5-1 .961-1.243.505-.266 1.187-.467 1.957-.594a.5.5 0 0 1 .575.411z"/>
+                                    </svg>
+                                    San Francisco, CA
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- About Section -->
+                        <div class="glass-card rounded-2xl p-6 mx-4 mt-6">
+                            <h3 class="font-bold text-lg mb-3">About</h3>
+                            <p class="text-slate-300">
+                                Software developer with a passion for hiking and photography. Love trying new restaurants and exploring the city. Looking for someone to share adventures with!
+                            </p>
+                        </div>
+                        
+                        <!-- Interests -->
+                        <div class="glass-card rounded-2xl p-6 mx-4 mt-4">
+                            <h3 class="font-bold text-lg mb-3">Interests</h3>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="bg-slate-800/50 text-sm px-3 py-1 rounded-full">Hiking</span>
+                                <span class="bg-slate-800/50 text-sm px-3 py-1 rounded-full">Photography</span>
+                                <span class="bg-slate-800/50 text-sm px-3 py-1 rounded-full">Travel</span>
+                                <span class="bg-slate-800/50 text-sm px-3 py-1 rounded-full">Coffee</span>
+                                <span class="bg-slate-800/50 text-sm px-3 py-1 rounded-full">Reading</span>
+                                <span class="bg-slate-800/50 text-sm px-3 py-1 rounded-full">Yoga</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Photos -->
+                        <div class="glass-card rounded-2xl p-6 mx-4 mt-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-lg">Photos</h3>
+                                <button class="text-pink-500 text-sm">See all</button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="aspect-square rounded-lg overflow-hidden">
+                                    <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330" alt="Photo" class="w-full h-full object-cover">
+                                </div>
+                                <div class="aspect-square rounded-lg overflow-hidden">
+                                    <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9" alt="Photo" class="w-full h-full object-cover">
+                                </div>
+                                <div class="aspect-square rounded-lg overflow-hidden">
+                                    <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1" alt="Photo" class="w-full h-full object-cover">
+                                </div>
+                                <div class="aspect-square rounded-lg overflow-hidden">
+                                    <img src="https://images.unsplash.com/photo-1488426862026-3ee34a7d66df" alt="Photo" class="w-full h-full object-cover">
+                                </div>
+                                <div class="aspect-square rounded-lg overflow-hidden">
+                                    <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80" alt="Photo" class="w-full h-full object-cover">
+                                </div>
+                                <div class="aspect-square rounded-lg overflow-hidden bg-slate-800/50 flex items-center justify-center">
+                                    <span class="text-slate-400">+12</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mockup">
+            <div class="mockup-header">Settings Screen</div>
+            <div class="relative h-[600px] bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden">
+                <div class="absolute inset-0 flex flex-col">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center p-4 border-b border-slate-800">
+                        <button class="text-slate-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"/>
+                            </svg>
+                        </button>
+                        <h2 class="text-xl font-bold">Settings</h2>
+                        <div class="w-5"></div> <!-- Spacer for balance -->
+                    </div>
+                    
+                    <!-- Settings Content -->
+                    <div class="flex-1 overflow-y-auto">
+                        <!-- Account Section -->
+                        <div class="p-4">
+                            <h3 class="text-sm font-medium text-slate-400 mb-2">ACCOUNT</h3>
+                            <div class="glass-card rounded-xl divide-y divide-slate-800">
+                                <div class="p-4 flex justify-between items-center hover:bg-slate-800/50 cursor-pointer">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 rounded-full overflow-hidden mr-3">
+                                            <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="User" class="w-full h-full object-cover">
+                                        </div>
+                                        <div>
+                                            <h4 class="font-medium">Jessica</h4>
+                                            <p class="text-xs text-slate-400">Premium Member</p>
+                                        </div>
+                                    </div>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Edit Profile</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Preferences -->
+                        <div class="p-4">
+                            <h3 class="text-sm font-medium text-slate-400 mb-2">PREFERENCES</h3>
+                            <div class="glass-card rounded-xl divide-y divide-slate-800">
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Discovery Settings</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Notification Settings</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Privacy Settings</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Support -->
+                        <div class="p-4">
+                            <h3 class="text-sm font-medium text-slate-400 mb-2">SUPPORT</h3>
+                            <div class="glass-card rounded-xl divide-y divide-slate-800">
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Get Help</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Safety Tips</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Community Guidelines</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Legal -->
+                        <div class="p-4">
+                            <h3 class="text-sm font-medium text-slate-400 mb-2">LEGAL</h3>
+                            <div class="glass-card rounded-xl divide-y divide-slate-800">
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Terms of Service</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Privacy Policy</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                                <div class="p-4 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center">
+                                    <span>Licenses</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Logout -->
+                        <div class="p-4">
+                            <button class="w-full text-center text-pink-500 font-medium py-3">
+                                Log Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

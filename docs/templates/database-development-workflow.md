@@ -4,6 +4,23 @@
 
 本文档描述了从开发到生产环境的数据库演进策略，包括Mock数据、本地数据库和生产环境数据库三个阶段。
 
+### 1.1 三阶段开发流程
+
+| 阶段 | 环境变量 | 主要目的 | 关注点 |
+|------|---------|---------|--------|
+| Mock数据 | NEXT_PUBLIC_DATABASE_ENV=mock | 需求确认与快速原型 | 数据结构、字段定义、关联关系 |
+| 本地数据库 | NEXT_PUBLIC_DATABASE_ENV=local | 功能验证与性能测试 | 数据持久化、查询性能、事务处理 |
+| 生产环境 | NEXT_PUBLIC_DATABASE_ENV=production | 正式部署与多用户支持 | 安全性、可扩展性、数据同步 |
+
+### 1.2 无缝切换原则
+
+为确保在三个阶段间无缝切换，应遵循以下原则：
+
+1. **统一接口设计**：所有数据库服务实现相同的接口
+2. **配置驱动切换**：通过环境变量控制数据库类型
+3. **优雅降级策略**：高级环境配置缺失时自动降级到基础环境
+4. **数据模型一致性**：确保所有环境使用相同的数据模型
+
 ## 2. 开发阶段
 
 ### 2.1 Mock数据阶段
@@ -300,3 +317,108 @@ describe('DataSync', () => {
 - 防止SQL注入
 - 实现请求限流
 - 记录安全日志
+
+
+## 9. 错误处理与环境切换
+
+### 9.1 配置验证
+
+在初始化数据库服务前，应验证配置的完整性。以下是配置验证的示例代码：
+
+// 配置验证示例
+function validateConfig(config: DatabaseConfig): boolean {
+  // 检查必要的配置项
+  if (config.type === 'firebase' && (!config.apiKey || config.apiKey === '')) {
+    console.warn('Firebase配置无效：缺少有效的API密钥');
+    return false;
+  }
+  
+  if (config.type === 'supabase' && (!config.url || !config.key)) {
+    console.warn('Supabase配置无效：缺少URL或密钥');
+    return false;
+  }
+  
+  return true;
+}
+
+### 9.2 优雅降级策略
+
+所有数据库服务应实现优雅降级策略，确保在配置不完整或服务不可用时能够回退到基础功能。以下是降级策略的示例代码：
+
+// 数据库服务初始化示例
+async initialize(): Promise<void> {
+  try {
+    // 获取当前数据库环境配置
+    const dbEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+    
+    // 根据数据库环境决定存储策略
+    switch (dbEnv) {
+      case 'mock':
+        // Mock数据阶段 - 使用内存存储
+        console.log('数据库环境: Mock数据阶段');
+        this.useLocalStorage = true;
+        return;
+        
+      case 'local':
+        // 本地数据库阶段
+        console.log('数据库环境: 本地数据库阶段');
+        this.useLocalStorage = true;
+        return;
+        
+      case 'production':
+        // 生产环境阶段 - 尝试初始化云服务
+        console.log('数据库环境: 生产环境阶段');
+        
+        // 验证配置
+        if (!validateConfig(this.config)) {
+          console.warn('云服务配置无效，回退到本地存储');
+          this.useLocalStorage = true;
+          return;
+        }
+        
+        // 初始化云服务
+        await this.initializeCloudService();
+        return;
+        
+      default:
+        // 未知环境 - 回退到本地存储
+        console.warn(`未知数据库环境: ${dbEnv}，回退到本地存储`);
+        this.useLocalStorage = true;
+        return;
+    }
+  } catch (error) {
+    console.error('初始化存储服务失败:', error);
+    console.log('回退到本地存储模式');
+    this.useLocalStorage = true;
+  }
+}
+
+### 9.3 环境切换
+
+在开发过程中，可以通过以下方式在不同数据库环境之间切换：
+
+1. **环境变量文件**：
+   - `.env.development`：Mock数据环境（默认）
+   - `.env.local`：本地数据库环境
+   - `.env.production`：生产环境
+
+2. **启动命令**：
+
+   # 开发环境（Mock数据）
+   bun run dev
+   
+   # 本地数据库环境
+   bun run dev --env-file=.env.local
+   
+   # 生产环境
+   bun run build
+   bun run start
+
+### 9.4 常见问题与解决方案
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| Firebase初始化错误 | API密钥无效或未设置 | 检查环境变量配置，确保在使用Firebase前验证配置有效性 |
+| 数据库连接失败 | 网络问题或配置错误 | 实现重试机制，并在失败后回退到本地存储 |
+| 数据同步冲突 | 离线操作与云端操作冲突 | 实现冲突解决策略，如"最新胜出"或"合并更改" |
+| 权限错误 | 缺少访问权限 | 确保正确配置安全规则，并在UI中提供清晰的错误消息 |

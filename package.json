@@ -4,6 +4,9 @@
   "description": "Next.js 15 + Ionic + Tailwind + Capacitor 全栈启动项目",
   "scripts": {
     "dev": "next dev",
+    "dev:mock": "cross-env NEXT_PUBLIC_DATABASE_ENV=mock next dev",
+    "dev:local": "cross-env NEXT_PUBLIC_DATABASE_ENV=local next dev",
+    "dev:prod": "cross-env NEXT_PUBLIC_DATABASE_ENV=production next dev",
     "build": "next build",
     "build:static": "next build",
     "start": "next start",
@@ -37,6 +40,7 @@
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "autoprefixer": "^10.4.16",
+    "cross-env": "^7.0.3",
     "eslint": "^8.56.0",
     "eslint-config-next": "^15.0.0",
     "jest": "^29.7.0",

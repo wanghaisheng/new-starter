@@ -1,0 +1,51 @@
+# Trae AI规则配置文件 - 基于开发流程指南
+version: 2.0
+base_rule: docs/development-process-guide.md
+dynamic_rules:
+  enabled: true
+  template_dir: docs/templates/
+  auto_discovery: true
+
+rule_groups:
+  # 核心开发流程规则（直接从指南文档提取）
+  core_workflow:
+    source: development-process-guide.md
+    sections:
+      - "功能开发流程"
+      - "数据库开发流程"
+      - "插件集成指南"
+    priority: 100
+    applies: ["all"]
+
+  # 动态模板规则（按需加载）
+  templates:
+    discovery_pattern: "*.md"
+    load_strategy: "on-demand"
+    priority: 90
+    metadata:
+      generated: true
+      source: "development-process-guide.md"
+
+# 规则解析配置
+parsing:
+  reference_style: "markdown-link"
+  section_depth: 3
+  variable_interpolation: true
+
+# 文档版本控制
+version_control:
+  sync_with: 
+    - docs/development-process-guide.md
+  update_strategy: "cascade"
+
+# 示例模板规则映射（自动生成）
+template_mappings:
+  coding-standards:
+    trigger: ["code-review", "code-generation"]
+    source: development-process-guide.md#代码规范
+  frontend-standards: 
+    trigger: ["frontend", "components"]
+    source: development-process-guide.md#目录结构
+  backend-standards:
+    trigger: ["backend", "api"]
+    source: development-process-guide.md#数据库开发流程

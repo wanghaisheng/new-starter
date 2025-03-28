@@ -1,9 +1,5 @@
 # 开发流程指南
 
-> 版本兼容性：本文档必须与[guideline.md](../guideline.md) v1.1+ 保持同步  
-> 最后同步时间：2025-03-28
-
-
 本文档整合了项目开发过程中的各种流程和规范，为团队成员提供统一的开发指导。
 
 ## 0. 项目初始化检查
@@ -50,33 +46,7 @@ bash docs/tasks/tools/check-environment.sh --force
 2. 问题解决后，记录解决方案并总结经验教训
 3. 定期回顾问题记录，识别常见问题模式并改进开发流程
 
-## 1.4 版本控制
-
-### 提交消息格式：
-- 类型(feat|fix|docs|style|refactor|test|chore): 简要描述
-- 空行
-- 详细说明（可选）
-- 空行
-- 关联问题编号（如Closes #123）
-
-示例：
-\`\`\`
-feat: 添加用户认证模块
-
-实现JWT基础认证流程
-包含登录/注册/令牌刷新功能
-
-Closes #45
-\`\`\`
-### 1.5 自动化脚本
-
-1. **脚本存放位置**：统一放在`docs/tasks/tools/`目录
-2. **命名要求**：使用`<功能>-<操作>.sh`格式，如`setup-database.sh`
-3. **输出规范**：
-   - 成功执行应输出绿色✅标记
-   - 失败应输出红色❌标记及解决建议
-4. **结果记录**：自动生成`<脚本名>-<时间戳>.log`文件
-5. **学习资源**：脚本编写参考资料位于`docs/lessons/bash/`目录
+### 1.4 版本控制与分支管理
 
 所有开发工作必须遵循项目的[Git分支管理策略](./git-branch-strategy.md)，确保代码变更有序且可追踪。主要包括：
 
@@ -101,19 +71,18 @@ Closes #45
 
 ## 2. 数据库开发流程
 
-数据库开发遵循渐进式流程，从Mock数据到生产环境数据库。这三个阶段构成了一个连续的开发流程，理想情况下，只需通过切换环境变量即可在不同阶段间无缝切换，而无需修改业务代码。这种设计确保了在开发初期就能确认数据库表字段和关联关系，随后在本地环境进行测试验证，最终无缝过渡到生产环境。
+数据库开发遵循渐进式流程，从Mock数据到生产环境数据库：
 
 ### 2.1 Mock数据阶段
 
 1. 在`src/mock/data/`目录下创建对应功能的mock数据文件
 2. 创建Mock数据服务，实现与真实服务相同的接口
 3. 在`.env.development`中配置使用Mock数据：
-
+   ```
    NEXT_PUBLIC_DATABASE_ENV=mock
    NEXT_PUBLIC_MOCK_DB_TYPE=memory  # 或 json
-
+   ```
 4. 验证UI和业务逻辑是否正常工作
-5. **重要**：确保服务实现中包含适当的降级策略，即使配置不完整也能正常运行
 
 ### 2.2 本地数据库阶段
 
@@ -121,21 +90,18 @@ Closes #45
 2. 创建数据库迁移脚本
 3. 实现本地数据库服务
 4. 在`.env.local`中配置使用本地数据库：
-
+   ```
    NEXT_PUBLIC_DATABASE_ENV=local
    NEXT_PUBLIC_LOCAL_DB_TYPE=sqlite  # 或 indexeddb
-
+   ```
 5. 验证数据持久化和查询性能
-6. **环境切换**
-  参考 2.4 环境切换
-
 
 ### 2.3 生产环境数据库阶段
 
 1. 实现云端数据库服务（Firebase/Supabase/Cloudflare D1）
 2. 实现离线数据存储（移动端使用Capacitor SQLite，Web端使用IndexedDB）
 3. 在`.env.production`中配置使用云端数据库：
-
+   ```
    NEXT_PUBLIC_DATABASE_ENV=production
    NEXT_PUBLIC_CLOUD_DB_TYPE=supabase  # 或 firebase, cloudflare_d1
    NEXT_PUBLIC_CLOUD_DB_URL=your_db_url
@@ -145,39 +111,11 @@ Closes #45
    NEXT_PUBLIC_OFFLINE_STORAGE_TYPE=indexeddb  # 可选: capacitor-sqlite, indexeddb, localstorage, websql
    NEXT_PUBLIC_OFFLINE_STORAGE_NAME=app_db
    NEXT_PUBLIC_OFFLINE_STORAGE_VERSION=1
-
+   ```
 4. 实现数据同步策略
 5. 优化数据库性能和安全性
-6. **配置验证**：在使用云服务前，确保所有必要的环境变量都已正确设置
 
-### 2.4 环境切换与错误处理
-
-为确保在不同数据库环境之间平滑切换，请遵循以下最佳实践：
-
-1. **服务初始化检查**：所有数据库服务必须在初始化时检查配置的完整性
-2. **优雅降级策略**：当高级功能不可用时，应自动回退到基础功能
-3. **详细日志**：记录当前使用的数据库环境和初始化状态
-4. **环境切换命令**：
-在开发过程中，可以通过以下方式在不同数据库环境之间切换：
-
-1. **环境变量文件**：
-   - `.env.development` - 开发环境（默认包含 mock 配置）
-   - `.env.local` - 本地开发环境
-   - `.env.production` - 生产环境
-
-2. **启动命令**：
-
-   # 开发环境（Mock数据）
-   bun run dev
-   
-   # 本地数据库环境
-   NODE_ENV=local bun run dev
-   
-   # 生产环境
-   NODE_ENV=production bun run dev
-   # 或者构建后运行
-   bun run build
-   bun run start
+详细流程请参考[数据库开发工作流程](./templates/database-development-workflow.md)文档。
 
 ## 3. 代码规范
 
@@ -199,7 +137,7 @@ Closes #45
 ```
 nextjs15-tailwind-ionic-capacitor-starter/
 ├── app/                      # Next.js App Router
-│   ├── mobile/             # 移动端专属路由
+│   ├── (mobile)/             # 移动端专属路由
 │   ├── (web)/                # Web专属路由
 │   └── api/                  # API路由
 ├── src/
@@ -283,17 +221,6 @@ nextjs15-tailwind-ionic-capacitor-starter/
 3. 发现文档错误时，及时修正
 4. 定期审查文档，确保内容准确性
 
-temp_mobile_standards.md
-## 7. 移动端开发规范
-
-### 7.1 路由结构
-- 所有移动端路由必须放在`app/mobile`目录下
-- 共享组件放在`src/core/components/`
-- 移动端专属组件放在`src/mobile/components/`
-
-### 7.2 插件封装
-- 每个Capacitor插件应有对应的服务封装类
-- 必须实现Web环境降级方案
 ## 7. UI素材管理流程
 
 在开发过程中，当UI设计稿中包含图标、图片等素材，但这些素材尚未最终确定或提供时，应遵循以下流程：
@@ -338,8 +265,7 @@ temp_mobile_standards.md
 | 问题类别 | 问题描述 | 解决方案 |
 |---------|---------|----------|
 | 环境配置 | 待添加 | 待添加 |
-| 数据库 | Firebase初始化错误 | 1. 检查环境变量配置<br>2. 确保服务实现了优雅降级策略<br>3. 参考[数据库初始化与降级策略](./lessons/database/firebase-initialization-fallback.md) |
-| 数据库 | 环境切换后数据丢失 | 1. 使用`--env-file`参数指定正确的环境文件<br>2. 确保数据同步服务正常工作<br>3. 检查数据库连接配置 |
+| 数据库 | 待添加 | 待添加 |
 | 移动端 | 待添加 | 待添加 |
 | 国际化 | 待添加 | 待添加 |
 | UI素材 | SVG在不同平台显示不一致 | 使用基本SVG元素，避免高级特性，确保viewBox设置正确 |

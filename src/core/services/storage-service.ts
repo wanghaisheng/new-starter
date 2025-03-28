@@ -49,22 +49,67 @@ export class StorageService {
     return StorageService.instance;
   }
 
-  public async initialize(config: StorageConfig): Promise<void> {
-    if (this.isInitialized) return;
-
+  async initialize(): Promise<void> {
     try {
-      // 初始化 Firebase
-      const app = initializeApp(config.firebase);
-      this.db = getFirestore(app);
-      this.auth = getAuth(app);
-
-      // 匿名登录
-      await signInAnonymously(this.auth);
+      // 获取当前数据库环境配置
+      const dbEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
       
-      this.isInitialized = true;
+      // 根据数据库环境决定存储策略
+      switch (dbEnv) {
+        case 'mock':
+          // Mock数据阶段 - 使用内存存储
+          console.log('数据库环境: Mock数据阶段');
+          this.useLocalStorage = true;
+          return;
+          
+        case 'local':
+          // 本地数据库阶段 - 使用IndexedDB或SQLite
+          console.log('数据库环境: 本地数据库阶段');
+          const localDbType = process.env.NEXT_PUBLIC_LOCAL_DB_TYPE || 'indexeddb';
+          this.useLocalStorage = true;
+          // 这里可以根据localDbType初始化不同的本地数据库
+          return;
+          
+        case 'production':
+          // 生产环境阶段 - 使用Firebase或其他云服务
+          console.log('数据库环境: 生产环境阶段');
+          const cloudDbType = process.env.NEXT_PUBLIC_CLOUD_DB_TYPE || 'firebase';
+          
+          if (cloudDbType === 'firebase') {
+            const config = getFirebaseConfig();
+            
+            // 检查Firebase配置是否有效
+            if (!config.firebase.apiKey || config.firebase.apiKey === '') {
+              console.warn('Firebase配置无效，回退到本地存储');
+              this.useLocalStorage = true;
+              return;
+            }
+            
+            const app = initializeApp(config.firebase);
+            this.db = getFirestore(app);
+            this.auth = getAuth(app);
+            
+            // 匿名登录
+            await signInAnonymously(this.auth);
+          } else {
+            // 其他云服务的初始化逻辑
+            console.log(`使用云服务: ${cloudDbType}`);
+            this.useLocalStorage = true; // 临时回退，直到实现其他云服务
+          }
+          return;
+          
+        default:
+          // 未知环境 - 回退到本地存储
+          console.warn(`未知数据库环境: ${dbEnv}，回退到本地存储`);
+          this.useLocalStorage = true;
+          return;
+      }
     } catch (error) {
-      console.error('Error initializing storage service:', error);
-      throw new Error('Failed to initialize storage service');
+      console.error('初始化存储服务失败:', error);
+      console.log('回退到本地存储模式');
+      this.useLocalStorage = true;
+      // 不抛出错误，而是回退到本地存储
+      // throw new Error('Failed to initialize storage service');
     }
   }
 
@@ -325,4 +370,4 @@ export class StorageService {
       return false;
     }
   }
-} 
+}

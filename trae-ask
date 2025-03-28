@@ -1,0 +1,3 @@
+#!/bin/bash
+# 带规则上下文的快捷提问命令
+trae --prompt "$TRAE_DEFAULT_PROMPT" "$@"

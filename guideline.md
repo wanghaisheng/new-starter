@@ -7,7 +7,7 @@
 在首次克隆项目或未确认项目初始化状态时，必须运行环境检查脚本：
 
 ```bash
-bash docs/tasks/check-environment.sh
+bash docs/tasks/tools/check-environment.sh
 ```
 
 如果检查发现问题，请按照脚本输出的建议进行修复。详细的初始化指南请参考 ](./docs/project-initialization-guide.md)。
@@ -17,7 +17,7 @@ bash docs/tasks/check-environment.sh
 如果需要强制重新检查环境，可以使用 `--force` 参数：
 
 ```bash
-bash docs/tasks/check-environment.sh --force
+bash docs/tasks/tools/check-environment.sh --force
 ```
 
 ### 1.2 项目结构
@@ -27,7 +27,7 @@ bash docs/tasks/check-environment.sh --force
 ```
 nextjs15-tailwind-ionic-capacitor-starter/
 ├── app/                      # Next.js App Router
-│   ├── (mobile)/             # 移动端专属路由
+│   ├── mobile/             # 移动端专属路由
 │   ├── (web)/                # Web专属路由
 │   └── api/                  # API路由
 ├── src/
@@ -178,11 +178,11 @@ import '@/styles/global.css';
 
 项目提供以下自动化脚本，用于简化环境设置和开发流程：
 
-1. `docs/tasks/check-environment.sh` - 环境检查脚本
-2. `docs/tasks/init-project.sh` - 项目初始化脚本
-3. `docs/tasks/init-git-repo.sh` - Git 仓库初始化脚本
-4. `docs/tasks/install-dependencies.sh` - 依赖安装脚本
-5. `docs/tasks/commit-code.sh` - 代码提交脚本
+1. `docs/tasks/tools/check-environment.sh` - 环境检查脚本
+2. `docs/tasks/tools/init-project.sh` - 项目初始化脚本
+3. `docs/tasks/tools/init-git-repo.sh` - Git 仓库初始化脚本
+4. `docs/tasks/tools/install-dependencies.sh` - 依赖安装脚本
+5. `docs/tasks/tools/commit-code.sh` - 代码提交脚本
 
 ## 2. 开发规范
 
@@ -209,23 +209,34 @@ import '@/styles/global.css';
 
 ### 2.4 数据库开发流程
 
+### 2.4 数据库开发流程
+
+数据库开发遵循渐进式流程，从Mock数据到生产环境数据库。这三个阶段构成了一个连续的开发流程，理想情况下，只需通过切换环境变量即可在不同阶段间无缝切换，而无需修改业务代码。
+
+| 阶段 | 环境变量 | 主要目的 | 关注点 |
+|------|---------|---------|--------|
+| Mock数据 | NEXT_PUBLIC_DATABASE_ENV=mock | 需求确认与快速原型 | 数据结构、字段定义、关联关系 |
+| 本地数据库 | NEXT_PUBLIC_DATABASE_ENV=local | 功能验证与性能测试 | 数据持久化、查询性能、事务处理 |
+| 生产环境 | NEXT_PUBLIC_DATABASE_ENV=production | 正式部署与多用户支持 | 安全性、可扩展性、数据同步 |
+
 1. **Mock数据阶段**
-   - 在`src/mock/data/`目录下创建JSON格式的模拟数据
+   - 在src/mock/data/目录下创建JSON格式的模拟数据
    - 实现Mock数据服务，提供与真实服务相同的接口
-   - 在`.env.development`中配置使用Mock数据
+   - 在.env.development中配置使用Mock数据
    - 验证UI和业务逻辑
+   - **重要**：确保服务实现中包含适当的降级策略
 
 2. **本地数据库阶段**
-   - 设计数据库Schema
+   - 设计数据库Schema，确保与Mock数据结构一致
    - 创建数据库迁移脚本
-   - 实现本地数据库服务
-   - 在`.env.local`中配置使用本地数据库
+   - 实现本地数据库服务（与Mock服务保持相同接口）
+   - 在.env.local中配置使用本地数据库
    - 验证数据持久化和查询性能
 
 3. **生产环境阶段**
    - 云端数据库：
      - 选择云端数据库服务（Firebase/Supabase/Cloudflare D1）
-     - 实现云端数据库服务
+     - 实现云端数据库服务（与前两个阶段保持相同接口）
      - 配置云端数据库连接
    - 离线存储：
      - 移动端：使用Capacitor SQLite
@@ -236,21 +247,36 @@ import '@/styles/global.css';
      - 处理数据冲突
      - 优化同步性能
 
-4. **数据库工厂**
+4. **环境切换**
+   
+   # 开发环境（Mock数据）
+   bun run dev
+   
+   # 本地数据库环境
+   bun run dev --env-file=.env.local
+   
+   # 生产环境
+   bun run build
+   bun run start
+
+5. **数据库工厂**
    - 实现统一的数据库客户端工厂
    - 根据环境和平台选择合适的存储方案
    - 提供一致的数据库操作接口
+   - 实现优雅降级策略，确保配置不完整时能回退到基础功能
 
-5. **测试要求**
+
+6. **测试要求**
    - 编写单元测试覆盖数据库操作
    - 实现集成测试验证数据同步
    - 进行性能测试确保响应时间
 
-6. **安全考虑**
+7. **安全考虑**
    - 加密敏感数据
    - 实现访问控制
    - 定期数据备份
    - 监控异常访问
+详细流程请参考[数据库开发工作流程](./docs/templates/database-development-workflow.md)文档。
 
 ### 2.5 API 调用
 
@@ -520,7 +546,7 @@ const checkNetwork = async () => {
 ```
 capacitor-nextjs-ionic-starter/
 ├── app/                      # Next.js App Router
-│   ├── (mobile)/             # 移动端专属路由
+│   ├── mobile/             # 移动端专属路由
 │   ├── (web)/                # Web专属路由
 │   └── api/                  # API路由
 ├── src/

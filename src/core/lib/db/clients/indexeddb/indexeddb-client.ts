@@ -1,6 +1,9 @@
 import { BaseClient } from '../base-client';
-import { IDatabaseClient, DatabaseConfig } from '../../interfaces';
+import { IDatabaseClient, DatabaseConfig, IDatabaseTransaction } from '../../interfaces';
 import { schemaRegistry } from '../../schema/index';
+import { QueryOptions, QueryResult, BatchOperation } from '../../types/database.types';
+import { BaseEntity } from '../../types/base-entity';
+import { User, Match, Message } from '../../types';
 
 /**
  * IndexedDB 数据库客户端
@@ -11,6 +14,7 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
   private config: DatabaseConfig;
   private dbName: string;
   private dbVersion: number;
+  private currentTransaction: IDBTransaction | null = null;
 
   constructor(config: DatabaseConfig) {
     super();
@@ -70,7 +74,7 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
   }
 
   // 通用数据访问方法
-  async findById<T>(tableName: string, id: string): Promise<T | null> {
+  async findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null> {
     this.checkInitialized();
     
     try {
@@ -94,7 +98,7 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
+  async findAll<T extends BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
     this.checkInitialized();
     
     try {
@@ -130,7 +134,7 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async create<T extends { id: string }>(tableName: string, data: T): Promise<T> {
+  async create<T extends BaseEntity>(tableName: string, data: T): Promise<T> {
     this.checkInitialized();
     
     // 确保有 ID
@@ -158,7 +162,7 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async update<T extends { id: string }>(tableName: string, id: string, data: Partial<T>): Promise<void> {
+  async update<T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void> {
     this.checkInitialized();
     
     try {
@@ -203,109 +207,245 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async query<T>(tableName: string, options: {
-    select?: string[];
-    where?: Record<string, any>;
-    orderBy?: string | string[];
-    limit?: number;
-    offset?: number;
-  }): Promise<T[]> {
+  async query<T extends BaseEntity>(
+    tableName: string,
+    options: QueryOptions
+  ): Promise<QueryResult<T>> {
     this.checkInitialized();
-    
+    if (!this.db) {
+      throw new Error('数据库未初始化');
+    }
+
     try {
-      // 获取所有数据
-      let results = await this.findAll<T>(tableName);
-      
+      const store = this.db.transaction(tableName, 'readonly').objectStore(tableName);
+      let results = await new Promise<T[]>((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
       // 应用过滤条件
-      if (options.where && Object.keys(options.where).length > 0) {
-        results = this.applyFilter(results, options.where);
-      }
-      
-      // 应用排序
-      if (options.orderBy) {
-        results = this.applySort(results, options.orderBy);
-      }
-      
-      // 应用分页
-      if (options.offset !== undefined || options.limit !== undefined) {
-        const offset = options.offset || 0;
-        const limit = options.limit !== undefined ? offset + options.limit : undefined;
-        results = results.slice(offset, limit);
-      }
-      
-      // 应用字段选择
-      if (options.select && options.select.length > 0) {
-        results = results.map((item: any) => {
-          const selected: Record<string, any> = {};
-          options.select!.forEach(field => {
-            if (field in item) {
-              selected[field] = item[field];
-            }
-          });
-          return selected as T;
+      if (options.where) {
+        results = results.filter(item => {
+          const itemValue = (item as any)[options.where!.field];
+          switch (options.where!.operator) {
+            case '==': return itemValue === options.where!.value;
+            case '<': return itemValue < options.where!.value;
+            case '<=': return itemValue <= options.where!.value;
+            case '>': return itemValue > options.where!.value;
+            case '>=': return itemValue >= options.where!.value;
+            case '!=': return itemValue !== options.where!.value;
+            default: return true;
+          }
         });
       }
-      
-      return results;
+
+      // 应用排序
+      if (options.orderBy) {
+        results.sort((a, b) => {
+          const aValue = (a as any)[options.orderBy!.field];
+          const bValue = (b as any)[options.orderBy!.field];
+          const direction = options.orderBy!.direction === 'asc' ? 1 : -1;
+          return aValue < bValue ? -direction : aValue > bValue ? direction : 0;
+        });
+      }
+
+      const total = results.length;
+
+      // 应用分页
+      if (options.limit !== undefined || options.offset !== undefined) {
+        const start = options.offset || 0;
+        const end = options.limit !== undefined ? start + options.limit : undefined;
+        results = results.slice(start, end);
+      }
+
+      return {
+        data: results,
+        total,
+        hasMore: options.limit ? total > (options.offset || 0) + options.limit : false
+      };
     } catch (error) {
       console.error(`查询失败 (${tableName}):`, error);
-      return [];
-    }
-  }
-
-  async executeRawQuery(query: string, params?: any[]): Promise<any> {
-    throw new Error('IndexedDB 不支持原始 SQL 查询');
-  }
-
-  async transaction<T>(callback: (trx: any) => Promise<T>): Promise<T> {
-    this.checkInitialized();
-    
-    try {
-      // 创建事务代理
-      const trxProxy = { ...this };
-      
-      // 执行回调
-      return await callback(trxProxy);
-    } catch (error) {
-      console.error('事务执行失败:', error);
       throw error;
     }
   }
 
-  // 实现 IDatabaseClient 接口的通用实体方法
-  async saveEntity<T extends { id: string }>(tableName: string, entity: T): Promise<T> {
-    if (entity.id) {
-      await this.update(tableName, entity.id, entity);
-      return entity;
-    } else {
-      return await this.create(tableName, entity);
+  async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
+    throw new Error('IndexedDB 不支持原始 SQL 查询');
+  }
+
+  // 事务支持
+  async beginTransaction(): Promise<void> {
+    this.checkInitialized();
+    if (!this.db) {
+      throw new Error('数据库未初始化');
+    }
+    if (this.currentTransaction) {
+      throw new Error('已有活动的事务');
+    }
+    this.currentTransaction = this.db.transaction(Array.from(this.db.objectStoreNames), 'readwrite');
+  }
+
+  async commitTransaction(): Promise<void> {
+    if (!this.currentTransaction) {
+      throw new Error('没有活动的事务');
+    }
+    return new Promise((resolve, reject) => {
+      this.currentTransaction!.oncomplete = () => {
+        this.currentTransaction = null;
+        resolve();
+      };
+      this.currentTransaction!.onerror = () => {
+        this.currentTransaction = null;
+        reject(this.currentTransaction!.error);
+      };
+    });
+  }
+
+  async rollbackTransaction(): Promise<void> {
+    if (!this.currentTransaction) {
+      throw new Error('没有活动的事务');
+    }
+    this.currentTransaction.abort();
+    this.currentTransaction = null;
+  }
+
+  async transaction<T>(callback: (tx: IDatabaseTransaction) => Promise<T>): Promise<T> {
+    this.checkInitialized();
+    if (!this.db) {
+      throw new Error('数据库未初始化');
+    }
+
+    const transactionWrapper: IDatabaseTransaction = {
+      findById: async <T extends BaseEntity>(tableName: string, id: string) => this.findById<T>(tableName, id),
+      findAll: async <T extends BaseEntity>(tableName: string, filter?: Record<string, any>) => this.findAll<T>(tableName, filter),
+      create: async <T extends BaseEntity>(tableName: string, data: T) => this.create(tableName, data),
+      update: async <T extends BaseEntity>(tableName: string, id: string, data: Partial<T>) => this.update(tableName, id, data),
+      delete: async (tableName: string, id: string) => this.delete(tableName, id),
+      query: async <T extends BaseEntity>(tableName: string, options: QueryOptions) => this.query<T>(tableName, options),
+      batch: async <T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]) => this.batch(tableName, operations),
+      executeRawQuery: async <T>(query: string, params?: any[]) => this.executeRawQuery<T>(query, params),
+      count: async (tableName: string, filter?: Record<string, any>) => this.count(tableName, filter)
+    };
+
+    await this.beginTransaction();
+    try {
+      const result = await callback(transactionWrapper);
+      await this.commitTransaction();
+      return result;
+    } catch (error) {
+      await this.rollbackTransaction();
+      throw error;
     }
   }
 
-  async getEntity<T>(tableName: string, id: string): Promise<T | null> {
-    return this.findById<T>(tableName, id);
+  async batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
+    this.checkInitialized();
+    if (!this.db) {
+      throw new Error('数据库未初始化');
+    }
+
+    await this.beginTransaction();
+    try {
+      const store = this.currentTransaction!.objectStore(tableName);
+      
+      for (const operation of operations) {
+        switch (operation.type) {
+          case 'add':
+            await new Promise((resolve, reject) => {
+              const request = store.add(operation.data);
+              request.onsuccess = () => resolve(request.result);
+              request.onerror = () => reject(request.error);
+            });
+            break;
+          
+          case 'put':
+            await new Promise((resolve, reject) => {
+              const request = store.put(operation.data);
+              request.onsuccess = () => resolve(request.result);
+              request.onerror = () => reject(request.error);
+            });
+            break;
+          
+          case 'delete':
+            await new Promise((resolve, reject) => {
+              const request = store.delete(operation.data.id);
+              request.onsuccess = () => resolve(request.result);
+              request.onerror = () => reject(request.error);
+            });
+            break;
+        }
+      }
+      await this.commitTransaction();
+    } catch (error) {
+      await this.rollbackTransaction();
+      throw error;
+    }
   }
 
-  async getAllEntities<T>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
-    return this.findAll<T>(tableName, filter);
+  // 计数方法
+  async count(tableName: string, options?: QueryOptions): Promise<number> {
+    this.checkInitialized();
+    if (!this.db) {
+      throw new Error('数据库未初始化');
+    }
+
+    try {
+      const result = await this.query(tableName, options || {});
+      return result.total;
+    } catch (error) {
+      console.error(`计数失败 (${tableName}):`, error);
+      throw error;
+    }
   }
 
-  async updateEntity<T extends { id: string }>(tableName: string, entity: T): Promise<T> {
-    await this.update(tableName, entity.id, entity);
-    return entity;
+  // IDatabaseClient 接口实现
+  async findUsers(query?: any): Promise<User[]> {
+    return this.findAll<User>('users', query);
   }
 
-  async deleteEntity(tableName: string, id: string): Promise<boolean> {
-    await this.delete(tableName, id);
-    return true;
+  async findMatches(query?: any): Promise<Match[]> {
+    return this.findAll<Match>('matches', query);
   }
 
-  async getEntitiesByRelation<T>(
-    tableName: string, 
-    relationField: string, 
-    relationId: string
-  ): Promise<T[]> {
-    return this.findAll<T>(tableName, { [relationField]: relationId });
+  async findMessages(query?: any): Promise<Message[]> {
+    return this.findAll<Message>('messages', query);
+  }
+
+  async createUser(data: Omit<User, 'id'>): Promise<User> {
+    return this.create<User>('users', data as User);
+  }
+
+  async createMatch(data: Omit<Match, 'id'>): Promise<Match> {
+    return this.create<Match>('matches', data as Match);
+  }
+
+  async createMessage(data: Omit<Message, 'id'>): Promise<Message> {
+    return this.create<Message>('messages', data as Message);
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<void> {
+    await this.update<User>('users', id, data);
+  }
+
+  async updateMatch(id: string, data: Partial<Match>): Promise<void> {
+    await this.update<Match>('matches', id, data);
+  }
+
+  async updateMessage(id: string, data: Partial<Message>): Promise<void> {
+    await this.update<Message>('messages', id, data);
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await this.delete('users', id);
+  }
+
+  async deleteMatch(id: string): Promise<void> {
+    await this.delete('matches', id);
+  }
+
+  async deleteMessage(id: string): Promise<void> {
+    await this.delete('messages', id);
   }
 
   // 辅助方法
@@ -351,19 +491,6 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
     }
   }
 
-  private applyFilter<T>(items: T[], filter: Record<string, any>): T[] {
-    return items.filter((item: any) => {
-      // 处理特殊操作符
-      if (filter.$or && Array.isArray(filter.$or)) {
-        return filter.$or.some(subFilter => 
-          this.matchesFilter(item, subFilter)
-        );
-      }
-      
-      return this.matchesFilter(item, filter);
-    });
-  }
-
   private matchesFilter(item: any, filter: Record<string, any>): boolean {
     return Object.entries(filter).every(([key, value]) => {
       if (key === '$or') return true; // 已在外层处理
@@ -384,27 +511,6 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
     });
   }
 
-  private applySort<T>(items: T[], orderBy: string | string[]): T[] {
-    const orderFields = Array.isArray(orderBy) ? orderBy : [orderBy];
-    
-    return [...items].sort((a: any, b: any) => {
-      for (const field of orderFields) {
-        const desc = field.startsWith('-');
-        const fieldName = desc ? field.substring(1) : field;
-        
-        if (a[fieldName] < b[fieldName]) {
-          return desc ? 1 : -1;
-        }
-        
-        if (a[fieldName] > b[fieldName]) {
-          return desc ? -1 : 1;
-        }
-      }
-      
-      return 0;
-    });
-  }
-
   /**
    * 处理数据库结果，转换特殊类型
    */
@@ -422,4 +528,4 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
     
     return processed as T;
   }
-}
+} 

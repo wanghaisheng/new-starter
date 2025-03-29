@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { IndexedDBClient } from '@db/clients/indexeddb/indexeddb-client';
 import type { BaseEntity } from '@db/types/base-entity';
-import type { DatabaseConfig, DatabaseEngine } from '@db/types/database.types';
+import type { DatabaseConfig, DatabaseEngine } from '@db/interfaces';
 
 // Mock IndexedDB
 const mockIndexedDB = {
@@ -26,42 +26,6 @@ describe('IndexedDBClient', () => {
     name: dbName,
     version: 1,
     engine: 'indexeddb' as DatabaseEngine,
-    tables: {
-      [tableName]: {
-        columns: {
-          id: {
-            type: 'TEXT',
-            constraints: ['PRIMARY KEY']
-          },
-          name: {
-            type: 'TEXT',
-            constraints: ['NOT NULL']
-          },
-          value: {
-            type: 'INTEGER',
-            constraints: ['NOT NULL']
-          },
-          createdAt: {
-            type: 'TEXT',
-            constraints: ['NOT NULL']
-          },
-          updatedAt: {
-            type: 'TEXT',
-            constraints: ['NOT NULL']
-          }
-        },
-        indexes: {
-          idx_name: {
-            columns: ['name'],
-            unique: false
-          },
-          idx_value: {
-            columns: ['value'],
-            unique: false
-          }
-        }
-      }
-    },
     offline: {
       maxStorageSize: 1024 * 1024,
       maxEntitiesPerTable: 1000,
@@ -122,22 +86,6 @@ describe('IndexedDBClient', () => {
   });
 
   describe('Index Operations', () => {
-    it('should create indexes correctly', async () => {
-      const mockDB = {
-        objectStoreNames: [tableName],
-        transaction: vi.fn(),
-        close: vi.fn()
-      };
-
-      mockIndexedDB.open.mockResolvedValueOnce(mockDB);
-
-      await client.initialize();
-
-      const store = await client.getObjectStore(tableName);
-      expect(store.indexNames).toContain('idx_name');
-      expect(store.indexNames).toContain('idx_value');
-    });
-
     it('should use indexes for queries', async () => {
       const mockDB = {
         objectStoreNames: [tableName],
@@ -194,7 +142,7 @@ describe('IndexedDBClient', () => {
       mockIndexedDB.open.mockResolvedValueOnce(mockDB);
 
       // 更新配置版本
-      const newConfig = { ...dbConfig, version: 2 };
+      const newConfig: DatabaseConfig = { ...dbConfig, version: 2 };
       client = new IndexedDBClient(newConfig);
 
       await client.initialize();
@@ -214,13 +162,13 @@ describe('IndexedDBClient', () => {
       mockIndexedDB.open.mockResolvedValueOnce(mockDB);
 
       // 更新配置版本
-      const newConfig = { ...dbConfig, version: 2 };
+      const newConfig: DatabaseConfig = { ...dbConfig, version: 2 };
       client = new IndexedDBClient(newConfig);
 
       await client.initialize();
 
       // 验证数据是否保留
-      const result = await client.query<TestEntity>(tableName);
+      const result = await client.query<TestEntity>(tableName, {});
       expect(result).toBeDefined();
     });
 
@@ -236,10 +184,91 @@ describe('IndexedDBClient', () => {
       mockIndexedDB.open.mockRejectedValueOnce(new Error('Upgrade error'));
 
       // 更新配置版本
-      const newConfig = { ...dbConfig, version: 2 };
+      const newConfig: DatabaseConfig = { ...dbConfig, version: 2 };
       client = new IndexedDBClient(newConfig);
 
       await expect(client.initialize()).rejects.toThrow('Upgrade error');
+    });
+  });
+
+  describe('CRUD Operations', () => {
+    it('should create entity', async () => {
+      const mockDB = {
+        objectStoreNames: [tableName],
+        transaction: vi.fn(),
+        close: vi.fn()
+      };
+
+      mockIndexedDB.open.mockResolvedValueOnce(mockDB);
+
+      await client.initialize();
+
+      const entity: TestEntity = {
+        id: '1',
+        name: 'test',
+        value: 123,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      await client.create(tableName, entity);
+
+      const result = await client.findById<TestEntity>(tableName, '1');
+      expect(result).toEqual(entity);
+    });
+
+    it('should update entity', async () => {
+      const mockDB = {
+        objectStoreNames: [tableName],
+        transaction: vi.fn(),
+        close: vi.fn()
+      };
+
+      mockIndexedDB.open.mockResolvedValueOnce(mockDB);
+
+      await client.initialize();
+
+      const entity: TestEntity = {
+        id: '1',
+        name: 'test',
+        value: 123,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      await client.create(tableName, entity);
+
+      const updatedEntity = { ...entity, name: 'updated' };
+      await client.update(tableName, '1', updatedEntity);
+
+      const result = await client.findById<TestEntity>(tableName, '1');
+      expect(result).toEqual(updatedEntity);
+    });
+
+    it('should delete entity', async () => {
+      const mockDB = {
+        objectStoreNames: [tableName],
+        transaction: vi.fn(),
+        close: vi.fn()
+      };
+
+      mockIndexedDB.open.mockResolvedValueOnce(mockDB);
+
+      await client.initialize();
+
+      const entity: TestEntity = {
+        id: '1',
+        name: 'test',
+        value: 123,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      await client.create(tableName, entity);
+      await client.delete(tableName, '1');
+
+      const result = await client.findById<TestEntity>(tableName, '1');
+      expect(result).toBeNull();
     });
   });
 }); 

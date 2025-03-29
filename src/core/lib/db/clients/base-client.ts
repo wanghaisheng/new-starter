@@ -1,10 +1,12 @@
-import { IBaseDatabaseClient } from '../interfaces';
+import { IBaseDatabaseClient, IDatabaseTransaction } from '../interfaces';
+import { QueryOptions, QueryResult, BatchOperation } from '../types/database.types';
+import { BaseEntity } from '../types/base.types';
 
 /**
  * 数据库客户端抽象基类
  * 实现了 IBaseDatabaseClient 接口的基本框架
  */
-export abstract class BaseClient implements IBaseDatabaseClient {
+export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
   protected initialized = false;
   
   // 生命周期方法
@@ -13,26 +15,26 @@ export abstract class BaseClient implements IBaseDatabaseClient {
   abstract clear(): Promise<void>;
   
   // 通用数据访问接口
-  abstract findById<T>(tableName: string, id: string): Promise<T | null>;
-  abstract findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
-  abstract create<T extends { id: string }>(tableName: string, data: T): Promise<T>;
-  abstract update<T extends { id: string }>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+  abstract findById(tableName: string, id: string): Promise<BaseEntity | null>;
+  abstract findAll(tableName: string, filter?: Record<string, any>): Promise<BaseEntity[]>;
+  abstract create(tableName: string, data: BaseEntity): Promise<BaseEntity>;
+  abstract update(tableName: string, id: string, data: Partial<BaseEntity>): Promise<void>;
   abstract delete(tableName: string, id: string): Promise<void>;
   
   // 高级查询接口
-  abstract query<T>(tableName: string, options: {
-    select?: string[];
-    where?: Record<string, any>;
-    orderBy?: string | string[];
-    limit?: number;
-    offset?: number;
-  }): Promise<T[]>;
-  
-  // 原始查询接口
-  abstract executeRawQuery(query: string, params?: any[]): Promise<any>;
+  abstract query(tableName: string, options: QueryOptions): Promise<QueryResult<BaseEntity>>;
+  abstract count(tableName: string, filter?: Record<string, any>): Promise<number>;
   
   // 事务支持
-  abstract transaction<T>(callback: (trx: any) => Promise<T>): Promise<T>;
+  abstract beginTransaction(): Promise<void>;
+  abstract commitTransaction(): Promise<void>;
+  abstract rollbackTransaction(): Promise<void>;
+  
+  // 批量操作
+  abstract batch(tableName: string, operations: BatchOperation<BaseEntity>[]): Promise<void>;
+  
+  // 原始查询
+  abstract executeRawQuery<R>(query: string, params?: any[]): Promise<R[]>;
   
   // 辅助方法
   protected checkInitialized(): void {
@@ -46,54 +48,35 @@ export abstract class BaseClient implements IBaseDatabaseClient {
    * @returns 唯一ID字符串
    */
   protected generateId(): string {
-    return crypto.randomUUID ? 
-      crypto.randomUUID() : 
-      Math.random().toString(36).substring(2, 15) + 
-      Math.random().toString(36).substring(2, 15);
+    return Math.random().toString(36).substring(2) + Date.now().toString(36);
   }
   
   /**
-   * 添加创建和更新时间戳
-   * @param data 要处理的数据对象
-   * @param isUpdate 是否为更新操作
-   * @returns 添加了时间戳的数据对象
+   * 添加时间戳
+   * @param data 实体数据
+   * @returns 添加时间戳后的实体数据
    */
-  protected addTimestamps<T extends { id: string, createdAt?: Date, updatedAt?: Date }, U extends boolean = false>(
-    data: T, 
-    isUpdate: U = false as U
-  ): T & { updatedAt: Date } & (U extends true ? {} : { createdAt: Date }) {
-    const now = new Date();
-    
-    if (!isUpdate) {
-      // 创建操作，添加 createdAt
-      return {
-        ...data,
-        createdAt: data.createdAt || now,
-        updatedAt: now
-      } as any;
-    } else {
-      // 更新操作，只更新 updatedAt
-      return {
-        ...data,
-        updatedAt: now
-      } as any;
-    }
+  protected addTimestamps<T extends BaseEntity>(data: Partial<T>): Partial<T> {
+    return {
+      ...data,
+      createdAt: data.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
   }
   
   /**
-   * 格式化查询条件
-   * @param filter 过滤条件
+   * 格式化过滤条件
+   * @param filter 原始过滤条件
    * @returns 格式化后的过滤条件
    */
   protected formatFilter(filter?: Record<string, any>): Record<string, any> {
     if (!filter) return {};
     
-    // 移除所有 undefined 值
-    return Object.entries(filter)
-      .filter(([_, value]) => value !== undefined)
-      .reduce((acc, [key, value]) => {
+    return Object.entries(filter).reduce((acc, [key, value]) => {
+      if (value !== undefined && value !== null) {
         acc[key] = value;
-        return acc;
-      }, {} as Record<string, any>);
+      }
+      return acc;
+    }, {} as Record<string, any>);
   }
-}
+} 

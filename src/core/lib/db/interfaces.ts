@@ -1,4 +1,4 @@
-import { User, Match, Message } from './types';
+import { User, Match, Message } from './types/dating';
 import { TableSchema } from './schema';
 import { QueryResult, BatchOperation } from './types/database.types';
 import { BaseEntity } from './types/base-entity';
@@ -78,9 +78,9 @@ export interface IDatabaseClient extends IBaseDatabaseClient {
   findMatches(query?: any): Promise<Match[]>;
   findMessages(query?: any): Promise<Message[]>;
 
-  createUser(data: Omit<User, 'id'>): Promise<User>;
-  createMatch(data: Omit<Match, 'id'>): Promise<Match>;
-  createMessage(data: Omit<Message, 'id'>): Promise<Message>;
+  createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User>;
+  createMatch(data: Omit<Match, 'id' | 'createdAt' | 'updatedAt'>): Promise<Match>;
+  createMessage(data: Omit<Message, 'id' | 'createdAt' | 'updatedAt'>): Promise<Message>;
 
   updateUser(id: string, data: Partial<User>): Promise<void>;
   updateMatch(id: string, data: Partial<Match>): Promise<void>;
@@ -117,15 +117,19 @@ export interface IDatabaseTransaction {
 export interface QueryOptions {
   where?: {
     field: string;
-    operator: '==' | '<' | '<=' | '>' | '>=' | '!=';
+    operator: '==' | '<' | '<=' | '>' | '>=' | '!=' | '$in' | '$ne' | '$contains' | '$gt' | '$lt' | '$gte' | '$lte' | '$and' | '$or';
     value: any;
+  } | {
+    $and?: QueryOptions['where'][];
+    $or?: QueryOptions['where'][];
+    [key: string]: any;
   };
   orderBy?: {
     field: string;
     direction: 'asc' | 'desc';
   };
   limit?: number;
-  startAfter?: any;
+  offset?: number;
 }
 
 export * from './types/database.types';

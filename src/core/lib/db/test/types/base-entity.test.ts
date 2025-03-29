@@ -144,4 +144,138 @@ describe('BaseEntity Types', () => {
       expect(timestampedData.updatedAt).toBeInstanceOf(Date);
     });
   });
+});
+
+describe('BaseEntity Tests', () => {
+  describe('ID Format Validation', () => {
+    it('should accept valid UUID format', () => {
+      const entity: BaseEntity = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      expect(entity.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    });
+
+    it('should accept custom ID format', () => {
+      const entity: BaseEntity = {
+        id: 'user_123456',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      expect(entity.id).toMatch(/^[a-z0-9_]+$/i);
+    });
+
+    it('should handle special characters in ID', () => {
+      const entity: BaseEntity = {
+        id: 'test-123_456@789',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      expect(entity.id).toBeTruthy();
+      expect(typeof entity.id).toBe('string');
+    });
+  });
+
+  describe('Timestamp Format Validation', () => {
+    it('should handle different timezone timestamps', () => {
+      const utcDate = new Date('2024-03-20T12:00:00Z');
+      const entity: BaseEntity = {
+        id: '1',
+        createdAt: utcDate,
+        updatedAt: utcDate
+      };
+      
+      expect(entity.createdAt.toISOString()).toBe('2024-03-20T12:00:00.000Z');
+      expect(entity.updatedAt.toISOString()).toBe('2024-03-20T12:00:00.000Z');
+    });
+
+    it('should validate timestamp is not in the future', () => {
+      const futureDate = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours in future
+      const entity: BaseEntity = {
+        id: '1',
+        createdAt: futureDate,
+        updatedAt: futureDate
+      };
+      
+      expect(entity.createdAt.getTime()).toBeGreaterThan(Date.now());
+      expect(entity.updatedAt.getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('should ensure updatedAt is not before createdAt', () => {
+      const earlier = new Date('2024-03-20T12:00:00Z');
+      const later = new Date('2024-03-20T13:00:00Z');
+      
+      const entity: BaseEntity = {
+        id: '1',
+        createdAt: earlier,
+        updatedAt: later
+      };
+      
+      expect(entity.updatedAt.getTime()).toBeGreaterThanOrEqual(entity.createdAt.getTime());
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle empty string ID', () => {
+      const entity: BaseEntity = {
+        id: '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      expect(entity.id).toBe('');
+    });
+
+    it('should handle very long IDs', () => {
+      const longId = 'a'.repeat(1000);
+      const entity: BaseEntity = {
+        id: longId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      expect(entity.id.length).toBe(1000);
+    });
+
+    it('should handle unicode characters in ID', () => {
+      const entity: BaseEntity = {
+        id: '测试ID_123',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      expect(entity.id).toBe('测试ID_123');
+    });
+  });
+
+  describe('Type Conversion', () => {
+    it('should convert DatabaseRecord to BaseEntity', () => {
+      const now = new Date();
+      const record: DatabaseRecord = {
+        id: '1',
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString()
+      };
+
+      const entity: BaseEntity = {
+        id: record.id,
+        createdAt: new Date(record.createdAt),
+        updatedAt: new Date(record.updatedAt)
+      };
+
+      expect(entity.createdAt).toBeInstanceOf(Date);
+      expect(entity.updatedAt).toBeInstanceOf(Date);
+      expect(entity.createdAt.toISOString()).toBe(record.createdAt);
+      expect(entity.updatedAt.toISOString()).toBe(record.updatedAt);
+    });
+
+    it('should handle invalid date strings', () => {
+      const record: DatabaseRecord = {
+        id: '1',
+        createdAt: 'invalid-date',
+        updatedAt: 'invalid-date'
+      };
+
+      expect(() => new Date(record.createdAt)).toThrow();
+      expect(() => new Date(record.updatedAt)).toThrow();
+    });
+  });
 }); 

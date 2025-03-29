@@ -1,6 +1,7 @@
 import { schemaRegistry } from '../schema';
 export * from './database.types';
 export * from './base-entity';
+export * from './dating';
 
 // Base type for all entities
 export interface BaseEntity {

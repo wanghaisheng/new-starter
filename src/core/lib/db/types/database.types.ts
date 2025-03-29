@@ -1,4 +1,5 @@
-import { BaseEntity, User } from './index';
+import { BaseEntity } from './base-entity';
+import { User, Match, Message } from './dating';
 import { SQLiteDBConnection } from '@capacitor-community/sqlite';
 
 // 数据库引擎类型
@@ -54,13 +55,14 @@ export interface DatabaseVersion {
   statements: string[];
 }
 
-// 数据库错误类型
+// 数据库错误接口
 export interface DatabaseError extends Error {
   code: string;
   details?: any;
 }
 
-export type QueryOperator = '==' | '<' | '<=' | '>' | '>=' | '!=';
+// 查询操作符类型
+export type QueryOperator = '==' | '<' | '<=' | '>' | '>=' | '!=' | '$in' | '$ne' | '$contains' | '$gt' | '$lt' | '$gte' | '$lte' | '$and' | '$or';
 
 // 查询选项接口
 export interface QueryOptions {
@@ -68,6 +70,10 @@ export interface QueryOptions {
     field: string;
     operator: QueryOperator;
     value: any;
+  } | {
+    $and?: QueryOptions['where'][];
+    $or?: QueryOptions['where'][];
+    [key: string]: any;
   };
   orderBy?: {
     field: string;
@@ -85,7 +91,7 @@ export interface SyncState {
   progress?: number;
 }
 
-// 数据库统计信息接口
+// 数据库统计接口
 export interface DatabaseStats {
   totalRecords: number;
   totalSize: number;
@@ -93,7 +99,7 @@ export interface DatabaseStats {
   lastError?: DatabaseError;
 }
 
-// 数据库操作结果接口
+// 数据库结果接口
 export interface DatabaseResult<T> {
   success: boolean;
   data?: T;
@@ -118,40 +124,45 @@ export type DatabaseEvent =
   | 'backupCreated'
   | 'backupRestored';
 
-// 数据库事件处理器
+// 数据库事件处理器类型
 export type DatabaseEventHandler = (event: DatabaseEvent, data?: any) => void;
 
+// 批量操作接口
 export interface BatchOperation<T> {
   type: 'add' | 'put' | 'delete';
   data: T;
 }
 
+// 查询结果接口
 export interface QueryResult<T> {
   data: T[];
   total: number;
   hasMore: boolean;
 }
 
+// 数据库指标接口
 export interface DatabaseMetrics {
   queryCount: number;
   queryTime: number;
 }
 
+// 存储统计接口
 export interface StorageStats {
   totalSize: number;
   availableSpace: number;
   usedSpace: number;
 }
 
+// 数据库客户端接口
 export interface DatabaseClient {
   db: SQLiteDBConnection;
   config: DatabaseConfig;
   transaction<T>(callback: () => Promise<T>): Promise<T>;
-  createUser(user: Omit<User, keyof BaseEntity>): Promise<User>;
+  create<T extends BaseEntity>(table: string, data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T>;
   findById<T extends BaseEntity>(table: string, id: string): Promise<T | null>;
   findAll<T extends BaseEntity>(table: string, filter?: Record<string, any>): Promise<T[]>;
-  updateUser(id: string, data: Partial<User>): Promise<User>;
-  deleteUser(id: string): Promise<void>;
+  update<T extends BaseEntity>(table: string, id: string, data: Partial<T>): Promise<void>;
+  delete(table: string, id: string): Promise<void>;
   clear(): Promise<void>;
   initialize(): Promise<void>;
   query<T extends BaseEntity>(table: string, options: QueryOptions): Promise<QueryResult<T>>;

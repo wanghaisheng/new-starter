@@ -1,5 +1,6 @@
 import { User, Match, Message } from './types';
 import { TableSchema } from './schema';
+import { QueryOptions, QueryResult, BatchOperation } from './types/database.types';
 
 // 数据库引擎类型
 export type DatabaseEngine = 'mock' | 'indexeddb' | 'sqlite' | 'cloudflare-d1' | 'firebase' | 'supabase' | 'turso' | 'tidb' | 'postgres';
@@ -90,5 +91,30 @@ export interface ISyncClient extends IDatabaseClient {
   sync(): Promise<void>;
   getSyncStatus(): Promise<SyncStatus>;
   cancelSync(): Promise<void>;
+}
+
+export interface IDatabaseTransaction {
+  findById<T>(tableName: string, id: string): Promise<T | null>;
+  findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
+  create<T>(tableName: string, data: T): Promise<T>;
+  update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+  delete(tableName: string, id: string): Promise<void>;
+  query<T>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
+  batch<T>(tableName: string, operations: BatchOperation<T>[]): Promise<void>;
+}
+
+export interface IDatabaseClient {
+  initialize(): Promise<void>;
+  close(): Promise<void>;
+  clear(): Promise<void>;
+  findById<T>(tableName: string, id: string): Promise<T | null>;
+  findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
+  create<T>(tableName: string, data: T): Promise<T>;
+  update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+  delete(tableName: string, id: string): Promise<void>;
+  query<T>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
+  batch<T>(tableName: string, operations: BatchOperation<T>[]): Promise<void>;
+  transaction<T>(callback: (tx: IDatabaseTransaction) => Promise<T>): Promise<T>;
+  executeRawQuery<T>(query: string, params?: any[]): Promise<T[]>;
 }
   

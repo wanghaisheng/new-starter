@@ -37,15 +37,9 @@ export interface DatabaseVersion {
 }
 
 // 数据库错误类型
-export class DatabaseError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public context?: any
-  ) {
-    super(message);
-    this.name = 'DatabaseError';
-  }
+export interface DatabaseError extends Error {
+  code: string;
+  details?: any;
 }
 
 // 查询选项接口
@@ -67,10 +61,10 @@ export interface SyncState {
 
 // 数据库统计信息接口
 export interface DatabaseStats {
+  totalRecords: number;
   totalSize: number;
-  tableCount: number;
-  recordCount: number;
-  lastBackup?: Date;
+  lastSyncTime?: Date;
+  lastError?: DatabaseError;
 }
 
 // 数据库操作结果接口
@@ -99,4 +93,20 @@ export type DatabaseEvent =
   | 'backupRestored';
 
 // 数据库事件处理器
+export type DatabaseEventHandler = (event: DatabaseEvent, data?: any) => void;
+
+export interface BatchOperation<T> {
+  type: 'add' | 'put' | 'delete';
+  data: T;
+}
+
+export interface QueryResult<T> {
+  data: T[];
+  total: number;
+  hasMore: boolean;
+}
+
+export interface DatabaseMetrics {
+  queryCount: number;
+  queryTime: number;
 export type DatabaseEventHandler = (event: DatabaseEvent, data?: any) => void; 

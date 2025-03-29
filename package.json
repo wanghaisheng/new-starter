@@ -53,7 +53,7 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/jest": "^29.5.14",
-    "@types/node": "^20.11.0",
+    "@types/node": "^20.17.28",
     "@types/react": "^18.2.0",
     "@types/sql.js": "^1.4.9",
     "autoprefixer": "^10.4.16",
@@ -65,6 +65,7 @@
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
     "ts-jest": "^29.3.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^3.0.9"
   }
 }

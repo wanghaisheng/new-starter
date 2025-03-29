@@ -19,6 +19,9 @@
     "jsx": "preserve",
     "incremental": true,
     "baseUrl": ".",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strictPropertyInitialization": false,
     "plugins": [
       {
         "name": "next"

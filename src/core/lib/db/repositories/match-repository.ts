@@ -1,10 +1,10 @@
 import { BaseRepository } from './base-repository';
-import { Match } from '../models/match';
 import { IBaseDatabaseClient } from '../interfaces';
+import { Match, User } from '../types';
 
 /**
  * 匹配仓储类
- * 处理匹配相关的数据访问
+ * 处理用户匹配相关的数据访问
  */
 export class MatchRepository extends BaseRepository<Match> {
   constructor(client: IBaseDatabaseClient) {
@@ -20,8 +20,8 @@ export class MatchRepository extends BaseRepository<Match> {
     return this.query({
       where: {
         $or: [
-          { userId1: userId },
-          { userId2: userId }
+          { user1Id: userId },
+          { user2Id: userId }
         ]
       }
     });
@@ -29,32 +29,43 @@ export class MatchRepository extends BaseRepository<Match> {
   
   /**
    * 查找两个用户之间的匹配
-   * @param userId1 用户1 ID
-   * @param userId2 用户2 ID
-   * @returns 匹配或null
+   * @param user1Id 用户1 ID
+   * @param user2Id 用户2 ID
+   * @returns 匹配记录
    */
-  async findBetweenUsers(userId1: string, userId2: string): Promise<Match | null> {
+  async findByUsers(user1Id: string, user2Id: string): Promise<Match | null> {
     const matches = await this.query({
       where: {
         $or: [
-          { userId1, userId2 },
-          { userId1: userId2, userId2: userId1 }
+          { user1Id, user2Id },
+          { user1Id: user2Id, user2Id: user1Id }
         ]
       },
       limit: 1
     });
-    
-    return matches.length > 0 ? matches[0] : null;
+    return matches[0] || null;
   }
   
   /**
-   * 查找特定状态的匹配
-   * @param status 匹配状态
-   * @returns 匹配列表
+   * 创建新的匹配
+   * @param user1Id 用户1 ID
+   * @param user2Id 用户2 ID
+   * @returns 创建的匹配记录
    */
-  async findByStatus(status: 'pending' | 'accepted' | 'rejected'): Promise<Match[]> {
-    return this.query({
-      where: { status }
-    });
+  async createMatch(user1Id: string, user2Id: string): Promise<Match> {
+    return this.create({
+      user1Id,
+      user2Id,
+      isMatched: false
+    } as Match);
+  }
+  
+  /**
+   * 更新匹配状态
+   * @param matchId 匹配ID
+   * @param isMatched 是否匹配
+   */
+  async updateMatchStatus(matchId: string, isMatched: boolean): Promise<void> {
+    await this.update(matchId, { isMatched });
   }
 }

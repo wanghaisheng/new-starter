@@ -3,12 +3,15 @@ import { MockDatabaseClient } from './clients/mock/mock-client';
 import { IndexedDBClient } from './clients/indexeddb/indexeddb-client';
 import { SQLiteClient } from './clients/sqlite/sqlite-client';
 import { CapacitorSQLiteClient } from './clients/capacitor-sqlite/capacitor-sqlite-client';
+import { MockIndexedDBClient } from './clients/mock/indexeddb-client';
+import { Capacitor } from '@capacitor/core';
 
 /**
  * 数据库客户端类型
  */
 export enum DatabaseClientType {
   MOCK = 'mock',
+  MOCK_INDEXEDDB = 'mock-indexeddb',
   INDEXEDDB = 'indexeddb',
   SQLITE = 'sqlite',
   CAPACITOR_SQLITE = 'capacitor-sqlite'
@@ -52,24 +55,38 @@ export class DatabaseFactory {
    */
   static createClientFromEnv(): IDatabaseClient {
     // 获取环境变量
-    const dbType = process.env.DB_TYPE || 'mock';
-    const dbName = process.env.DB_NAME || 'app-database';
-    const dbVersion = parseInt(process.env.DB_VERSION || '1', 10);
+    const dbEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+    const dbType = process.env.NEXT_PUBLIC_MOCK_DB_TYPE || 'mock-indexeddb';
+    const dbName = process.env.NEXT_PUBLIC_DB_NAME || 'app-database';
+    const dbVersion = parseInt(process.env.NEXT_PUBLIC_DB_VERSION || '1', 10);
     
     // 创建配置
     const config: DatabaseConfig = {
       name: dbName,
       version: dbVersion,
-      engine: dbType as any // 添加 engine 属性
+      engine: dbType as any
     };
     
+    // 根据环境选择客户端类型
+    let clientType = dbType;
+    
+    // 如果是生产环境，根据平台选择合适的客户端
+    if (dbEnv === 'production') {
+      if (Capacitor.isNativePlatform()) {
+        clientType = DatabaseClientType.CAPACITOR_SQLITE;
+      } else {
+        clientType = DatabaseClientType.INDEXEDDB;
+      }
+    }
+    
     // 创建客户端
-    return this.createClient(dbType, config);
+    return this.createClient(clientType, config);
   }
 }
 
 // 注册默认客户端类型
 DatabaseFactory.registerClientType(DatabaseClientType.MOCK, MockDatabaseClient);
+DatabaseFactory.registerClientType(DatabaseClientType.MOCK_INDEXEDDB, MockIndexedDBClient);
 DatabaseFactory.registerClientType(DatabaseClientType.INDEXEDDB, IndexedDBClient);
 DatabaseFactory.registerClientType(DatabaseClientType.SQLITE, SQLiteClient);
 DatabaseFactory.registerClientType(DatabaseClientType.CAPACITOR_SQLITE, CapacitorSQLiteClient);

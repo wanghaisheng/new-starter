@@ -16,16 +16,21 @@ const userSchema: TableSchema = {
       notNull: true
     },
     {
-      name: 'age',
-      type: 'integer'
+      name: 'email',
+      type: 'string',
+      notNull: true
+    },
+    {
+      name: 'photoUrl',
+      type: 'string'
     },
     {
       name: 'bio',
       type: 'text'
     },
     {
-      name: 'images',
-      type: 'json'
+      name: 'birthDate',
+      type: 'date'
     },
     {
       name: 'interests',
@@ -45,6 +50,11 @@ const userSchema: TableSchema = {
     }
   ],
   indexes: [
+    {
+      name: 'idx_users_email',
+      columns: ['email'],
+      unique: true
+    },
     {
       name: 'idx_users_name',
       columns: ['name']

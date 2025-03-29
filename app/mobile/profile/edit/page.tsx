@@ -65,11 +65,11 @@ export default function EditProfilePage() {
 
   const handleImageUpload = async () => {
     try {
-      const image = await cameraService.takePicture();
-      if (image && currentUser) {
+      const photo = await cameraService.takePicture();
+      if (photo && currentUser && photo.webPath) {
         setCurrentUser({
           ...currentUser,
-          images: [...currentUser.images, image]
+          photos: [...currentUser.photos, photo.webPath]
         });
       }
     } catch (err) {
@@ -81,11 +81,11 @@ export default function EditProfilePage() {
 
   const handleRemoveImage = (index: number) => {
     if (!currentUser) return;
-    const newImages = [...currentUser.images];
+    const newImages = [...currentUser.photos];
     newImages.splice(index, 1);
     setCurrentUser({
       ...currentUser,
-      images: newImages
+      photos: newImages
     });
   };
 
@@ -231,7 +231,7 @@ export default function EditProfilePage() {
             </div>
             <IonGrid>
               <IonRow>
-                {currentUser.images.map((image, index) => (
+                {currentUser.photos.map((image, index) => (
                   <IonCol size="4" key={index}>
                     <div className="relative">
                       <img src={image} alt={`照片 ${index + 1}`} className="w-full h-24 object-cover rounded-md" />

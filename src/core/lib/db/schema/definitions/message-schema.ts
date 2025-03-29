@@ -29,19 +29,30 @@ const messageSchema: TableSchema = {
       }
     },
     {
+      name: 'receiverId',
+      type: 'string',
+      notNull: true,
+      references: {
+        table: 'users',
+        column: 'id'
+      }
+    },
+    {
       name: 'content',
       type: 'text',
       notNull: true
+    },
+    {
+      name: 'isRead',
+      type: 'boolean',
+      notNull: true,
+      defaultValue: false
     },
     {
       name: 'sentAt',
       type: 'date',
       notNull: true,
       defaultValue: () => new Date()
-    },
-    {
-      name: 'readAt',
-      type: 'date'
     },
     {
       name: 'createdAt',
@@ -62,8 +73,8 @@ const messageSchema: TableSchema = {
       columns: ['matchId']
     },
     {
-      name: 'idx_messages_sender',
-      columns: ['senderId']
+      name: 'idx_messages_participants',
+      columns: ['senderId', 'receiverId']
     },
     {
       name: 'idx_messages_sent_at',

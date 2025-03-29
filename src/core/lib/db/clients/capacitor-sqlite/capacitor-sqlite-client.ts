@@ -3,8 +3,10 @@ import { IDatabaseClient, DatabaseConfig } from '../../interfaces';
 import { schemaRegistry } from '../../schema/index';
 import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
-// Add import for defineCustomElements
 import { defineCustomElements } from 'jeep-sqlite/loader';
+import { initializeSQLite } from './init-sqlite';
+import { SQLITE_CONFIG } from './sqlite-config';
+import { SQLiteSyncManager } from './sync-manager';
 
 /**
  * Capacitor SQLite 数据库客户端
@@ -13,6 +15,7 @@ import { defineCustomElements } from 'jeep-sqlite/loader';
 export class CapacitorSQLiteClient extends BaseClient implements IDatabaseClient {
   private sqlite: SQLiteConnection | null = null;
   private db: SQLiteDBConnection | null = null;
+  private syncManager: SQLiteSyncManager;
   private config: DatabaseConfig;
   private dbName: string;
   private isNative: boolean;
@@ -20,51 +23,21 @@ export class CapacitorSQLiteClient extends BaseClient implements IDatabaseClient
   constructor(config: DatabaseConfig) {
     super();
     this.config = config;
-    this.dbName = config.name || 'app-database';
+    this.dbName = config.name || SQLITE_CONFIG.database.name;
     this.isNative = Capacitor.isNativePlatform();
+    this.syncManager = SQLiteSyncManager.getInstance();
   }
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
     try {
+      // 初始化 SQLite
+      await initializeSQLite();
+
       // 初始化 SQLite 连接
       this.sqlite = new SQLiteConnection(CapacitorSQLite);
       
-      // 检查平台
-      const platform = Capacitor.getPlatform();
-      
-      // 在 Web 平台上初始化 jeep-sqlite
-      if (platform === 'web') {
-        // 初始化 jeep-sqlite 自定义元素
-        defineCustomElements(window);
-        
-        // 确保 DOM 已加载完成
-        if (document.readyState !== 'complete') {
-          await new Promise<void>((resolve) => {
-            window.addEventListener('DOMContentLoaded', () => {
-              resolve();
-            });
-          });
-        }
-        
-        // 检查是否已添加 jeep-sqlite 元素
-        let jeepEl = document.querySelector('jeep-sqlite');
-        if (!jeepEl) {
-          jeepEl = document.createElement('jeep-sqlite');
-          document.body.appendChild(jeepEl);
-        }
-        
-        // 等待自定义元素定义完成
-        await customElements.whenDefined('jeep-sqlite');
-        
-        // 等待组件准备就绪
-        await (jeepEl as any).componentOnReady();
-        
-        // 初始化 Web 存储
-        await this.sqlite.initWebStore();
-      }
-
       // 检查数据库连接是否存在
       const isConn = await this.sqlite.isConnection(this.dbName, false);
       
@@ -75,15 +48,18 @@ export class CapacitorSQLiteClient extends BaseClient implements IDatabaseClient
         // 创建新连接
         this.db = await this.sqlite.createConnection(
           this.dbName,
-          false,
-          'no-encryption',
-          1,
+          SQLITE_CONFIG.database.encrypted,
+          SQLITE_CONFIG.database.mode,
+          SQLITE_CONFIG.database.version,
           false
         );
       }
 
       // 打开数据库连接
       await this.db.open();
+
+      // 初始化同步管理器
+      await this.syncManager.initialize(this.db);
 
       // 执行迁移
       await this.executeMigrations();
@@ -92,7 +68,7 @@ export class CapacitorSQLiteClient extends BaseClient implements IDatabaseClient
       console.log(`Capacitor SQLite 数据库 "${this.dbName}" 初始化成功`);
     } catch (error) {
       console.error('初始化 Capacitor SQLite 失败:', error);
-      throw error;
+      throw new Error(`初始化 Capacitor SQLite 失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
 
@@ -199,21 +175,36 @@ export class CapacitorSQLiteClient extends BaseClient implements IDatabaseClient
     const itemWithTimestamps = this.addTimestamps(data, false);
     
     try {
+      await this.db!.beginTransaction();
+      
+      // 创建本地数据库
       const columns = Object.keys(itemWithTimestamps);
       const placeholders = columns.map(() => '?').join(', ');
-      // 修复：使用类型断言确保 TypeScript 理解这是一个索引访问
       const values = columns.map(col => 
         this.formatValueForStorage(itemWithTimestamps[col as keyof typeof itemWithTimestamps])
       );
       
-      // 使用正确的 run 方法签名
       await this.db!.run(
         `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`,
         values
       );
-      
+
+      // 如果启用同步，则跟踪更改
+      if (SQLITE_CONFIG.sync.enabled) {
+        await this.syncManager.trackChange({
+          entityId: data.id,
+          tableName,
+          operation: 'create',
+          data: itemWithTimestamps
+        });
+      }
+
+      await this.db!.commitTransaction();
       return itemWithTimestamps;
     } catch (error) {
+      if (this.db) {
+        await this.db.rollbackTransaction();
+      }
       console.error(`创建失败 (${tableName}):`, error);
       throw error;
     }
@@ -223,24 +214,36 @@ export class CapacitorSQLiteClient extends BaseClient implements IDatabaseClient
     this.checkInitialized();
     
     try {
-      // 更新数据并添加时间戳
-      const updatedData = this.addTimestamps({ ...data, id } as T, true);
+      await this.db!.beginTransaction();
       
+      const updatedData = this.addTimestamps({ ...data, id } as T, true);
       const columns = Object.keys(updatedData).filter(key => key !== 'id');
       const setClause = columns.map(col => `${col} = ?`).join(', ');
-      
-      // 修复：使用类型断言确保 TypeScript 理解这是一个索引访问
       const values = [
-        ...columns.map(col => this.formatValueForStorage(updatedData[col as keyof typeof updatedData])), 
+        ...columns.map(col => this.formatValueForStorage(updatedData[col as keyof typeof updatedData])),
         id
       ];
-      
-      // 使用正确的 run 方法签名
+
       await this.db!.run(
         `UPDATE ${tableName} SET ${setClause} WHERE id = ?`,
         values
       );
+
+      // 如果启用同步，则跟踪更改
+      if (SQLITE_CONFIG.sync.enabled) {
+        await this.syncManager.trackChange({
+          entityId: id,
+          tableName,
+          operation: 'update',
+          data: updatedData
+        });
+      }
+
+      await this.db!.commitTransaction();
     } catch (error) {
+      if (this.db) {
+        await this.db.rollbackTransaction();
+      }
       console.error(`更新失败 (${tableName}/${id}):`, error);
       throw error;
     }
@@ -250,12 +253,27 @@ export class CapacitorSQLiteClient extends BaseClient implements IDatabaseClient
     this.checkInitialized();
     
     try {
-      // 使用正确的 run 方法签名
+      await this.db!.beginTransaction();
+
       await this.db!.run(
         `DELETE FROM ${tableName} WHERE id = ?`,
         [id]
       );
+
+      // 如果启用同步，则跟踪更改
+      if (SQLITE_CONFIG.sync.enabled) {
+        await this.syncManager.trackChange({
+          entityId: id,
+          tableName,
+          operation: 'delete'
+        });
+      }
+
+      await this.db!.commitTransaction();
     } catch (error) {
+      if (this.db) {
+        await this.db.rollbackTransaction();
+      }
       console.error(`删除失败 (${tableName}/${id}):`, error);
       throw error;
     }

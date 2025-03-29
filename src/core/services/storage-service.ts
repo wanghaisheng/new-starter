@@ -1,4 +1,4 @@
-import { User, Match, Message } from '../models/user';
+import { User, Match, Message } from '@/core/lib/db/types';
 import { Storage } from '@capacitor/storage';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -40,6 +40,198 @@ function getFirebaseConfig(): StorageConfig {
       appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || ''
     }
   };
+}
+
+export interface IStorageService {
+  // User operations
+  getUser(id: string): Promise<User | null>;
+  getUsers(): Promise<User[]>;
+  saveUser(user: User): Promise<void>;
+  deleteUser(id: string): Promise<void>;
+
+  // Match operations
+  getMatch(id: string): Promise<Match | null>;
+  getMatches(userId: string): Promise<Match[]>;
+  saveMatch(match: Match): Promise<void>;
+  deleteMatch(id: string): Promise<void>;
+
+  // Message operations
+  getMessage(id: string): Promise<Message | null>;
+  getMessages(matchId: string): Promise<Message[]>;
+  saveMessage(message: Message): Promise<void>;
+  deleteMessage(id: string): Promise<void>;
+
+  // Additional operations
+  getUserMatches(userId: string): Promise<Match[]>;
+  getUserMessages(userId: string): Promise<Message[]>;
+  getUnreadMessages(userId: string): Promise<Message[]>;
+  markMessageAsRead(messageId: string): Promise<void>;
+  markMessagesAsRead(messageIds: string[]): Promise<void>;
+
+  // Storage management
+  clear(): Promise<void>;
+  initialize(): Promise<void>;
+}
+
+export class LocalStorageService implements IStorageService {
+  private static instance: LocalStorageService;
+  private users: Map<string, User> = new Map();
+  private matches: Map<string, Match> = new Map();
+  private messages: Map<string, Message> = new Map();
+  private isInitialized = false;
+
+  private constructor() {}
+
+  public static getInstance(): LocalStorageService {
+    if (!LocalStorageService.instance) {
+      LocalStorageService.instance = new LocalStorageService();
+    }
+    return LocalStorageService.instance;
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    try {
+      // Load data from localStorage
+      const usersData = localStorage.getItem('users');
+      const matchesData = localStorage.getItem('matches');
+      const messagesData = localStorage.getItem('messages');
+
+      if (usersData) {
+        const users = JSON.parse(usersData) as User[];
+        users.forEach(user => {
+          user.createdAt = new Date(user.createdAt);
+          user.updatedAt = new Date(user.updatedAt);
+          if (user.birthDate) {
+            user.birthDate = new Date(user.birthDate);
+          }
+          this.users.set(user.id, user);
+        });
+      }
+
+      if (matchesData) {
+        const matches = JSON.parse(matchesData) as Match[];
+        matches.forEach(match => {
+          match.createdAt = new Date(match.createdAt);
+          match.updatedAt = new Date(match.updatedAt);
+          this.matches.set(match.id, match);
+        });
+      }
+
+      if (messagesData) {
+        const messages = JSON.parse(messagesData) as Message[];
+        messages.forEach(message => {
+          message.createdAt = new Date(message.createdAt);
+          message.updatedAt = new Date(message.updatedAt);
+          this.messages.set(message.id, message);
+        });
+      }
+
+      this.isInitialized = true;
+    } catch (error) {
+      console.error('Failed to initialize storage:', error);
+      throw error;
+    }
+  }
+
+  public async clear(): Promise<void> {
+    this.users.clear();
+    this.matches.clear();
+    this.messages.clear();
+    localStorage.clear();
+  }
+
+  // User operations
+  async getUser(id: string): Promise<User | null> {
+    return this.users.get(id) || null;
+  }
+
+  async getUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
+  async saveUser(user: User): Promise<void> {
+    this.users.set(user.id, user);
+    localStorage.setItem('users', JSON.stringify(Array.from(this.users.values())));
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    this.users.delete(id);
+    localStorage.setItem('users', JSON.stringify(Array.from(this.users.values())));
+  }
+
+  // Match operations
+  async getMatch(id: string): Promise<Match | null> {
+    return this.matches.get(id) || null;
+  }
+
+  async getMatches(userId: string): Promise<Match[]> {
+    return Array.from(this.matches.values()).filter(
+      m => m.user1Id === userId || m.user2Id === userId
+    );
+  }
+
+  async saveMatch(match: Match): Promise<void> {
+    this.matches.set(match.id, match);
+    localStorage.setItem('matches', JSON.stringify(Array.from(this.matches.values())));
+  }
+
+  async deleteMatch(id: string): Promise<void> {
+    this.matches.delete(id);
+    localStorage.setItem('matches', JSON.stringify(Array.from(this.matches.values())));
+  }
+
+  // Message operations
+  async getMessage(id: string): Promise<Message | null> {
+    return this.messages.get(id) || null;
+  }
+
+  async getMessages(matchId: string): Promise<Message[]> {
+    return Array.from(this.messages.values()).filter(m => m.matchId === matchId);
+  }
+
+  async saveMessage(message: Message): Promise<void> {
+    this.messages.set(message.id, message);
+    localStorage.setItem('messages', JSON.stringify(Array.from(this.messages.values())));
+  }
+
+  async deleteMessage(id: string): Promise<void> {
+    this.messages.delete(id);
+    localStorage.setItem('messages', JSON.stringify(Array.from(this.messages.values())));
+  }
+
+  // Additional operations
+  async getUserMatches(userId: string): Promise<Match[]> {
+    return Array.from(this.matches.values()).filter(
+      m => m.user1Id === userId || m.user2Id === userId
+    );
+  }
+
+  async getUserMessages(userId: string): Promise<Message[]> {
+    return Array.from(this.messages.values()).filter(
+      m => m.senderId === userId || m.receiverId === userId
+    );
+  }
+
+  async getUnreadMessages(userId: string): Promise<Message[]> {
+    return Array.from(this.messages.values()).filter(
+      m => m.receiverId === userId && !m.isRead
+    );
+  }
+
+  async markMessageAsRead(messageId: string): Promise<void> {
+    const message = await this.getMessage(messageId);
+    if (message) {
+      message.isRead = true;
+      message.updatedAt = new Date();
+      await this.saveMessage(message);
+    }
+  }
+
+  async markMessagesAsRead(messageIds: string[]): Promise<void> {
+    await Promise.all(messageIds.map(id => this.markMessageAsRead(id)));
+  }
 }
 
 export class StorageService {

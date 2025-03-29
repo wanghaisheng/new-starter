@@ -1,6 +1,6 @@
 import { BaseRepository } from './base-repository';
-import { User } from '../models/user';
 import { IBaseDatabaseClient } from '../interfaces';
+import { User } from '../types';
 
 /**
  * 用户仓储类

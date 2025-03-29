@@ -15,7 +15,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEdit, onSettin
   return (
     <IonCard className="overflow-hidden">
       <div className="relative">
-        <IonImg src={user.images[0]} className="w-full h-64 object-cover" />
+        <IonImg src={user.photos[0]} className="w-full h-64 object-cover" />
         <div className="absolute top-2 right-2 flex gap-2">
           <IonButton fill="clear" color="light" onClick={onEdit}>
             <IonIcon icon={pencil} slot="icon-only" />
@@ -26,7 +26,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEdit, onSettin
         </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
           <h2 className="text-2xl font-bold">{user.name}, {user.age}</h2>
-          <p className="text-sm">{user.location}</p>
+          <p className="text-sm">
+            {typeof user.location === 'string' 
+              ? user.location 
+              : `${user.location.latitude}, ${user.location.longitude}`}
+          </p>
         </div>
       </div>
       <IonCardContent>
@@ -44,8 +48,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEdit, onSettin
         
         <h3 className="font-semibold mb-2">照片集</h3>
         <div className="grid grid-cols-3 gap-2">
-          {user.images.map((image, index) => (
-            <IonImg key={index} src={image} className="w-full h-24 object-cover rounded-md" />
+          {user.photos.map((photo, index) => (
+            <IonImg key={index} src={photo} className="w-full h-24 object-cover rounded-md" />
           ))}
         </div>
       </IonCardContent>

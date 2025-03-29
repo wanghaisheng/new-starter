@@ -1,62 +1,75 @@
 import { BaseRepository } from './base-repository';
-import { Message } from '../models/message';
 import { IBaseDatabaseClient } from '../interfaces';
+import { Message } from '../types';
 
 /**
  * 消息仓储类
- * 处理消息相关的数据访问
+ * 处理用户消息相关的数据访问
  */
 export class MessageRepository extends BaseRepository<Message> {
   constructor(client: IBaseDatabaseClient) {
     super(client, 'messages');
   }
-  
+
   /**
-   * 查找匹配的所有消息
+   * 获取匹配的所有消息
    * @param matchId 匹配ID
    * @returns 消息列表
    */
   async findByMatchId(matchId: string): Promise<Message[]> {
     return this.query({
       where: { matchId },
-      orderBy: 'sentAt'
+      orderBy: 'createdAt'
     });
   }
-  
+
   /**
-   * 查找用户发送的所有消息
-   * @param senderId 发送者ID
+   * 获取用户的所有消息
+   * @param userId 用户ID
    * @returns 消息列表
    */
-  async findBySenderId(senderId: string): Promise<Message[]> {
+  async findByUserId(userId: string): Promise<Message[]> {
     return this.query({
-      where: { senderId }
+      where: {
+        $or: [
+          { senderId: userId },
+          { receiverId: userId }
+        ]
+      },
+      orderBy: '-createdAt'
     });
   }
-  
+
   /**
-   * 查找未读消息
-   * @param matchId 匹配ID
+   * 获取用户未读消息
    * @param userId 用户ID
    * @returns 未读消息列表
    */
-  async findUnread(matchId: string, userId: string): Promise<Message[]> {
+  async findUnreadByUserId(userId: string): Promise<Message[]> {
     return this.query({
       where: {
-        matchId,
-        senderId: { $ne: userId },
-        readAt: null
-      }
+        receiverId: userId,
+        isRead: false
+      },
+      orderBy: '-createdAt'
     });
   }
-  
+
   /**
    * 标记消息为已读
    * @param messageId 消息ID
    */
   async markAsRead(messageId: string): Promise<void> {
-    await this.update(messageId, {
-      readAt: new Date()
-    } as Partial<Message>);
+    await this.update(messageId, { isRead: true });
+  }
+
+  /**
+   * 批量标记消息为已读
+   * @param messageIds 消息ID列表
+   */
+  async markMultipleAsRead(messageIds: string[]): Promise<void> {
+    await Promise.all(
+      messageIds.map(id => this.update(id, { isRead: true }))
+    );
   }
 }

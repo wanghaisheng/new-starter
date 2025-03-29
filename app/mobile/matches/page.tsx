@@ -15,7 +15,8 @@ import {
   IonLabel, 
   IonBadge,
   IonLoading,
-  IonToast
+  IonToast,
+  IonNote
 } from '@ionic/react';
 import { useRouter } from 'next/navigation';
 import { Match, User } from '@/core/models/user';
@@ -174,22 +175,21 @@ export default function MatchesPage() {
                 onClick={() => router.push(`/matches/${match.id}`)}
               >
                 <IonAvatar slot="start" className="w-12 h-12">
-                  <img src={matchedUser.images[0]} alt={matchedUser.name} />
+                  <img src={matchedUser.photos?.[0] || '/assets/default-avatar.png'} alt={matchedUser.name} />
                 </IonAvatar>
                 <IonLabel>
                   <h2>{matchedUser.name}</h2>
-                  <p>{matchedUser.bio}</p>
-                  {match.lastMessage && (
-                    <p className="text-sm text-gray-500">
-                      {match.lastMessage.text}
-                    </p>
-                  )}
+                  <p className="text-gray-500">
+                    {match.lastMessageAt ? (
+                      `Last active: ${new Date(match.lastMessageAt).toLocaleString()}`
+                    ) : (
+                      'No activity yet'
+                    )}
+                  </p>
                 </IonLabel>
-                {match.lastMessage && (
-                  <IonBadge slot="end" color="primary">
-                    {formatLastMessageTime(match.lastMessage.timestamp)}
-                  </IonBadge>
-                )}
+                <IonNote slot="end" className="text-gray-500">
+                  {match.lastMessageAt && new Date(match.lastMessageAt).toLocaleString()}
+                </IonNote>
               </IonItem>
             );
           })}

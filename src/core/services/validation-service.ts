@@ -1,4 +1,12 @@
-import { User } from '../models/user';
+import { User } from '@/core/lib/db/types';
+
+export interface IValidationService {
+  validateUser(user: User): Promise<boolean>;
+  validateEmail(email: string): boolean;
+  validatePassword(password: string): boolean;
+  validateName(name: string): boolean;
+  validateBirthDate(birthDate: Date): boolean;
+}
 
 export class ValidationService {
   private static instance: ValidationService;

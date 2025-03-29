@@ -11,7 +11,7 @@ const matchSchema: TableSchema = {
       notNull: true
     },
     {
-      name: 'userId1',
+      name: 'user1Id',
       type: 'string',
       notNull: true,
       references: {
@@ -20,7 +20,7 @@ const matchSchema: TableSchema = {
       }
     },
     {
-      name: 'userId2',
+      name: 'user2Id',
       type: 'string',
       notNull: true,
       references: {
@@ -29,10 +29,10 @@ const matchSchema: TableSchema = {
       }
     },
     {
-      name: 'status',
-      type: 'string',
+      name: 'isMatched',
+      type: 'boolean',
       notNull: true,
-      defaultValue: 'pending'
+      defaultValue: false
     },
     {
       name: 'matchedAt',
@@ -53,16 +53,13 @@ const matchSchema: TableSchema = {
   ],
   indexes: [
     {
-      name: 'idx_matches_user1',
-      columns: ['userId1']
-    },
-    {
-      name: 'idx_matches_user2',
-      columns: ['userId2']
+      name: 'idx_matches_users',
+      columns: ['user1Id', 'user2Id'],
+      unique: true
     },
     {
       name: 'idx_matches_status',
-      columns: ['status']
+      columns: ['isMatched']
     }
   ]
 };

@@ -4,6 +4,7 @@ import { User } from '@/core/models/user';
 import { Match } from '@/core/models/match';
 import { Message } from '@/core/models/message';
 import { IDataService } from './data-service.interface';
+import { initializeSQLite } from '@/core/lib/db/clients/capacitor-sqlite/init-sqlite';
 
 export class DatabaseService implements IDataService {
   private static instance: DatabaseService;
@@ -26,11 +27,8 @@ export class DatabaseService implements IDataService {
     if (this.isInitialized) return;
 
     try {
-      // 检查平台
-      if (Capacitor.getPlatform() === 'web') {
-        console.warn('SQLite is not available on web platform');
-        return;
-      }
+      // 初始化 SQLite
+      await initializeSQLite();
 
       // 创建数据库连接
       this.db = await this.sqlite.createConnection(

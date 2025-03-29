@@ -1,242 +1,310 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonContent, IonItem, IonLabel, IonList } from '@ionic/react';
+import React, { useEffect, useState } from 'react';
+import {
+  IonContent,
+  IonHeader,
+  IonPage,
+  IonTitle,
+  IonToolbar,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonInput,
+  IonButton,
+  IonItemDivider,
+  IonSpinner,
+  IonToast,
+  IonIcon,
+  IonFab,
+  IonFabButton,
+  IonRefresher,
+  IonRefresherContent,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
+  IonSkeletonText,
+} from '@ionic/react';
+import { add, sync, trash, create } from 'ionicons/icons';
 import { CapacitorSQLiteClient } from '@/core/lib/db/clients/capacitor-sqlite/capacitor-sqlite-client';
+import { DatabaseConfig } from '@/core/lib/db/interfaces';
 
-// Define a simple user type
 interface User {
   id: string;
   name: string;
   email: string;
-  age: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export default function SQLiteDemo() {
-  const [log, setLog] = useState<string[]>([]);
+const SQLiteDemo: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
-  const [isDbInitialized, setIsDbInitialized] = useState(false);
-  const dbClientRef = useRef<CapacitorSQLiteClient | null>(null);
-  const tableName = 'users';
+  const [newUser, setNewUser] = useState({ name: '', email: '' });
+  const [loading, setLoading] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [dbClient, setDbClient] = useState<CapacitorSQLiteClient | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInfiniteScrollDisabled, setIsInfiniteScrollDisabled] = useState(false);
+  const [page, setPage] = useState(1);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
-  // Initialize the database
   useEffect(() => {
-    const initDatabase = async () => {
-      try {
-        // Create a new SQLite client
-        const dbClient = new CapacitorSQLiteClient({
-          name: 'demo-database',
-          version: 1,
-          engine: 'sqlite' // 添加必需的 engine 属性
-        });
-
-        // Initialize the database
-        await dbClient.initialize();
-        dbClientRef.current = dbClient;
-        setIsDbInitialized(true);
-        
-        // Create users table if it doesn't exist
-        await createUsersTable();
-        
-        addLog('数据库初始化成功');
-      } catch (error) {
-        addLog(`数据库初始化失败: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    };
-
-    initDatabase();
-
-    // Cleanup on component unmount
+    initializeDatabase();
     return () => {
-      const closeDb = async () => {
-        if (dbClientRef.current) {
-          await dbClientRef.current.close();
-          addLog('数据库连接已关闭');
-        }
-      };
-      closeDb();
+      if (dbClient) {
+        dbClient.close();
+      }
     };
   }, []);
 
-  // Create users table
-  const createUsersTable = async () => {
-    if (!dbClientRef.current) return;
-    
+  const initializeDatabase = async () => {
     try {
-      const tableExists = await dbClientRef.current.isTableExists(tableName);
-      
-      if (!tableExists) {
-        const createTableSQL = `
-          CREATE TABLE IF NOT EXISTS ${tableName} (
-            id TEXT PRIMARY KEY NOT NULL,
-            name TEXT NOT NULL,
-            email TEXT,
-            age INTEGER
-          )
-        `;
-        
-        await dbClientRef.current.executeRawQuery(createTableSQL);
-        addLog(`创建表 ${tableName} 成功`);
-      } else {
-        addLog(`表 ${tableName} 已存在`);
-      }
+      // 创建数据库配置
+      const config: DatabaseConfig = {
+        engine: 'sqlite',
+        name: 'user_db',
+        version: 1,
+      };
+
+      // 初始化数据库客户端
+      const client = new CapacitorSQLiteClient(config);
+      await client.initialize();
+      setDbClient(client);
+
+      // 加载用户数据
+      await loadUsers(client);
     } catch (error) {
-      addLog(`创建表失败: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('数据库初始化失败:', error);
+      showMessage(`数据库初始化失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Add a sample user
-  const addSampleUser = async () => {
-    if (!dbClientRef.current) return;
-    
+  const loadUsers = async (client: CapacitorSQLiteClient, pageNum: number = 1) => {
+    try {
+      const limit = 10;
+      const offset = (pageNum - 1) * limit;
+      
+      const result = await client.query<User>('users', {
+        orderBy: ['-createdAt'],
+        limit,
+        offset,
+      });
+
+      if (pageNum === 1) {
+        setUsers(result);
+      } else {
+        setUsers(prev => [...prev, ...result]);
+      }
+
+      setIsInfiniteScrollDisabled(result.length < limit);
+      setPage(pageNum);
+    } catch (error) {
+      console.error('加载用户数据失败:', error);
+      showMessage(`加载用户数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  };
+
+  const handleAddUser = async () => {
+    if (!dbClient || !newUser.name || !newUser.email) return;
+
     try {
       const user: User = {
-        id: '', // Will be generated by the client
-        name: `User ${Math.floor(Math.random() * 1000)}`,
-        email: `user${Math.floor(Math.random() * 1000)}@example.com`,
-        age: Math.floor(Math.random() * 80) + 18
+        id: crypto.randomUUID(),
+        name: newUser.name,
+        email: newUser.email,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
-      
-      const savedUser = await dbClientRef.current.create<User>(tableName, user);
-      addLog(`添加用户成功: ${savedUser.name}`);
-      
-      // Refresh users list
-      loadUsers();
+
+      await dbClient.saveEntity('users', user);
+      setNewUser({ name: '', email: '' });
+      await loadUsers(dbClient);
+      showMessage('用户添加成功');
     } catch (error) {
-      addLog(`添加用户失败: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('添加用户失败:', error);
+      showMessage(`添加用户失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
-  // Load all users
-  const loadUsers = async () => {
-    if (!dbClientRef.current) return;
-    
+  const handleUpdateUser = async () => {
+    if (!dbClient || !editingUser) return;
+
     try {
-      const allUsers = await dbClientRef.current.findAll<User>(tableName);
-      setUsers(allUsers);
-      addLog(`加载了 ${allUsers.length} 个用户`);
+      await dbClient.updateEntity('users', editingUser);
+      setEditingUser(null);
+      await loadUsers(dbClient);
+      showMessage('用户更新成功');
     } catch (error) {
-      addLog(`加载用户失败: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('更新用户失败:', error);
+      showMessage(`更新用户失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
-  // Delete a user
-  const deleteUser = async (id: string) => {
-    if (!dbClientRef.current) return;
-    
+  const handleDeleteUser = async (id: string) => {
+    if (!dbClient) return;
+
     try {
-      await dbClientRef.current.delete(tableName, id);
-      addLog(`删除用户 ID: ${id} 成功`);
-      
-      // Refresh users list
-      loadUsers();
+      await dbClient.deleteEntity('users', id);
+      await loadUsers(dbClient);
+      showMessage('用户删除成功');
     } catch (error) {
-      addLog(`删除用户失败: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('删除用户失败:', error);
+      showMessage(`删除用户失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
-  // Clear all users
-  const clearUsers = async () => {
-    if (!dbClientRef.current) return;
-    
+  const handleRefresh = async (event: CustomEvent) => {
+    setIsRefreshing(true);
     try {
-      await dbClientRef.current.executeRawQuery(`DELETE FROM ${tableName}`);
-      addLog('清空所有用户数据');
-      
-      // Refresh users list
-      loadUsers();
-    } catch (error) {
-      addLog(`清空用户数据失败: ${error instanceof Error ? error.message : String(error)}`);
+      await loadUsers(dbClient!);
+    } finally {
+      setIsRefreshing(false);
+      event.detail.complete();
     }
   };
 
-  // Helper function to add log messages
-  const addLog = (message: string) => {
-    setLog(prevLog => [...prevLog, `${new Date().toLocaleTimeString()}: ${message}`]);
+  const handleInfiniteScroll = async (event: CustomEvent) => {
+    try {
+      await loadUsers(dbClient!, page + 1);
+    } finally {
+      (event.target as HTMLIonInfiniteScrollElement).complete();
+    }
   };
+
+  const showMessage = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+  };
+
+  if (loading) {
+    return (
+      <IonPage>
+        <IonContent className="ion-padding">
+          <div className="ion-text-center">
+            <IonSpinner />
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">SQLite 离线存储演示</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>数据操作</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <div className="flex flex-col space-y-2">
-                <IonButton 
-                  disabled={!isDbInitialized} 
-                  onClick={addSampleUser}
-                >
-                  添加随机用户
-                </IonButton>
-                
-                <IonButton 
-                  disabled={!isDbInitialized} 
-                  onClick={loadUsers}
-                >
-                  加载所有用户
-                </IonButton>
-                
-                <IonButton 
-                  disabled={!isDbInitialized} 
-                  onClick={clearUsers}
-                  color="danger"
-                >
-                  清空所有用户
-                </IonButton>
-              </div>
-            </IonCardContent>
-          </IonCard>
-          
-          <IonCard className="mt-4">
-            <IonCardHeader>
-              <IonCardTitle>用户列表</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              {users.length === 0 ? (
-                <p className="text-gray-500">暂无用户数据</p>
-              ) : (
-                <IonList>
-                  {users.map(user => (
-                    <IonItem key={user.id}>
-                      <IonLabel>
-                        <h2>{user.name}</h2>
-                        <p>{user.email} | 年龄: {user.age}</p>
-                      </IonLabel>
-                      <IonButton 
-                        slot="end" 
-                        color="danger" 
-                        onClick={() => deleteUser(user.id)}
-                      >
-                        删除
-                      </IonButton>
-                    </IonItem>
-                  ))}
-                </IonList>
-              )}
-            </IonCardContent>
-          </IonCard>
-        </div>
+    <IonPage>
+      <IonHeader>
+        <IonToolbar>
+          <IonTitle>离线用户管理</IonTitle>
+        </IonToolbar>
+      </IonHeader>
+      <IonContent className="ion-padding">
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent />
+        </IonRefresher>
+
+        <IonItemDivider>
+          <IonLabel>{editingUser ? '编辑用户' : '添加新用户'}</IonLabel>
+        </IonItemDivider>
         
-        <IonCard>
-          <IonCardHeader>
-            <IonCardTitle>操作日志</IonCardTitle>
-          </IonCardHeader>
-          <IonCardContent>
-            <div className="bg-gray-100 p-3 rounded-md h-[500px] overflow-y-auto">
-              {log.map((entry, index) => (
-                <div key={index} className="mb-1">
-                  <code>{entry}</code>
-                </div>
-              ))}
-            </div>
-          </IonCardContent>
-        </IonCard>
-      </div>
-    </div>
+        <IonItem>
+          <IonLabel position="floating">姓名</IonLabel>
+          <IonInput
+            value={editingUser ? editingUser.name : newUser.name}
+            onIonChange={e => {
+              if (editingUser) {
+                setEditingUser({ ...editingUser, name: e.detail.value || '' });
+              } else {
+                setNewUser({ ...newUser, name: e.detail.value || '' });
+              }
+            }}
+          />
+        </IonItem>
+        
+        <IonItem>
+          <IonLabel position="floating">邮箱</IonLabel>
+          <IonInput
+            value={editingUser ? editingUser.email : newUser.email}
+            onIonChange={e => {
+              if (editingUser) {
+                setEditingUser({ ...editingUser, email: e.detail.value || '' });
+              } else {
+                setNewUser({ ...newUser, email: e.detail.value || '' });
+              }
+            }}
+          />
+        </IonItem>
+
+        <IonButton 
+          expand="block" 
+          onClick={editingUser ? handleUpdateUser : handleAddUser} 
+          className="ion-margin-top"
+        >
+          {editingUser ? '更新用户' : '添加用户'}
+        </IonButton>
+
+        {editingUser && (
+          <IonButton 
+            expand="block" 
+            color="medium" 
+            onClick={() => setEditingUser(null)} 
+            className="ion-margin-top"
+          >
+            取消编辑
+          </IonButton>
+        )}
+
+        <IonItemDivider>
+          <IonLabel>用户列表</IonLabel>
+        </IonItemDivider>
+
+        <IonList>
+          {users.map(user => (
+            <IonItem key={user.id}>
+              <IonLabel>
+                <h2>{user.name}</h2>
+                <p>{user.email}</p>
+                <p>创建时间: {new Date(user.createdAt).toLocaleString()}</p>
+                <p>更新时间: {new Date(user.updatedAt).toLocaleString()}</p>
+              </IonLabel>
+              <IonButton
+                slot="end"
+                color="primary"
+                onClick={() => setEditingUser(user)}
+              >
+                <IonIcon slot="icon-only" icon={create} />
+              </IonButton>
+              <IonButton
+                slot="end"
+                color="danger"
+                onClick={() => handleDeleteUser(user.id)}
+              >
+                <IonIcon slot="icon-only" icon={trash} />
+              </IonButton>
+            </IonItem>
+          ))}
+        </IonList>
+
+        <IonInfiniteScroll
+          onIonInfinite={handleInfiniteScroll}
+          threshold="100px"
+          disabled={isInfiniteScrollDisabled}
+        >
+          <IonInfiniteScrollContent
+            loadingSpinner="bubbles"
+            loadingText="加载更多用户..."
+          />
+        </IonInfiniteScroll>
+
+        <IonToast
+          isOpen={showToast}
+          onDidDismiss={() => setShowToast(false)}
+          message={toastMessage}
+          duration={2000}
+          position="bottom"
+        />
+      </IonContent>
+    </IonPage>
   );
-}
+};
+
+export default SQLiteDemo;

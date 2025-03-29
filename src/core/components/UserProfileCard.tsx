@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
-import { IonCard, IonCardContent, IonImg, IonChip, IonLabel, IonIcon } from '@ionic/react';
-import { locationOutline, mailOutline, callOutline } from 'ionicons/icons';
-import { User } from '@/core/models/user';
+import React, { useState } from 'react';
+import { IonCard, IonCardContent, IonImg, IonChip, IonLabel, IonIcon, IonButton } from '@ionic/react';
+import { locationOutline, mailOutline, chevronBack, chevronForward } from 'ionicons/icons';
+import { User, Location } from '@/core/models/user';
 
 interface UserProfileCardProps {
   user: User;
@@ -16,20 +16,62 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
   editable = false,
   onEdit 
 }) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const handlePreviousImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === 0 ? user.photos.length - 1 : prev - 1
+    );
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === user.photos.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const getLocationText = (location: string | Location) => {
+    if (typeof location === 'string') {
+      return location;
+    }
+    return `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+  };
+
   return (
     <IonCard className="overflow-hidden">
       {/* 图片轮播区域 */}
       <div className="relative h-96">
         <div className="absolute top-0 left-0 w-full h-full">
-          {user.images.map((image, index) => (
+          {user.photos.map((photo, index) => (
             <IonImg
               key={index}
-              src={image}
-              className="w-full h-full object-cover absolute top-0 left-0"
-              style={{ opacity: index === 0 ? 1 : 0 }}
+              src={photo}
+              className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-500 ${
+                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+              }`}
             />
           ))}
         </div>
+        {user.photos.length > 1 && (
+          <>
+            <IonButton
+              fill="clear"
+              color="light"
+              className="absolute left-2 top-1/2 -translate-y-1/2"
+              onClick={handlePreviousImage}
+            >
+              <IonIcon icon={chevronBack} />
+            </IonButton>
+            <IonButton
+              fill="clear"
+              color="light"
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+              onClick={handleNextImage}
+            >
+              <IonIcon icon={chevronForward} />
+            </IonButton>
+          </>
+        )}
         {editable && (
           <button
             onClick={onEdit}
@@ -50,7 +92,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             </h2>
             <p className="text-gray-600 flex items-center mt-1">
               <IonIcon icon={locationOutline} className="mr-1" />
-              {user.location.latitude.toFixed(4)}, {user.location.longitude.toFixed(4)}
+              {getLocationText(user.location)}
             </p>
           </div>
 

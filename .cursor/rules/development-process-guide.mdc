@@ -5,41 +5,44 @@ alwaysApply: true
 ---
 # 开发流程指南
 
+> 版本兼容性：本文档必须与[guideline.md](mdc:../guideline.md) v1.1+ 保持同步  
+> 最后同步时间：2025-03-28
+
+
 本文档整合了项目开发过程中的各种流程和规范，为团队成员提供统一的开发指导。
 
 ## 0. 项目初始化检查
 
 在首次克隆项目或未确认项目初始化状态时，请运行环境检查脚本：
 
-```bash
-bash docs/tasks/check-environment.sh
+```badocs/tasks/tools/check-environment.sh
 ```
 
-如果检查发现问题，请按照脚本输出的建议进行修复。详细的初始化指南请参考 [项目初始化指南](.-initialization-guide.md)。
+如果检查发现问题，请按照脚本输出的建议进行修复。详细的初始化指南请参考 [项目初始化指南](mdc:project-initialization-guide.md)。
 
 脚本会在环境检查通过后创建初始化完成标记（`.env.local` 文件中的 `NEXT_PUBLIC_ENV_INITIALIZED=true`），后续开发无需再次运行环境检查。
 
 如果需要强制重新检查环境，可以使用 `--force` 参数：
 
 ```bash
-bash docs/tasks/check-environment.sh --force
+bash docs/tasks/tools/check-environment.sh --force
 ```
 
-## 1. 功能开发流程
+## 
 
 ### 1.1 需求分析与规划
 
 当收到新的功能需求时，应遵循以下步骤：
 
 1. **需求分析**：与产品经理/客户沟通，明确功能需求和优先级
-2. **技术可行性评估**：评估现有技术栈是否支持，是否需 **创建功能任务计划**：使用[功能任务计划模板](./templates/feature-task-plan-template.md)创建详细的任务计划文件
+2. **技术可行性评估**：评估现有技术栈是否支持，是否需要引入新依赖
+3. **创建功能任务计划**：使用[功能任务计划模板](mdc:templates/feature-task-plan-template.md)创建详细的任务计划文件
 
 ### 1.2 任务拆解与跟踪
 
 1. 将功能拆分为多个独立的子任务，每个子任务应有：
    - 明确的描述和完成标准
-   - 预估工时
-   - 指定负责人
+   - 预估负责人
    - 优先级和依赖关系
 
 2. 开发过程中及时更新子任务状态，确保任务计划反映最新进度
@@ -47,11 +50,38 @@ bash docs/tasks/check-environment.sh --force
 ### 1.3 问题记录与解决
 
 1. 在任务计划文档的问题记录部分记录开发过程中遇到的问题
-2. 问题解决后，记录解决方案 定期回顾问题记录，识别常见问题模式并改进开发流程
+2. 问题解决后，记录解决方案并总结经验教训
+3. 定期回顾问题记录，识别常见问题模式并改进开发流程
 
-### 1.4 版本控制与分支管理
+## 1.4 版本控制
 
-所有开发工作必须遵循项目的[Git分支管理策略](./git-branch-strategy.md)，确保代码变更有序且可追踪。主要包括：
+### 提交消息格式：
+- 类型(feat|fix|docs|style|refactor|test|chore): 简要描述
+- 空行
+- 详细说明（可选）
+- 空行
+- 关联问题编号（如Closes #123）
+
+示例：
+\`\`\`
+feat: 添加用户认证模块
+
+实现JWT基础认证流程
+包含登录/注册/令牌刷新功能
+
+Closes #45
+\`\`\`
+### 1.5 自动化脚本
+
+1. **脚本存放位置**：统一放在`docs/tasks/tools/`目录
+2. **命名要求**：使用`<功能>-<操作>.sh`格式，如`setup-database.sh`
+3. **输出规范**：
+   - 成功执行应输出绿色✅标记
+   - 失败应输出红色❌标记及解决建议
+4. **结果记录**：自动生成`<脚本名>-<时间戳>.log`文件
+5. **学习资源**：脚本编写参考资料位于`docs/lessons/bash/`目录
+
+所有开发工作必须遵循项目的[Git分支管理策略](mdc:git-branch-strategy.md)，确保代码变更有序且可追踪。主要包括：
 
 - 分支命名规范
 - 提交信息格式
@@ -68,43 +98,46 @@ bash docs/tasks/check-environment.sh --force
 4. **脚本文档**：在任务计划文档中说明脚本用途和执行方式
 
 示例：
-- Git 仓库初始化脚本：`docs/tasks/init-git-repo.sh`
-- 依赖安装脚本：`docs/tasks/install-dependencies.sh`
+- Git 仓库初始化脚本：`docs/tasks/tools/init-git-repo.sh`
+- 依赖安装脚本：`docs/tasks/tools/install-dependencies.sh`
 - 测试运行脚本：`docs/tasks/run-tests.sh`
 
 ## 2. 数据库开发流程
 
-数据库开发遵循渐进式流程，从Mock数据到生产环境数据库：
+数据库开发遵循渐进式流程，从Mock数据到生产环境数据库。这三个阶段构成了一个连续的开发流程，理想情况下，只需通过切换环境变量即可在不同阶段间无缝切换，而无需修改业务代码。这种设计确保了在开发初期就能确认数据库表字段和关联关系，随后在本地环境进行测试验证，最终无缝过渡到生产环境。
 
 ### 2.1 Mock数据阶段
 
 1. 在`src/mock/data/`目录下创建对应功能的mock数据文件
 2. 创建Mock数据服务，实现与真实服务相同的接口
 3. 在`.env.development`中配置使用Mock数据：
-   ```
+
    NEXT_PUBLIC_DATABASE_ENV=mock
    NEXT_PUBLIC_MOCK_DB_TYPE=memory  # 或 json
-   ```
+
 4. 验证UI和业务逻辑是否正常工作
+5. **重要**：确保服务实现中包含适当的降级策略，即使配置不### 2.2 本地数据库阶段
 
-### 2.2 本地数据库阶段
-
-1. 设计数据模型，确保与Mock数据结构一致
+1. 设计数据模型，构一致
 2. 创建数据库迁移脚本
 3. 实现本地数据库服务
 4. 在`.env.local`中配置使用本地数据库：
-   ```
+
    NEXT_PUBLIC_DATABASE_ENV=local
    NEXT_PUBLIC_LOCAL_DB_TYPE=sqlite  # 或 indexeddb
-   ```
+
 5. 验证数据持久化和查询性能
+6. **环境切换**
+  参考 2.4 环境切换
+
 
 ### 2.3 生产环境数据库阶段
 
 1. 实现云端数据库服务（Firebase/Supabase/Cloudflare D1）
 2. 实现离线数据存储（移动端使用Capacitor SQLite，Web端使用IndexedDB）
-production`中配置使用云端数据库：
-   `_PUBLIC_DATABASE_ENV=production
+3. 在`.env.production`中配置使用云端数据库：
+
+   NEXT_PUBLIC_DATABASE_ENV=production
    NEXT_PUBLIC_CLOUD_DB_TYPE=supabase  # 或 firebase, cloudflare_d1
    NEXT_PUBLIC_CLOUD_DB_URL=your_db_url
    NEXT_PUBLIC_CLOUD_DB_KEY=your_db_key
@@ -113,15 +146,43 @@ production`中配置使用云端数据库：
    NEXT_PUBLIC_OFFLINE_STORAGE_TYPE=indexeddb  # 可选: capacitor-sqlite, indexeddb, localstorage, websql
    NEXT_PUBLIC_OFFLINE_STORAGE_NAME=app_db
    NEXT_PUBLIC_OFFLINE_STORAGE_VERSION=1
-   ```
+
 4. 实现数据同步策略
 5. 优化数据库性能和安全性
+6. **配置验证**：在使用云服务前，确保所有必要的环境变量都已正确设置
 
-详细流程请参考[数据库开发工作流程](./templates/database-development-workflow.md)文档。
+### 2.4 环境切换与错误处理
+
+为确保在不同数据库环境之间平滑切换，请遵循以下最佳实践：
+
+1. **服务初始化检查**：所有数据库服务必须在初始化时检查配置的完整性
+2. **优雅降级策略**：当高级功能不可用时，应自动回退到基础功能
+3. **详细日志**：记录当前使用的数据库环境和初始化状态
+4. **环境切换命令**：
+在开发过程中，可以通过以下方式在不同数据库环境之间切换：
+
+1. **环境变量文件**：
+   - `.env.development` - 开发环境（默认包含 mock 配置）
+   - `.env.local` - 本地开发环境
+   - `.env.production` - 生产环境
+
+2. **启动命令**：
+
+   # 开发环境（Mock数据）
+   bun run dev
+   
+   # 本地数据库环境
+   NODE_ENV=local bun run dev
+   
+   # 生产环境
+   NODE_ENV=production bun run dev
+   # 或者构建后运行
+   bun run build
+   bun run start
 
 ## 3. 代码规范
 
-所有开发工作必须遵循[编码规范与最佳实践](./templates/coding-standards.md)文档中的规则，确保代码质量和一致性。主要包括：
+所有开发工作必须遵循[编码规范与最佳实践](mdc:templates/coding-standards.md)文档中的规则，确保代码质量和一致性。主要包括：
 
 - 文件和目录命名规范
 - TypeScript类型定义规范
@@ -139,7 +200,7 @@ production`中配置使用云端数据库：
 ```
 nextjs15-tailwind-ionic-capacitor-starter/
 ├── app/                      # Next.js App Router
-│   ├── (mobile)/             # 移动端专属路由
+│   ├── mobile/             # 移动端专属路由
 │   ├── (web)/                # Web专属路由
 │   └── api/                  # API路由
 ├── src/
@@ -153,15 +214,24 @@ nextjs15-tailwind-ionic-capacitor-starter/
 │   │   │   ├── db/           # 数据库访问层
 │   │   │   ├── i18n/         # 国际化核心
 │   │   │   └── api/          # API客户端
-│   │   └── models/           # 数据模型
+│   │   ├── models/           # 数据模型
+│   │   ├── services/         # 核心服务
+│   │   ├── config/           # 核心配置
+│   │   └── test/             # 核心测试
 │   ├── mobile/               # 移动端特定
 │   │   ├── components/       # 原生增强组件
 │   │   ├── plugins/          # Capacitor插件封装
 │   │   └── utils/            # 移动端工具
 │   ├── web/                  # Web特定
 │   ├── providers/            # 全局Providers
-│   ├── styles/               # 全局样式
+│   ├── styles/      # 全局样式
 │   └── utils/                # 通用工具
+├── tools/                    # 开发工具脚本
+│   ├── screenshot_utils.py   # 截图工具
+│   ├── get_browser.py        # 浏览器自动化
+│   ├── web_scraper.py        # 网页抓取
+│   ├── search_engine.py      # 搜索引擎
+│   └── llm_api.py           # LLM API集成
 ├── capacitor/                # 原生项目
 │   ├── android/              # Android平台
 │   └── ios/                  # iOS平台
@@ -214,9 +284,20 @@ nextjs15-tailwind-ionic-capacitor-starter/
 3. 发现文档错误时，及时修正
 4. 定期审查文档，确保内容准确性
 
+temp_mobile_standards.md
+## 7. 移动端开发规范
+
+### 7.1 路由结构
+- 所有移动端路由必须放在`app/mobile`目录下
+- 共享组件放在`src/core/components/`
+- 移动端专属组件放在`src/mobile/components/`
+
+### 7.2 插件封装
+- 每个Capacitor插件应有对应的服务封装类
+- 必须实现Web环境降级方案
 ## 7. UI素材管理流程
 
-在开计稿中包含图标、图片等素材，但这些素材尚未最终确定或提供时，应遵循以下流程：
+在开发过程中，当UI设计稿中包含图标、图片等素材，但这些素材尚未最终确定或提供时，应遵循以下流程：
 
 ### 7.1 素材需求记录
 
@@ -249,7 +330,7 @@ nextjs15-tailwind-ionic-capacitor-starter/
 3. 替换临时SVG，更新代码引用
 4. 更新CSV文件中的素材状态为"final"
 
-详细指南请参考[UI素材管理指南](./templates/ui-assets-management.md)文档。
+详细指南请参考[UI素材管理指南](mdc:templates/ui-assets-management.md)文档。
 
 ## 8. 常见问题与解决方案
 
@@ -258,7 +339,8 @@ nextjs15-tailwind-ionic-capacitor-starter/
 | 问题类别 | 问题描述 | 解决方案 |
 |---------|---------|----------|
 | 环境配置 | 待添加 | 待添加 |
-| 数据库 | 待添加 | 待添加 |
+| 数据库 | Firebase初始化错误 | 1. 检查环境变量配置<br>2. 确保服务实现了优雅降级策略<br>3. 参考[数据库初始化与降级策略](mdc:lessons/database/firebase-initialization-fallback.md) |
+| 数据库 | 环境切换后数据丢失 | 1. 使用`--env-file`参数指定正确的环境文件<br>2. 确保数据同步服务正常工作<br>3. 检查数据库连接配置 |
 | 移动端 | 待添加 | 待添加 |
 | 国际化 | 待添加 | 待添加 |
 | UI素材 | SVG在不同平台显示不一致 | 使用基本SVG元素，避免高级特性，确保viewBox设置正确 |
@@ -791,9 +873,7 @@ nextjs15-tailwind-ionic-capacitor-starter/
          setError('');
          const response = await oauthService.login('github');
          setAuthResponse(response);
-         console.log('GitHub登录成功:', response);
-       } catch (err) {
-         console.error('GitHub登录失败:', err);
+ole re      err', err);
          setError('登录失败: ' + (err instanceof Error ? err.message : String(err)));
        }
      };
@@ -841,7 +921,12 @@ nextjs15-tailwind-ionic-capacitor-starter/
              {error && (
                <IonText color="danger">
                  <p>{error}</p>
-  </I  )</donC </;
+               </IonText>
+             )}
+           </div>
+         </IonContent>
+       </IonPage>
+     );
    };
 
    export default OAuthDemo;
@@ -877,9 +962,8 @@ nextjs15-tailwind-ionic-capacitor-starter/
 
 ## 10. 资源与参考
 
-- [Next.js 官方文档](https://nextjs.org/docs)
-- [Ionic Framework 文档](https://ionicframework.com/docs)
-- [Capacitor 文档](https://capacitorjs.com/docs)
-- [Tailwind CSS 文档](https://tailwindcss.com/docs)
-- [TypeScript 文档](https://www.typescriptlang.org/docs)
-- [Capacitor 社区插件](https://github.com/capacitor-community)
+- [Next.js 官方文档](mdc:https:/nextjs.org/docs)
+- [Ionic Framework 文档](mdc:https:/ionicframework.com/docs)
+- [Capacitor 文档](mdc:https:/capacitorjs.com/docs)
+- [Tailwind CSS 文档](mdc:https:/tailwindcss.com/docs)
+- [TypeScript 文档](mdc:https:/www.typescriptlang.org/docs)

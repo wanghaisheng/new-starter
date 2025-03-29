@@ -17,7 +17,8 @@ import {
   IonAvatar, 
   IonLabel,
   IonLoading,
-  IonToast
+  IonToast,
+  IonImg
 } from '@ionic/react';
 import { send } from 'ionicons/icons';
 import { useParams } from 'next/navigation';
@@ -113,7 +114,7 @@ export default function ChatPage() {
         setMessages(prev => [...prev, result.message as Message]);
         setNewMessage('');
       } else {
-        setToastMessage(result.errors.join(', '));
+        setToastMessage(result.errors?.join(', ') || 'Failed to send message');
         setShowToast(true);
       }
     } catch (err) {
@@ -196,7 +197,7 @@ export default function ChatPage() {
             >
               {message.senderId === matchedUser.id && (
                 <IonAvatar className="mr-2 w-8 h-8">
-                  <img src={matchedUser.images[0]} alt={matchedUser.name} />
+                  <img src={matchedUser.photos?.[0] || '/assets/default-avatar.png'} alt={matchedUser.name} />
                 </IonAvatar>
               )}
               
@@ -207,15 +208,14 @@ export default function ChatPage() {
                     : 'bg-primary-600 text-white'
                 }`}
               >
-                <p>{message.text}</p>
-                <div 
-                  className={`text-xs mt-1 ${
-                    message.senderId === matchedUser.id
-                      ? 'text-gray-500' 
-                      : 'text-primary-100'
-                  }`}
-                >
-                  {formatMessageTime(message.timestamp)}
+                <div className="flex flex-col">
+                  <div className="text-sm font-medium">
+                    {message.senderId === matchedUser.id ? 'You' : matchedUser.name}
+                  </div>
+                  <div className="text-sm">{message.content}</div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(message.createdAt).toLocaleString()}
+                  </div>
                 </div>
               </div>
             </div>

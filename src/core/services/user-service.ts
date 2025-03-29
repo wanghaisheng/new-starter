@@ -50,8 +50,12 @@ export class UserService {
   }
 
   // 匹配相关方法
-  public async getMatches(): Promise<Match[]> {
-    return await this.storageService.getMatches();
+  public async getMatches(userId?: string): Promise<Match[]> {
+    const matches = await this.storageService.getMatches();
+    if (userId) {
+      return matches.filter(match => match.users.includes(userId));
+    }
+    return matches;
   }
 
   public async saveMatches(matches: Match[]): Promise<void> {
@@ -63,8 +67,12 @@ export class UserService {
   }
 
   // 消息相关方法
-  public async getMessages(): Promise<Message[]> {
-    return await this.storageService.getMessages();
+  public async getMessages(matchId?: string): Promise<Message[]> {
+    const messages = await this.storageService.getMessages();
+    if (matchId) {
+      return messages.filter(message => message.matchId === matchId);
+    }
+    return messages;
   }
 
   public async saveMessages(messages: Message[]): Promise<void> {
@@ -83,11 +91,11 @@ export class UserService {
       name: userData.name || '',
       age: userData.age || 0,
       bio: userData.bio || '',
-      images: userData.images || [],
+      photos: userData.photos || [],
       interests: userData.interests || [],
       location: userData.location || { latitude: 0, longitude: 0 },
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     users.push(newUser);
@@ -104,7 +112,7 @@ export class UserService {
     users[userIndex] = {
       ...users[userIndex],
       ...userData,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     };
 
     await this.saveUsers(users);
@@ -147,15 +155,15 @@ export class UserService {
   }
 
   // 消息操作
-  public async sendMessage(matchId: string, senderId: string, text: string): Promise<{ success: boolean; message?: Message; errors?: string[] }> {
+  public async sendMessage(matchId: string, senderId: string, content: string): Promise<{ success: boolean; message?: Message; errors?: string[] }> {
     try {
       const messages = await this.getMessages();
       const newMessage: Message = {
         id: `msg_${Date.now()}`,
         matchId,
         senderId,
-        text,
-        timestamp: new Date(),
+        content,
+        createdAt: new Date().toISOString(),
         read: false
       };
 
@@ -198,5 +206,10 @@ export class UserService {
         await this.storageService.syncFromCloud('messages', message.id, this.storageService.STORAGE_KEYS.MESSAGES);
       }
     }
+  }
+
+  public async getUserById(userId: string): Promise<User | null> {
+    const users = await this.storageService.getUsers();
+    return users.find(user => user.id === userId) || null;
   }
 } 

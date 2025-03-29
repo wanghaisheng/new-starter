@@ -5,20 +5,23 @@ import { Message } from '@/core/models/message';
 import { NetworkService } from '@/core/services/network-service';
 import { BaseSyncClient } from '../sync/base-sync-client';
 
+type EntityWithId = { id: string } & Record<string, any>;
+
 /**
  * 混合数据库客户端，支持离线和在线存储
  */
 export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseClient {
-  private localClient: IDatabaseClient;
-  private remoteClient: IDatabaseClient;
-  private syncStrategy: SyncStrategy;
+  protected localClient: IDatabaseClient;
+  protected remoteClient: IDatabaseClient;
+  protected syncStrategy: SyncStrategy;
   private initialized: boolean = false;
-  private isOnline: boolean = true;
-  private pendingSync: Map<string, any[]> = new Map();
-  private syncInProgress: boolean = false;
-  private syncInterval: NodeJS.Timeout | null = null;
+  protected isOnline: boolean = true;
+  protected pendingSync: Map<string, EntityWithId[]> = new Map();
+  protected syncInProgress: boolean = false;
+  protected syncInterval: NodeJS.Timeout | null = null;
 
   constructor(config: HybridDatabaseConfig) {
+    super(config);
     this.localClient = config.localClient;
     this.remoteClient = config.remoteClient;
     this.syncStrategy = config.syncStrategy;
@@ -30,7 +33,7 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     this.setupPeriodicSync(config.syncIntervalMs || 60000); // 默认每分钟同步一次
   }
 
-  private setupNetworkListener() {
+  protected setupNetworkListener(): void {
     // 使用网络服务监听网络状态变化
     const networkService = NetworkService.getInstance();
     networkService.onNetworkStatusChange((status) => {
@@ -44,7 +47,7 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     });
   }
 
-  private setupPeriodicSync(intervalMs: number) {
+  protected setupPeriodicSync(intervalMs: number): void {
     // 清除现有的同步间隔
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
@@ -58,14 +61,15 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     }, intervalMs);
   }
 
-  private async syncPendingOperations() {
-    if (!this.isOnline || this.syncInProgress || this.pendingSync.size === 0) return;
+  protected async syncPendingOperations(): Promise<boolean> {
+    if (!this.isOnline || this.syncInProgress || this.pendingSync.size === 0) return false;
     
     this.syncInProgress = true;
+    let success = true;
     
     try {
       // 同步所有待处理的操作
-      for (const [collection, items] of this.pendingSync.entries()) {
+      for (const [collection, items] of Array.from(this.pendingSync.entries())) {
         const failedItems: any[] = [];
         
         for (const item of items) {
@@ -73,13 +77,13 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
             // 根据不同的集合类型执行不同的同步操作
             switch (collection) {
               case 'users':
-                await this.remoteClient.saveEntity('users', item);
+                await this.remoteClient.saveEntity('users', item as User);
                 break;
               case 'matches':
-                await this.remoteClient.saveEntity('matches', item);
+                await this.remoteClient.saveEntity('matches', item as Match);
                 break;
               case 'messages':
-                await this.remoteClient.saveEntity('messages', item);
+                await this.remoteClient.saveEntity('messages', item as Message);
                 break;
               case 'deletedUsers':
                 await this.remoteClient.deleteEntity('users', item.id);
@@ -97,6 +101,7 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
           } catch (error) {
             console.error(`同步操作失败: ${collection}`, error);
             failedItems.push(item);
+            success = false;
           }
         }
         
@@ -109,6 +114,60 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
       }
     } catch (error) {
       console.error('同步操作过程中发生错误', error);
+      success = false;
+    } finally {
+      this.syncInProgress = false;
+    }
+    
+    return success;
+  }
+
+  protected async syncCollectionItems(collection: string, items: any[]): Promise<void> {
+    if (!this.isOnline || this.syncInProgress) return;
+    
+    this.syncInProgress = true;
+    
+    try {
+      const failedItems: any[] = [];
+      
+      for (const item of items) {
+        try {
+          switch (collection) {
+            case 'users':
+              await this.remoteClient.saveEntity('users', item as User);
+              break;
+            case 'matches':
+              await this.remoteClient.saveEntity('matches', item as Match);
+              break;
+            case 'messages':
+              await this.remoteClient.saveEntity('messages', item as Message);
+              break;
+            case 'deletedUsers':
+              await this.remoteClient.deleteEntity('users', item.id);
+              break;
+            case 'deletedMatches':
+              await this.remoteClient.deleteEntity('matches', item.id);
+              break;
+            case 'deletedMessages':
+              await this.remoteClient.deleteEntity('messages', item.id);
+              break;
+            default:
+              console.warn(`未知的集合类型: ${collection}`);
+              break;
+          }
+        } catch (error) {
+          console.error(`同步操作失败: ${collection}`, error);
+          failedItems.push(item);
+        }
+      }
+      
+      if (failedItems.length > 0) {
+        this.pendingSync.set(collection, failedItems);
+      } else {
+        this.pendingSync.delete(collection);
+      }
+    } catch (error) {
+      console.error(`同步集合失败: ${collection}`, error);
     } finally {
       this.syncInProgress = false;
     }
@@ -314,25 +373,40 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
   }
 
   // 实现缺少的 IDatabaseClient 接口方法
-  async saveEntity<T extends { id: string }>(tableName: string, entity: T): Promise<T> {
+  async saveEntity<T extends EntityWithId>(tableName: string, entity: T): Promise<T> {
     // 根据同步策略决定保存逻辑
     if (this.syncStrategy === 'online-first' && this.isOnline) {
       try {
         // 先保存到远程
-        await this.remoteClient.create(tableName, entity);
+        const remoteResult = await this.remoteClient.saveEntity(tableName, entity);
+        if (!remoteResult || !('id' in remoteResult)) {
+          throw new Error('Invalid remote result');
+        }
         // 再保存到本地
-        return this.localClient.saveEntity(tableName, entity);
+        const localResult = await this.localClient.saveEntity(tableName, remoteResult);
+        if (!localResult || !('id' in localResult)) {
+          throw new Error('Invalid local result');
+        }
+        return { ...entity, ...localResult } as T;
       } catch (error) {
         console.error(`远程保存实体失败: ${tableName}`, error);
         // 远程保存失败，回退到本地保存
-        return this.localClient.saveEntity(tableName, entity);
+        const localResult = await this.localClient.saveEntity(tableName, entity);
+        if (!localResult || !('id' in localResult)) {
+          throw new Error('Invalid local result');
+        }
+        return { ...entity, ...localResult } as T;
       }
     } else {
       // 离线优先或手动同步模式，先保存到本地
-      const result = await this.localClient.saveEntity(tableName, entity);
+      const localResult = await this.localClient.saveEntity(tableName, entity);
       // 添加到待同步队列
-      // 这里需要实现待同步队列的逻辑
-      return result;
+      if (localResult && 'id' in localResult) {
+        const result = { ...entity, ...localResult } as T;
+        this.addToPendingSync(tableName, result);
+        return result;
+      }
+      throw new Error('Invalid local result');
     }
   }
 
@@ -346,7 +420,7 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
         const remoteEntity = await this.remoteClient.getEntity<T>(tableName, id);
         if (remoteEntity) {
           // 保存到本地缓存
-          await this.localClient.saveEntity(tableName, remoteEntity);
+          await this.localClient.saveEntity(tableName, remoteEntity as T & { id: string });
           return remoteEntity;
         }
       } catch (error) {
@@ -369,7 +443,7 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
         // 这里可以实现更复杂的合并逻辑，例如根据ID合并本地和远程实体
         // 简单起见，这里只是将远程实体保存到本地
         for (const entity of remoteEntities) {
-          await this.localClient.saveEntity(tableName, entity);
+          await this.localClient.saveEntity(tableName, entity as T & { id: string });
         }
         
         // 重新从本地获取，现在包含了同步的远程实体
@@ -441,7 +515,7 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
         
         // 将远程实体保存到本地
         for (const entity of remoteEntities) {
-          await this.localClient.saveEntity(tableName, entity as any);
+          await this.localClient.saveEntity(tableName, entity as T & { id: string });
         }
         
         // 重新从本地获取，现在包含了同步的远程实体
@@ -452,5 +526,11 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     }
     
     return localEntities;
+  }
+
+  protected addToPendingSync(tableName: string, item: EntityWithId): void {
+    const items = this.pendingSync.get(tableName) || [];
+    items.push(item);
+    this.pendingSync.set(tableName, items);
   }
 }

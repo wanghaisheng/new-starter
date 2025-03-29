@@ -1,6 +1,7 @@
 import { User, Match, Message } from './types';
 import { TableSchema } from './schema';
-import { QueryOptions, QueryResult, BatchOperation } from './types/database.types';
+import { QueryResult, BatchOperation } from './types/database.types';
+import { BaseEntity } from './types/base-entity';
 
 // 数据库引擎类型
 export type DatabaseEngine = 'mock' | 'indexeddb' | 'sqlite' | 'cloudflare-d1' | 'firebase' | 'supabase' | 'turso' | 'tidb' | 'postgres';
@@ -48,15 +49,15 @@ export interface IBaseDatabaseClient {
   clear(): Promise<void>;
   
   // 通用数据访问接口
-  findById<T>(tableName: string, id: string): Promise<T | null>;
-  findAll<T>(tableName: string): Promise<T[]>;
-  create<T>(tableName: string, data: T): Promise<T>;
-  update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+  findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null>;
+  findAll<T extends BaseEntity>(tableName: string): Promise<T[]>;
+  create<T extends BaseEntity>(tableName: string, data: T): Promise<T>;
+  update<T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void>;
   delete(tableName: string, id: string): Promise<void>;
   
   // 高级查询接口
-  query<T>(tableName: string, query: any): Promise<T[]>;
-  count(tableName: string, query?: any): Promise<number>;
+  query<T extends BaseEntity>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
+  count(tableName: string, filter?: Record<string, any>): Promise<number>;
   
   // 事务支持
   beginTransaction(): Promise<void>;
@@ -65,7 +66,6 @@ export interface IBaseDatabaseClient {
 }
 
 // 完整数据库客户端接口 - 包含特定于表的方法（向后兼容）
-// 完整数据库客户端接口 - 使用通用实体方法
 export interface IDatabaseClient extends IBaseDatabaseClient {
   // 通用实体操作方法
   findUsers(query?: any): Promise<User[]>;
@@ -83,6 +83,15 @@ export interface IDatabaseClient extends IBaseDatabaseClient {
   deleteUser(id: string): Promise<void>;
   deleteMatch(id: string): Promise<void>;
   deleteMessage(id: string): Promise<void>;
+
+  // 批量操作
+  batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void>;
+  
+  // 事务支持
+  transaction<T>(callback: (tx: IDatabaseTransaction) => Promise<T>): Promise<T>;
+  
+  // 原始查询
+  executeRawQuery<T extends BaseEntity>(query: string, params?: any[]): Promise<T[]>;
 }
 
 // 同步客户端接口
@@ -94,27 +103,26 @@ export interface ISyncClient extends IDatabaseClient {
 }
 
 export interface IDatabaseTransaction {
-  findById<T>(tableName: string, id: string): Promise<T | null>;
-  findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
-  create<T>(tableName: string, data: T): Promise<T>;
-  update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+  findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null>;
+  findAll<T extends BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
+  create<T extends BaseEntity>(tableName: string, data: T): Promise<T>;
+  update<T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void>;
   delete(tableName: string, id: string): Promise<void>;
-  query<T>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
-  batch<T>(tableName: string, operations: BatchOperation<T>[]): Promise<void>;
+  query<T extends BaseEntity>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
+  batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void>;
 }
 
-export interface IDatabaseClient {
-  initialize(): Promise<void>;
-  close(): Promise<void>;
-  clear(): Promise<void>;
-  findById<T>(tableName: string, id: string): Promise<T | null>;
-  findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
-  create<T>(tableName: string, data: T): Promise<T>;
-  update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
-  delete(tableName: string, id: string): Promise<void>;
-  query<T>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
-  batch<T>(tableName: string, operations: BatchOperation<T>[]): Promise<void>;
-  transaction<T>(callback: (tx: IDatabaseTransaction) => Promise<T>): Promise<T>;
-  executeRawQuery<T>(query: string, params?: any[]): Promise<T[]>;
+export interface QueryOptions {
+  where?: {
+    field: string;
+    operator: '==' | '<' | '<=' | '>' | '>=' | '!=';
+    value: any;
+  };
+  orderBy?: {
+    field: string;
+    direction: 'asc' | 'desc';
+  };
+  limit?: number;
+  startAfter?: any;
 }
   

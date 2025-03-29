@@ -1,4 +1,5 @@
 import { BaseEntity } from './index';
+import { SQLiteDBConnection } from '@capacitor-community/sqlite';
 
 // 数据库引擎类型
 export type DatabaseEngine = 'mock' | 'indexeddb' | 'sqlite' | 'cloudflare-d1' | 'firebase' | 'supabase' | 'turso' | 'tidb' | 'postgres';
@@ -13,7 +14,8 @@ export type SyncStatus = 'pending' | 'syncing' | 'completed' | 'failed';
 export interface DatabaseConfig {
   name: string;
   version: number;
-  engine: DatabaseEngine;
+  engine: string;
+  encryptionKey?: string;
   sync?: {
     enabled: boolean;
     strategy: SyncStrategy;
@@ -22,11 +24,27 @@ export interface DatabaseConfig {
     retryDelay?: number; // in milliseconds
     conflictResolution?: 'client-wins' | 'server-wins' | 'last-write-wins';
   };
-  offline?: {
-    maxStorageSize?: number; // in bytes
-    maxEntitiesPerTable?: number;
-    compressionEnabled?: boolean;
-    encryptionEnabled?: boolean;
+  offline: {
+    maxStorageSize: number;
+    maxEntitiesPerTable: number;
+    compressionEnabled: boolean;
+    encryptionEnabled: boolean;
+  };
+  tables: {
+    [key: string]: {
+      columns: {
+        [key: string]: {
+          type: string;
+          constraints?: string[];
+        };
+      };
+      indexes?: {
+        [key: string]: {
+          columns: string[];
+          unique?: boolean;
+        };
+      };
+    };
   };
 }
 
@@ -109,4 +127,35 @@ export interface QueryResult<T> {
 export interface DatabaseMetrics {
   queryCount: number;
   queryTime: number;
-export type DatabaseEventHandler = (event: DatabaseEvent, data?: any) => void; 
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  photoUrl?: string;
+  bio?: string;
+  interests?: string[];
+  birthDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface StorageStats {
+  totalSize: number;
+  availableSpace: number;
+  usedSpace: number;
+}
+
+export interface DatabaseClient {
+  db: SQLiteDBConnection;
+  config: DatabaseConfig;
+  transaction<T>(callback: () => Promise<T>): Promise<T>;
+  createUser(user: Omit<User, 'id'>): Promise<User>;
+  findById<T>(table: string, id: string): Promise<T | null>;
+  findAll<T>(table: string): Promise<T[]>;
+  updateUser(id: string, data: Partial<User>): Promise<User>;
+  deleteUser(id: string): Promise<void>;
+  clear(): Promise<void>;
+  initialize(): Promise<void>;
+} 

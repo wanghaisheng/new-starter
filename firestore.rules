@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// 用户角色定义
+function isAuthenticated() {
+  return request.auth != null;
+}
+
+function isOwner(userId) {
+  return isAuthenticated() && request.auth.uid == userId;
+}
+
+function isAdmin() {
+  return isAuthenticated() && 
+    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+}
+
+// 用户集合规则
+match /users/{userId} {
+  allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+  allow create: if isAuthenticated() && isOwner(userId);
+  allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+  allow delete: if isAdmin();
+}
+
+// 匹配集合规则
+match /matches/{matchId} {
+  allow read: if isAuthenticated() && (
+    resource.data.participants[request.auth.uid] != null || 
+    isAdmin()
+  );
+  allow create: if isAuthenticated();
+  allow update: if isAuthenticated() && (
+    resource.data.participants[request.auth.uid] != null || 
+    isAdmin()
+  );
+  allow delete: if isAdmin();
+}
+
+// 消息集合规则
+match /messages/{messageId} {
+  allow read: if isAuthenticated() && (
+    resource.data.senderId == request.auth.uid || 
+    resource.data.receiverId == request.auth.uid ||
+    isAdmin()
+  );
+  allow create: if isAuthenticated();
+  allow update: if isAuthenticated() && (
+    resource.data.senderId == request.auth.uid || 
+    isAdmin()
+  );
+  allow delete: if isAuthenticated() && (
+    resource.data.senderId == request.auth.uid || 
+    isAdmin()
+  );
+}
+
+// 系统设置集合规则
+match /settings/{settingId} {
+  allow read: if isAuthenticated();
+  allow write: if isAdmin();
+} 

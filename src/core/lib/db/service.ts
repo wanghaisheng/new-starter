@@ -1,9 +1,7 @@
 
 import { DatabaseFactory } from './factory';
 import { IDatabaseClient } from './interfaces';
-import { User } from './models/user';
-import { Match } from './models/match';
-import { Message } from './models/message';
+import { User, Match, Message } from './types/dating';
 import { UserRepository } from './repositories/user-repository';
 import { MatchRepository } from './repositories/match-repository';
 import { MessageRepository } from './repositories/message-repository';

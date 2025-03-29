@@ -236,9 +236,233 @@ const db = createDatabaseClient(process.env.NEXT_PUBLIC_DATABASE_ENV)
 export default db
 ```
 
-## 5. 测试策略
+## 5. Repository模式实现
 
-### 5.1 单元测试
+### 5.1 Repository模式概述
+
+Repository模式是一种数据访问模式，它在领域模型和数据映射层之间提供了一个中间层，使得应用程序可以独立于底层数据存储技术。在我们的项目中，Repository模式的实现基于以下原则：
+
+1. **单一职责**：每个Repository只负责一种实体类型的数据访问
+2. **接口一致性**：所有Repository实现相同的基础接口
+3. **业务逻辑隔离**：数据访问逻辑与业务逻辑分离
+4. **可测试性**：便于单元测试和模拟
+
+### 5.2 基础Repository实现
+
+```typescript
+// src/core/lib/db/repositories/base-repository.ts
+import { IBaseDatabaseClient, QueryOptions } from '../interfaces';
+import { BatchOperation, QueryResult, BaseEntity } from '../types';
+
+/**
+ * 基础仓储抽象类
+ * 提供通用的 CRUD 操作
+ */
+export abstract class BaseRepository<T extends BaseEntity> {
+  constructor(
+    protected client: IBaseDatabaseClient,
+    protected tableName: string
+  ) {}
+  
+  /**
+   * 根据ID查找实体
+   * @param id 实体ID
+   * @returns 找到的实体或null
+   */
+  async findById(id: string): Promise<T | null> {
+    return this.client.findById<T>(this.tableName, id);
+  }
+  
+  /**
+   * 查找所有实体
+   * @param filter 过滤条件
+   * @returns 实体列表
+   */
+  async findAll(filter?: Record<string, any>): Promise<T[]> {
+    return this.client.findAll<T>(this.tableName, filter);
+  }
+  
+  /**
+   * 创建实体
+   * @param data 实体数据
+   * @returns 创建的实体
+   */
+  async create(data: Omit<T, keyof BaseEntity>): Promise<T> {
+    return this.client.create<T>(this.tableName, data as T);
+  }
+  
+  /**
+   * 更新实体
+   * @param id 实体ID
+   * @param data 要更新的数据
+   */
+  async update(id: string, data: Partial<T>): Promise<void> {
+    await this.client.update<T>(this.tableName, id, data);
+  }
+  
+  /**
+   * 删除实体
+   * @param id 实体ID
+   */
+  async delete(id: string): Promise<void> {
+    await this.client.delete(this.tableName, id);
+  }
+  
+  /**
+   * 高级查询
+   * @param options 查询选项
+   * @returns 查询结果
+   */
+  async query(options: QueryOptions): Promise<QueryResult<T>> {
+    return this.client.query<T>(this.tableName, options);
+  }
+
+  /**
+   * 批量操作
+   * @param operations 批量操作列表
+   */
+  async batch(operations: BatchOperation<T>[]): Promise<void> {
+    await this.client.batch<T>(this.tableName, operations);
+  }
+
+  /**
+   * 执行事务
+   * @param callback 事务回调函数
+   * @returns 事务执行结果
+   */
+  async transaction<R>(callback: (tx: IBaseDatabaseClient) => Promise<R>): Promise<R> {
+    await this.client.beginTransaction();
+    try {
+      const result = await callback(this.client);
+      await this.client.commitTransaction();
+      return result;
+    } catch (error) {
+      await this.client.rollbackTransaction();
+      throw error;
+    }
+  }
+}
+```
+
+### 5.3 具体Repository实现示例
+
+```typescript
+// src/core/lib/db/repositories/user-repository.ts
+import { BaseRepository } from './base-repository';
+import { IBaseDatabaseClient } from '../interfaces';
+import { User } from '../types';
+
+/**
+ * 用户仓储类
+ * 处理用户相关的数据访问
+ */
+export class UserRepository extends BaseRepository<User> {
+  constructor(client: IBaseDatabaseClient) {
+    super(client, 'users');
+  }
+  
+  /**
+   * 根据用户名查找用户
+   * @param name 用户名
+   * @returns 用户列表
+   */
+  async findByName(name: string): Promise<User[]> {
+    return this.query({
+      where: { name }
+    });
+  }
+  
+  /**
+   * 根据兴趣查找用户
+   * @param interest 兴趣标签
+   * @returns 用户列表
+   */
+  async findByInterest(interest: string): Promise<User[]> {
+    // 这里需要特殊处理，因为interests是数组
+    return this.client.query<User>(this.tableName, {
+      where: {
+        interests: { $contains: interest }
+      }
+    });
+  }
+}
+```
+
+### 5.4 Repository工厂
+
+```typescript
+// src/core/lib/db/repositories/index.ts
+import { IBaseDatabaseClient } from '../interfaces';
+import { UserRepository } from './user-repository';
+import { MessageRepository } from './message-repository';
+import { DatingRepository } from './dating.repository';
+
+/**
+ * Repository工厂类
+ * 负责创建和管理Repository实例
+ */
+export class RepositoryFactory {
+  private static repositories: Map<string, any> = new Map();
+  
+  /**
+   * 获取Repository实例
+   * @param client 数据库客户端
+   * @param repositoryType Repository类型
+   * @returns Repository实例
+   */
+  static getRepository<T>(client: IBaseDatabaseClient, repositoryType: string): T {
+    const key = `${repositoryType}_${client.constructor.name}`;
+    
+    if (!this.repositories.has(key)) {
+      let repository;
+      
+      switch (repositoryType) {
+        case 'user':
+          repository = new UserRepository(client);
+          break;
+        case 'message':
+          repository = new MessageRepository(client);
+          break;
+        case 'dating':
+          repository = new DatingRepository(client);
+          break;
+        default:
+          throw new Error(`未知的Repository类型: ${repositoryType}`);
+      }
+      
+      this.repositories.set(key, repository);
+    }
+    
+    return this.repositories.get(key) as T;
+  }
+}
+```
+
+### 5.5 Repository使用示例
+
+```typescript
+// 在服务层使用Repository
+import { RepositoryFactory } from '@/core/lib/db/repositories';
+import { UserRepository } from '@/core/lib/db/repositories/user-repository';
+import { createDatabaseClient } from '@/core/lib/db/factory';
+
+async function getUserProfile(userId: string) {
+  const dbClient = createDatabaseClient(process.env.NEXT_PUBLIC_DATABASE_ENV);
+  const userRepository = RepositoryFactory.getRepository<UserRepository>(dbClient, 'user');
+  
+  // 使用Repository访问数据
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new Error('用户不存在');
+  }
+  
+  return user;
+}
+```
+
+## 6. 测试策略
+
+### 6.1 单元测试
 ```typescript
 // test/lib/db/mock-database.test.ts
 describe('MockDatabase', () => {
@@ -257,7 +481,7 @@ describe('SQLiteDatabase', () => {
 })
 ```
 
-### 5.2 集成测试
+### 6.2 集成测试
 ```typescript
 // test/lib/db/sync/data-sync.test.ts
 describe('DataSync', () => {
@@ -270,155 +494,300 @@ describe('DataSync', () => {
 })
 ```
 
-## 6. 部署检查清单
+### 6.3 边界条件测试
 
-### 6.1 云端数据库
-- [ ] 创建数据库实例
-- [ ] 配置安全规则
-- [ ] 设置备份策略
-- [ ] 验证连接配置
+边界条件测试用于验证系统在极端情况下的行为，确保系统的稳定性和可靠性。
 
-### 6.2 离线存储
-- [ ] 选择存储方案
-- [ ] 配置存储参数
-- [ ] 测试离线功能
-- [ ] 验证数据同步
-
-### 6.3 性能优化
-- [ ] 优化查询性能
-- [ ] 实现数据缓存
-- [ ] 配置连接池
-- [ ] 监控数据库指标
-
-## 7. 维护指南
-
-### 7.1 日常维护
-- 监控数据库性能
-- 检查数据一致性
-- 优化查询性能
-- 更新数据库配置
-
-### 7.2 问题处理
-- 诊断连接问题
-- 修复数据错误
-- 处理同步冲突
-- 优化存储空间
-
-## 8. 安全考虑
-
-### 8.1 数据安全
-- 加密敏感数据
-- 实现访问控制
-- 定期数据备份
-- 监控异常访问
-
-### 8.2 应用安全
-- 验证用户输入
-- 防止SQL注入
-- 实现请求限流
-- 记录安全日志
-
-
-## 9. 错误处理与环境切换
-
-### 9.1 配置验证
-
-在初始化数据库服务前，应验证配置的完整性。以下是配置验证的示例代码：
-
-// 配置验证示例
-function validateConfig(config: DatabaseConfig): boolean {
-  // 检查必要的配置项
-  if (config.type === 'firebase' && (!config.apiKey || config.apiKey === '')) {
-    console.warn('Firebase配置无效：缺少有效的API密钥');
-    return false;
-  }
+```typescript
+// test/lib/db/clients/indexeddb-client.boundary.test.ts
+describe('IndexedDBClient Boundary Tests', () => {
+  let client: IndexedDBClient;
   
-  if (config.type === 'supabase' && (!config.url || !config.key)) {
-    console.warn('Supabase配置无效：缺少URL或密钥');
-    return false;
-  }
+  beforeEach(async () => {
+    client = new IndexedDBClient(dbConfig);
+    await client.initialize();
+  });
+
+  afterEach(async () => {
+    await client.close();
+  });
+
+  describe('大对象存储测试', () => {
+    it('should handle large objects (>10MB)', async () => {
+      // 创建一个超过 10MB 的字符串
+      const largeString = 'x'.repeat(11 * 1024 * 1024);
+      const entity = {
+        id: 'test-1',
+        name: 'test',
+        largeData: largeString,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // 测试创建大对象
+      await expect(client.create(tableName, entity)).rejects.toThrow('QuotaExceededError');
+    });
+  });
+
+  describe('并发操作测试', () => {
+    it('should handle concurrent operations', async () => {
+      // 创建多个并发操作
+      const operations = Array.from({ length: 100 }, (_, i) => {
+        return client.create(tableName, {
+          id: `concurrent-${i}`,
+          name: `Test ${i}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      });
+
+      // 并发执行所有操作
+      await expect(Promise.all(operations)).resolves.toBeDefined();
+      
+      // 验证所有实体都已创建
+      const entities = await client.findAll(tableName);
+      expect(entities.length).toBe(100);
+    });
+  });
+});
+```
+
+### 6.4 性能测试
+
+性能测试用于评估系统在不同负载下的响应时间和资源使用情况。
+
+```typescript
+// test/lib/db/clients/indexeddb-client.benchmark.test.ts
+describe('IndexedDBClient Performance Tests', () => {
+  let client: IndexedDBClient;
   
-  return true;
-}
+  beforeEach(async () => {
+    client = new IndexedDBClient(dbConfig);
+    await client.initialize();
+  });
 
-### 9.2 优雅降级策略
+  afterEach(async () => {
+    await client.close();
+  });
 
-所有数据库服务应实现优雅降级策略，确保在配置不完整或服务不可用时能够回退到基础功能。以下是降级策略的示例代码：
-
-// 数据库服务初始化示例
-async initialize(): Promise<void> {
-  try {
-    // 获取当前数据库环境配置
-    const dbEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+  it('should handle bulk inserts efficiently', async () => {
+    const startTime = performance.now();
     
-    // 根据数据库环境决定存储策略
-    switch (dbEnv) {
-      case 'mock':
-        // Mock数据阶段 - 使用内存存储
-        console.log('数据库环境: Mock数据阶段');
-        this.useLocalStorage = true;
-        return;
-        
-      case 'local':
-        // 本地数据库阶段
-        console.log('数据库环境: 本地数据库阶段');
-        this.useLocalStorage = true;
-        return;
-        
-      case 'production':
-        // 生产环境阶段 - 尝试初始化云服务
-        console.log('数据库环境: 生产环境阶段');
-        
-        // 验证配置
-        if (!validateConfig(this.config)) {
-          console.warn('云服务配置无效，回退到本地存储');
-          this.useLocalStorage = true;
-          return;
-        }
-        
-        // 初始化云服务
-        await this.initializeCloudService();
-        return;
-        
-      default:
-        // 未知环境 - 回退到本地存储
-        console.warn(`未知数据库环境: ${dbEnv}，回退到本地存储`);
-        this.useLocalStorage = true;
-        return;
+    // 批量插入1000条记录
+    const entities = Array.from({ length: 1000 }, (_, i) => ({
+      id: `perf-${i}`,
+      name: `Performance Test ${i}`,
+      value: i,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }));
+    
+    await client.batch(tableName, entities.map(entity => ({
+      type: 'create',
+      data: entity
+    })));
+    
+    const endTime = performance.now();
+    console.log(`批量插入1000条记录耗时: ${endTime - startTime}ms`);
+    
+    // 验证性能指标
+    expect(endTime - startTime).toBeLessThan(5000); // 应在5秒内完成
+  });
+
+  it('should handle complex queries efficiently', async () => {
+    // 准备测试数据
+    // ...
+    
+    const startTime = performance.now();
+    
+    // 执行复杂查询
+    await client.query(tableName, {
+      where: { /* 复杂条件 */ },
+      orderBy: ['-createdAt'],
+      limit: 100,
+      offset: 50
+    });
+    
+    const endTime = performance.now();
+    console.log(`复杂查询耗时: ${endTime - startTime}ms`);
+    
+    // 验证性能指标
+    expect(endTime - startTime).toBeLessThan(1000); // 应在1秒内完成
+  });
+});
+```
+
+### 6.5 用户行为模拟测试
+
+用户行为模拟测试通过模拟真实用户的行为模式，验证系统在实际使用场景下的表现。
+
+```typescript
+// test/lib/db/simulators/user-behavior-simulator.ts
+export class UserBehaviorSimulator {
+  private static instance: UserBehaviorSimulator;
+  private activeUsers: Map<string, UserSession> = new Map();
+  private networkConditions: NetworkConditions = {
+    latency: 0,
+    jitter: 0,
+    bandwidth: 0,
+    packetLoss: 0
+  };
+
+  public static getInstance(): UserBehaviorSimulator {
+    if (!UserBehaviorSimulator.instance) {
+      UserBehaviorSimulator.instance = new UserBehaviorSimulator();
     }
-  } catch (error) {
-    console.error('初始化存储服务失败:', error);
-    console.log('回退到本地存储模式');
-    this.useLocalStorage = true;
+    return UserBehaviorSimulator.instance;
+  }
+
+  /**
+   * 模拟用户行为
+   */
+  async simulateUserBehavior(): Promise<void> {
+    // 生成随机用户行为
+    const actions = [
+      this.simulateDataRead,
+      this.simulateDataWrite,
+      this.simulateDataUpdate,
+      this.simulateDataDelete
+    ];
+
+    const randomAction = actions[Math.floor(Math.random() * actions.length)];
+    await randomAction.call(this);
+  }
+
+  /**
+   * 模拟多用户并发操作
+   */
+  async simulateConcurrentUsers(count: number): Promise<void> {
+    const promises: Promise<void>[] = [];
+    
+    for (let i = 0; i < count; i++) {
+      const userId = faker.string.uuid();
+      const deviceId = faker.string.uuid();
+      const session: UserSession = {
+        userId,
+        deviceId,
+        isActive: true,
+        lastActive: new Date(),
+        permissions: ['read', 'write']
+      };
+      this.activeUsers.set(userId, session);
+      
+      promises.push(
+        this.simulateUserSession(session)
+      );
+    }
+
+    await Promise.all(promises);
+  }
+
+  /**
+   * 模拟网络条件
+   */
+  setNetworkConditions(conditions: NetworkConditions): void {
+    this.networkConditions = conditions;
+  }
+
+  /**
+   * 模拟设备切换
+   */
+  async simulateDeviceSwitch(): Promise<void> {
+    // 模拟用户从一个设备切换到另一个设备
+    // ...
   }
 }
+```
 
-### 9.3 环境切换
+## 7. 数据同步冲突解决策略
 
-在开发过程中，可以通过以下方式在不同数据库环境之间切换：
+### 7.1 冲突类型
 
-1. **环境变量文件**：
-   - `.env.development`：Mock数据环境（默认）
-   - `.env.local`：本地数据库环境
-   - `.env.production`：生产环境
+在多设备、多用户环境下，数据同步冲突是不可避免的。常见的冲突类型包括：
 
-2. **启动命令**：
+1. **更新冲突**：多个客户端同时更新同一条记录
+2. **删除冲突**：一个客户端删除记录，另一个客户端更新该记录
+3. **插入冲突**：多个客户端插入具有相同ID的记录
+4. **结构冲突**：客户端和服务器的数据结构不一致
 
-   # 开发环境（Mock数据）
-   bun run dev
-   
-   # 本地数据库环境
-   bun run dev --env-file=.env.local
-   
-   # 生产环境
-   bun run build
-   bun run start
+### 7.2 冲突解决策略
 
-### 9.4 常见问题与解决方案
+```typescript
+// src/core/lib/db/clients/firebase/firebase-conflict.ts
+export interface ConflictResolutionStrategy {
+  // 服务器优先：使用服务器版本
+  SERVER_FIRST: 'SERVER_FIRST';
+  // 客户端优先：使用客户端版本
+  CLIENT_FIRST: 'CLIENT_FIRST';
+  // 合并：合并两个版本
+  MERGE: 'MERGE';
+  // 自定义：使用自定义合并函数
+  CUSTOM: 'CUSTOM';
+}
 
-| 问题 | 原因 | 解决方案 |
-|------|------|----------|
-| Firebase初始化错误 | API密钥无效或未设置 | 检查环境变量配置，确保在使用Firebase前验证配置有效性 |
-| 数据库连接失败 | 网络问题或配置错误 | 实现重试机制，并在失败后回退到本地存储 |
-| 数据同步冲突 | 离线操作与云端操作冲突 | 实现冲突解决策略，如"最新胜出"或"合并更改" |
-| 权限错误 | 缺少访问权限 | 确保正确配置安全规则，并在UI中提供清晰的错误消息 |
+export interface ConflictMetadata {
+  version: number;
+  lastModified: Date;
+  modifiedBy: string;
+  changes: string[];
+}
+
+export class FirebaseConflictService {
+  private readonly VERSION_FIELD = '_version';
+  private readonly METADATA_FIELD = '_metadata';
+
+  constructor(
+    private db: Firestore,
+    private options: ConflictResolutionOptions = {
+      strategy: 'SERVER_FIRST',
+      maxRetries: 3,
+      retryDelay: 1000
+    }
+  ) {}
+
+  async saveWithConflictResolution<T extends BaseEntity>(
+    collectionName: string,
+    id: string,
+    data: Partial<T>,
+    userId: string
+  ): Promise<T> {
+    let retries = 0;
+    while (retries < (this.options.maxRetries || 3)) {
+      try {
+        const docRef = doc(this.db, collectionName, id);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+          // 文档不存在，直接创建
+          const newData = {
+            ...data,
+            [this.VERSION_FIELD]: 1,
+            [this.METADATA_FIELD]: {
+              version: 1,
+              lastModified: serverTimestamp(),
+              modifiedBy: userId,
+              changes: Object.keys(data)
+            }
+          };
+          await setDoc(docRef, newData);
+          return newData as T;
+        }
+
+        const serverData = docSnap.data();
+        const serverVersion = serverData[this.VERSION_FIELD] || 0;
+        const clientVersion = data[this.VERSION_FIELD] || 0;
+
+        if (serverVersion > clientVersion) {
+          // 服务器版本更新，需要解决冲突
+          const resolvedData = await this.resolveConflict(
+            serverData,
+            data,
+            serverVersion,
+            clientVersion,
+            userId
+          );
+          await updateDoc(docRef, resolvedData);
+          return resolvedData as T;
+        } else {
+          // 客户端版本更新或相等，直接保存
+          const newData = {

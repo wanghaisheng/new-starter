@@ -2,24 +2,89 @@
 
 ## 概述
 
-本文档提供了数据库开发、测试和部署的最佳实践指南，帮助团队保持一致的开发标准和质量。
+本文档提供了数据库开发、测试和部署的最佳实践指南，帮助团队保持一致的开发标准和质量。本指南与架构文档（`docs/lessons/database/best-practise.md`）配合使用，为团队提供全面的数据库开发参考。
 
-## 1. 开发阶段最佳实践
+## 1. 存储策略与环境配置
 
-### 1.1 代码组织
+### 1.1 开发阶段（Mock）
+- 环境配置：`NEXT_PUBLIC_DATABASE_ENV=mock`
+- 存储类型：Mock IndexedDB（使用 fake-indexeddb）
+- 特点：
+  - 快速原型验证
+  - 预设测试数据
+  - 支持完整的 IndexedDB API
+  - 可在 Node.js 环境中运行
+
+### 1.2 本地阶段（Local）
+- 环境配置：`NEXT_PUBLIC_DATABASE_ENV=local`
+- Web环境：IndexedDB
+- 移动端：SQLite
+- 特点：支持离线操作，数据持久化
+
+### 1.3 生产阶段（Production）
+- 环境配置：`NEXT_PUBLIC_DATABASE_ENV=production`
+- 存储类型：混合存储（本地+云端）
+- 云端选项：Firebase/Supabase
+- 特点：多设备支持，数据同步
+
+### 1.4 数据同步策略
+
+#### 在线优先（Online-First）
+- 适用场景：用户注册、个人资料更新
+- 特点：优先云端操作，网络不可用时回退本地
+
+#### 离线优先（Offline-First）
+- 适用场景：消息、匹配操作
+- 特点：优先本地操作，后台同步云端
+
+#### 手动同步（Manual）
+- 适用场景：批量数据同步、大文件传输
+- 特点：用户主动触发，可控同步过程
+
+## 2. 开发阶段最佳实践
+
+### 2.1 代码组织
 
 #### 目录结构
 ```
 src/core/lib/db/
 ├── clients/           # 数据库客户端实现
-│   ├── capacitor-sqlite/  # SQLite 客户端
-│   ├── indexeddb/         # IndexedDB 客户端
-│   └── mock/              # Mock 客户端
-├── interfaces.ts      # 接口定义
+│   ├── capacitor-sqlite/  # 移动端SQLite客户端
+│   │   ├── sqlite-client.ts       # 主客户端实现
+│   │   ├── migration-manager.ts   # 迁移管理
+│   │   ├── backup-manager.ts      # 备份管理
+│   │   └── performance-manager.ts # 性能管理
+│   ├── indexeddb/         # Web端IndexedDB客户端
+│   │   ├── indexeddb-client.ts          # 基本实现
+│   │   └── optimized-indexeddb-client.ts # 优化实现
+│   ├── mock/              # Mock环境实现
+│   │   ├── mock-client.ts          # 通用Mock客户端
+│   │   └── indexeddb-client.ts     # Mock IndexedDB
+│   ├── firebase/          # Firebase客户端
+│   ├── hybrid/            # 混合存储客户端
+│   ├── sync/              # 同步客户端
+│   └── base-client.ts     # 基础客户端抽象
+├── repositories/      # 数据访问层
+│   ├── base-repository.ts  # 基础仓库
+│   ├── user-repository.ts  # 用户数据仓库
+│   ├── message-repository.ts # 消息仓库
+│   └── match-repository.ts # 匹配仓库
+├── schema/           # 数据模型定义
+│   ├── definitions/       # 表结构定义
+│   ├── adapters/          # ORM适配器
+│   ├── version-manager.ts # 版本管理
+│   └── versions.ts        # 版本定义
 ├── types/            # 类型定义
-├── schema/           # 数据库模式
 ├── test/             # 测试文件
-└── factory.ts        # 工厂函数
+│   ├── clients/           # 客户端测试
+│   ├── repositories/      # 仓库测试
+│   ├── journey/           # 流程测试
+│   ├── simulators/        # 模拟器
+│   └── tools/             # 测试工具
+├── interfaces.ts     # 接口定义
+├── factory.ts        # 工厂函数
+├── config.ts         # 配置管理
+└── service.ts        # 核心服务实现
 ```
 
 #### 命名规范
@@ -29,7 +94,7 @@ src/core/lib/db/
 4. 常量名：使用 UPPER_SNAKE_CASE（如 `MAX_CACHE_SIZE`）
 5. 接口名：使用 PascalCase，以 I 开头（如 `IDatabaseClient`）
 
-### 1.2 类型安全
+### 2.2 类型安全
 
 #### 使用 TypeScript 类型
 ```typescript
@@ -63,7 +128,7 @@ function validateUser(user: unknown): user is User {
 }
 ```
 
-### 1.3 错误处理
+### 2.3 错误处理
 
 #### 自定义错误类
 ```typescript
@@ -104,9 +169,9 @@ try {
 }
 ```
 
-## 2. 测试阶段最佳实践
+## 3. 测试阶段最佳实践
 
-### 2.1 单元测试
+### 3.1 单元测试
 
 #### 测试结构
 ```typescript
@@ -147,7 +212,7 @@ function createTestUser(overrides: Partial<User> = {}): User {
 }
 ```
 
-### 2.2 集成测试
+### 3.2 集成测试
 
 #### 测试环境设置
 ```typescript
@@ -188,16 +253,19 @@ it('should rollback on error', async () => {
 });
 ```
 
-## 3. 部署阶段最佳实践
+## 4. 部署阶段最佳实践
 
-### 3.1 数据库迁移
+### 4.1 数据库迁移
 
 #### 迁移脚本
 ```typescript
 // 迁移管理器
 class MigrationManager {
+  constructor(private db: IBaseDatabaseClient) {}
+
   async migrate(): Promise<void> {
-    const migrations = await this.getPendingMigrations();
+    const currentVersion = await this.getCurrentVersion();
+    const migrations = await this.getPendingMigrations(currentVersion);
     
     for (const migration of migrations) {
       await this.executeMigration(migration);
@@ -206,9 +274,27 @@ class MigrationManager {
   }
   
   private async executeMigration(migration: Migration): Promise<void> {
-    await this.db.transaction(async () => {
-      await this.db.executeRawQuery(migration.sql);
+    await this.db.transaction(async (tx) => {
+      for (const statement of migration.statements) {
+        await tx.executeRawQuery(statement);
+      }
     });
+  }
+
+  private async getCurrentVersion(): Promise<number> {
+    try {
+      const result = await this.db.executeRawQuery<{version: number}>(
+        'SELECT version FROM schema_version LIMIT 1'
+      );
+      return result.length > 0 ? result[0].version : 0;
+    } catch (error) {
+      // 表不存在，创建版本表
+      await this.db.executeRawQuery(
+        'CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)'
+      );
+      await this.db.executeRawQuery('INSERT INTO schema_version (version) VALUES (0)');
+      return 0;
+    }
   }
 }
 ```
@@ -218,7 +304,7 @@ class MigrationManager {
 interface Migration {
   version: number;
   name: string;
-  sql: string;
+  statements: string[];
   timestamp: Date;
 }
 
@@ -226,24 +312,90 @@ const migrations: Migration[] = [
   {
     version: 1,
     name: 'create_users_table',
-    sql: 'CREATE TABLE users...',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );`
+    ],
     timestamp: new Date('2024-03-29')
+  },
+  {
+    version: 2,
+    name: 'add_user_profile_fields',
+    statements: [
+      `ALTER TABLE users ADD COLUMN photoUrl TEXT;`,
+      `ALTER TABLE users ADD COLUMN bio TEXT;`,
+      `ALTER TABLE users ADD COLUMN interests TEXT;`
+    ],
+    timestamp: new Date('2024-04-05')
   }
 ];
 ```
 
-### 3.2 数据备份
+### 4.2 数据备份
 
 #### 备份策略
 ```typescript
 class BackupManager {
-  async createBackup(): Promise<void> {
+  constructor(
+    private db: IBaseDatabaseClient,
+    private storageManager: StorageManager
+  ) {}
+
+  async createBackup(): Promise<string> {
     const backupPath = this.getBackupPath();
-    await this.db.executeRawQuery(`BACKUP TO '${backupPath}'`);
+    const tables = await this.getTables();
+    const backupData: Record<string, any[]> = {};
+    
+    // 导出所有表数据
+    for (const table of tables) {
+      const data = await this.db.findAll(table);
+      backupData[table] = data;
+    }
+    
+    // 保存备份文件
+    await this.storageManager.writeFile(
+      backupPath,
+      JSON.stringify(backupData, null, 2)
+    );
+    
+    return backupPath;
   }
   
   async restoreFromBackup(backupPath: string): Promise<void> {
-    await this.db.executeRawQuery(`RESTORE FROM '${backupPath}'`);
+    const backupContent = await this.storageManager.readFile(backupPath);
+    const backupData = JSON.parse(backupContent);
+    
+    await this.db.transaction(async (tx) => {
+      // 清空现有数据
+      const tables = Object.keys(backupData);
+      for (const table of tables) {
+        await tx.executeRawQuery(`DELETE FROM ${table}`);
+      }
+      
+      // 恢复备份数据
+      for (const [table, records] of Object.entries(backupData)) {
+        for (const record of records as any[]) {
+          await tx.create(table, record);
+        }
+      }
+    });
+  }
+  
+  private async getTables(): Promise<string[]> {
+    const result = await this.db.executeRawQuery<{name: string}>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+    );
+    return result.map(row => row.name);
+  }
+  
+  private getBackupPath(): string {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    return `backup_${timestamp}.json`;
   }
 }
 ```
@@ -252,39 +404,142 @@ class BackupManager {
 ```typescript
 class AutoBackupManager {
   private backupInterval: number;
+  private backupTimer: NodeJS.Timeout | null = null;
+  private maxBackups: number;
   
-  constructor(interval: number = 24 * 60 * 60 * 1000) {
-    this.backupInterval = interval;
+  constructor(
+    private backupManager: BackupManager,
+    private storageManager: StorageManager,
+    options: {
+      interval?: number;
+      maxBackups?: number;
+    } = {}
+  ) {
+    this.backupInterval = options.interval || 24 * 60 * 60 * 1000; // 默认每天
+    this.maxBackups = options.maxBackups || 7; // 默认保留7个备份
   }
   
   startAutoBackup(): void {
-    setInterval(async () => {
-      await this.createBackup();
+    if (this.backupTimer) {
+      clearInterval(this.backupTimer);
+    }
+    
+    this.backupTimer = setInterval(async () => {
+      try {
+        await this.createBackup();
+        await this.cleanupOldBackups();
+      } catch (error) {
+        console.error('自动备份失败:', error);
+      }
     }, this.backupInterval);
+  }
+  
+  stopAutoBackup(): void {
+    if (this.backupTimer) {
+      clearInterval(this.backupTimer);
+      this.backupTimer = null;
+    }
+  }
+  
+  private async createBackup(): Promise<string> {
+    return this.backupManager.createBackup();
+  }
+  
+  private async cleanupOldBackups(): Promise<void> {
+    const backups = await this.storageManager.listFiles('backup_*.json');
+    
+    // 按创建时间排序
+    backups.sort((a, b) => {
+      const timeA = this.getTimestampFromBackupName(a);
+      const timeB = this.getTimestampFromBackupName(b);
+      return timeB.getTime() - timeA.getTime(); // 降序
+    });
+    
+    // 删除超出保留数量的旧备份
+    if (backups.length > this.maxBackups) {
+      const toDelete = backups.slice(this.maxBackups);
+      for (const backup of toDelete) {
+        await this.storageManager.deleteFile(backup);
+      }
+    }
+  }
+  
+  private getTimestampFromBackupName(filename: string): Date {
+    const match = filename.match(/backup_(.*)\.json/);
+    if (match && match[1]) {
+      const timestamp = match[1].replace(/-/g, (m, i) => i % 3 === 2 ? ':' : m);
+      return new Date(timestamp);
+    }
+    return new Date(0); // 默认值
   }
 }
 ```
 
-### 3.3 监控和日志
+### 4.3 监控和日志
 
 #### 性能监控
 ```typescript
 class DatabaseMonitor {
   private metrics: Map<string, number[]>;
+  private queryCount: Map<string, number>;
+  private slowQueryThreshold: number;
+  private logger: DatabaseLogger;
+  
+  constructor(options: {
+    slowQueryThreshold?: number;
+    logger?: DatabaseLogger;
+  } = {}) {
+    this.metrics = new Map<string, number[]>();
+    this.queryCount = new Map<string, number>();
+    this.slowQueryThreshold = options.slowQueryThreshold || 100; // 默认100ms
+    this.logger = options.logger || new DatabaseLogger();
+  }
   
   recordQueryTime(query: string, duration: number): void {
+    // 记录查询时间
     if (!this.metrics.has(query)) {
       this.metrics.set(query, []);
     }
     this.metrics.get(query)!.push(duration);
+    
+    // 记录查询次数
+    const count = this.queryCount.get(query) || 0;
+    this.queryCount.set(query, count + 1);
+    
+    // 记录慢查询
+    if (duration > this.slowQueryThreshold) {
+      this.logger.log('warn', `慢查询检测: ${duration}ms`, { query });
+    }
   }
   
-  getSlowQueries(threshold: number): string[] {
+  getSlowQueries(threshold?: number): Array<{query: string, avgTime: number, count: number}> {
+    const actualThreshold = threshold || this.slowQueryThreshold;
+    
     return Array.from(this.metrics.entries())
-      .filter(([_, times]) => 
-        times.some(time => time > threshold)
-      )
-      .map(([query]) => query);
+      .map(([query, times]) => {
+        const avgTime = times.reduce((sum, time) => sum + time, 0) / times.length;
+        const count = this.queryCount.get(query) || 0;
+        return { query, avgTime, count };
+      })
+      .filter(item => item.avgTime > actualThreshold)
+      .sort((a, b) => b.avgTime - a.avgTime); // 按平均时间降序排序
+  }
+  
+  getQueryStats(): Array<{query: string, min: number, max: number, avg: number, count: number}> {
+    return Array.from(this.metrics.entries())
+      .map(([query, times]) => {
+        const min = Math.min(...times);
+        const max = Math.max(...times);
+        const avg = times.reduce((sum, time) => sum + time, 0) / times.length;
+        const count = this.queryCount.get(query) || 0;
+        return { query, min, max, avg, count };
+      })
+      .sort((a, b) => b.count - a.count); // 按查询次数降序排序
+  }
+  
+  resetMetrics(): void {
+    this.metrics.clear();
+    this.queryCount.clear();
   }
 }
 ```
@@ -292,14 +547,79 @@ class DatabaseMonitor {
 #### 日志记录
 ```typescript
 class DatabaseLogger {
-  log(level: 'info' | 'warn' | 'error', message: string, context?: any): void {
-    console.log(JSON.stringify({
+  private logLevel: 'debug' | 'info' | 'warn' | 'error';
+  private logHandlers: Array<(entry: LogEntry) => void>;
+  
+  constructor(options: {
+    level?: 'debug' | 'info' | 'warn' | 'error';
+    handlers?: Array<(entry: LogEntry) => void>;
+  } = {}) {
+    this.logLevel = options.level || 'info';
+    this.logHandlers = options.handlers || [this.consoleLogHandler];
+  }
+  
+  log(level: 'debug' | 'info' | 'warn' | 'error', message: string, context?: any): void {
+    // 检查日志级别
+    if (!this.shouldLog(level)) {
+      return;
+    }
+    
+    const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
       message,
       context
-    }));
+    };
+    
+    // 发送到所有处理器
+    for (const handler of this.logHandlers) {
+      try {
+        handler(entry);
+      } catch (error) {
+        console.error('日志处理器错误:', error);
+      }
+    }
   }
+  
+  private shouldLog(level: 'debug' | 'info' | 'warn' | 'error'): boolean {
+    const levels = { debug: 0, info: 1, warn: 2, error: 3 };
+    return levels[level] >= levels[this.logLevel];
+  }
+  
+  private consoleLogHandler(entry: LogEntry): void {
+    const { timestamp, level, message, context } = entry;
+    const formattedContext = context ? `\n${JSON.stringify(context, null, 2)}` : '';
+    
+    switch (level) {
+      case 'debug':
+        console.debug(`[${timestamp}] [DEBUG] ${message}${formattedContext}`);
+        break;
+      case 'info':
+        console.info(`[${timestamp}] [INFO] ${message}${formattedContext}`);
+        break;
+      case 'warn':
+        console.warn(`[${timestamp}] [WARN] ${message}${formattedContext}`);
+        break;
+      case 'error':
+        console.error(`[${timestamp}] [ERROR] ${message}${formattedContext}`);
+        break;
+    }
+  }
+  
+  addHandler(handler: (entry: LogEntry) => void): void {
+    this.logHandlers.push(handler);
+  }
+  
+  setLevel(level: 'debug' | 'info' | 'warn' | 'error'): void {
+    this.logLevel = level;
+  }
+}
+
+interface LogEntry {
+  timestamp: string;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  message: string;
+  context?: any;
 }
 ```
 
@@ -512,4 +832,4 @@ class VersionManager {
 6. **维护**
    - 定期优化
    - 监控告警
-   - 版本管理 
+   - 版本管理

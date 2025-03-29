@@ -1,10 +1,11 @@
-import { IBaseDatabaseClient } from '../interfaces';
+import { IBaseDatabaseClient, QueryOptions } from '../interfaces';
+import { BatchOperation, QueryResult, BaseEntity } from '../types';
 
 /**
  * 基础仓储抽象类
  * 提供通用的 CRUD 操作
  */
-export abstract class BaseRepository<T extends { id: string }> {
+export abstract class BaseRepository<T extends BaseEntity> {
   constructor(
     protected client: IBaseDatabaseClient,
     protected tableName: string
@@ -33,8 +34,8 @@ export abstract class BaseRepository<T extends { id: string }> {
    * @param data 实体数据
    * @returns 创建的实体
    */
-  async create(data: T): Promise<T> {
-    return this.client.create<T>(this.tableName, data);
+  async create(data: Omit<T, keyof BaseEntity>): Promise<T> {
+    return this.client.create<T>(this.tableName, data as T);
   }
   
   /**
@@ -59,13 +60,42 @@ export abstract class BaseRepository<T extends { id: string }> {
    * @param options 查询选项
    * @returns 查询结果
    */
-  async query(options: {
-    select?: string[];
-    where?: Record<string, any>;
-    orderBy?: string | string[];
-    limit?: number;
-    offset?: number;
-  }): Promise<T[]> {
+  async query(options: QueryOptions): Promise<QueryResult<T>> {
     return this.client.query<T>(this.tableName, options);
+  }
+
+  /**
+   * 批量操作
+   * @param operations 批量操作列表
+   */
+  async batch(operations: BatchOperation<T>[]): Promise<void> {
+    await this.client.batch<T>(this.tableName, operations);
+  }
+
+  /**
+   * 执行事务
+   * @param callback 事务回调函数
+   * @returns 事务执行结果
+   */
+  async transaction<R>(callback: (tx: IBaseDatabaseClient) => Promise<R>): Promise<R> {
+    await this.client.beginTransaction();
+    try {
+      const result = await callback(this.client);
+      await this.client.commitTransaction();
+      return result;
+    } catch (error) {
+      await this.client.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  /**
+   * 执行原始查询
+   * @param query SQL查询语句
+   * @param params 查询参数
+   * @returns 查询结果
+   */
+  async executeRawQuery<R>(query: string, params: any[] = []): Promise<R[]> {
+    return this.client.executeRawQuery<R>(query, params);
   }
 }

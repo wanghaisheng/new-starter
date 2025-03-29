@@ -1,16 +1,15 @@
 // 导出接口
+export * from './types';
 export * from './interfaces';
+export * from './schema';
+export * from './service';
+export * from './factory';
+export * from './config';
 
 // 导出模型
 export * from './models/user';
 export * from './models/match';
 export * from './models/message';
-
-// 导出服务
-export { DatabaseService } from './service';
-
-// 导出工厂
-export { DatabaseFactory, DatabaseClientType } from './factory';
 
 // 导出仓储
 export { BaseRepository } from './repositories/base-repository';

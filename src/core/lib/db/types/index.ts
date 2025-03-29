@@ -1,5 +1,6 @@
 import { schemaRegistry } from '../schema';
 export * from './database.types';
+export * from './base-entity';
 
 // Base type for all entities
 export interface BaseEntity {
@@ -14,24 +15,23 @@ export interface User extends BaseEntity {
   email: string;
   photoUrl?: string;
   bio?: string;
-  interests: string[];
+  interests?: string[];
   birthDate?: Date;
 }
 
 // Match type definition
 export interface Match extends BaseEntity {
-  user1Id: string;
-  user2Id: string;
-  isMatched: boolean;
+  userId: string;
+  matchedUserId: string;
+  status: string;
 }
 
 // Message type definition
 export interface Message extends BaseEntity {
-  content: string;
   senderId: string;
   receiverId: string;
-  matchId: string;
-  isRead: boolean;
+  content: string;
+  status: string;
 }
 
 // Export schema-based type generator

@@ -1,4 +1,4 @@
-import { BaseEntity } from './index';
+import { BaseEntity, User } from './index';
 import { SQLiteDBConnection } from '@capacitor-community/sqlite';
 
 // 数据库引擎类型
@@ -60,11 +60,19 @@ export interface DatabaseError extends Error {
   details?: any;
 }
 
+export type QueryOperator = '==' | '<' | '<=' | '>' | '>=' | '!=';
+
 // 查询选项接口
 export interface QueryOptions {
-  select?: string[];
-  where?: Record<string, any>;
-  orderBy?: string | string[];
+  where?: {
+    field: string;
+    operator: QueryOperator;
+    value: any;
+  };
+  orderBy?: {
+    field: string;
+    direction: 'asc' | 'desc';
+  };
   limit?: number;
   offset?: number;
 }
@@ -129,18 +137,6 @@ export interface DatabaseMetrics {
   queryTime: number;
 }
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  photoUrl?: string;
-  bio?: string;
-  interests?: string[];
-  birthDate?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface StorageStats {
   totalSize: number;
   availableSpace: number;
@@ -151,11 +147,18 @@ export interface DatabaseClient {
   db: SQLiteDBConnection;
   config: DatabaseConfig;
   transaction<T>(callback: () => Promise<T>): Promise<T>;
-  createUser(user: Omit<User, 'id'>): Promise<User>;
-  findById<T>(table: string, id: string): Promise<T | null>;
-  findAll<T>(table: string): Promise<T[]>;
+  createUser(user: Omit<User, keyof BaseEntity>): Promise<User>;
+  findById<T extends BaseEntity>(table: string, id: string): Promise<T | null>;
+  findAll<T extends BaseEntity>(table: string, filter?: Record<string, any>): Promise<T[]>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
   deleteUser(id: string): Promise<void>;
   clear(): Promise<void>;
   initialize(): Promise<void>;
+  query<T extends BaseEntity>(table: string, options: QueryOptions): Promise<QueryResult<T>>;
+  batch<T extends BaseEntity>(table: string, operations: BatchOperation<T>[]): Promise<void>;
+  executeRawQuery<T>(query: string, params?: any[]): Promise<T[]>;
+  count(table: string, filter?: Record<string, any>): Promise<number>;
+  beginTransaction(): Promise<void>;
+  commitTransaction(): Promise<void>;
+  rollbackTransaction(): Promise<void>;
 } 

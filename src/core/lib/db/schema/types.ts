@@ -8,7 +8,7 @@ export interface TableSchema {
 // 列定义接口
 export interface ColumnDefinition {
   name: string;
-  type: string;
+  type: ColumnType;
   primaryKey?: boolean;
   notNull?: boolean;
   unique?: boolean;
@@ -18,6 +18,18 @@ export interface ColumnDefinition {
     column: string;
   };
 }
+
+// 列类型定义
+export type ColumnType = 
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'json'
+  | 'text'
+  | 'blob'
+  | 'array'
+  | 'object';
 
 // 索引定义接口
 export interface IndexDefinition {
@@ -36,18 +48,14 @@ export interface ISchemaRegistry {
   clear(): void;
 }
 
+// 数据库类型定义
 export type DatabaseType = 
+  | 'mock'
+  | 'indexeddb'
   | 'sqlite'
-  | 'postgres'
-  | 'mysql'
-  | 'mariadb'
-  | 'planetscale'
-  | 'neon'
-  | 'turso'
+  | 'cloudflare-d1'
   | 'firebase'
   | 'supabase'
-  | 'mongodb'
-  | 'dynamodb'
-  | 'indexeddb'
+  | 'turso'
   | 'tidb'
-  | 'cloudflare_d1'; 
+  | 'postgres'; 

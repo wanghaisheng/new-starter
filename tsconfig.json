@@ -28,7 +28,12 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@core/*": ["./src/core/*"],
+      "@db/*": ["./src/core/lib/db/*"],
+      "@db/types/*": ["./src/core/lib/db/types/*"],
+      "@db/interfaces": ["./src/core/lib/db/interfaces"],
+      "@db/test/*": ["./src/core/lib/db/test/*"]
     }
   },
   "include": [

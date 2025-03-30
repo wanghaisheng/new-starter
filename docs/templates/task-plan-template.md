@@ -61,18 +61,53 @@
   - 数据存储
   - API集成
 
-### 3.4 测试
+### 3.4 数据库开发
+- [ ] Mock数据阶段
+  - 设计数据模型和字段定义
+  - 在`src/mock/data/`目录创建JSON格式模拟数据
+  - 实现Mock数据服务，提供与真实服务相同的接口
+  - 配置环境变量：`NEXT_PUBLIC_DATABASE_ENV=mock`
+
+- [ ] 本地数据库阶段
+  - 设计数据库Schema
+  - 创建数据库迁移脚本
+  - 实现本地数据库服务
+  - 配置环境变量：`NEXT_PUBLIC_DATABASE_ENV=local`
+  - 验证数据持久化和查询性能
+
+- [ ] 生产环境数据库阶段
+  - 选择并配置云端数据库服务
+  - 实现云端数据库服务
+  - 实现离线数据存储
+  - 开发数据同步服务
+  - 配置环境变量：`NEXT_PUBLIC_DATABASE_ENV=production`
+
+### 3.5 Repository实现
+- [ ] 设计Repository接口
+  - 定义基础Repository接口
+  - 确保接口一致性
+
+- [ ] 实现具体Repository
+  - 实现基础Repository抽象类
+  - 为每个实体类型创建具体Repository实现
+  - 实现Repository工厂
+
+### 3.6 测试
 - [ ] 编写单元测试
   - 组件测试
   - 服务测试
   - 工具函数测试
+  - Repository测试
+  - 数据同步测试
 
 - [ ] 编写集成测试
   - API测试
   - 流程测试
   - 性能测试
+  - 数据库操作测试
+  - 离线/在线切换测试
 
-### 3.5 文档
+### 3.7 文档
 - [ ] 更新文档
   - README.md
   - API文档
@@ -102,7 +137,20 @@
 - 风险1：{risk_description}
   - 解决方案：{solution}
 
-### 5.2 进度风险
+### 5.2 数据库风险
+- 风险1：数据同步冲突
+  - 解决方案：实现冲突检测和解决策略，采用时间戳或版本号机制
+
+- 风险2：离线数据存储限制
+  - 解决方案：实现数据优先级策略，确保关键数据优先同步和存储
+
+- 风险3：数据迁移兼容性问题
+  - 解决方案：设计向前兼容的数据模型，实现数据迁移测试
+
+- 风险4：数据安全性问题
+  - 解决方案：实现数据加密存储，严格控制数据访问权限
+
+### 5.3 进度风险
 - 风险1：{risk_description}
   - 解决方案：{solution}
 
@@ -117,9 +165,10 @@
 - [Next.js文档](https://nextjs.org/docs)
 - [Ionic文档](https://ionicframework.com/docs)
 - [Capacitor文档](https://capacitorjs.com/docs)
+- [数据库开发工作流程](./database-development-workflow.md)
 
 ## 7. 更新记录
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
-| {date} | 1.0.0 | 初始版本 | {author} | 
+| {date} | 1.0.0 | 初始版本 | {author} |

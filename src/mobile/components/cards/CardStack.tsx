@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SwipeCard } from '@/core/components/SwipeCard';
+import { SwipeCard } from '@/mobile/components/cards/SwipeCard';
 import { User } from '@/core/models/user';
 import { getRecommendedUsers } from '@/core/models/mock-data';
 
@@ -42,4 +42,4 @@ export const CardStack: React.FC = () => {
       ))}
     </div>
   );
-}; 
+};

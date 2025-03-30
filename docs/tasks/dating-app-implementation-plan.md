@@ -3,18 +3,46 @@
 ## 1. 项目结构与设计
 
 ### 1.1 目录结构
+
+#### 1.1.1 移动端开发规范
+
+为确保代码组织的一致性，移动端开发必须遵循以下规范：
+
+1. **路由页面放置**：所有移动端路由页面必须放在`app/mobile`目录下
+2. **组件放置**：
+   - 共享组件（跨平台通用组件）放在`src/core/components/`目录下
+   - 移动端专属组件放在`src/mobile/components/`目录下
+3. **组件分类**：移动端专属组件应按功能模块分类存放，如cards、messages、navigation、profile等
+
+#### 1.1.2 数据目录规范
+
+为确保数据文件的一致性和可维护性，必须遵循以下规范：
+
+1. **模拟数据放置**：所有模拟数据必须放在`src/core/lib/db/clients/mock/data/`目录下
+2. **数据文件格式**：
+   - JSON格式的静态数据应使用`.json`扩展名
+   - TypeScript格式的动态数据应使用`.ts`扩展名
+3. **数据文件命名**：应按照功能模块进行命名，如`user-data.ts`、`match-data.json`等
+
+#### 1.1.2 目录结构详情
 ```
+app/
+├── mobile/              # 移动端路由页面
+│   ├── discover/        # 发现页面
+│   ├── home/            # 首页
+│   ├── matches/         # 匹配列表页面
+│   ├── profile/         # 个人资料页面
+│   └── settings/        # 设置页面
 src/
-├── app/
-│   └── mobile/
 ├── assets/
 │   ├── images/
 │   └── locales/
 ├── core/
-│   ├── components/          # 共享UI组件
-│   │   ├── ProfileCard.tsx
-│   │   ├── SwipeCard.tsx
-│   │   ├── UserProfileCard.tsx
+│   ├── components/          # 共享UI组件（跨平台通用组件）
+│   │   ├── Card.tsx
+│   │   ├── Form.tsx
+│   │   ├── PhotoUploader.tsx
+│   │   ├── ProfileEditor.tsx
 │   │   └── __tests__/
 │   ├── config/
 │   │   └── firebase.ts
@@ -47,12 +75,22 @@ src/
 │   │   └── types.ts
 │   └── types.ts
 ├── mobile/
-│   ├── components/
-│   │   └── cards/
-│   ├── plugins/
+│   ├── components/          # 移动端专属组件
+│   │   ├── cards/           # 卡片相关组件
+│   │   │   ├── CardStack.tsx
+│   │   │   └── SwipeCard.tsx
+│   │   ├── messages/        # 消息相关组件
+│   │   │   ├── MessageBubble.tsx
+│   │   │   └── MessageItem.tsx
+│   │   ├── navigation/      # 导航相关组件
+│   │   │   └── NavigationBar.tsx
+│   │   └── profile/         # 个人资料相关组件
+│   │       ├── ProfileCard.tsx
+│   │       └── UserProfileCard.tsx
+│   ├── plugins/             # 移动端插件
 │   │   ├── camera-service.ts
 │   │   └── geolocation-service.ts
-│   └── utils/
+│   └── utils/               # 移动端工具函数
 ├── mock/
 │   └── data/
 │       └── user-data.ts
@@ -385,7 +423,7 @@ export interface EntityConverter<T> {
 **实现方式**
 
 1. **Mock客户端实现**：使用`src/core/lib/db/clients/mock/mock-client.ts`提供内存数据存储
-2. **预设数据**：在`src/mock/data/`目录下创建JSON格式的模拟数据
+2. **预设数据**：在`src/core/lib/db/clients/mock/data/`目录下创建JSON格式的模拟数据
 3. **环境配置**：在`.env.development`中设置：
    ```
    NEXT_PUBLIC_DATABASE_ENV=mock

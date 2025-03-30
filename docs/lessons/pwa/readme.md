@@ -1,0 +1,1 @@
+https://github.com/vite-pwa/assets-generator

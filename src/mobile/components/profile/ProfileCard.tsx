@@ -49,10 +49,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ user, onEdit, onSettin
         <h3 className="font-semibold mb-2">照片集</h3>
         <div className="grid grid-cols-3 gap-2">
           {user.photos.map((photo, index) => (
-            <IonImg key={index} src={photo} className="w-full h-24 object-cover rounded-md" />
+            <div key={index} className="aspect-square overflow-hidden rounded-lg">
+              <IonImg src={photo} className="w-full h-full object-cover" />
+            </div>
           ))}
         </div>
       </IonCardContent>
     </IonCard>
   );
-}; 
+};
+
+export default ProfileCard;

@@ -15,7 +15,7 @@ import {
 } from '@ionic/react';
 import { person, chatbubbles, heart, close } from 'ionicons/icons';
 import { useRouter } from 'next/navigation';
-import { SwipeCard } from '@/core/components/SwipeCard';
+import { SwipeCard } from '@/mobile/components/cards/SwipeCard';
 import { User } from '@/core/models/user';
 import { UserService } from '@/core/services/user-service';
 

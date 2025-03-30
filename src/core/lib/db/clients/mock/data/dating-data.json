@@ -1,0 +1,51 @@
+{
+  "users": [
+    {
+      "id": "user-1",
+      "name": "张三",
+      "email": "zhangsan@example.com",
+      "phone": "13800000001",
+      "birthDate": "1995-01-15T00:00:00.000Z",
+      "gender": "male",
+      "bio": "喜欢旅行和摄影的程序员",
+      "interests": ["编程", "摄影", "旅行"],
+      "location": {
+        "latitude": 39.9042,
+        "longitude": 116.4074,
+        "city": "北京",
+        "country": "中国"
+      },
+      "preferences": {
+        "ageRange": { "min": 20, "max": 30 },
+        "distance": 50,
+        "gender": ["female"],
+        "interests": ["音乐", "电影", "阅读"]
+      },
+      "isVerified": true,
+      "lastActive": "2023-11-01T12:00:00.000Z",
+      "status": "active",
+      "photos": [
+        {
+          "id": "photo-1",
+          "userId": "user-1",
+          "url": "https://randomuser.me/api/portraits/men/1.jpg",
+          "order": 0,
+          "isMain": true,
+          "createdAt": "2023-11-01T10:00:00.000Z",
+          "updatedAt": "2023-11-01T10:00:00.000Z"
+        },
+        {
+          "id": "photo-2",
+          "userId": "user-1",
+          "url": "https://randomuser.me/api/portraits/men/2.jpg",
+          "order": 1,
+          "isMain": false,
+          "createdAt": "2023-11-01T10:05:00.000Z",
+          "updatedAt": "2023-11-01T10:05:00.000Z"
+        }
+      ],
+      "createdAt": "2023-11-01T10:00:00.000Z",
+      "updatedAt": "2023-11-01T12:00:00.000Z"
+    }
+  ]
+}

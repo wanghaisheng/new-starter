@@ -1,29 +1,24 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  IonContent, 
   IonPage, 
   IonHeader, 
   IonToolbar, 
   IonTitle, 
   IonButtons, 
   IonBackButton, 
-  IonFooter, 
-  IonItem, 
-  IonInput, 
-  IonButton, 
-  IonIcon, 
-  IonAvatar, 
-  IonLabel,
   IonLoading,
   IonToast,
-  IonImg
+  IonContent,
+  IonFooter
 } from '@ionic/react';
-import { send } from 'ionicons/icons';
 import { useParams } from 'next/navigation';
-import { Match, Message, User } from '@/core/models/user';
+import { Match, User } from '@/core/models/user';
 import { UserService } from '@/core/services/user-service';
+import { MessageService } from '@/core/services/message-service';
+import RealTimeChat from '@/mobile/components/messages/RealTimeChat';
+import MessageInput from '@/mobile/components/messages/MessageInput';
 
 export default function ChatPage() {
   const params = useParams();
@@ -31,16 +26,14 @@ export default function ChatPage() {
   
   const [match, setMatch] = useState<Match | null>(null);
   const [matchedUser, setMatchedUser] = useState<User | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   
-  const contentRef = useRef<HTMLIonContentElement>(null);
   const userService = UserService.getInstance();
+  const messageService = MessageService.getInstance();
   
   useEffect(() => {
     loadChatData();
@@ -54,6 +47,8 @@ export default function ChatPage() {
         setError('无法加载用户数据');
         return;
       }
+      
+      setCurrentUserId(currentUser.id);
 
       // 获取匹配信息
       const userMatches = await userService.getMatches(currentUser.id);
@@ -72,10 +67,6 @@ export default function ChatPage() {
         return;
       }
       setMatchedUser(user);
-
-      // 获取消息历史
-      const chatMessages = await userService.getMessages(matchId);
-      setMessages(chatMessages);
     } catch (err) {
       console.error('Error loading chat data:', err);
       setError('加载聊天数据时出错');
@@ -86,49 +77,44 @@ export default function ChatPage() {
     }
   };
 
-  const scrollToBottom = () => {
-    if (contentRef.current) {
-      contentRef.current.scrollToBottom(300);
+  const handleSendMessage = async (content: string): Promise<void> => {
+    if (!content.trim() || !match || !matchedUser || !currentUserId) {
+      setToastMessage('发送失败：消息为空或用户未登录');
+      setShowToast(true);
+      return Promise.reject(new Error('消息为空或用户未登录'));
     }
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !match || !matchedUser) return;
 
     try {
-      setIsSending(true);
-      const currentUser = await userService.getCurrentUser();
-      if (!currentUser) {
-        setToastMessage('发送失败：用户未登录');
+      // 获取匹配用户ID
+      const receiverId = match.users.find(id => id !== currentUserId);
+      if (!receiverId) {
+        setToastMessage('发送失败：找不到接收者');
         setShowToast(true);
-        return;
+        return Promise.reject(new Error('找不到接收者'));
       }
 
-      const result = await userService.sendMessage(matchId, currentUser.id, newMessage.trim());
+      // 使用MessageService发送消息
+      const result = await messageService.sendMessage(
+        matchId,
+        currentUserId,
+        receiverId,
+        content.trim()
+      );
       
-      if (result.success && result.message) {
-        setMessages(prev => [...prev, result.message as Message]);
-        setNewMessage('');
-      } else {
-        setToastMessage(result.errors?.join(', ') || 'Failed to send message');
+      if (!result.success) {
+        const errorMsg = result.errors?.join(', ') || '发送失败';
+        setToastMessage(errorMsg);
         setShowToast(true);
+        return Promise.reject(new Error(errorMsg));
       }
+      
+      return Promise.resolve();
     } catch (err) {
       console.error('Error sending message:', err);
       setToastMessage('发送失败，请重试');
       setShowToast(true);
-    } finally {
-      setIsSending(false);
+      return Promise.reject(err);
     }
-  };
-
-  const formatMessageTime = (timestamp: Date) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   if (isLoading) {
@@ -188,64 +174,21 @@ export default function ChatPage() {
         </IonToolbar>
       </IonHeader>
       
-      <IonContent ref={contentRef} className="ion-padding">
-        <div className="flex flex-col space-y-4">
-          {messages.map(message => (
-            <div 
-              key={message.id} 
-              className={`flex ${message.senderId === matchedUser.id ? 'justify-start' : 'justify-end'}`}
-            >
-              {message.senderId === matchedUser.id && (
-                <IonAvatar className="mr-2 w-8 h-8">
-                  <img src={matchedUser.photos?.[0] || '/assets/default-avatar.png'} alt={matchedUser.name} />
-                </IonAvatar>
-              )}
-              
-              <div 
-                className={`p-3 rounded-lg max-w-[70%] ${
-                  message.senderId === matchedUser.id
-                    ? 'bg-gray-100 text-gray-800' 
-                    : 'bg-primary-600 text-white'
-                }`}
-              >
-                <div className="flex flex-col">
-                  <div className="text-sm font-medium">
-                    {message.senderId === matchedUser.id ? 'You' : matchedUser.name}
-                  </div>
-                  <div className="text-sm">{message.content}</div>
-                  <div className="text-xs text-gray-500">
-                    {new Date(message.createdAt).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </IonContent>
+      {/* 使用RealTimeChat组件显示消息 */}
+      <RealTimeChat
+        matchId={matchId}
+        currentUserId={currentUserId}
+        matchedUser={matchedUser}
+      />
       
+      {/* 使用MessageInput组件发送消息 */}
       <IonFooter>
-        <IonToolbar>
-          <IonItem lines="none">
-            <IonInput
-              value={newMessage}
-              onIonChange={e => setNewMessage(e.detail.value || '')}
-              placeholder="输入消息..."
-              onKeyPress={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-            />
-            <IonButton 
-              slot="end" 
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim() || isSending}
-            >
-              <IonIcon icon={send} slot="icon-only" />
-            </IonButton>
-          </IonItem>
-        </IonToolbar>
+        <MessageInput
+          matchId={matchId}
+          senderId={currentUserId}
+          receiverId={match.users.find(id => id !== currentUserId) || ''}
+          onSendMessage={handleSendMessage}
+        />
       </IonFooter>
 
       <IonToast
@@ -257,4 +200,4 @@ export default function ChatPage() {
       />
     </IonPage>
   );
-} 
+}

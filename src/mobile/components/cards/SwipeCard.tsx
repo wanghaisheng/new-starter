@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { IonCard, IonCardContent, IonImg, IonChip, IonLabel, IonSpinner } from '@ionic/react';
 import { motion, PanInfo, useMotionValue, useTransform } from 'framer-motion';
-import { User } from '@/core/models/user';
+import { User } from '@/core/lib/db/models/user';
 
 interface SwipeCardProps {
   user: User;

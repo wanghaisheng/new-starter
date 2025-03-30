@@ -253,9 +253,229 @@ it('should rollback on error', async () => {
 });
 ```
 
-## 4. 部署阶段最佳实践
+## 4. 工厂模式与服务层架构
 
-### 4.1 数据库迁移
+### 4.1 工厂模式实现
+
+在我们的项目中，工厂模式是实现依赖注入和解耦的关键机制。主要有两个工厂实现：
+
+#### 4.1.1 DatabaseFactory
+
+`DatabaseFactory` 位于 `src/core/lib/db/factory.ts`，负责创建和管理数据库客户端实例：
+
+```typescript
+export class DatabaseFactory {
+  private static clientRegistry: Map<string, any> = new Map();
+  
+  // 注册数据库客户端类型
+  static registerClientType(type: string, clientClass: any): void {
+    this.clientRegistry.set(type.toLowerCase(), clientClass);
+  }
+  
+  // 创建数据库客户端
+  static createClient(type: string, config: DatabaseConfig): IDatabaseClient {
+    const clientClass = this.clientRegistry.get(type.toLowerCase());
+    if (!clientClass) {
+      throw new Error(`未知的数据库客户端类型: ${type}`);
+    }
+    return new clientClass(config);
+  }
+  
+  // 根据环境变量创建数据库客户端
+  static createClientFromEnv(): IDatabaseClient {
+    // 获取环境变量并创建相应的客户端
+    // ...
+  }
+}
+```
+
+这种设计允许我们：
+- 动态注册不同类型的数据库客户端
+- 根据配置或环境变量创建适当的客户端实例
+- 在不修改现有代码的情况下添加新的客户端类型
+
+#### 4.1.2 DataServiceFactory
+
+`DataServiceFactory` 位于 `src/core/services/data-service-factory.ts`，负责创建和管理数据服务实例：
+
+```typescript
+export class DataServiceFactory {
+  private static instance: IDataService;
+
+  public static getInstance(): IDataService {
+    if (!DataServiceFactory.instance) {
+      const databaseEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+      
+      switch (databaseEnv) {
+        case 'mock':
+          DataServiceFactory.instance = MockDataService.getInstance();
+          break;
+        case 'local':
+          // 根据平台选择不同的实现
+          if (Capacitor.isNativePlatform()) {
+            DataServiceFactory.instance = DatabaseService.getInstance();
+          } else {
+            DataServiceFactory.instance = MockDataService.getInstance();
+          }
+          break;
+        // 其他环境...
+      }
+    }
+    return DataServiceFactory.instance;
+  }
+}
+```
+
+这种设计允许我们：
+- 根据环境配置选择适当的服务实现
+- 在应用程序中使用统一的接口访问数据
+- 轻松切换不同的数据服务实现，而不影响业务逻辑
+
+### 4.2 服务层架构
+
+我们的服务层架构采用了分层设计，确保关注点分离和代码的可维护性。
+
+#### 4.2.1 服务层结构
+
+```
+src/core/services/
+├── data-service-factory.ts    # 数据服务工厂
+├── data-service.interface.ts  # 数据服务接口
+├── database-service.ts        # 数据库服务实现
+├── mock-data-service.ts       # 模拟数据服务实现
+├── user-service.ts            # 用户服务
+├── message-service.ts         # 消息服务
+└── ... 其他服务
+```
+
+#### 4.2.2 服务层职责
+
+1. **接口层**：`data-service.interface.ts` 定义了数据服务的统一接口，所有实现必须遵循这个接口。
+
+```typescript
+export interface IDataService {
+  // 用户操作
+  getUser(id: string): Promise<User | null>;
+  getUsers(): Promise<User[]>;
+  createUser(user: User): Promise<User>;
+  // ... 其他方法
+}
+```
+
+2. **实现层**：包括 `database-service.ts` 和 `mock-data-service.ts` 等，提供了接口的具体实现。
+
+3. **工厂层**：`data-service-factory.ts` 负责根据环境配置创建适当的服务实例。
+
+4. **业务服务层**：如 `user-service.ts` 和 `message-service.ts`，封装了特定领域的业务逻辑。
+
+#### 4.2.3 DatabaseService 实现
+
+`DatabaseService` 类是核心数据库服务的实现，它使用单例模式确保全局只有一个实例：
+
+```typescript
+export class DatabaseService {
+  private static instance: DatabaseService;
+  private client: IDatabaseClient;
+  private isInitialized = false;
+  
+  // 仓储实例
+  private userRepository: UserRepository;
+  private matchRepository: MatchRepository;
+  private messageRepository: MessageRepository;
+
+  private constructor() {
+    // 使用工厂方法根据环境变量创建客户端
+    this.client = DatabaseFactory.createClientFromEnv();
+    
+    // 初始化仓储
+    this.userRepository = new UserRepository(this.client);
+    this.matchRepository = new MatchRepository(this.client);
+    this.messageRepository = new MessageRepository(this.client);
+  }
+
+  public static getInstance(): DatabaseService {
+    if (!DatabaseService.instance) {
+      DatabaseService.instance = new DatabaseService();
+    }
+    return DatabaseService.instance;
+  }
+  
+  // ... 其他方法
+}
+```
+
+### 4.3 服务使用最佳实践
+
+#### 4.3.1 在组件中使用服务
+
+**推荐做法**：
+
+```typescript
+import { DataServiceFactory } from '@/core/services/data-service-factory';
+
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+  
+  useEffect(() => {
+    async function loadUser() {
+      const dataService = DataServiceFactory.getInstance();
+      const userData = await dataService.getUser(userId);
+      setUser(userData);
+    }
+    loadUser();
+  }, [userId]);
+  
+  // 渲染用户资料
+}
+```
+
+**不推荐做法**：
+
+```typescript
+// 不要直接导入模型或数据库客户端
+import { User } from '@/core/lib/db/models';
+import { DatabaseService } from '@/core/lib/db/service';
+
+function UserProfile({ userId }) {
+  // 直接使用 DatabaseService 或访问底层实现
+  // ...
+}
+```
+
+#### 4.3.2 添加新服务
+
+当需要添加新的服务时，应遵循以下步骤：
+
+1. 在 `data-service.interface.ts` 中添加新的方法定义
+2. 在所有实现类（如 `database-service.ts` 和 `mock-data-service.ts`）中实现这些方法
+3. 如果需要，创建新的仓储类处理特定的数据访问逻辑
+4. 更新工厂类以支持新的服务类型（如果需要）
+
+#### 4.3.3 服务层与仓储层的关系
+
+- **服务层**：负责业务逻辑，可能组合多个仓储操作，处理事务和错误
+- **仓储层**：负责数据访问逻辑，提供 CRUD 操作和查询方法
+- **客户端层**：负责与具体数据存储的交互，如 IndexedDB 或 SQLite
+
+这种分层设计确保了：
+
+- 业务逻辑与数据访问逻辑分离
+- 可以轻松替换底层数据存储而不影响业务逻辑
+- 代码更易于测试和维护
+
+### 4.4 环境适配策略
+
+我们的服务层架构支持在不同环境中无缝切换：
+
+1. **开发环境**：使用 `MockDataService` 提供模拟数据，加速开发和测试
+2. **本地环境**：根据平台使用 `IndexedDBClient` 或 `CapacitorSQLiteClient`
+3. **生产环境**：使用混合存储策略，支持在线和离线操作
+
+通过环境变量 `NEXT_PUBLIC_DATABASE_ENV` 控制使用哪种服务实现，无需修改代码即可切换环境。
+
+## 5. 部署阶段最佳实践
+
+### 5.1 数据库迁移
 
 #### 迁移脚本
 ```typescript
@@ -802,7 +1022,178 @@ class VersionManager {
 }
 ```
 
-## 7. 总结
+## 7. 数据访问最佳实践
+
+### 7.1 组件与页面数据访问模式
+
+在应用开发中，组件和页面应该通过统一的数据服务接口访问数据，而不是直接导入模型或mock数据。这种模式有以下优势：
+
+1. **环境适应性**：根据环境变量自动切换数据源（mock、local、production）
+2. **关注点分离**：UI组件专注于展示逻辑，数据访问逻辑封装在服务中
+3. **可测试性**：便于模拟数据服务进行单元测试
+4. **一致性**：确保所有组件使用相同的数据访问方式
+5. **可维护性**：当数据访问逻辑变更时，只需修改服务实现，而不影响UI组件
+
+#### 7.1.1 错误示例
+
+以下是不推荐的数据访问方式：
+
+```typescript
+// 错误示例：直接导入mock数据
+import { getRecommendedUsers } from '@/core/models/mock-data';
+
+function DiscoverPage() {
+  const [users, setUsers] = useState([]);
+  
+  useEffect(() => {
+    // 直接使用mock数据，无法根据环境切换数据源
+    const recommendedUsers = getRecommendedUsers();
+    setUsers(recommendedUsers);
+  }, []);
+  
+  return (
+    <div>
+      {users.map(user => (
+        <UserCard key={user.id} user={user} />
+      ))}
+    </div>
+  );
+}
+```
+
+#### 7.1.2 正确示例
+
+以下是推荐的数据访问方式：
+
+```typescript
+// 正确示例：使用数据服务工厂
+import { DataServiceFactory } from '@/core/services/data-service-factory';
+import { useEffect, useState } from 'react';
+import { User } from '@/core/types';
+
+function DiscoverPage() {
+  const [users, setUsers] = useState<User[]>([]);
+  
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        // 通过工厂获取服务实例，自动根据环境变量选择合适的实现
+        const userService = await DataServiceFactory.getInstance().getUserService();
+        const recommendedUsers = await userService.getRecommendedUsers();
+        setUsers(recommendedUsers);
+      } catch (error) {
+        console.error('Failed to load users:', error);
+      }
+    };
+    
+    loadUsers();
+  }, []);
+  
+  return (
+    <div>
+      {users.map(user => (
+        <UserCard key={user.id} user={user} />
+      ))}
+    </div>
+  );
+}
+```
+
+### 7.2 数据服务接口设计
+
+为确保数据访问的一致性，应为每种实体类型定义明确的服务接口：
+
+```typescript
+// 用户服务接口
+export interface IUserService {
+  // 基本CRUD操作
+  getUserById(id: string): Promise<User | null>;
+  createUser(user: Omit<User, keyof BaseEntity>): Promise<User>;
+  updateUser(id: string, data: Partial<User>): Promise<void>;
+  deleteUser(id: string): Promise<void>;
+  
+  // 业务特定操作
+  getRecommendedUsers(preferences?: UserPreferences): Promise<User[]>;
+  getUsersByLocation(location: Location, radius: number): Promise<User[]>;
+  updateUserPreferences(userId: string, preferences: UserPreferences): Promise<void>;
+}
+
+// 匹配服务接口
+export interface IMatchService {
+  getMatchById(id: string): Promise<Match | null>;
+  createMatch(match: Omit<Match, keyof BaseEntity>): Promise<Match>;
+  updateMatchStatus(id: string, status: Match['status']): Promise<void>;
+  getUserMatches(userId: string): Promise<Match[]>;
+  performMatchAction(action: MatchAction): Promise<Match | null>;
+}
+
+// 消息服务接口
+export interface IMessageService {
+  getMessagesByMatchId(matchId: string): Promise<Message[]>;
+  sendMessage(message: Omit<Message, keyof BaseEntity>): Promise<Message>;
+  markMessagesAsRead(matchId: string, userId: string): Promise<void>;
+  getUnreadMessageCount(userId: string): Promise<number>;
+}
+```
+
+### 7.3 服务实现与环境切换
+
+服务实现应根据环境变量自动切换：
+
+```typescript
+// 用户服务工厂方法
+async getUserService(): Promise<IUserService> {
+  if (!this.services.has('user')) {
+    switch (this.databaseEnv) {
+      case 'production':
+        // 生产环境：使用真实数据库
+        const client = await this.getCloudDatabaseClient();
+        const repository = new UserRepository(client);
+        this.services.set('user', new UserService(repository));
+        break;
+      case 'local':
+        // 本地环境：使用本地数据库
+        const localClient = await this.getLocalDatabaseClient();
+        const localRepository = new UserRepository(localClient);
+        this.services.set('user', new UserService(localRepository));
+        break;
+      default:
+        // 开发环境：使用模拟数据
+        this.services.set('user', new MockUserService());
+    }
+  }
+  return this.services.get('user');
+}
+```
+
+### 7.4 模拟服务实现
+
+模拟服务应实现与真实服务相同的接口，但使用内存数据：
+
+```typescript
+// 模拟用户服务
+export class MockUserService implements IUserService {
+  private users: User[] = [];
+  
+  constructor() {
+    // 初始化模拟数据
+    this.users = require('@/core/lib/db/clients/mock/data/user-data.json');
+  }
+  
+  async getUserById(id: string): Promise<User | null> {
+    return this.users.find(user => user.id === id) || null;
+  }
+  
+  async getRecommendedUsers(preferences?: UserPreferences): Promise<User[]> {
+    // 模拟推荐算法
+    return this.users.slice(0, 10);
+  }
+  
+  // 实现其他接口方法...
+}
+```
+
+## 8. 总结
 
 1. **开发阶段**
    - 遵循代码组织规范
@@ -833,3 +1224,9 @@ class VersionManager {
    - 定期优化
    - 监控告警
    - 版本管理
+   
+7. **数据访问**
+   - 使用服务接口访问数据
+   - 通过工厂模式获取服务实例
+   - 根据环境变量自动切换数据源
+   - 避免直接导入模型或mock数据

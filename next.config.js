@@ -7,6 +7,16 @@ const nextConfig = {
       allowedOrigins: ['localhost:3000'],
     },
   },
+  // 配置路由重定向
+  async redirects() {
+    return [
+      {
+        source: '/mobile',
+        destination: '/mobile/home',
+        permanent: true,
+      },
+    ];
+  },
   // 配置Ionic和Capacitor相关的webpack设置
   webpack: (config) => {
     return {

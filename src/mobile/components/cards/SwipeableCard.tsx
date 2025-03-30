@@ -1,5 +1,7 @@
+'use client';
+
 import { motion, PanInfo } from 'framer-motion';
-import { User } from '@/core/models/user';
+import { User } from '@/core/lib/db/models/user';
 import { IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonCardSubtitle, IonImg, IonChip, IonIcon } from '@ionic/react';
 import { locationOutline, heartOutline, closeOutline } from 'ionicons/icons';
 import { useState } from 'react';
@@ -74,4 +76,4 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
       </IonCard>
     </motion.div>
   );
-}; 
+};

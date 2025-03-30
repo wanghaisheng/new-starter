@@ -103,39 +103,114 @@ Closes #45
 
 数据库开发遵循渐进式流程，从Mock数据到生产环境数据库。这三个阶段构成了一个连续的开发流程，理想情况下，只需通过切换环境变量即可在不同阶段间无缝切换，而无需修改业务代码。这种设计确保了在开发初期就能确认数据库表字段和关联关系，随后在本地环境进行测试验证，最终无缝过渡到生产环境。
 
-### 2.1 Mock数据阶段
+### 2.1 数据库架构
 
-1. 在`src/mock/data/`目录下创建对应功能的mock数据文件
-2. 创建Mock数据服务，实现与真实服务相同的接口
-3. 在`.env.development`中配置使用Mock数据：
+#### 2.1.1 数据库访问层
 
+项目采用分层架构设计数据库访问层，主要包含以下组件：
+
+```
+src/core/lib/db/
+├── clients/                # 数据库客户端实现
+│   ├── base-client.ts      # 基础客户端抽象类
+│   ├── capacitor-sqlite/   # SQLite客户端实现
+│   ├── indexeddb/          # IndexedDB客户端实现
+│   ├── firebase/           # Firebase客户端实现
+│   └── mock/               # 模拟数据客户端
+├── repositories/           # 仓储模式实现
+│   ├── base-repository.ts  # 基础仓储抽象类
+│   ├── user-repository.ts  # 用户仓储
+│   ├── match-repository.ts # 匹配仓储
+│   └── message-repository.ts # 消息仓储
+├── schema/                 # 数据库模式定义
+│   ├── definitions/        # 表结构定义
+│   │   ├── user-schema.ts  # 用户表结构
+│   │   ├── match-schema.ts # 匹配表结构
+│   │   └── message-schema.ts # 消息表结构
+│   ├── adapters/           # 数据库适配器
+│   └── entity-converter.ts # 实体转换器
+├── factory.ts              # 数据库工厂
+├── service.ts              # 数据库服务
+└── types/                  # 类型定义
+    ├── base-entity.ts      # 基础实体类型
+    ├── database.types.ts   # 数据库类型
+    └── dating.ts           # 业务实体类型
+```
+
+#### 2.1.2 核心组件
+
+1. **Schema Registry**：负责管理所有表结构定义，提供统一的注册和访问接口
+2. **数据库工厂**：负责创建和管理数据库客户端实例，根据环境变量选择合适的客户端类型
+3. **数据库服务**：应用程序与数据库交互的主要入口点，管理数据库客户端和仓储实例
+4. **数据服务工厂**：负责创建和管理数据服务实例，根据环境变量选择合适的服务实现
+
+#### 2.1.3 Repository模式
+
+Repository模式是一种数据访问模式，它在领域模型和数据映射层之间提供了一个中间层，使得应用程序可以独立于底层数据存储技术。在我们的项目中，Repository模式的实现基于以下原则：
+
+1. **单一职责**：每个Repository只负责一种实体类型的数据访问
+2. **接口一致性**：所有Repository实现相同的基础接口
+3. **业务逻辑隔离**：数据访问逻辑与业务逻辑分离
+4. **可测试性**：便于单元测试和模拟
+
+### 2.2 Mock数据阶段
+
+#### 目的
+- 快速开发和测试UI组件
+- 验证业务逻辑
+- 不依赖实际数据库环境
+
+#### 实现方式
+1. 在`src/mock/data/`目录下创建JSON格式的模拟数据
+2. 实现Mock数据服务，提供与真实服务相同的接口
+3. 在`.env.development`中配置：
+   ```
    NEXT_PUBLIC_DATABASE_ENV=mock
    NEXT_PUBLIC_MOCK_DB_TYPE=memory  # 或 json
+   ```
 
-4. 验证UI和业务逻辑是否正常工作
-5. **重要**：确保服务实现中包含适当的降级策略，即使配置不完整也能正常运行
+#### 验收标准
+- [ ] Mock数据服务接口完整
+- [ ] 数据结构符合设计规范
+- [ ] 测试用例覆盖主要场景
 
-### 2.2 本地数据库阶段
+### 2.3 本地数据库阶段
 
-1. 设计数据模型，确保与Mock数据结构一致
+#### 目的
+- 实现本地数据持久化
+- 测试数据库操作性能
+- 验证数据模型设计
+
+#### 实现方式
+1. 设计数据库Schema
 2. 创建数据库迁移脚本
 3. 实现本地数据库服务
-4. 在`.env.local`中配置使用本地数据库：
-
+4. 在`.env.local`中配置：
+   ```
    NEXT_PUBLIC_DATABASE_ENV=local
    NEXT_PUBLIC_LOCAL_DB_TYPE=sqlite  # 或 indexeddb
+   ```
 
-5. 验证数据持久化和查询性能
-6. **环境切换**
-  参考 2.4 环境切换
+#### 验收标准
+- [ ] 数据库Schema设计合理
+- [ ] 迁移脚本可重复执行
+- [ ] CRUD操作性能达标
 
+### 2.4 生产环境数据库阶段
 
-### 2.3 生产环境数据库阶段
+#### 目的
+- 实现数据云端存储
+- 支持多用户访问
+- 确保数据安全性
 
-1. 实现云端数据库服务（Firebase/Supabase/Cloudflare D1）
-2. 实现离线数据存储（移动端使用Capacitor SQLite，Web端使用IndexedDB）
-3. 在`.env.production`中配置使用云端数据库：
+#### 实现方式
+1. 选择云端数据库服务：
+   - Firebase Realtime Database/Firestore
+   - Supabase
+   - Cloudflare D1
 
+2. 在`.env.production`中配置：
+   ```
    NEXT_PUBLIC_DATABASE_ENV=production
    NEXT_PUBLIC_CLOUD_DB_TYPE=supabase  # 或 firebase, cloudflare_d1
    NEXT_PUBLIC_CLOUD_DB_URL=your_db_url
@@ -145,19 +220,28 @@ Closes #45
    NEXT_PUBLIC_OFFLINE_STORAGE_TYPE=indexeddb  # 可选: capacitor-sqlite, indexeddb, localstorage, websql
    NEXT_PUBLIC_OFFLINE_STORAGE_NAME=app_db
    NEXT_PUBLIC_OFFLINE_STORAGE_VERSION=1
+   ```
 
-4. 实现数据同步策略
-5. 优化数据库性能和安全性
-6. **配置验证**：在使用云服务前，确保所有必要的环境变量都已正确设置
+3. 实现云端数据库服务和离线数据存储（移动端使用Capacitor SQLite，Web端使用IndexedDB）
 
-### 2.4 环境切换与错误处理
+#### 验收标准
+- [ ] 数据库连接稳定可靠
+- [ ] 查询性能满足要求
+- [ ] 数据安全性符合标准
+- [ ] 离线数据访问正常
+- [ ] 数据同步机制可靠
+
+### 2.5 环境切换与错误处理
 
 为确保在不同数据库环境之间平滑切换，请遵循以下最佳实践：
 
 1. **服务初始化检查**：所有数据库服务必须在初始化时检查配置的完整性
 2. **优雅降级策略**：当高级功能不可用时，应自动回退到基础功能
 3. **详细日志**：记录当前使用的数据库环境和初始化状态
-4. **环境切换命令**：
+4. **错误恢复机制**：提供自动重试和手动恢复选项
+
+#### 环境切换命令
+
 在开发过程中，可以通过以下方式在不同数据库环境之间切换：
 
 1. **环境变量文件**：
@@ -166,7 +250,7 @@ Closes #45
    - `.env.production` - 生产环境
 
 2. **启动命令**：
-
+   ```bash
    # 开发环境（Mock数据）
    bun run dev
    
@@ -178,6 +262,153 @@ Closes #45
    # 或者构建后运行
    bun run build
    bun run start
+   ```
+
+### 2.6 新增表流程
+
+当需要新增一个表时，需要在几个地方进行更新，但我们的架构设计使这个过程相对简单和一致。
+
+#### 2.6.1 创建新的表结构定义
+
+首先，在 `schema/definitions/` 目录下创建一个新的表结构定义文件：
+
+```typescript
+// src/core/lib/db/schema/definitions/notification-schema.ts
+import { schemaRegistry, TableSchema } from '../registry';
+
+// 通知表结构定义
+const notificationSchema: TableSchema = {
+  name: 'notifications',
+  columns: [
+    {
+      name: 'id',
+      type: 'string',
+      primaryKey: true,
+      notNull: true
+    },
+    // 其他列定义...
+  ],
+  indexes: [
+    // 索引定义...
+  ]
+};
+
+// 注册表结构
+schemaRegistry.register(notificationSchema);
+
+export default notificationSchema;
+```
+
+#### 2.6.2 更新 drizzle-schema.ts 文件
+
+接下来，更新 `drizzle-schema.ts` 文件，导入并导出新表的结构。
+
+#### 2.6.3 创建数据模型
+
+创建一个新的数据模型类。
+
+#### 2.6.4 创建仓储类
+
+为新表创建一个仓储类。
+
+#### 2.6.5 更新 DatabaseService 类
+
+最后，更新 DatabaseService 类，添加新的仓储和相关方法。
+
+### 2.7 组件与页面数据访问模式
+
+在应用开发中，组件和页面必须通过统一的数据服务接口访问数据，而不是直接导入模型或mock数据。这种模式有以下优势：
+
+1. **环境适应性**：根据环境变量自动切换数据源（mock、local、production）
+2. **关注点分离**：UI组件专注于展示逻辑，数据访问逻辑封装在服务中
+3. **可测试性**：便于模拟数据服务进行单元测试
+4. **一致性**：确保所有组件使用相同的数据访问方式
+5. **可维护性**：当数据访问逻辑变更时，只需修改服务实现，而不影响UI组件
+
+#### 正确的数据访问示例
+
+```typescript
+// 使用数据服务工厂
+import { DataServiceFactory } from '@/core/services/data-service-factory';
+import { useEffect, useState } from 'react';
+import { User } from '@/core/types';
+
+function DiscoverPage() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoading(true);
+        // 通过工厂获取服务实例，自动根据环境变量选择合适的实现
+        const userService = await DataServiceFactory.getInstance().getUserService();
+        const recommendedUsers = await userService.getRecommendedUsers();
+        setUsers(recommendedUsers);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load users:', err);
+        setError('无法加载推荐用户');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadUsers();
+  }, []);
+  
+  // 组件渲染逻辑...
+}
+```
+
+### 2.8 数据同步冲突解决策略
+
+在多设备、多用户环境下，数据同步冲突是不可避免的。常见的冲突类型包括：
+
+1. **更新冲突**：多个客户端同时更新同一条记录
+2. **删除冲突**：一个客户端删除记录，另一个客户端更新该记录
+3. **插入冲突**：多个客户端插入具有相同ID的记录
+4. **结构冲突**：客户端和服务器的数据结构不一致
+
+项目实现了多种冲突解决策略：
+
+- **服务器优先**：使用服务器版本
+- **客户端优先**：使用客户端版本
+- **合并**：合并两个版本
+- **自定义**：使用自定义合并函数
+
+详细的冲突解决实现请参考 `src/core/lib/db/clients/firebase/firebase-conflict.ts`。
+
+### 2.9 开发工作流程检查清单
+
+#### 数据库开发前
+
+- [ ] 确定数据模型和关系
+- [ ] 设计表结构和索引
+- [ ] 确定数据访问模式
+- [ ] 评估性能需求
+
+#### Mock数据阶段
+
+- [ ] 创建模拟数据文件
+- [ ] 实现Mock数据服务
+- [ ] 编写单元测试
+- [ ] 验证UI和业务逻辑
+
+#### 本地数据库阶段
+
+- [ ] 创建表结构定义
+- [ ] 实现数据库迁移脚本
+- [ ] 实现本地数据库服务
+- [ ] 测试数据持久化和查询性能
+
+#### 生产环境数据库阶段
+
+- [ ] 配置云端数据库服务
+- [ ] 实现数据同步策略
+- [ ] 测试多用户并发访问
+- [ ] 优化性能和安全性
 
 ## 3. 代码规范
 

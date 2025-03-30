@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { IonCard, IonCardContent, IonImg, IonChip, IonLabel, IonIcon, IonButton } from '@ionic/react';
 import { locationOutline, mailOutline, chevronBack, chevronForward } from 'ionicons/icons';
-import { User, Location } from '@/core/models/user';
+import { User, Location } from '@/core/lib/db/models/user';
 
 interface UserProfileCardProps {
   user: User;

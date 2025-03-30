@@ -1,4 +1,4 @@
-import { User, Match, Message } from '../models/user';
+import { User, Match, Message } from '../lib/db/models/';
 import { StorageService } from './storage-service';
 import { getFirebaseConfig } from '../config/firebase';
 

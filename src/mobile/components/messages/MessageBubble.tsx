@@ -1,5 +1,5 @@
 import React from 'react';
-import { Message } from '@/core/models/message';
+import { Message } from '@/core/lib/db/models/message';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { checkmarkOutline, checkmarkDoneOutline, timeOutline } from 'ionicons/icons';

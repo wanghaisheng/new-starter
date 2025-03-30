@@ -3,7 +3,7 @@
 import React from 'react';
 import { IonCard, IonCardContent, IonImg, IonChip, IonLabel, IonButton, IonIcon } from '@ionic/react';
 import { pencil, settings } from 'ionicons/icons';
-import { User } from '@/core/models/user';
+import { User } from '@/core/lib/db/models/user';
 
 interface ProfileCardProps {
   user: User;

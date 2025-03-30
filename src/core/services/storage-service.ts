@@ -661,24 +661,36 @@ private async initializeMockData(): Promise<void> {
     // 强制重新初始化 mock 数据，忽略现有数据
     console.log('强制初始化 Mock 数据...');
     
-    // 导入 mock 数据
-    const { mockUsers, mockCurrentUser, mockMatches, mockMessages } = await import('../../mock/data/user-data');
+    // 使用DataServiceFactory获取数据服务实例
+    const dataService = await import('../services/data-service-factory').then(module => {
+      return module.DataServiceFactory.getInstance();
+    });
     
-    // 保存 mock 数据到本地存储
-    if (mockCurrentUser) {
-      await this.setLocalItem(this.STORAGE_KEYS.CURRENT_USER, mockCurrentUser);
+    // 获取用户数据
+    const users = await dataService.getUsers();
+    const currentUser = users.length > 0 ? users[0] : null;
+    
+    // 获取匹配数据
+    const matches = await dataService.getMatches(currentUser?.id);
+    
+    // 获取消息数据
+    const messages = await dataService.getMessages();
+    
+    // 保存数据到本地存储
+    if (currentUser) {
+      await this.setLocalItem(this.STORAGE_KEYS.CURRENT_USER, currentUser);
     }
     
-    if (mockUsers && mockUsers.length > 0) {
-      await this.setLocalItem(this.STORAGE_KEYS.USERS, mockUsers);
+    if (users && users.length > 0) {
+      await this.setLocalItem(this.STORAGE_KEYS.USERS, users);
     }
     
-    if (mockMatches && mockMatches.length > 0) {
-      await this.setLocalItem(this.STORAGE_KEYS.MATCHES, mockMatches);
+    if (matches && matches.length > 0) {
+      await this.setLocalItem(this.STORAGE_KEYS.MATCHES, matches);
     }
     
-    if (mockMessages && mockMessages.length > 0) {
-      await this.setLocalItem(this.STORAGE_KEYS.MESSAGES, mockMessages);
+    if (messages && messages.length > 0) {
+      await this.setLocalItem(this.STORAGE_KEYS.MESSAGES, messages);
     }
     
     console.log('Mock 数据初始化完成');

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { IonContent, IonSpinner } from '@ionic/react';
-import { Message } from '@/core/models/message';
-import { User } from '@/core/models/user';
+import { Message } from '@/core/lib/db/models/message';
+import { User } from '@/core/lib/db/models/user';
 import { MessageService } from '@/core/services/message-service';
 import MessageBubble from './MessageBubble';
 

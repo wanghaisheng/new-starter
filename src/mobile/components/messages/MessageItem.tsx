@@ -3,8 +3,8 @@ import { IonItem, IonAvatar, IonLabel, IonBadge, IonIcon } from '@ionic/react';
 import { timeOutline, checkmarkOutline, checkmarkDoneOutline } from 'ionicons/icons';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { User } from '@/core/models/user';
-import { Message } from '@/core/models/message';
+import { User } from '@/core/lib/db/models/user';
+import { Message } from '@/core/lib/db/models/message';
 
 interface MessageItemProps {
   matchId: string;

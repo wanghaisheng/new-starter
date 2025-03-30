@@ -332,7 +332,7 @@ src/core/lib/db/
 1. **抽象数据访问**：通过Repository接口隐藏数据访问细节
 2. **领域驱动设计**：Repository与领域模型紧密结合
 3. **可测试性**：便于单元测试和模拟
-4. **关注点分离**：数据访问逻辑与业务逻辑分离
+4. **关注点分离**：数据访问逻辑与业务逻辑分离#
 5. **依赖倒置**：高层模块不依赖于低层模块的具体实现
 
 ```typescript
@@ -546,6 +546,128 @@ export class DataServiceFactory {
   }
   
   // 数据库客户端获取方法...
+}
+```
+
+#### 1.4.3.3 数据服务接口
+
+为确保数据访问的一致性，项目为每种实体类型定义明确的服务接口：
+
+```typescript
+// 用户服务接口
+export interface IUserService {
+  // 基本CRUD操作
+  getUserById(id: string): Promise<User | null>;
+  createUser(user: Omit<User, keyof BaseEntity>): Promise<User>;
+  updateUser(id: string, data: Partial<User>): Promise<void>;
+  deleteUser(id: string): Promise<void>;
+  
+  // 业务特定操作
+  getRecommendedUsers(preferences?: UserPreferences): Promise<User[]>;
+  getUsersByLocation(location: Location, radius: number): Promise<User[]>;
+  updateUserPreferences(userId: string, preferences: UserPreferences): Promise<void>;
+}
+
+// 匹配服务接口
+export interface IMatchService {
+  getMatchById(id: string): Promise<Match | null>;
+  createMatch(match: Omit<Match, keyof BaseEntity>): Promise<Match>;
+  updateMatchStatus(id: string, status: Match['status']): Promise<void>;
+  getUserMatches(userId: string): Promise<Match[]>;
+  performMatchAction(action: MatchAction): Promise<Match | null>;
+}
+
+// 消息服务接口
+export interface IMessageService {
+  getMessagesByMatchId(matchId: string): Promise<Message[]>;
+  sendMessage(message: Omit<Message, keyof BaseEntity>): Promise<Message>;
+  markMessagesAsRead(matchId: string, userId: string): Promise<void>;
+  getUnreadMessageCount(userId: string): Promise<number>;
+}
+```
+
+#### 1.4.3.4 组件与页面数据访问模式
+
+在应用开发中，组件和页面必须通过统一的数据服务接口访问数据，而不是直接导入模型或mock数据。这种模式有以下优势：
+
+1. **环境适应性**：根据环境变量自动切换数据源（mock、local、production）
+2. **关注点分离**：UI组件专注于展示逻辑，数据访问逻辑封装在服务中
+3. **可测试性**：便于模拟数据服务进行单元测试
+4. **一致性**：确保所有组件使用相同的数据访问方式
+5. **可维护性**：当数据访问逻辑变更时，只需修改服务实现，而不影响UI组件
+
+##### 错误示例
+
+以下是不推荐的数据访问方式：
+
+```typescript
+// 错误示例：直接导入mock数据
+import { getRecommendedUsers } from '@/core/models/mock-data';
+
+function DiscoverPage() {
+  const [users, setUsers] = useState([]);
+  
+  useEffect(() => {
+    // 直接使用mock数据，无法根据环境切换数据源
+    const recommendedUsers = getRecommendedUsers();
+    setUsers(recommendedUsers);
+  }, []);
+  
+  return (
+    <div>
+      {users.map(user => (
+        <UserCard key={user.id} user={user} />
+      ))}
+    </div>
+  );
+}
+```
+
+##### 正确示例
+
+以下是推荐的数据访问方式：
+
+```typescript
+// 正确示例：使用数据服务工厂
+import { DataServiceFactory } from '@/core/services/data-service-factory';
+import { useEffect, useState } from 'react';
+import { User } from '@/core/types';
+
+function DiscoverPage() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoading(true);
+        // 通过工厂获取服务实例，自动根据环境变量选择合适的实现
+        const userService = await DataServiceFactory.getInstance().getUserService();
+        const recommendedUsers = await userService.getRecommendedUsers();
+        setUsers(recommendedUsers);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load users:', err);
+        setError('无法加载推荐用户');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadUsers();
+  }, []);
+  
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} />;
+  
+  return (
+    <div>
+      {users.map(user => (
+        <UserCard key={user.id} user={user} />
+      ))}
+    </div>
+  );
 }
 ```
 ```

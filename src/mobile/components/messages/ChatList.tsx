@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { IonList, IonItem, IonLabel, IonSkeletonText } from '@ionic/react';
 import { useRouter } from 'next/navigation';
-import { Match, User, Message } from '@/core/models/user';
+import { Match, User, Message } from '@/core/lib/db/models/user';
 import { UserService } from '@/core/services/user-service';
 import { MessageService } from '@/core/services/message-service';
 import MessageItem from './MessageItem';

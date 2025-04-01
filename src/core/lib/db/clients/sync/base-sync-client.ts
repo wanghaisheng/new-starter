@@ -295,8 +295,25 @@ export abstract class BaseSyncClient {
 
   /**
    * 添加项目到待同步列表
+   * @param collection 集合/表名
+   * @param item 要同步的项目
    */
-  protected addToPendingSync(collection: string, item: any) {
+  protected async addToPendingSync(collection: string, item: any) {
+    // 检查表是否被标记为离线专用
+    try {
+      const { SchemaRegistry } = await import('@/core/lib/db/schema/schema-registry');
+      const registry = SchemaRegistry.getInstance();
+      const schema = registry.getSchema(collection);
+      
+      // 如果表被标记为仅离线存储，则不添加到同步队列
+      if (schema?.syncConfig?.offlineOnly === true) {
+        return; // 跳过同步
+      }
+    } catch (error) {
+      console.warn(`检查表 ${collection} 的离线标记时出错:`, error);
+      // 继续处理，假设表不是离线专用的
+    }
+    
     if (!this.pendingSync.has(collection)) {
       this.pendingSync.set(collection, []);
     }

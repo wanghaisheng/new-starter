@@ -1,214 +1,260 @@
-# 数据库客户端（Database Clients）
+# 数据库客户端模块
 
 ## 概述
 
-数据库客户端模块提供了与各种数据库系统交互的标准化接口。这些客户端实现遵循共同的接口规范，使应用程序能够轻松切换不同的数据库后端，而无需更改业务逻辑代码。
+本模块提供了一套标准化的数据库客户端实现，用于统一不同数据库后端的接口和行为。这些客户端实现了相同的接口，支持不同数据库引擎，使应用程序能够在不同的存储方案之间无缝切换。
 
-## 目录结构
+## 标准化方案
 
-- `base-client.ts` - 所有客户端实现的基类
-- `capacitor-sqlite/` - Capacitor SQLite客户端，用于移动应用的离线存储
-- `cloudflare/` - Cloudflare D1数据库客户端
-- `demo/` - 用于演示的简化客户端
-- `firebase/` - Firebase Firestore客户端
-- `hybrid/` - 混合客户端，支持在线/离线同步
-- `indexeddb/` - 浏览器IndexedDB客户端
-- `mock/` - 模拟数据库客户端，用于测试和开发
-- `sqlite/` - 通用SQLite数据库客户端
-- `sync/` - 支持数据同步的客户端
-- `tidb/` - TiDB云数据库客户端
-- `turso/` - Turso数据库客户端
+所有数据库客户端都遵循以下标准化方案：
 
-## 使用方法
+### 1. 接口实现
 
-所有客户端实现都遵循`IDatabaseClient`接口。基本用法如下：
-
-```typescript
-// 创建客户端实例
-const client = new MockDatabaseClient({
-  name: "test-db",
-  version: 1
-});
-
-// 初始化连接
-await client.initialize();
-
-// 执行数据库操作
-const user = await client.findById("users", "user-1");
-const newUser = await client.create("users", { name: "New User" });
-
-// 关闭连接
-await client.close();
-```
-
-## 客户端选择指南
-
-- **开发和测试环境**: 使用`MockDatabaseClient`
-- **浏览器环境**: 使用`IndexedDBClient`
-- **移动应用**: 使用`CapacitorSQLiteClient`
-- **生产后端**: 根据需求选择`SQLiteClient`、`TiDBClient`、`TursoClient`或`CloudflareClient`
-- **需要实时数据同步**: 使用`FirebaseClient`或`HybridClient`
-
-## 扩展指南
-
-要创建新的数据库客户端实现，请遵循以下步骤：
-
-1. 继承`BaseClient`类
-2. 实现`IDatabaseClient`接口中的必要方法
-3. 处理特定数据库的连接、查询和事务逻辑
-4. 实现适当的错误处理
-5. 确保类型安全和完整的文档注释
-
-示例框架：
-
-```typescript
-import { BaseClient } from '../base-client';
-import { IDatabaseClient, DatabaseConfig } from '../../interfaces';
-
-export class NewDatabaseClient extends BaseClient implements IDatabaseClient {
-  constructor(private config: DatabaseConfig) {
-    super();
-  }
-  
-  async initialize(): Promise<void> {
-    // 实现初始化逻辑
-  }
-  
-  // 实现其他必要方法
-}
-```
-
-## 最佳实践与经验教训
-
-### 1. 接口一致性
-
-所有客户端实现应该提供一致的接口体验，无论底层数据库系统如何。这包括统一的方法名称、参数和返回类型。
-
-**问题示例**:
-```typescript
-// 不一致的方法命名和参数
-async getUser(id: string): Promise<User>
-async findUserById(userId: string): Promise<User>
-```
-
-**最佳实践**:
-```typescript
-// 统一使用 findById 方法
-async findById<T>(tableName: string, id: string): Promise<T | null>
-```
+所有客户端都实现了 `IDatabaseClient` 接口，并且继承自 `BaseClient` 抽象基类。这确保了所有客户端具有一致的方法签名和行为。
 
 ### 2. 错误处理
 
-采用一致的错误处理策略，使用特定的错误类型提供有用的上下文信息。
+采用统一的错误处理机制：
 
-**问题示例**:
+- 使用 `DatabaseError` 类型表示数据库错误
+- 通过 `DatabaseErrorCode` 枚举提供标准的错误代码
+- 在每个方法中使用 try/catch 结构处理错误
+- 正确传递和转换底层数据库错误
+
+### 3. 日志记录
+
+所有客户端使用标准化的日志记录系统：
+
+- 使用 `DatabaseLogger` 类型记录操作和错误
+- 支持不同的日志级别（DEBUG, INFO, WARN, ERROR）
+- 可配置的日志输出格式和目标
+
+### 4. 事务支持
+
+一致的事务支持机制：
+
+- 通过 `beginTransaction()`, `commitTransaction()`, `rollbackTransaction()` 方法显式管理事务
+- 提供 `transaction()` 方法简化事务操作
+- 所有客户端都支持事务回滚
+
+### 5. 批处理操作
+
+标准化的批处理操作：
+
+- 通过 `batch()` 方法支持批量操作
+- 使用统一的 `BatchOperation` 类型定义批处理操作
+- 批处理操作中的错误处理和回滚
+
+### 6. 类型安全
+
+加强类型安全：
+
+- 客户端方法使用泛型支持类型安全
+- 减少了不必要的类型断言
+- 使用接口定义确保类型兼容性
+
+### 7. 初始化和清理
+
+统一的生命周期管理：
+
+- 所有客户端都需要通过 `initialize()` 方法进行初始化
+- 提供 `close()` 方法释放资源
+- 通过 `clear()` 方法清空数据库内容
+
+### 8. 事件机制
+
+支持事件系统：
+
+- 通过 `on()` 方法注册事件监听器
+- 支持标准的数据库事件（如初始化、关闭、错误等）
+- 事件监听器注册返回取消函数
+
+## 可用的客户端实现
+
+本模块提供了以下数据库客户端实现：
+
+### MockDatabaseClient
+
+用于测试和开发环境的内存数据库模拟，支持两种存储模式：
+
+- **内存模式**：数据存储在内存中，应用程序重启后数据丢失
+- **JSON文件模式**：数据存储在JSON文件中，应用程序重启后数据保留
+
+详情请参阅 [Mock客户端文档](./mock/README.md)
+
+### IndexedDBClient
+
+基于浏览器 IndexedDB API 的客户端，适用于前端应用存储。
+
+### SQLiteClient
+
+基于 SQLite 的客户端，适用于桌面和移动应用的本地存储。
+
+### FirebaseClient
+
+基于 Firebase Firestore 的客户端，适用于云数据存储和实时数据同步。
+
+### CapacitorSQLiteClient
+
+使用 Capacitor SQLite 插件的客户端，适用于跨平台移动应用的本地存储。
+
+### CloudflareD1Client
+
+基于 Cloudflare D1 的客户端，适用于边缘计算环境。
+
+### TursoClient
+
+基于 Turso 的客户端，适用于边缘和云数据库。
+
+### TiDBClient
+
+基于 TiDB 的客户端，支持分布式 SQL 数据库。
+
+### HybridClient
+
+支持在线/离线同步的混合客户端，适用于需要离线工作和数据同步的应用。
+
+## 使用示例
+
+以下是一个基本的使用示例：
+
 ```typescript
-// 不一致的错误处理
-try {
-  // 数据库操作
-} catch (error) {
-  console.error(error);
-  return null;
-}
-```
+import { MockDatabaseClient } from './mock/mock-client';
+import { DatabaseConfig } from '../interfaces';
 
-**最佳实践**:
-```typescript
-// 统一的错误处理
-try {
-  // 数据库操作
-} catch (error) {
-  throw new DatabaseError(
-    'Failed to find entity', 
-    { tableName, id, operation: 'findById' },
-    error
-  );
-}
-```
+// 创建数据库配置
+const config: DatabaseConfig = {
+  name: 'test-db',
+  version: 1
+};
 
-### 3. 事务支持
-
-确保所有客户端一致地实现事务支持，特别是在批量操作中。
-
-**最佳实践**:
-```typescript
-async transaction<T>(callback: (tx: IDatabaseTransaction) => Promise<T>): Promise<T> {
-  await this.beginTransaction();
-  try {
-    const result = await callback(this);
-    await this.commitTransaction();
-    return result;
-  } catch (error) {
-    await this.rollbackTransaction();
-    throw error;
-  }
-}
-```
-
-### 4. 类型安全
-
-确保所有客户端实现都提供适当的类型安全，尤其是在处理泛型和数据转换时。
-
-**问题示例**:
-```typescript
-// 不安全的类型处理
-return result as User;
-```
-
-**最佳实践**:
-```typescript
-// 类型安全的数据处理
-return this.processResult<User>(result);
-```
-
-### 5. 模块化设计
-
-对于具有额外功能的客户端（如Firebase），应使用模块化设计将功能封装到专用服务类中。
-
-**最佳实践**:
-```typescript
-// 模块化设计示例
-export class FirebaseClient implements IDatabaseClient {
-  private auth: FirebaseAuthService;
-  private permissions: FirebasePermissionsService;
+async function main() {
+  // 创建客户端实例
+  const db = new MockDatabaseClient(config);
   
-  constructor(config: FirebaseConfig) {
-    this.auth = new FirebaseAuthService(config);
-    this.permissions = new FirebasePermissionsService(config);
-  }
+  // 初始化数据库
+  await db.initialize();
   
-  // 客户端方法
-}
-```
-
-### 6. 性能监控
-
-实现性能监控以帮助识别和解决性能瓶颈。
-
-**最佳实践**:
-```typescript
-async findById<T>(tableName: string, id: string): Promise<T | null> {
-  const startTime = performance.now();
   try {
-    // 数据库操作
-    return result;
+    // 创建用户
+    const user = await db.createUser({
+      name: 'John Doe',
+      bio: 'Test user',
+      birthDate: new Date(1990, 0, 1),
+      gender: 'male',
+      interests: ['music', 'sports'],
+      photos: [],
+      location: {
+        latitude: 40.7128,
+        longitude: -74.0060,
+        city: 'New York',
+        country: 'USA'
+      },
+      preferences: {
+        ageRange: { min: 18, max: 40 },
+        distance: 50,
+        gender: ['female'],
+        interests: ['music', 'art']
+      },
+      isVerified: true,
+      lastActive: new Date(),
+      status: 'active'
+    });
+    
+    console.log('创建的用户:', user);
+    
+    // 更新用户
+    await db.updateUser(user.id, {
+      bio: '已更新的简介'
+    });
+    
+    // 查询用户
+    const updatedUser = await db.findById('users', user.id);
+    console.log('更新后的用户:', updatedUser);
+    
+    // 使用事务
+    await db.transaction(async (tx) => {
+      await tx.create('messages', {
+        id: '1',
+        userId: user.id,
+        content: '测试消息',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    });
+    
+    // 批处理操作
+    await db.batch('users', [
+      {
+        type: 'add',
+        data: {
+          id: 'user2',
+          name: 'Jane Smith',
+          // ... 其他必需字段
+        }
+      },
+      {
+        type: 'delete',
+        data: { id: 'user2' }
+      }
+    ]);
+    
   } finally {
-    const duration = performance.now() - startTime;
-    this.recordQueryMetrics('findById', tableName, duration);
+    // 关闭数据库连接
+    await db.close();
   }
 }
+
+main().catch(console.error);
 ```
 
-## 已知问题与限制
+## 测试和开发环境
 
-- `FirebaseClient` 和 `CloudflareClient` 不支持某些高级SQL特性
-- 事务支持在不同客户端间可能有所不同，特别是在分布式数据库中
-- 性能特性因底层数据库实现而异
+对于测试和开发环境，可以使用MockDatabaseClient的不同模式：
 
-## 未来改进计划
+```typescript
+// 内存模式（适用于单元测试）
+const memoryDb = new MockDatabaseClient({
+  name: 'test-db',
+  version: 1,
+  mockMode: 'memory'
+});
 
-- 统一所有客户端的错误处理和日志记录
-- 添加更多性能监控和优化功能
-- 改进事务支持和并发控制
-- 实现更好的缓存策略
+// JSON文件模式（适用于集成测试和开发环境）
+const jsonDb = new MockDatabaseClient({
+  name: 'test-db',
+  version: 1,
+  mockMode: 'json',
+  jsonFilePath: './data/test-db.json',
+  autoSave: true
+});
+```
+
+## 扩展和定制
+
+如果需要实现自定义数据库客户端，应该遵循以下步骤：
+
+1. 继承 `BaseClient` 抽象基类
+2. 实现 `IDatabaseClient` 接口中定义的所有方法
+3. 使用标准的错误处理和日志记录机制
+4. 实现事务和批处理支持
+5. 添加适当的文档注释（JSDoc）
+
+## 贡献指南
+
+向该模块贡献新的数据库客户端实现时，请确保：
+
+1. 遵循上述标准化方案
+2. 提供全面的单元测试，确保与其他客户端行为一致
+3. 添加详细的文档，包括特定于该客户端的配置和限制
+4. 参考现有实现作为模板，保持一致的代码风格和结构
+
+## 性能考虑
+
+所有客户端实现都应该考虑性能优化：
+
+1. 实现适当的缓存机制
+2. 使用索引优化查询性能
+3. 支持批量操作以减少网络往返
+4. 实现指标收集，帮助识别性能瓶颈
 

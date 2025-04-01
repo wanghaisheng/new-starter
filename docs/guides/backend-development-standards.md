@@ -17,6 +17,8 @@ app/
     └── api/               # 移动端特定API
 ```
 
+> **重要说明**: 所有导入应使用 `@/` 前缀的绝对路径，而非相对路径。请参阅[导入路径规范](./import-path-standards.md)了解详情。
+
 ### 1.2 API 路由实现
 ```typescript
 // app/api/v1/resources/route.ts

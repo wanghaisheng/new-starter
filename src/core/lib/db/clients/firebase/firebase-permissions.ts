@@ -1,5 +1,5 @@
 import { getFirestore, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { FirebaseConfig } from './firebase-client';
+import { FirebaseConfig } from './firebase-config';
 
 export type UserRole = 'user' | 'admin' | 'moderator';
 
@@ -85,7 +85,7 @@ export class FirebasePermissionsService {
       
       if (permissions.includes(permission)) {
         await updateDoc(userRef, {
-          permissions: permissions.filter(p => p !== permission),
+          permissions: permissions.filter((p: string) => p !== permission),
           updatedAt: new Date()
         });
       }

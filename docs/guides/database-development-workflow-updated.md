@@ -55,7 +55,7 @@ src/core/lib/db/
 └── types/                  # 类型定义
     ├── base-entity.ts      # 基础实体类型
     ├── database.types.ts   # 数据库类型
-    └── dating.ts           # 业务实体类型
+    └── user.ts           # 业务实体类型
 ```
 
 ### 2.2 核心组件
@@ -351,20 +351,55 @@ export class UserRepository extends BaseRepository<User> {
 - 快速开发和测试UI组件
 - 验证业务逻辑
 - 不依赖实际数据库环境
+- 支持单元测试和集成测试
 
 #### 实现方式
-1. 在`src/mock/data/`目录下创建JSON格式的模拟数据
-2. 实现Mock数据服务，提供与真实服务相同的接口
+1. 使用`MockDatabaseClient`类，它提供两种工作模式：
+   - **内存模式（Memory Mode）**：数据存储在内存中，应用重启后数据丢失，适用于单元测试
+   - **JSON文件模式（JSON Mode）**：数据存储在JSON文件中，应用重启后数据保留，适用于集成测试和开发
+
+2. 可通过配置选择适当的模式：
+   ```typescript
+   // 内存模式配置（默认）
+   const db = new MockDatabaseClient({
+     name: 'test-db',
+     version: 1,
+     mockMode: 'memory'
+   });
+   
+   // JSON文件模式配置
+   const db = new MockDatabaseClient({
+     name: 'test-db',
+     version: 1,
+     mockMode: 'json',
+     jsonFilePath: './data/test-db.json',
+     autoSave: true // 启用自动保存
+   });
+   ```
+
 3. 在`.env.development`中配置：
    ```
    NEXT_PUBLIC_DATABASE_ENV=mock
    NEXT_PUBLIC_MOCK_DB_TYPE=memory  # 或 json
+   NEXT_PUBLIC_MOCK_JSON_PATH=./data/mock-data.json  # JSON文件路径（当使用json模式时）
+   NEXT_PUBLIC_MOCK_AUTO_SAVE=false  # 是否自动保存更改到JSON文件
    ```
+
+#### 特性
+- **自动日期转换**：JSON文件模式会自动将日期字符串转换为Date对象
+- **事务支持**：JSON模式下通过文件重新加载实现事务回滚
+- **批量操作**：支持多个操作合并为一个事务
+- **数据持久化**：支持将数据保存到JSON文件和从JSON文件加载
+- **统一错误处理**：使用`DatabaseError`类封装所有错误，提供标准错误代码
+- **统一日志记录**：使用`DatabaseLogger`记录所有数据库操作和错误
 
 #### 验收标准
 - [ ] Mock数据服务接口完整
 - [ ] 数据结构符合设计规范
 - [ ] 测试用例覆盖主要场景
+- [ ] 内存和JSON文件模式正常工作
+- [ ] 事务和批量操作正确实现
+- [ ] 错误处理和日志记录符合标准
 
 ### 3.2 本地数据库阶段
 
@@ -475,6 +510,113 @@ export class UserRepository extends BaseRepository<User> {
 2. **优雅降级策略**：当高级功能不可用时，应自动回退到基础功能
 3. **详细日志**：记录当前使用的数据库环境和初始化状态
 4. **错误恢复机制**：提供自动重试和手动恢复选项
+
+### 4.3 统一错误处理
+
+为了确保数据库操作中的错误能够被一致地处理和报告，项目实现了统一的错误处理机制：
+
+1. **标准化错误类型**：使用`DatabaseError`类表示数据库操作中的所有错误
+   ```typescript
+   export class DatabaseError extends Error {
+     constructor(
+       message: string, 
+       public code: DatabaseErrorCode | string,
+       public details?: any
+     ) {
+       super(message);
+       this.name = 'DatabaseError';
+       
+       // 确保正确的原型链
+       Object.setPrototypeOf(this, DatabaseError.prototype);
+     }
+     
+     getFormattedMessage(): string {
+       return `[${this.code}] ${this.message}`;
+     }
+   }
+   ```
+
+2. **标准化错误代码**：定义一组标准的错误代码，用于分类数据库错误
+   ```typescript
+   export enum DatabaseErrorCode {
+     // 一般错误
+     UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+     INITIALIZATION_ERROR = 'INITIALIZATION_ERROR',
+     CONNECTION_ERROR = 'CONNECTION_ERROR',
+     
+     // 数据访问错误
+     NOT_FOUND = 'NOT_FOUND',
+     ALREADY_EXISTS = 'ALREADY_EXISTS',
+     INVALID_DATA = 'INVALID_DATA',
+     
+     // 事务错误
+     TRANSACTION_ERROR = 'TRANSACTION_ERROR',
+     NO_ACTIVE_TRANSACTION = 'NO_ACTIVE_TRANSACTION',
+     
+     // 客户端状态错误
+     CLIENT_NOT_INITIALIZED = 'CLIENT_NOT_INITIALIZED',
+     // ... 更多错误代码
+   }
+   ```
+
+3. **统一的错误处理模式**：在所有数据库操作中采用一致的错误处理模式
+   ```typescript
+   try {
+     // 数据库操作
+     await client.create(tableName, data);
+   } catch (error) {
+     // 转换为标准错误
+     if (error instanceof DatabaseError) {
+       throw error;
+     } else {
+       throw new DatabaseError(
+         `创建实体失败: ${error.message}`,
+         DatabaseErrorCode.OPERATION_FAILED,
+         { tableName, data, originalError: error }
+       );
+     }
+   }
+   ```
+
+### 4.4 统一日志系统
+
+项目实现了专门的数据库日志记录系统，确保所有数据库操作都能被一致地记录：
+
+1. **日志级别**：支持多种日志级别，可根据环境调整详细程度
+   ```typescript
+   export enum LogLevel {
+     DEBUG = 0,
+     INFO = 1,
+     WARN = 2,
+     ERROR = 3,
+     NONE = 4
+   }
+   ```
+
+2. **日志记录器类**：提供统一的日志记录接口
+   ```typescript
+   export class DatabaseLogger {
+     constructor(
+       private moduleName: string,
+       private config: LoggerConfig = {}
+     ) { /* ... */ }
+     
+     debug(message: string, data?: any): void { /* ... */ }
+     info(message: string, data?: any): void { /* ... */ }
+     warn(message: string, data?: any): void { /* ... */ }
+     error(message: string, error?: any): void { /* ... */ }
+   }
+   ```
+
+3. **子日志记录器**：支持创建子模块专用的日志记录器
+   ```typescript
+   // 创建主日志记录器
+   const dbLogger = new DatabaseLogger('DB');
+   
+   // 为特定模块创建子日志记录器
+   const userRepoLogger = dbLogger.createSubLogger('UserRepository');
+   const sqliteLogger = dbLogger.createSubLogger('SQLiteClient');
+   ```
 
 ## 5. 新增表流程
 
@@ -746,3 +888,195 @@ export class DatabaseService {
 import { getRecommendedUsers } from '@/core/models/mock-data';
 
 function DiscoverPage()
+```
+
+## 7. 类型安全与数据验证
+
+### 7.1 模型实现中的类型安全
+
+数据模型类负责确保数据的类型安全和一致性，主要通过以下机制实现：
+
+1. **类型接口实现**：每个模型类实现对应的类型接口，确保结构一致性
+   ```typescript
+   // 类型定义（types/user.ts）
+   export interface User extends BaseEntity {
+     name: string;
+     bio?: string;
+     birthDate: Date;
+     // ... 其他属性
+   }
+   
+   // 模型实现（models/user.ts）
+   export class User implements UserType, BaseEntity {
+     id: string;
+     name: string;
+     bio?: string;
+     birthDate: Date;
+     // ... 其他属性
+     
+     constructor(data: Partial<User>) {
+       // 初始化和验证逻辑
+     }
+   }
+   ```
+
+2. **数据验证和类型转换**：在构造函数中进行数据验证和类型转换
+   ```typescript
+   constructor(data: Partial<User>) {
+     Object.assign(this, data);
+     
+     // 日期字段处理
+     if (data.birthDate && !(data.birthDate instanceof Date)) {
+       this.birthDate = new Date(data.birthDate);
+     }
+     
+     // 设置默认值
+     if (!this.createdAt) this.createdAt = new Date();
+     if (!this.updatedAt) this.updatedAt = new Date();
+     
+     // 验证必填字段
+     if (!this.name) {
+       throw new Error('Name is required');
+     }
+   }
+   ```
+
+3. **数据转换方法**：提供与数据库记录之间的转换方法
+   ```typescript
+   // 转换为数据库记录
+   toRecord() {
+     return {
+       ...this,
+       // 特殊字段转换
+       birthDate: this.birthDate.toISOString(),
+       createdAt: this.createdAt.toISOString(),
+       updatedAt: this.updatedAt.toISOString()
+     };
+   }
+   
+   // 从数据库记录创建实体对象
+   static fromRecord(record: any): User {
+     return new User({
+       ...record,
+       // 特殊字段转换
+       birthDate: record.birthDate ? new Date(record.birthDate) : undefined,
+       createdAt: record.createdAt ? new Date(record.createdAt) : undefined,
+       updatedAt: record.updatedAt ? new Date(record.updatedAt) : undefined
+     });
+   }
+   ```
+
+### 7.2 仓储实现中的类型安全
+
+仓储类使用TypeScript泛型确保类型安全的数据访问：
+
+1. **泛型参数化**：使用泛型参数指定实体类型
+   ```typescript
+   export class UserRepository extends BaseRepository<User> {
+     constructor(client: IBaseDatabaseClient) {
+       super(client, 'users');
+     }
+     
+     // 特定查询方法
+     async findByName(name: string): Promise<User[]> {
+       return this.query({
+         where: { name }
+       });
+     }
+   }
+   ```
+
+2. **创建和更新操作的辅助类型**：使用辅助类型简化创建和更新操作
+   ```typescript
+   // 创建数据类型
+   type CreateUserData = Omit<User, 'id' | 'createdAt' | 'updatedAt'>;
+   
+   // 更新数据类型
+   type UpdateUserData = Partial<CreateUserData>;
+   
+   // 使用示例
+   async createUser(data: CreateUserData): Promise<User> {
+     return this.create(data as User);
+   }
+   
+   async updateUser(id: string, data: UpdateUserData): Promise<void> {
+     return this.update(id, data);
+   }
+   ```
+
+### 7.3 查询参数类型安全
+
+为确保查询参数的类型安全，项目实现了强类型的查询选项：
+
+```typescript
+// 查询选项类型
+export interface QueryOptions {
+  where?: Record<string, any>;
+  orderBy?: string | { field: string; direction: 'asc' | 'desc' };
+  limit?: number;
+  offset?: number;
+}
+
+// 查询结果类型
+export interface QueryResult<T> {
+  data: T[];
+  total: number;
+  hasMore: boolean;
+}
+
+// 使用示例
+async findWithPagination(page: number, pageSize: number): Promise<QueryResult<User>> {
+  return this.query({
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+    orderBy: {
+      field: 'createdAt',
+      direction: 'desc'
+    }
+  });
+}
+```
+
+## 8. 一致性与最佳实践
+
+在实现数据库各层组件时，应遵循以下一致性原则和最佳实践：
+
+### 8.1 命名约定
+
+- **模型类**：使用大驼峰命名法，如`User`、`Match`、`Message`
+- **仓储类**：使用大驼峰命名法加`Repository`后缀，如`UserRepository`
+- **文件名**：使用小写连字符命名法，如`user.ts`、`user-repository.ts`
+- **方法命名**：
+  - 查询方法：`findXxx`，如`findById`、`findByName`
+  - 创建方法：`create`或`createXxx`
+  - 更新方法：`update`或`updateXxx`
+  - 删除方法：`delete`或`deleteXxx`
+  - 特殊操作：使用动词开头，如`markAsRead`、`activate`
+
+### 8.2 错误处理
+
+- 使用`DatabaseError`类封装所有数据库错误
+- 错误消息应包含操作类型和相关参数信息
+- 使用标准的错误代码分类不同类型的错误
+- 在上下文中包含原始错误和操作参数，便于调试
+
+### 8.3 事务支持
+
+- 识别需要原子性的操作场景，如批量更新和关联数据修改
+- 使用仓储基类提供的`transaction`方法
+- 在事务内处理所有相关操作
+- 确保事务回滚时有适当的错误处理
+
+### 8.4 数据验证
+
+- 在模型类的构造函数中进行数据验证和类型转换
+- 对必填字段进行非空检查
+- 对日期字段进行适当的类型转换
+- 对枚举字段进行有效值检查
+
+### 8.5 文档注释
+
+- 为类、方法和属性添加JSDoc注释
+- 记录方法的参数、返回值和可能抛出的异常
+- 为复杂逻辑添加详细的说明
+- 保持注释与实现的同步更新

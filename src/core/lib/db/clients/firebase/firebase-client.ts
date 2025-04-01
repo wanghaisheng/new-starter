@@ -1,7 +1,13 @@
+/**
+ * Firebase 数据库客户端
+ * 基于 Firebase Firestore 的标准化数据库客户端实现
+ */
+
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import {
-  getFirestore,
   Firestore,
+  initializeFirestore,
+  connectFirestoreEmulator,
   collection,
   doc,
   getDoc,
@@ -11,223 +17,269 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
-  limit,
-  startAfter,
+  runTransaction,
+  writeBatch,
+  onSnapshot,
+  CACHE_SIZE_UNLIMITED,
   DocumentData,
-  QueryConstraint,
+  CollectionReference,
   DocumentReference,
   DocumentSnapshot,
   QuerySnapshot,
-  writeBatch,
-  Timestamp
+  QueryConstraint,
+  orderBy,
+  limit
 } from 'firebase/firestore';
+import { BaseClient } from '@/core/lib/db/clients/base-client';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { IDatabaseClient, IDatabaseTransaction } from '@/core/lib/db/interfaces';
+import { FirebaseConfig } from './firebase-config';
+import { DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 import {
-  getAuth,
-  Auth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  User as FirebaseUser,
-  sendPasswordResetEmail,
-  updateProfile
-} from 'firebase/auth';
-import { IDatabaseClient, QueryOptions } from '../../interfaces';
-import { User, Match, Message, BaseEntity } from '../../types';
-import { QueryResult, BatchOperation } from '../../types/database.types';
-import { FirebaseError } from './firebase-error';
-import { FirebaseAuthService } from './firebase-auth';
-import { FirebasePermissionsService, UserRole, UserPermissions } from './firebase-permissions';
-import { FirebaseSyncService, SyncOptions, SyncListener } from './firebase-sync';
-import { FirebaseConflictService, ConflictResolutionOptions, ConflictMetadata } from './firebase-conflict';
-import { FirebasePerformanceService, PerformanceOptions } from './firebase-performance';
-import { FirebaseDeploymentService, DeploymentOptions, DeploymentStatus, HealthCheckResult } from './firebase-deployment';
+  BatchOperation, 
+  QueryOptions, 
+  QueryResult,
+  DatabaseEvent,
+} from '@/core/lib/db/types/database.types';
+import { User } from '@/core/lib/db/types/user';
+import { Match } from '@/core/lib/db/types/match';
+import { Message } from '@/core/lib/db/types/message';
 
-export interface FirebaseConfig {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  storageBucket: string;
-  messagingSenderId: string;
-  appId: string;
-}
+// 导入辅助类
+import { 
+  RealtimeListener,
+  FirebaseQueryBuilder,
+  FirebaseOfflineManager,
+  FirebaseBatchProcessor,
+  BatchOperationType,
+  BatchOperationItem,
+  BatchProcessorOptions,
+  BatchProcessResult
+} from './firebase-helpers';
 
-export class FirebaseClient implements IDatabaseClient {
-  private app: FirebaseApp;
+/**
+ * Firebase 数据库客户端类
+ * 实现标准数据库客户端接口，基于 Firebase Firestore
+ */
+export class FirebaseClient extends BaseClient implements IDatabaseClient {
+  private app: FirebaseApp | null = null;
   private db: Firestore;
-  private auth: Auth;
-  private permissions: FirebasePermissionsService;
-  private sync: FirebaseSyncService;
-  private conflict: FirebaseConflictService;
-  private performance: FirebasePerformanceService;
-  private deployment: FirebaseDeploymentService;
-  private initialized = false;
-  private currentUser: FirebaseUser | null = null;
+  private queryBuilder: FirebaseQueryBuilder;
+  private offlineManager: FirebaseOfflineManager | null = null;
+  private realtimeListener: RealtimeListener | null = null;
+  private batchProcessor: FirebaseBatchProcessor | null = null;
 
+  /**
+   * 构造函数
+   * @param config Firebase 配置
+   */
   constructor(
-    private config: FirebaseConfig,
-    private syncOptions: SyncOptions = {},
-    private conflictOptions: ConflictResolutionOptions = {
-      strategy: 'SERVER_FIRST',
-      maxRetries: 3,
-      retryDelay: 1000
-    },
-    private performanceOptions: PerformanceOptions = {},
-    private deploymentOptions: DeploymentOptions = {
-      environment: 'development',
-      backupEnabled: true,
-      rollbackEnabled: true,
-      healthCheckEnabled: true,
-      monitoringEnabled: true
-    }
+    private readonly firebaseConfig: FirebaseConfig
   ) {
-    this.app = initializeApp(config);
-    this.db = getFirestore(this.app);
-    this.auth = getAuth(this.app);
-    this.permissions = new FirebasePermissionsService(config);
-    this.sync = new FirebaseSyncService(config, syncOptions);
-    this.conflict = new FirebaseConflictService(this.db, conflictOptions);
-    this.performance = new FirebasePerformanceService(performanceOptions);
-    this.deployment = new FirebaseDeploymentService(deploymentOptions);
-
-    // Listen for auth state changes
-    onAuthStateChanged(this.auth, (user) => {
-      this.currentUser = user;
+    super();
+    
+    // 创建 Firebase 应用实例
+    this.app = initializeApp(firebaseConfig.firebaseOptions);
+    
+    // 初始化 Firestore
+    this.db = initializeFirestore(this.app, {
+      ignoreUndefinedProperties: true,
+      experimentalForceLongPolling: true,
+      cacheSizeBytes: CACHE_SIZE_UNLIMITED
     });
+    
+    // 创建查询构建器
+    this.queryBuilder = new FirebaseQueryBuilder();
+    
+    this.logger.debug('FirebaseClient 已创建');
   }
-
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
-    this.initialized = true;
-  }
-
-  async close(): Promise<void> {
-    // Firebase 会自动管理连接
-    this.initialized = false;
-  }
-
-  async clear(): Promise<void> {
-    await this.initialize();
-    // 清除所有数据
-    throw new FirebaseError('Clear operation is not supported in Firebase');
-  }
-
-  // 认证方法
-  async signIn(email: string, password: string): Promise<FirebaseUser> {
-    try {
-      const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
-      this.currentUser = userCredential.user;
-      return this.currentUser;
-    } catch (error) {
-      throw new FirebaseError('Authentication failed', error as Error);
+  
+  /**
+   * 初始化 Firebase 客户端
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      this.logger.warn('Firebase 客户端已经初始化');
+      return;
     }
-  }
-
-  async signUp(email: string, password: string): Promise<FirebaseUser> {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
-      this.currentUser = userCredential.user;
-      return this.currentUser;
-    } catch (error) {
-      throw new FirebaseError('Registration failed', error as Error);
-    }
-  }
-
-  async signOut(): Promise<void> {
-    try {
-      await signOut(this.auth);
-      this.currentUser = null;
-    } catch (error) {
-      throw new FirebaseError('Sign out failed', error as Error);
-    }
-  }
-
-  async resetPassword(email: string): Promise<void> {
-    try {
-      await sendPasswordResetEmail(this.auth, email);
-    } catch (error) {
-      throw new FirebaseError('Password reset failed', error as Error);
-    }
-  }
-
-  async updateUserProfile(displayName?: string, photoURL?: string): Promise<void> {
-    if (!this.currentUser) {
-      throw new FirebaseError('No user logged in');
-    }
-
-    try {
-      await updateProfile(this.currentUser, { displayName, photoURL });
-    } catch (error) {
-      throw new FirebaseError('Profile update failed', error as Error);
-    }
-  }
-
-  onAuthStateChange(callback: (user: FirebaseUser | null) => void): () => void {
-    return onAuthStateChanged(this.auth, callback);
-  }
-
-  getCurrentUser(): FirebaseUser | null {
-    return this.currentUser;
-  }
-
-  // 权限管理方法
-  async getUserPermissions(userId: string): Promise<UserPermissions | null> {
-    return this.permissions.getUserPermissions(userId);
-  }
-
-  async setUserRole(userId: string, role: UserRole): Promise<void> {
-    return this.permissions.setUserRole(userId, role);
-  }
-
-  async addUserPermission(userId: string, permission: string): Promise<void> {
-    return this.permissions.addUserPermission(userId, permission);
-  }
-
-  async removeUserPermission(userId: string, permission: string): Promise<void> {
-    return this.permissions.removeUserPermission(userId, permission);
-  }
-
-  async hasPermission(userId: string, permission: string): Promise<boolean> {
-    return this.permissions.hasPermission(userId, permission);
-  }
-
-  async isAdmin(userId: string): Promise<boolean> {
-    return this.permissions.isAdmin(userId);
-  }
-
-  async isModerator(userId: string): Promise<boolean> {
-    return this.permissions.isModerator(userId);
-  }
-
-  // 数据库操作方法
-  async create<T extends BaseEntity>(
-    tableName: string,
-    data: Omit<T, keyof BaseEntity>
-  ): Promise<T> {
-    await this.initialize();
     
     try {
-      const docRef = doc(collection(this.db, tableName));
-      const entity = {
-        ...data,
-        id: docRef.id,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } as T;
-
-      await setDoc(docRef, this.serialize(entity));
-      return entity;
+      this.logger.info('初始化 Firebase 客户端');
+      
+      // 如果配置了 Firestore 模拟器，则连接
+      if (this.firebaseConfig.firestore?.useEmulator) {
+        const host = this.firebaseConfig.firestore.emulatorHost || 'localhost';
+        const port = this.firebaseConfig.firestore.emulatorPort || 8080;
+        
+        this.logger.info(`连接 Firestore 模拟器: ${host}:${port}`);
+        connectFirestoreEmulator(this.db, host, port);
+      }
+      
+      // 创建实时监听器
+      this.realtimeListener = new RealtimeListener(this.db);
+      
+      // 创建离线管理器
+      this.offlineManager = new FirebaseOfflineManager(this.db, {
+        enablePersistence: true,
+        multiTabSupport: true,
+        onNetworkStateChanged: (isOnline) => {
+          this.emit(isOnline ? 'initialized' : 'closed');
+        },
+        onSyncStateChanged: (isSyncing) => {
+          this.emit(isSyncing ? 'syncStarted' : 'syncCompleted');
+        }
+      });
+      
+      // 初始化离线管理
+      await this.offlineManager.initialize();
+      
+      // 创建批处理器
+      this.batchProcessor = new FirebaseBatchProcessor(this.db, {
+        batchSize: 450,
+        returnFailureDetails: true,
+        onProgress: (processed, total, percentComplete) => {
+          this.logger.debug(`批处理进度: ${processed}/${total} (${percentComplete}%)`);
+        }
+      });
+      
+      // 设置初始化标志
+      this.initialized = true;
+      this.emit('initialized');
+      
+      this.logger.info('Firebase 客户端初始化完成');
     } catch (error) {
-      throw new FirebaseError('Failed to create document', error as Error);
+      this.logger.error('初始化 Firebase 客户端失败', error);
+      throw this.createError(
+        DatabaseErrorCode.INITIALIZATION_ERROR,
+        '初始化 Firebase 客户端失败',
+        error
+      );
     }
   }
-
-  async findById<T extends BaseEntity>(
-    tableName: string,
-    id: string
-  ): Promise<T | null> {
-    await this.initialize();
+  
+  /**
+   * 关闭数据库连接
+   */
+  public async close(): Promise<void> {
+    this.checkInitialized();
+    
+    try {
+      this.logger.info('关闭 Firebase 客户端');
+      
+      // 移除所有监听器
+      if (this.realtimeListener) {
+        this.realtimeListener.removeAllListeners();
+      }
+      
+      // 清理离线管理器
+      if (this.offlineManager) {
+        this.offlineManager.dispose();
+      }
+      
+      // 设置初始化标志
+      this.initialized = false;
+      
+      this.logger.info('Firebase 客户端已关闭');
+    } catch (error) {
+      this.logger.error('关闭 Firebase 客户端失败', error);
+      throw this.createError(
+        DatabaseErrorCode.OPERATION_FAILED,
+        '关闭 Firebase 客户端失败',
+        error
+      );
+    }
+  }
+  
+  /**
+   * 清空数据库
+   * 警告: 这将删除所有集合中的所有文档，谨慎使用
+   */
+  public async clear(): Promise<void> {
+    this.checkInitialized();
+    
+    try {
+      this.logger.warn('清空 Firebase 数据库，这将删除所有数据');
+      
+      // Firebase 没有直接的方法来清空数据库
+      // 需要手动删除所有集合和文档
+      const tables = Object.keys(this.firebaseConfig.tables || {});
+      
+      if (tables.length === 0) {
+        this.logger.warn('没有配置任何表，无法清空数据库');
+        return;
+      }
+      
+      // 对每个集合执行删除操作
+      for (const tableName of tables) {
+        await this.clearCollection(tableName);
+      }
+      
+      this.logger.info('Firebase 数据库已清空');
+    } catch (error) {
+      this.logger.error('清空 Firebase 数据库失败', error);
+      throw this.createError(
+        DatabaseErrorCode.OPERATION_FAILED,
+        '清空 Firebase 数据库失败',
+        error
+      );
+    }
+  }
+  
+  /**
+   * 清空指定集合
+   * @param tableName 集合名称
+   */
+  private async clearCollection(tableName: string): Promise<void> {
+    try {
+      this.logger.debug(`清空集合: ${tableName}`);
+      
+      // 获取集合引用
+      const collectionRef = collection(this.db, tableName);
+      
+      // 查询所有文档
+      const snapshot = await getDocs(collectionRef);
+      
+      if (snapshot.empty) {
+        this.logger.debug(`集合 ${tableName} 为空，无需清空`);
+        return;
+      }
+      
+      // 使用批处理删除文档
+      if (this.batchProcessor) {
+        const operations: BatchOperationItem[] = [];
+        
+        snapshot.forEach(doc => {
+          operations.push({
+            type: BatchOperationType.DELETE,
+            tableName,
+            id: doc.id
+          });
+        });
+        
+        const batchResult = await this.batchProcessor.process(operations);
+        
+        this.logger.debug(`清空集合 ${tableName} 完成`, batchResult);
+      } else {
+        // 回退到手动删除
+        const batch = writeBatch(this.db);
+        snapshot.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+      }
+    } catch (error) {
+      this.logger.error(`清空集合 ${tableName} 失败`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * 按 ID 查找实体
+   * @param tableName 表名
+   * @param id ID
+   */
+  public async findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null> {
+    this.checkInitialized();
     
     try {
       const docRef = doc(this.db, tableName, id);
@@ -237,417 +289,500 @@ export class FirebaseClient implements IDatabaseClient {
         return null;
       }
 
-      const data = docSnap.data();
-      if (!data) {
-        return null;
-      }
-
-      return this.deserialize<T>(data);
+      return {
+        ...docSnap.data(),
+        id: docSnap.id
+      } as T;
     } catch (error) {
-      throw new FirebaseError('Failed to find document', error as Error);
+      this.logger.error(`查找实体失败 (${tableName}/${id})`, error);
+      throw this.createError(
+        DatabaseErrorCode.QUERY_ERROR,
+        `查找实体失败 (${tableName}/${id})`,
+        error
+      );
     }
   }
-
-  async findAll<T extends BaseEntity>(tableName: string): Promise<T[]> {
-    return this.find<T>(tableName);
+  
+  /**
+   * 查找所有实体
+   * @param tableName 表名
+   * @param filter 过滤条件
+   */
+  public async findAll<T extends BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
+    this.checkInitialized();
+    
+    // 调用 query 方法实现
+    const result = await this.query<T>(tableName, { where: filter });
+    return result.data;
   }
-
-  async find<T extends BaseEntity>(
-    tableName: string,
-    options: QueryOptions = {}
-  ): Promise<T[]> {
-    await this.initialize();
+  
+  /**
+   * 创建实体
+   * @param tableName 表名
+   * @param data 实体数据
+   */
+  public async create<T extends BaseEntity>(tableName: string, data: T): Promise<T> {
+    this.checkInitialized();
     
     try {
-      const collectionRef = collection(this.db, tableName);
-      const constraints: QueryConstraint[] = [];
-
-      // 添加过滤条件
-      if (options.where) {
-        constraints.push(where(options.where.field, options.where.operator, options.where.value));
-      }
-
-      // 添加排序
-      if (options.orderBy) {
-        constraints.push(orderBy(options.orderBy.field, options.orderBy.direction));
-      }
-
-      // 添加分页
-      if (options.limit) {
-        constraints.push(limit(options.limit));
-      }
-
-      // 添加游标
-      if (options.startAfter) {
-        constraints.push(startAfter(options.startAfter));
-      }
-
-      const q = query(collectionRef, ...constraints);
-      const querySnapshot = await getDocs(q);
+      // 生成 ID
+      const id = data.id || this.generateId();
+      const docRef = doc(this.db, tableName, id);
       
-      return querySnapshot.docs.map(doc => this.deserialize<T>(doc.data()));
+      // 添加时间戳
+      const entityWithTimestamps = this.addTimestamps({
+        ...data,
+        id
+      });
+      
+      await setDoc(docRef, entityWithTimestamps);
+      
+      return entityWithTimestamps as T;
     } catch (error) {
-      throw new FirebaseError('Failed to find documents', error as Error);
+      this.logger.error(`创建实体失败 (${tableName})`, error);
+      throw this.createError(
+        DatabaseErrorCode.OPERATION_FAILED,
+        `创建实体失败 (${tableName})`,
+        error
+      );
     }
   }
-
-  async query<T extends BaseEntity>(
-    tableName: string,
-    options: QueryOptions
-  ): Promise<QueryResult<T>> {
-    const items = await this.find<T>(tableName, options);
-    return {
-      data: items,
-      total: items.length,
-      hasMore: false
-    };
-  }
-
-  async count(tableName: string, filter?: Record<string, any>): Promise<number> {
-    const items = await this.find(tableName, filter ? {
-      where: {
-        field: Object.keys(filter)[0],
-        operator: '==',
-        value: filter[Object.keys(filter)[0]]
-      }
-    } : undefined);
-    return items.length;
-  }
-
-  async update<T extends BaseEntity>(
-    tableName: string,
-    id: string,
-    data: Partial<T>
-  ): Promise<void> {
-    await this.initialize();
+  
+  /**
+   * 更新实体
+   * @param tableName 表名
+   * @param id ID
+   * @param data 更新数据
+   */
+  public async update<T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void> {
+    this.checkInitialized();
     
     try {
       const docRef = doc(this.db, tableName, id);
+      
+      // 添加时间戳 (仅 updatedAt)
       const updateData = {
         ...data,
         updatedAt: new Date()
       };
 
-      await updateDoc(docRef, this.serialize(updateData));
+      await updateDoc(docRef, updateData);
     } catch (error) {
-      throw new FirebaseError('Failed to update document', error as Error);
+      this.logger.error(`更新实体失败 (${tableName}/${id})`, error);
+      throw this.createError(
+        DatabaseErrorCode.OPERATION_FAILED,
+        `更新实体失败 (${tableName}/${id})`,
+        error
+      );
     }
   }
-
-  async delete(tableName: string, id: string): Promise<void> {
-    await this.initialize();
+  
+  /**
+   * 删除实体
+   * @param tableName 表名
+   * @param id ID
+   */
+  public async delete(tableName: string, id: string): Promise<void> {
+    this.checkInitialized();
     
     try {
       const docRef = doc(this.db, tableName, id);
       await deleteDoc(docRef);
     } catch (error) {
-      throw new FirebaseError('Failed to delete document', error as Error);
+      this.logger.error(`删除实体失败 (${tableName}/${id})`, error);
+      throw this.createError(
+        DatabaseErrorCode.OPERATION_FAILED,
+        `删除实体失败 (${tableName}/${id})`,
+        error
+      );
     }
   }
-
-  async transaction<T>(
-    callback: (transaction: any) => Promise<T>
-  ): Promise<T> {
-    await this.initialize();
+  
+  /**
+   * 查询实体
+   * @param tableName 表名
+   * @param options 查询选项
+   */
+  public async query<T extends BaseEntity>(tableName: string, options: QueryOptions): Promise<QueryResult<T>> {
+    this.checkInitialized();
     
     try {
-      return await callback(this.db);
-    } catch (error) {
-      throw new FirebaseError('Transaction failed', error as Error);
-    }
-  }
-
-  async executeRawQuery<T>(
-    query: string,
-    params: any[] = []
-  ): Promise<T[]> {
-    // Firebase 不支持原始 SQL 查询
-    throw new FirebaseError('Raw SQL queries are not supported in Firebase');
-  }
-
-  private serialize(data: any): DocumentData {
-    // 将 Date 对象转换为 Firestore Timestamp
-    const serialized = { ...data };
-    for (const key in serialized) {
-      if (serialized[key] instanceof Date) {
-        serialized[key] = serialized[key].toISOString();
-      }
-    }
-    return serialized;
-  }
-
-  private deserialize<T>(data: DocumentData): T {
-    // 将 ISO 字符串转换回 Date 对象
-    const deserialized = { ...data };
-    for (const key in deserialized) {
-      if (typeof deserialized[key] === 'string' && deserialized[key].match(/^\d{4}-\d{2}-\d{2}T/)) {
-        deserialized[key] = new Date(deserialized[key]);
-      }
-    }
-    return deserialized as T;
-  }
-
-  // 同步方法
-  async subscribe<T extends BaseEntity>(
-    collectionName: string,
-    listener: SyncListener<T>,
-    queryOptions?: {
-      where?: { field: string; operator: string; value: any }[];
-      orderBy?: { field: string; direction: 'asc' | 'desc' }[];
-      limit?: number;
-    }
-  ): Promise<() => void> {
-    return this.sync.subscribe(collectionName, listener, queryOptions);
-  }
-
-  async unsubscribeAll(): Promise<void> {
-    return this.sync.unsubscribeAll();
-  }
-
-  async getCacheStatus(collectionName: string): Promise<{
-    size: number;
-    lastSync: Date | null;
-    isOnline: boolean;
-  }> {
-    return this.sync.getCacheStatus(collectionName);
-  }
-
-  async clearCache(collectionName: string): Promise<void> {
-    return this.sync.clearCache(collectionName);
-  }
-
-  // 冲突解决方法
-  async saveWithConflictResolution<T extends BaseEntity>(
-    collectionName: string,
-    id: string,
-    data: Partial<T>
-  ): Promise<T> {
-    await this.initialize();
-    
-    try {
-      const currentUser = this.getCurrentUser();
-      if (!currentUser) {
-        throw new FirebaseError('User not authenticated', new Error('Authentication required'));
-      }
-
-      return await this.conflict.saveWithConflictResolution(
-        collectionName,
-        id,
+      // 使用查询构建器创建 Firestore 查询
+      const firestoreQuery = this.queryBuilder.buildFirestoreQuery(this.db, tableName, options);
+      
+      // 执行查询
+      const snapshot = await getDocs(firestoreQuery);
+      
+      // 转换结果
+      const data = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as T[];
+      
+      return {
         data,
-        currentUser.uid
-      );
-    } catch (error) {
-      throw new FirebaseError('Failed to save with conflict resolution', error as Error);
-    }
-  }
-
-  async getConflictHistory(
-    collectionName: string,
-    id: string
-  ): Promise<ConflictMetadata[]> {
-    await this.initialize();
-    
-    try {
-      return await this.conflict.getConflictHistory(collectionName, id);
-    } catch (error) {
-      throw new FirebaseError('Failed to get conflict history', error as Error);
-    }
-  }
-
-  // 性能优化方法
-  async optimizeQuery<T extends BaseEntity>(
-    collectionName: string,
-    options: QueryOptions
-  ): Promise<T[]> {
-    await this.initialize();
-    
-    try {
-      const queryOptions = {
-        where: options.where ? [options.where] : undefined,
-        orderBy: options.orderBy ? [options.orderBy] : undefined,
-        limit: options.limit,
-        startAfter: options.startAfter
+        total: data.length,
+        hasMore: false
       };
-
-      return await this.performance.optimizeQuery<T>(
-        collectionName,
-        queryOptions
+    } catch (error) {
+      this.logger.error(`查询失败 (${tableName})`, error);
+      throw this.createError(
+        DatabaseErrorCode.QUERY_ERROR,
+        `查询失败 (${tableName})`,
+        error
       );
-    } catch (error) {
-      throw new FirebaseError('Failed to optimize query', error as Error);
     }
   }
-
-  async queueBatchOperation<T extends BaseEntity>(
-    collectionName: string,
-    operation: 'create' | 'update' | 'delete',
-    data: T
-  ): Promise<void> {
-    await this.initialize();
+  
+  /**
+   * 计数
+   * @param tableName 表名
+   * @param filter 过滤条件
+   */
+  public async count(tableName: string, filter?: Record<string, any>): Promise<number> {
+    this.checkInitialized();
     
     try {
-      await this.performance.queueBatchOperation(
-        collectionName,
-        operation,
-        data
+      // 使用 query 方法获取数据
+      const result = await this.query(tableName, { where: filter });
+      return result.total;
+    } catch (error) {
+      this.logger.error(`计数失败 (${tableName})`, error);
+      throw this.createError(
+        DatabaseErrorCode.QUERY_ERROR,
+        `计数失败 (${tableName})`,
+        error
       );
-    } catch (error) {
-      throw new FirebaseError('Failed to queue batch operation', error as Error);
     }
   }
-
-  async optimizeIndexes(collectionName: string): Promise<void> {
-    await this.initialize();
+  
+  /**
+   * 开始事务
+   */
+  public async beginTransaction(): Promise<void> {
+    this.checkInitialized();
+    
+    if (this.transactionActive) {
+      throw this.createError(
+        DatabaseErrorCode.TRANSACTION_ERROR,
+        '已有活动事务'
+      );
+    }
+    
+    this.transactionActive = true;
+    this.logger.debug('开始事务');
+  }
+  
+  /**
+   * 提交事务
+   */
+  public async commitTransaction(): Promise<void> {
+    this.checkInitialized();
+    this.checkTransactionActive();
+    
+    this.transactionActive = false;
+    this.logger.debug('提交事务');
+  }
+  
+  /**
+   * 回滚事务
+   */
+  public async rollbackTransaction(): Promise<void> {
+    this.checkInitialized();
+    this.checkTransactionActive();
+    
+    this.transactionActive = false;
+    this.logger.debug('回滚事务');
+  }
+  
+  /**
+   * 批量操作
+   * @param tableName 表名
+   * @param operations 操作数组
+   */
+  public async batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
+    this.checkInitialized();
+    
+    if (operations.length === 0) {
+      return;
+    }
     
     try {
-      await this.performance.optimizeIndexes(collectionName);
+      if (this.batchProcessor) {
+        // 使用批处理器
+        const batchOperations: BatchOperationItem[] = operations.map(op => {
+          return {
+            type: op.type === 'add' ? BatchOperationType.CREATE :
+                  op.type === 'put' ? BatchOperationType.UPDATE :
+                  BatchOperationType.DELETE,
+            tableName,
+            id: op.data.id,
+            data: op.type !== 'delete' ? op.data : undefined
+          };
+        });
+        
+        await this.batchProcessor.process(batchOperations);
+      } else {
+        // 回退到手动批处理
+        const batch = writeBatch(this.db);
+        
+        for (const operation of operations) {
+          const docRef = doc(this.db, tableName, operation.data.id);
+          
+          switch (operation.type) {
+            case 'add':
+              batch.set(docRef, this.addTimestamps(operation.data));
+              break;
+            case 'put':
+              batch.update(docRef, this.addTimestamps(operation.data));
+              break;
+            case 'delete':
+              batch.delete(docRef);
+              break;
+          }
+        }
+        
+        await batch.commit();
+      }
     } catch (error) {
-      throw new FirebaseError('Failed to optimize indexes', error as Error);
+      this.logger.error(`批量操作失败 (${tableName})`, error);
+      throw this.createError(
+        DatabaseErrorCode.OPERATION_FAILED,
+        `批量操作失败 (${tableName})`,
+        error
+      );
     }
   }
-
-  getQueryMetrics(collectionName: string) {
-    return this.performance.getQueryMetrics(collectionName);
+  
+  /**
+   * 执行原始查询
+   * @param query 查询字符串
+   * @param params 查询参数
+   */
+  public async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
+    this.checkInitialized();
+    
+    throw this.createError(
+      DatabaseErrorCode.OPERATION_FAILED,
+      'Firebase 不支持原始 SQL 查询'
+    );
   }
-
-  clearCache(): void {
-    this.performance.clearCache();
-  }
-
-  // 部署和监控方法
-  async deploy(version: string): Promise<void> {
-    await this.initialize();
+  
+  /**
+   * 事务操作
+   * @param callback 事务回调
+   */
+  public async transaction<T>(callback: (tx: IDatabaseTransaction) => Promise<T>): Promise<T> {
+    this.checkInitialized();
     
     try {
-      await this.deployment.deploy(version);
+      // 使用 Firestore 的事务API
+      return await runTransaction(this.db, async (transaction) => {
+        // 实现事务接口适配器
+        const tx: IDatabaseTransaction = {
+          findById: async <T extends BaseEntity>(tableName: string, id: string): Promise<T | null> => {
+            const docRef = doc(this.db, tableName, id);
+            const docSnap = await transaction.get(docRef);
+            
+            if (!docSnap.exists()) {
+              return null;
+            }
+            
+            return {
+              ...docSnap.data(),
+              id: docSnap.id
+            } as T;
+          },
+          
+          findAll: async <T extends BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]> => {
+            // Firestore 事务不支持直接执行查询
+            throw this.createError(
+              DatabaseErrorCode.OPERATION_FAILED,
+              '事务中不支持 findAll 操作'
+            );
+          },
+          
+          create: async <T extends BaseEntity>(tableName: string, data: T): Promise<T> => {
+            const id = data.id || this.generateId();
+            const docRef = doc(this.db, tableName, id);
+            
+            const entityWithTimestamps = this.addTimestamps({
+              ...data,
+              id
+            });
+            
+            transaction.set(docRef, entityWithTimestamps);
+            
+            return entityWithTimestamps as T;
+          },
+          
+          update: async <T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void> => {
+            const docRef = doc(this.db, tableName, id);
+            
+            const updateData = {
+              ...data,
+              updatedAt: new Date()
+            };
+            
+            transaction.update(docRef, updateData);
+          },
+          
+          delete: async (tableName: string, id: string): Promise<void> => {
+            const docRef = doc(this.db, tableName, id);
+            transaction.delete(docRef);
+          },
+          
+          query: async <T extends BaseEntity>(tableName: string, options: QueryOptions): Promise<QueryResult<T>> => {
+            // Firestore 事务不支持直接执行查询
+            throw this.createError(
+              DatabaseErrorCode.OPERATION_FAILED,
+              '事务中不支持 query 操作'
+            );
+          },
+          
+          batch: async <T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void> => {
+            for (const operation of operations) {
+              const docRef = doc(this.db, tableName, operation.data.id);
+              
+              switch (operation.type) {
+                case 'add':
+                  transaction.set(docRef, this.addTimestamps(operation.data));
+                  break;
+                case 'put':
+                  transaction.update(docRef, this.addTimestamps(operation.data));
+                  break;
+                case 'delete':
+                  transaction.delete(docRef);
+                  break;
+              }
+            }
+          },
+          
+          executeRawQuery: async <T>(query: string, params?: any[]): Promise<T[]> => {
+            throw this.createError(
+              DatabaseErrorCode.OPERATION_FAILED,
+              '事务中不支持原始查询'
+            );
+          },
+          
+          count: async (tableName: string, filter?: Record<string, any>): Promise<number> => {
+            throw this.createError(
+              DatabaseErrorCode.OPERATION_FAILED,
+              '事务中不支持 count 操作'
+            );
+          }
+        };
+        
+        return await callback(tx);
+      });
     } catch (error) {
-      throw new FirebaseError('Failed to deploy', error as Error);
+      this.logger.error('事务执行失败', error);
+      throw this.createError(
+        DatabaseErrorCode.TRANSACTION_ERROR,
+        '事务执行失败',
+        error
+      );
     }
   }
-
-  async rollback(): Promise<void> {
-    await this.initialize();
-    
-    try {
-      await this.deployment.rollback();
-    } catch (error) {
-      throw new FirebaseError('Failed to rollback', error as Error);
-    }
+  
+  // 实体特定的方法
+  
+  /**
+   * 查找用户
+   * @param query 查询条件
+   */
+  public async findUsers(query?: any): Promise<User[]> {
+    return this.findAll<User>('users', query);
   }
-
-  async runHealthCheck(): Promise<HealthCheckResult> {
-    await this.initialize();
-    
-    try {
-      return await this.deployment.runHealthCheck();
-    } catch (error) {
-      throw new FirebaseError('Failed to run health check', error as Error);
-    }
+  
+  /**
+   * 查找匹配
+   * @param query 查询条件
+   */
+  public async findMatches(query?: any): Promise<Match[]> {
+    return this.findAll<Match>('matches', query);
   }
-
-  getDeploymentStatus(): DeploymentStatus | null {
-    return this.deployment.getDeploymentStatus();
+  
+  /**
+   * 查找消息
+   * @param query 查询条件
+   */
+  public async findMessages(query?: any): Promise<Message[]> {
+    return this.findAll<Message>('messages', query);
   }
-
-  getHealthCheckResults(): HealthCheckResult[] {
-    return this.deployment.getHealthCheckResults();
+  
+  /**
+   * 创建用户
+   * @param data 用户数据
+   */
+  public async createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
+    return this.create<User>('users', data as User);
   }
-
-  startMonitoring(): void {
-    this.deployment.startMonitoring();
+  
+  /**
+   * 创建匹配
+   * @param data 匹配数据
+   */
+  public async createMatch(data: Omit<Match, 'id' | 'createdAt' | 'updatedAt'>): Promise<Match> {
+    return this.create<Match>('matches', data as Match);
   }
-
-  stopMonitoring(): void {
-    this.deployment.stopMonitoring();
+  
+  /**
+   * 创建消息
+   * @param data 消息数据
+   */
+  public async createMessage(data: Omit<Message, 'id' | 'createdAt' | 'updatedAt'>): Promise<Message> {
+    return this.create<Message>('messages', data as Message);
   }
-
-  // 实现 IDatabaseClient 接口的其他方法
-  async findUsers(query?: any): Promise<User[]> {
-    return this.find<User>('users', query);
-  }
-
-  async findMatches(query?: any): Promise<Match[]> {
-    return this.find<Match>('matches', query);
-  }
-
-  async findMessages(query?: any): Promise<Message[]> {
-    return this.find<Message>('messages', query);
-  }
-
-  async createUser(data: Omit<User, 'id'>): Promise<User> {
-    return this.create<User>('users', data);
-  }
-
-  async createMatch(data: Omit<Match, 'id'>): Promise<Match> {
-    return this.create<Match>('matches', data);
-  }
-
-  async createMessage(data: Omit<Message, 'id'>): Promise<Message> {
-    return this.create<Message>('messages', data);
-  }
-
-  async updateUser(id: string, data: Partial<User>): Promise<void> {
+  
+  /**
+   * 更新用户
+   * @param id 用户ID
+   * @param data 更新数据
+   */
+  public async updateUser(id: string, data: Partial<User>): Promise<void> {
     return this.update<User>('users', id, data);
   }
 
-  async updateMatch(id: string, data: Partial<Match>): Promise<void> {
+  /**
+   * 更新匹配
+   * @param id 匹配ID
+   * @param data 更新数据
+   */
+  public async updateMatch(id: string, data: Partial<Match>): Promise<void> {
     return this.update<Match>('matches', id, data);
   }
 
-  async updateMessage(id: string, data: Partial<Message>): Promise<void> {
+  /**
+   * 更新消息
+   * @param id 消息ID
+   * @param data 更新数据
+   */
+  public async updateMessage(id: string, data: Partial<Message>): Promise<void> {
     return this.update<Message>('messages', id, data);
   }
 
-  async deleteUser(id: string): Promise<void> {
+  /**
+   * 删除用户
+   * @param id 用户ID
+   */
+  public async deleteUser(id: string): Promise<void> {
     return this.delete('users', id);
   }
 
-  async deleteMatch(id: string): Promise<void> {
+  /**
+   * 删除匹配
+   * @param id 匹配ID
+   */
+  public async deleteMatch(id: string): Promise<void> {
     return this.delete('matches', id);
   }
 
-  async deleteMessage(id: string): Promise<void> {
+  /**
+   * 删除消息
+   * @param id 消息ID
+   */
+  public async deleteMessage(id: string): Promise<void> {
     return this.delete('messages', id);
-  }
-
-  async batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
-    await this.initialize();
-    
-    try {
-      const batch = writeBatch(this.db);
-      
-      for (const operation of operations) {
-        const docRef = doc(this.db, tableName, operation.data.id);
-        
-        switch (operation.type) {
-          case 'add':
-          case 'put':
-            batch.set(docRef, this.serialize(operation.data));
-            break;
-          case 'delete':
-            batch.delete(docRef);
-            break;
-        }
-      }
-      
-      await batch.commit();
-    } catch (error) {
-      throw new FirebaseError('Failed to execute batch operation', error as Error);
-    }
-  }
-
-  async beginTransaction(): Promise<void> {
-    // Firebase 不支持显式事务
-    throw new FirebaseError('Explicit transactions are not supported in Firebase');
-  }
-
-  async commitTransaction(): Promise<void> {
-    // Firebase 不支持显式事务
-    throw new FirebaseError('Explicit transactions are not supported in Firebase');
-  }
-
-  async rollbackTransaction(): Promise<void> {
-    // Firebase 不支持显式事务
-    throw new FirebaseError('Explicit transactions are not supported in Firebase');
   }
 } 

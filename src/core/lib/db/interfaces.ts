@@ -25,11 +25,34 @@ import {
 } from './types/database.types';
 import { BaseEntity } from './types/base-entity';
 import { User, Match, Message } from './types';
+import { 
+  SyncPriority, 
+  ConflictResolution, 
+  SyncConfig as SyncConfigFlags,
+  SyncState,
+  SyncMetadata,
+  SyncableEntity
+} from './types/sync-flags';
+
+// 导出公共类型供外部使用
+export type { SyncStrategy, SyncStatus, DatabaseEngine } from './types/database.types';
+export type { 
+  SyncPriority, 
+  ConflictResolution, 
+  SyncConfig as SyncFlagsConfig,
+  SyncState,
+  SyncMetadata,
+  SyncableEntity
+} from './types/sync-flags';
 
 // 同步配置接口
 export interface SyncConfig {
   enabled: boolean;
   strategy: SyncStrategy;
+  /**
+   * 是否仅离线存储，不同步到云端
+   */
+  offlineOnly?: boolean;
   interval?: number; // in milliseconds
   retryAttempts?: number;
   retryDelay?: number; // in milliseconds

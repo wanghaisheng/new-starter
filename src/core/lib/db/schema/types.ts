@@ -1,8 +1,11 @@
+import { SyncConfig } from '../types/sync-flags';
+
 // 表结构接口
 export interface TableSchema {
   name: string;
   columns: ColumnDefinition[];
   indexes?: IndexDefinition[];
+  syncConfig?: SyncConfig;
 }
 
 // 列定义接口
@@ -10,13 +13,16 @@ export interface ColumnDefinition {
   name: string;
   type: ColumnType;
   primaryKey?: boolean;
+  required?: boolean;
   notNull?: boolean;
-  unique?: boolean;
   defaultValue?: any;
+  unique?: boolean;
+  default?: any;
   references?: {
     table: string;
     column: string;
   };
+  isSyncField?: boolean;
 }
 
 // 列类型定义

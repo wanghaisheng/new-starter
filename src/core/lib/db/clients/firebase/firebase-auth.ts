@@ -4,13 +4,22 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
+  signOut,
   sendPasswordResetEmail,
   updateProfile,
   onAuthStateChanged,
-  User as FirebaseUser
+  User as FirebaseUser,
+  UserCredential,
+  Auth,
+  connectAuthEmulator,
+  setPersistence,
+  inMemoryPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
 } from 'firebase/auth';
-import { FirebaseConfig } from './firebase-client';
+import { FirebaseConfig } from './firebase-config';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
 
 export interface AuthUser {
   uid: string;
@@ -64,7 +73,7 @@ export class FirebaseAuthService {
 
   async signOut(): Promise<void> {
     try {
-      await firebaseSignOut(this.auth);
+      await signOut(this.auth);
     } catch (error) {
       throw new Error('Failed to sign out');
     }

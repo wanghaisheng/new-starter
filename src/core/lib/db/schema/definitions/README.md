@@ -396,3 +396,56 @@ export default {
   - 在整个项目中保持命名一致性
 
 遵循这些经验教训，可以建立结构清晰、一致和高性能的数据库表结构，为应用程序提供稳固的数据基础。
+
+## 离线存储标记
+
+### 概述
+
+离线存储标记（`offlineOnly`）是一个特殊的同步配置标志，用于标记某些表或模型仅在本地设备上存储，不会同步到云端服务器。这对于存储用户的私人数据、临时草稿、设备特定设置等场景非常有用。
+
+### 使用方法
+
+要将表标记为离线存储，需要在表的 `syncConfig` 配置中添加 `offlineOnly: true` 属性：
+
+```typescript
+import { schemaRegistry, TableSchema } from '../index';
+import { SyncPriority, ConflictResolution } from '@/core/lib/db/types/sync-flags';
+
+const offlineDataSchema: TableSchema = {
+  name: 'offline_data',
+  syncConfig: {
+    enabled: true, // 仍然需要设置启用同步
+    offlineOnly: true, // 关键属性：标记为仅离线存储
+    defaultPriority: SyncPriority.LOW,
+    defaultConflictResolution: ConflictResolution.CLIENT_WINS
+  },
+  columns: [
+    // ...列定义
+  ]
+};
+
+// 注册表结构
+schemaRegistry.register(offlineDataSchema);
+```
+
+### 工作原理
+
+当表被标记为 `offlineOnly: true` 时：
+
+1. 同步管理器（SyncManager）会自动跳过对该表数据的同步处理
+2. 即使在在线环境中，该表的数据也不会被发送到服务器
+3. 在多设备环境中，每个设备将有其自己的离线数据副本，彼此之间不会同步
+
+### 应用场景
+
+- **个人笔记和草稿**：用户不希望同步到云端的私人笔记
+- **设备偏好设置**：特定于当前设备的应用配置
+- **临时缓存数据**：暂存的表单数据或编辑状态
+- **敏感信息**：用户不希望存储在服务器上的敏感数据
+- **本地存储的媒体文件引用**：指向设备上媒体文件的路径信息
+
+### 注意事项
+
+1. 被标记为离线存储的数据无法在多设备间共享
+2. 如果用户更换设备或重装应用，离线数据将会丢失（除非实现备份机制）
+3. 虽然数据不会发送到服务器，但开发者仍应注意数据安全，可能需要应用本地加密

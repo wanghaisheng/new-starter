@@ -47,7 +47,7 @@ src/
 // src/core/components/ui/Button.tsx
 import React from 'react';
 import { useI18n } from '@/core/lib/i18n';
-import type { ButtonProps } from './types';
+import type { ButtonProps } from '@/core/components/ui/types';
 import { twMerge } from 'tailwind-merge';
 
 export function Button({
@@ -75,6 +75,8 @@ export function Button({
     </button>
   );
 }
+
+> **重要说明**: 所有导入应使用 `@/` 前缀的绝对路径，而非相对路径。请参阅[导入路径规范](./import-path-standards.md)了解详情。
 ```
 
 #### 1.2.2 移动端组件开发

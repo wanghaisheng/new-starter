@@ -171,4 +171,98 @@ export interface DatabaseClient {
   beginTransaction(): Promise<void>;
   commitTransaction(): Promise<void>;
   rollbackTransaction(): Promise<void>;
+}
+
+/**
+ * 排序方向
+ */
+export type SortDirection = 'asc' | 'desc';
+
+/**
+ * 查询过滤操作符
+ */
+export type FilterOperator =
+  | '='
+  | '=='
+  | 'eq'
+  | '!='
+  | 'ne'
+  | 'neq'
+  | '>'
+  | 'gt'
+  | '>='
+  | 'gte'
+  | '<'
+  | 'lt'
+  | '<='
+  | 'lte'
+  | 'in'
+  | 'not-in'
+  | 'notIn'
+  | 'array-contains'
+  | 'contains'
+  | 'array-contains-any'
+  | 'containsAny';
+
+/**
+ * 查询过滤条件
+ */
+export interface QueryFilter {
+  /**
+   * 字段名
+   */
+  field: string;
+  
+  /**
+   * 操作符
+   */
+  operator: FilterOperator | string;
+  
+  /**
+   * 比较值
+   */
+  value: any;
+}
+
+/**
+ * 查询选项扩展 - 支持标准和数据库特定功能
+ */
+export interface ExtendedQueryOptions extends QueryOptions {
+  /**
+   * 过滤条件数组
+   * 提供了比简单的 where 更灵活的过滤方式
+   */
+  filters?: QueryFilter[];
+  
+  /**
+   * 排序条件
+   * 键为字段名，值为排序方向
+   */
+  sort?: Record<string, SortDirection>;
+  
+  /**
+   * 游标 - 从指定文档之后开始
+   */
+  startAfter?: any;
+  
+  /**
+   * 游标 - 从指定文档开始
+   */
+  startAt?: any;
+  
+  /**
+   * 游标 - 到指定文档之前结束
+   */
+  endBefore?: any;
+  
+  /**
+   * 游标 - 到指定文档结束
+   */
+  endAt?: any;
+  
+  /**
+   * 分页偏移量
+   * 注意：有些数据库引擎不支持偏移，如 Firestore
+   */
+  offset?: number;
 } 

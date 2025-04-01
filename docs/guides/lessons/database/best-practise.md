@@ -1,5 +1,7 @@
 # 数据库架构与实现指南
 
+> **重要说明**：本项目要求使用 `@/` 前缀的绝对路径进行模块导入，而非相对路径。所有示例代码应遵循此规范。更多详情请参阅[导入路径规范](../../import-path-standards.md)。
+
 ## 1. 架构概述
 
 - 工厂模式的应用 ：项目使用了DataServiceFactory工厂类来获取数据服务实例，而不是直接实例化具体的服务类。这符合依赖注入和控制反转的设计原则，使代码更易于测试和维护。
@@ -52,12 +54,16 @@ src/core/lib/db/
 
 ### 2.1 开发阶段（Mock）
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=mock`
-- 存储类型：Mock IndexedDB（使用 fake-indexeddb）
+- 存储类型：
+  - Mock内存模式：数据存储在内存中，适用于单元测试和临时开发
+  - Mock JSON文件模式：数据存储在JSON文件中，适用于集成测试和持久化开发
 - 特点：
   - 快速原型验证
   - 预设测试数据
-  - 支持完整的 IndexedDB API
-  - 可在 Node.js 环境中运行
+  - 支持完整的CRUD操作
+  - 支持事务和批处理
+  - 支持自动日期转换
+  - 统一错误处理和日志记录
 
 ### 2.2 本地阶段（Local）
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=local`
@@ -375,15 +381,81 @@ class VersionManager {
 
 ### 7.1 错误处理策略
 ```typescript
-class DatabaseError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public context?: any
-  ) {
+/**
+ * 数据库错误类
+ * 用于标准化数据库操作中的错误处理
+ */
+export class DatabaseError extends Error {
+  /**
+   * 错误代码
+   */
+  code: string;
+  
+  /**
+   * 错误详情
+   */
+  details?: any;
+  
+  /**
+   * 构造函数
+   * @param message 错误消息
+   * @param code 错误代码
+   * @param details 错误详情
+   */
+  constructor(message: string, code: string = 'UNKNOWN_ERROR', details?: any) {
     super(message);
     this.name = 'DatabaseError';
+    this.code = code;
+    this.details = details;
+    
+    // 确保正确的原型链
+    Object.setPrototypeOf(this, DatabaseError.prototype);
   }
+  
+  /**
+   * 获取格式化的错误消息
+   * @returns 格式化的错误消息
+   */
+  getFormattedMessage(): string {
+    return `[${this.code}] ${this.message}`;
+  }
+  
+  /**
+   * 获取详细的错误信息
+   * @returns 详细的错误信息，包括代码、消息和详情
+   */
+  getDetailedInfo(): Record<string, any> {
+    return {
+      name: this.name,
+      code: this.code,
+      message: this.message,
+      details: this.details,
+      stack: this.stack
+    };
+  }
+}
+
+/**
+ * 数据库错误代码枚举
+ */
+export enum DatabaseErrorCode {
+  // 一般错误
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+  INITIALIZATION_ERROR = 'INITIALIZATION_ERROR',
+  CONNECTION_ERROR = 'CONNECTION_ERROR',
+  
+  // 数据访问错误
+  NOT_FOUND = 'NOT_FOUND',
+  ALREADY_EXISTS = 'ALREADY_EXISTS',
+  INVALID_DATA = 'INVALID_DATA',
+  
+  // 事务错误
+  TRANSACTION_ERROR = 'TRANSACTION_ERROR',
+  NO_ACTIVE_TRANSACTION = 'NO_ACTIVE_TRANSACTION',
+  
+  // 客户端状态错误
+  CLIENT_NOT_INITIALIZED = 'CLIENT_NOT_INITIALIZED',
+  // ... 更多错误代码
 }
 
 // 错误处理示例
@@ -392,16 +464,71 @@ try {
 } catch (error) {
   if (error instanceof DatabaseError) {
     // 处理已知错误
+    console.error(error.getFormattedMessage());
+    // 根据错误代码执行不同的恢复策略
+    switch(error.code) {
+      case DatabaseErrorCode.CONNECTION_ERROR:
+        // 尝试重新连接
+        break;
+      case DatabaseErrorCode.NOT_FOUND:
+        // 处理记录不存在的情况
+        break;
+      default:
+        // 通用错误处理
+        break;
+    }
   } else {
     // 处理未知错误
+    console.error('未知数据库错误:', error);
   }
 }
 ```
 
 ### 7.2 日志记录
-- 操作日志
-- 错误日志
-- 性能日志
+```typescript
+/**
+ * 数据库日志级别枚举
+ */
+export enum LogLevel {
+  DEBUG = 0,
+  INFO = 1,
+  WARN = 2,
+  ERROR = 3,
+  NONE = 4
+}
+
+/**
+ * 数据库日志类
+ */
+export class DatabaseLogger {
+  constructor(
+    private moduleName: string, 
+    private config: LoggerConfig = {}
+  ) { /* ... */ }
+  
+  debug(message: string, data?: any): void { /* ... */ }
+  info(message: string, data?: any): void { /* ... */ }
+  warn(message: string, data?: any): void { /* ... */ }
+  error(message: string, error?: any): void { /* ... */ }
+  
+  /**
+   * 创建子日志记录器
+   * @param subModuleName 子模块名称
+   * @returns 新的日志记录器
+   */
+  createSubLogger(subModuleName: string): DatabaseLogger { 
+    return new DatabaseLogger(`${this.moduleName}.${subModuleName}`, this.config);
+  }
+}
+
+// 使用示例
+const dbLogger = new DatabaseLogger('Database');
+const userRepoLogger = dbLogger.createSubLogger('UserRepository');
+
+userRepoLogger.info('查找用户', { id: 'user-1' });
+userRepoLogger.debug('查询结果', { result });
+userRepoLogger.error('查询失败', error);
+```
 
 ## 8. 最佳实践
 
@@ -593,6 +720,135 @@ async function renderUserProfile(userId: string) {
     }
   });
 }
+```
+
+### 8.6 MockDatabaseClient 最佳实践
+
+#### 8.6.1 选择合适的模式
+
+```typescript
+// 针对不同场景选择合适的模式
+const testConfig: MockDatabaseConfig = {
+  name: 'test-db',
+  version: 1,
+  // 单元测试使用内存模式（默认）
+  mockMode: 'memory'
+};
+
+const developmentConfig: MockDatabaseConfig = {
+  name: 'development-db',
+  version: 1,
+  // 开发环境使用JSON文件模式
+  mockMode: 'json',
+  jsonFilePath: './data/dev-data.json',
+  autoSave: true // 自动保存数据变更
+};
+
+// 针对集成测试使用特定的JSON文件
+const integrationTestConfig: MockDatabaseConfig = {
+  name: 'integration-test-db',
+  version: 1,
+  mockMode: 'json',
+  jsonFilePath: './data/integration-test-data.json',
+  autoSave: false // 手动控制数据保存，避免测试间相互影响
+};
+```
+
+#### 8.6.2 事务处理
+
+```typescript
+// 在JSON模式下使用事务
+async function safeOperation(db: MockDatabaseClient): Promise<void> {
+  try {
+    await db.transaction(async (tx) => {
+      // 创建用户
+      const user = await tx.create('users', {
+        name: 'Test User',
+        email: 'test@example.com'
+      });
+      
+      // 创建消息
+      await tx.create('messages', {
+        userId: user.id,
+        content: 'Hello World'
+      });
+      
+      // 如果出现错误，整个事务将回滚
+      if (shouldFail) {
+        throw new Error('Simulated failure');
+      }
+    });
+    
+    console.log('事务成功完成');
+  } catch (error) {
+    console.error('事务失败，所有更改已回滚:', error);
+    // 在JSON模式下，事务回滚通过重新加载JSON文件实现
+  }
+}
+```
+
+#### 8.6.3 批量操作
+
+```typescript
+// 批量操作示例
+async function batchProcess(db: MockDatabaseClient): Promise<void> {
+  // 准备批量操作
+  const operations = [
+    {
+      type: 'create',
+      data: { name: 'User 1', email: 'user1@example.com' }
+    },
+    {
+      type: 'update',
+      id: 'existing-id',
+      data: { name: 'Updated Name' }
+    },
+    {
+      type: 'delete',
+      id: 'to-delete-id'
+    }
+  ];
+  
+  // 执行批量操作
+  await db.batch('users', operations);
+}
+```
+
+#### 8.6.4 处理日期字段
+
+```typescript
+// JSON模式自动处理日期字段转换
+const user = await db.create('users', {
+  name: 'Date Test User',
+  birthDate: new Date(1990, 0, 1), // 写入Date对象
+  lastActive: new Date()
+});
+
+// 查询时自动将JSON字符串转回Date对象
+const retrievedUser = await db.findById('users', user.id);
+console.log(retrievedUser.birthDate instanceof Date); // true
+console.log(retrievedUser.lastActive instanceof Date); // true
+```
+
+#### 8.6.5 性能考虑
+
+```typescript
+// 对于性能敏感的场景，禁用自动保存并手动控制保存时机
+const db = new MockDatabaseClient({
+  name: 'performance-db',
+  version: 1,
+  mockMode: 'json',
+  jsonFilePath: './data/perf-data.json',
+  autoSave: false // 禁用自动保存
+});
+
+// 执行多个操作
+await db.create('users', { /* 数据 */ });
+await db.update('users', 'id1', { /* 数据 */ });
+await db.delete('users', 'id2');
+
+// 手动保存所有更改
+await db.saveToJson();
 ```
 
 ## 9. 开发流程
@@ -872,6 +1128,120 @@ describe('Stress Tests', () => {
     // 验证数据库状态
     const finalCount = await client.count('stress_test');
     console.log(`压力测试后记录数: ${finalCount}`);
+  });
+});
+```
+
+### 11.6 Mock数据库客户端测试
+
+```typescript
+describe('MockDatabaseClient Tests', () => {
+  let client: MockDatabaseClient;
+  
+  describe('Memory Mode', () => {
+    beforeEach(() => {
+      // 每个测试创建新的内存模式客户端
+      client = new MockDatabaseClient({
+        name: 'test-db',
+        version: 1,
+        mockMode: 'memory'
+      });
+      return client.initialize();
+    });
+    
+    afterEach(() => client.close());
+    
+    it('should create and retrieve entities', async () => {
+      // 创建实体
+      const user = await client.create('users', {
+        id: 'test-id',
+        name: 'Test User',
+        email: 'test@example.com'
+      });
+      
+      // 检索并验证
+      const retrieved = await client.findById('users', 'test-id');
+      expect(retrieved).toEqual(user);
+    });
+    
+    it('should support transactions', async () => {
+      // 测试事务
+      await client.transaction(async (tx) => {
+        await tx.create('users', { id: 'tx-user', name: 'Transaction User' });
+      });
+      
+      const txUser = await client.findById('users', 'tx-user');
+      expect(txUser).not.toBeNull();
+    });
+    
+    it('should rollback failed transactions', async () => {
+      // 初始状态
+      await client.create('users', { id: 'initial-user', name: 'Initial' });
+      
+      // 执行失败的事务
+      try {
+        await client.transaction(async (tx) => {
+          await tx.update('users', 'initial-user', { name: 'Updated' });
+          // 抛出错误导致事务失败
+          throw new Error('Simulated error');
+        });
+      } catch (error) {
+        // 预期出错
+      }
+      
+      // 验证回滚
+      const user = await client.findById('users', 'initial-user');
+      expect(user.name).toBe('Initial');
+    });
+  });
+  
+  describe('JSON Mode', () => {
+    const jsonPath = './test-data.json';
+    
+    beforeEach(async () => {
+      // 每个测试创建新的JSON模式客户端
+      client = new MockDatabaseClient({
+        name: 'json-test-db',
+        version: 1,
+        mockMode: 'json',
+        jsonFilePath: jsonPath,
+        autoSave: true
+      });
+      await client.initialize();
+      await client.clear(); // 清空数据
+    });
+    
+    afterEach(async () => {
+      await client.close();
+      // 清理测试JSON文件
+      try {
+        fs.unlinkSync(jsonPath);
+      } catch (error) {
+        // 忽略文件不存在的错误
+      }
+    });
+    
+    it('should persist data between instances', async () => {
+      // 第一个实例
+      await client.create('users', { id: 'persist-test', name: 'Persistence Test' });
+      await client.close();
+      
+      // 创建新实例
+      const newClient = new MockDatabaseClient({
+        name: 'json-test-db',
+        version: 1,
+        mockMode: 'json',
+        jsonFilePath: jsonPath
+      });
+      await newClient.initialize();
+      
+      // 验证数据持久化
+      const user = await newClient.findById('users', 'persist-test');
+      expect(user).not.toBeNull();
+      expect(user.name).toBe('Persistence Test');
+      
+      await newClient.close();
+    });
   });
 });
 ```

@@ -1,13 +1,23 @@
 import { IBaseDatabaseClient, IDatabaseTransaction } from '../interfaces';
-import { QueryOptions, QueryResult, BatchOperation } from '../types/database.types';
+import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError } from '../types/database.types';
 import { BaseEntity } from '../types/base-entity';
+import { DatabaseLogger, getLogger } from '../errors/database-logger';
+import { DatabaseErrorCode, createDatabaseError } from '../errors/database-error';
 
 /**
  * 数据库客户端抽象基类
  * 实现了 IBaseDatabaseClient 接口的基本框架
+ * @template T 实体类型，默认为 BaseEntity
  */
 export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
   protected initialized = false;
+  protected transactionActive = false;
+  protected eventListeners: Map<DatabaseEvent, Function[]> = new Map();
+  protected logger: DatabaseLogger;
+  
+  constructor() {
+    this.logger = getLogger(this.constructor.name);
+  }
   
   // 生命周期方法
   abstract initialize(): Promise<void>;
@@ -36,10 +46,16 @@ export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
   // 原始查询
   abstract executeRawQuery<R>(query: string, params?: any[]): Promise<R[]>;
   
-  // 辅助方法
+  /**
+   * 检查数据库客户端是否已初始化
+   * @throws {DatabaseError} 如果数据库客户端未初始化
+   */
   protected checkInitialized(): void {
     if (!this.initialized) {
-      throw new Error('数据库客户端未初始化');
+      throw this.createError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        '数据库客户端未初始化'
+      );
     }
   }
   
@@ -57,10 +73,11 @@ export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
    * @returns 添加时间戳后的实体数据
    */
   protected addTimestamps<T extends BaseEntity>(data: Partial<T>): Partial<T> {
+    const now = new Date();
     return {
       ...data,
-      createdAt: data.createdAt || new Date(),
-      updatedAt: new Date(),
+      createdAt: data.createdAt || now,
+      updatedAt: now,
     };
   }
   
@@ -78,5 +95,82 @@ export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
       }
       return acc;
     }, {} as Record<string, any>);
+  }
+
+  /**
+   * 检查事务是否处于活动状态
+   * @throws {DatabaseError} 如果事务不处于活动状态
+   */
+  protected checkTransactionActive(): void {
+    if (!this.transactionActive) {
+      throw this.createError(
+        DatabaseErrorCode.NO_ACTIVE_TRANSACTION,
+        '没有活动的事务'
+      );
+    }
+  }
+
+  /**
+   * 创建数据库错误
+   * @param code 错误代码
+   * @param message 错误消息
+   * @param details 错误详情
+   * @returns 数据库错误对象
+   */
+  protected createError(code: DatabaseErrorCode | string, message: string, details?: any): DatabaseError {
+    const error = createDatabaseError(code, message, details);
+    
+    // 记录错误信息
+    this.logger.error(message, { code, details });
+    
+    // 触发错误事件
+    this.emit('error', { code, message, details });
+    
+    return error;
+  }
+
+  /**
+   * 添加事件监听器
+   * @param event 事件类型
+   * @param listener 监听器函数
+   * @returns 取消监听的函数
+   */
+  public on(event: DatabaseEvent, listener: Function): () => void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, []);
+    }
+    
+    this.eventListeners.get(event)!.push(listener);
+    this.logger.debug(`注册事件监听器: ${event}`);
+    
+    return () => {
+      const listeners = this.eventListeners.get(event) || [];
+      const index = listeners.indexOf(listener);
+      if (index !== -1) {
+        listeners.splice(index, 1);
+        this.logger.debug(`移除事件监听器: ${event}`);
+      }
+    };
+  }
+  
+  /**
+   * 触发事件
+   * @param event 事件类型
+   * @param data 事件数据
+   */
+  protected emit(event: DatabaseEvent, data?: any): void {
+    const listeners = this.eventListeners.get(event) || [];
+    
+    if (listeners.length > 0) {
+      this.logger.debug(`触发事件: ${event}`, { listenerCount: listeners.length });
+    }
+    
+    for (const listener of listeners) {
+      try {
+        listener(event, data);
+      } catch (error) {
+        this.logger.error(`事件监听器错误: ${event}`, error);
+      }
+    }
   }
 }

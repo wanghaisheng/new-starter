@@ -1,4 +1,3 @@
-
 # Firebase 初始化与优雅降级策略
 
 ## 问题描述
@@ -102,6 +101,9 @@ async initialize(): Promise<void> {
 - [数据库开发工作流程](../../templates/database-development-workflow.md)
 - [Firebase 文档：初始化 Firebase](https://firebase.google.com/docs/web/setup)
 - [Next.js 环境变量文档](https://nextjs.org/docs/basic-features/environment-variables)
+- [导入路径规范](../../import-path-standards.md)
+
+> **注意**：按照项目[导入路径规范](../../import-path-standards.md)，请确保在开发过程中使用 `@/` 前缀的绝对路径导入而非相对路径。
 ```
 
 这个文档总结了我们遇到的 Firebase 初始化问题，分析了根本原因，提供了解决方案，并总结了经验教训和最佳实践。它可以帮助团队成员避免类似问题，并提供处理类似情况的指导。

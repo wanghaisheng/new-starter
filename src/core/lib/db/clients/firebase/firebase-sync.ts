@@ -8,10 +8,24 @@ import {
   CACHE_SIZE_UNLIMITED,
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager
+  persistentMultipleTabManager,
+  Firestore,
+  DocumentData,
+  CollectionReference,
+  query,
+  where,
+  orderBy,
+  limit,
+  WhereFilterOp,
+  OrderByDirection,
+  writeBatch
 } from 'firebase/firestore';
-import { FirebaseConfig } from './firebase-client';
-import { BaseEntity } from '../../interfaces';
+import { getApp } from 'firebase/app';
+import { FirebaseConfig } from './firebase-config';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
+import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { SyncStatus } from '@/core/lib/db/types/database.types';
 
 export interface SyncOptions {
   enableOfflineCache?: boolean;
@@ -25,7 +39,7 @@ export interface SyncListener<T extends BaseEntity> {
 }
 
 export class FirebaseSyncService {
-  private db;
+  private db: Firestore;
   private listeners: Map<string, Set<SyncListener<any>>> = new Map();
   private unsubscribeFunctions: Map<string, () => void> = new Map();
 
@@ -37,27 +51,34 @@ export class FirebaseSyncService {
   }
 
   private async initializeFirestore() {
-    const settings = {
-      cacheSizeBytes: this.options.cacheSize || CACHE_SIZE_UNLIMITED,
-      localCache: persistentLocalCache({
-        tabManager: this.options.enableMultiTab 
-          ? persistentMultipleTabManager()
-          : undefined
-      })
-    };
+    try {
+      // 配置 Firestore 设置
+      const settings = {
+        // 使用本地持久化缓存
+        localCache: this.options.enableMultiTab 
+          ? persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+          : persistentLocalCache({
+              cacheSizeBytes: this.options.cacheSize || CACHE_SIZE_UNLIMITED
+            })
+      };
 
-    this.db = initializeFirestore(this.config, settings);
+      // 初始化 Firestore - 使用已初始化的 Firebase 应用实例
+      const app = getApp();
+      this.db = initializeFirestore(app, settings);
 
-    if (this.options.enableOfflineCache) {
-      try {
-        if (this.options.enableMultiTab) {
-          await enableMultiTabIndexedDbPersistence(this.db);
-        } else {
-          await enableIndexedDbPersistence(this.db);
+      if (this.options.enableOfflineCache) {
+        try {
+          if (this.options.enableMultiTab) {
+            await enableMultiTabIndexedDbPersistence(this.db);
+          } else {
+            await enableIndexedDbPersistence(this.db);
+          }
+        } catch (error) {
+          console.warn('Failed to enable offline persistence:', error);
         }
-      } catch (error) {
-        console.warn('Failed to enable offline persistence:', error);
       }
+    } catch (error) {
+      // ... error handling
     }
   }
 
@@ -76,35 +97,39 @@ export class FirebaseSyncService {
         this.listeners.set(collectionName, new Set());
       }
       this.listeners.get(collectionName)!.add(listener);
-
-      // 创建查询
-      const collectionRef = collection(this.db, collectionName);
-      let query = collectionRef;
-
-      // 应用查询选项
+      
+      // 获取集合引用
+      const collectionRef: CollectionReference<DocumentData> = collection(this.db, collectionName);
+      
+      // 构建查询
+      let firestoreQuery = query(collectionRef);
+      
       if (queryOptions) {
         const { where: whereClauses, orderBy: orderByClauses, limit: limitValue } = queryOptions;
         
+        // 添加 where 条件
         if (whereClauses) {
           whereClauses.forEach(({ field, operator, value }) => {
-            query = query.where(field, operator as any, value);
+            firestoreQuery = query(firestoreQuery, where(field, operator as WhereFilterOp, value));
           });
         }
 
+        // 添加 orderBy 条件
         if (orderByClauses) {
           orderByClauses.forEach(({ field, direction }) => {
-            query = query.orderBy(field, direction);
+            firestoreQuery = query(firestoreQuery, orderBy(field, direction as OrderByDirection));
           });
         }
 
+        // 添加 limit 条件
         if (limitValue) {
-          query = query.limit(limitValue);
+          firestoreQuery = query(firestoreQuery, limit(limitValue));
         }
       }
 
       // 设置实时监听
       const unsubscribe = onSnapshot(
-        query,
+        firestoreQuery,
         (snapshot) => {
           const data = snapshot.docs.map(doc => ({
             ...doc.data(),
@@ -140,9 +165,9 @@ export class FirebaseSyncService {
 
   async unsubscribeAll(): Promise<void> {
     // 取消所有订阅
-    for (const unsubscribe of this.unsubscribeFunctions.values()) {
+    Array.from(this.unsubscribeFunctions.values()).forEach(unsubscribe => {
       unsubscribe();
-    }
+    });
     this.unsubscribeFunctions.clear();
     this.listeners.clear();
   }

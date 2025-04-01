@@ -22,7 +22,7 @@ src/core/lib/db/
 
 ### 2.1 开发阶段（Mock）
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=mock`
-- 存储类型：Mock IndexedDB（使用 fake-indexeddb）
+- 存储类型：json/内存
 - 特点：
   - 快速原型验证
   - 预设测试数据
@@ -31,7 +31,8 @@ src/core/lib/db/
 
 ### 2.2 本地阶段（Local）
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=local`
-- Web环境：IndexedDB
+- Web环境：IndexedDB或者使用 fake-indexeddb
+
 - 移动端：SQLite
 - 特点：支持离线操作，数据持久化
 
@@ -54,6 +55,27 @@ src/core/lib/db/
 ### 3.3 手动同步（Manual）
 - 适用场景：批量数据同步、大文件传输
 - 特点：用户主动触发，可控同步过程
+
+### 3.4 离线存储（Offline-Only）
+- 适用场景：本地笔记、草稿、设备特定设置
+- 特点：数据仅存储在本地，永不同步到云端
+- 配置：在表结构中添加 `syncConfig.offlineOnly: true`
+
+```typescript
+// 离线笔记表示例
+const offlineNotesSchema: TableSchema = {
+  name: 'offline_notes',
+  syncConfig: {
+    enabled: true,
+    offlineOnly: true, // 标记为仅离线存储
+    defaultPriority: SyncPriority.LOW,
+    defaultConflictResolution: ConflictResolution.CLIENT_WINS
+  },
+  columns: [
+    // 列定义...
+  ]
+};
+```
 
 ## 4. 核心接口
 

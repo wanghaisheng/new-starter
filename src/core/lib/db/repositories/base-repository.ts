@@ -1,23 +1,39 @@
-import { IBaseDatabaseClient, QueryOptions } from '../interfaces';
-import { BatchOperation, QueryResult, BaseEntity } from '../types';
+import { IBaseDatabaseClient } from '../interfaces';
+import { BaseEntity, SyncableBaseEntity } from '../types/base-entity';
+import { SchemaRegistry } from '../schema/schema-registry';
+import { SyncState, SyncPriority } from '../types/sync-flags';
 
 /**
  * 基础仓储抽象类
  * 提供通用的 CRUD 操作
  */
 export abstract class BaseRepository<T extends BaseEntity> {
+  protected schemaRegistry: SchemaRegistry;
+
   constructor(
     protected client: IBaseDatabaseClient,
     protected tableName: string
-  ) {}
+  ) {
+    this.schemaRegistry = SchemaRegistry.getInstance();
+  }
   
+  /**
+   * 检查表是否配置为仅离线存储
+   * 这将影响同步行为
+   * @returns 如果表是离线专用返回true，否则返回false
+   */
+  protected isOfflineOnly(): boolean {
+    const schema = this.schemaRegistry.getSchema(this.tableName);
+    return !!schema?.syncConfig?.offlineOnly;
+  }
+
   /**
    * 根据ID查找实体
    * @param id 实体ID
    * @returns 找到的实体或null
    */
   async findById(id: string): Promise<T | null> {
-    return this.client.findById<T>(this.tableName, id);
+    return this.client.findById(this.tableName, id) as Promise<T | null>;
   }
   
   /**
@@ -26,7 +42,7 @@ export abstract class BaseRepository<T extends BaseEntity> {
    * @returns 实体列表
    */
   async findAll(filter?: Record<string, any>): Promise<T[]> {
-    return this.client.findAll<T>(this.tableName, filter);
+    return this.client.findAll(this.tableName, filter) as Promise<T[]>;
   }
   
   /**
@@ -35,16 +51,45 @@ export abstract class BaseRepository<T extends BaseEntity> {
    * @returns 创建的实体
    */
   async create(data: Omit<T, keyof BaseEntity>): Promise<T> {
-    return this.client.create<T>(this.tableName, data as T);
+    // 创建基础实体
+    const entity = await this.client.create(this.tableName, data as T);
+    
+    // 检查并添加同步标记
+    if (this.isOfflineOnly()) {
+      // 如果是离线专用表，则标记为已同步状态，不需要实际同步
+      return {
+        ...entity,
+        _sync: {
+          syncState: SyncState.SYNCED,
+          localModifiedAt: new Date(),
+          syncPriority: SyncPriority.LOW,
+        }
+      } as unknown as T;
+    }
+    
+    return entity as T;
   }
   
   /**
    * 更新实体
    * @param id 实体ID
-   * @param data 要更新的数据
+   * @param data 更新数据
    */
   async update(id: string, data: Partial<T>): Promise<void> {
-    await this.client.update<T>(this.tableName, id, data);
+    // 如果是离线专用表，则可以添加同步元数据标记为已同步
+    if (this.isOfflineOnly() && !('_sync' in data)) {
+      await this.client.update(this.tableName, id, {
+        ...data,
+        _sync: {
+          syncState: SyncState.SYNCED,
+          localModifiedAt: new Date(),
+          syncPriority: SyncPriority.LOW,
+        }
+      });
+      return;
+    }
+    
+    await this.client.update(this.tableName, id, data);
   }
   
   /**

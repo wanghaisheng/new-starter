@@ -34,7 +34,7 @@ import { useRouter } from 'next/router';
 import { IonButton } from '@ionic/react';
 import clsx from 'clsx';
 
-// 3. 项目内导入（按路径长度排序）
+// 3. 项目内导入（使用 @/ 前缀的绝对路径，不使用相对路径）
 import { useI18n } from '@/core/lib/i18n/config';
 import { Button } from '@/core/components/ui/Button';
 import { formatDate } from '@/utils/date-utils';
@@ -45,6 +45,8 @@ import type { User } from '@/core/models/user';
 // 5. 样式导入
 import styles from './Component.module.css';
 ```
+
+**重要说明：** 必须使用 `@/` 前缀的绝对路径进行项目内部模块导入，不要使用相对路径（如 `../` 或 `./`）。样式文件是唯一的例外，可以使用相对路径导入。有关详细指南，请参阅[导入路径规范](./import-path-standards.md)文档。
 
 ## 2. TypeScript规范
 

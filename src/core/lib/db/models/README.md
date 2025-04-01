@@ -196,3 +196,107 @@ export * from './match';
 export * from './message';
 // 导出其他模型...
 ```
+
+## 7. Lessons Learned From Consistency Fixes
+
+在数据库一致性修复过程中，我们总结了以下关键经验教训，可帮助避免未来出现类似问题：
+
+### 7.1 日期处理统一
+
+- **问题**：不同模型对日期字段的处理方式不一致，导致类型不安全
+- **解决方案**：在所有模型中对日期字段统一使用以下处理方式
+  ```typescript
+  // 在构造函数中
+  if (data.someDate && !(data.someDate instanceof Date)) {
+    this.someDate = new Date(data.someDate);
+  }
+  
+  // 在toRecord中
+  someDate: this.someDate.toISOString()
+  
+  // 在fromRecord中
+  someDate: record.someDate ? new Date(record.someDate) : undefined
+  ```
+- **最佳实践**：始终验证日期类型，确保存储为ISO字符串，加载时转换为Date对象
+
+### 7.2 复杂类型的序列化/反序列化
+
+- **问题**：对象、数组等复杂类型的序列化/反序列化处理不一致，有时缺少验证
+- **解决方案**：统一实现序列化/反序列化逻辑
+  ```typescript
+  // 在toRecord中
+  complexField: JSON.stringify(this.complexField)
+  
+  // 在fromRecord中
+  complexField: typeof record.complexField === 'string' ? JSON.parse(record.complexField) : record.complexField
+  ```
+- **最佳实践**：复杂类型必须序列化后存储，加载时检查类型再反序列化，避免重复解析已解析的数据
+
+### 7.3 使用类型断言的最佳实践
+
+- **问题**：不必要的类型断言或错误的类型断言会导致运行时错误
+- **解决方案**：谨慎使用类型断言，必要时使用常量断言确保类型安全
+  ```typescript
+  // 错误示例
+  status: 'sent' as string
+  
+  // 正确示例
+  status: 'sent' as const
+  ```
+- **最佳实践**：尽量避免类型断言，当必须使用时，优先使用常量断言确保类型收窄正确
+
+### 7.4 模型转换与类型安全
+
+- **问题**：在服务层返回的实体对象缺少模型方法
+- **解决方案**：使用模型构造函数包装数据库返回的结果
+  ```typescript
+  // 服务层实现
+  async getUser(id: string): Promise<User | null> {
+    const result = await this.userRepository.findById(id);
+    return result ? new User(result) : null;
+  }
+  ```
+- **最佳实践**：服务层返回的实体应该是完整的模型实例，确保调用者可以使用模型提供的所有方法
+
+### 7.5 命名一致性
+
+- **问题**：字段命名不一致，导致使用时混淆（如`contentType`和`type`）
+- **解决方案**：统一字段命名约定，确保模型与数据库表结构命名一致
+- **最佳实践**：
+  - 字段名使用驼峰命名法
+  - 布尔类型字段使用`is`或`has`前缀
+  - 时间戳字段使用`xxxAt`后缀
+  - 模型间的相同概念使用相同名称
+
+### 7.6 完整的JSDoc文档
+
+- **问题**：不完整或缺失的JSDoc注释导致代码理解困难
+- **解决方案**：为所有模型类、属性和方法添加标准格式的JSDoc注释
+  ```typescript
+  /**
+   * User模型类
+   * 实现用户数据模型
+   * 
+   * @description
+   * 详细描述模型的用途和特点
+   */
+  export class User {
+    /** 用户ID */
+    id: string;
+    
+    /**
+     * 创建模型实例
+     * @param data 初始数据
+     */
+    constructor(data: Partial<User>) {
+      // 实现...
+    }
+  }
+  ```
+- **最佳实践**：
+  - 为类添加简介和详细描述
+  - 为每个属性添加简洁的注释
+  - 为方法添加说明、参数和返回值的注释
+  - 记录方法可能抛出的异常
+
+遵循这些经验教训，可以显著提高代码质量和可维护性，减少因不一致实现而导致的bug。

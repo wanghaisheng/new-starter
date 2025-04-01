@@ -5,6 +5,15 @@ import { BaseEntity } from './base-entity';
 import { BatchOperation as DBBatchOperation } from './database.types';
 import { BatchOperation as SimBatchOperation } from './simulator';
 
+/**
+ * 数据库类型定义模块
+ * 提供所有数据库相关的类型定义和类型转换工具
+ * 
+ * @description
+ * 这个模块集中导出所有数据库相关的类型定义，包括实体类型、
+ * 数据库操作类型和类型转换工具
+ */
+
 // 导出基础类型
 export * from './base-entity';
 
@@ -17,6 +26,9 @@ export * from './message';
 export * from './interaction';
 export * from './repository';
 
+// 导出类型转换工具
+export * from './converters';
+
 // 使用命名空间导出方式，避免命名冲突
 import * as DatabaseTypes from './database.types';
 import * as SimulatorTypes from './simulator';
@@ -28,14 +40,17 @@ export { SimulatorTypes };
 // 明确导出重命名后的BatchOperation接口
 export type { DBBatchOperation as DatabaseBatchOperation, SimBatchOperation as SimulatorBatchOperation };
 
-// 注意：我们从dating.ts导出User、Match和Message接口，确保整个项目使用统一的类型定义
-// 不要在这里重复定义这些接口
-
-// Export schema-based type generator
+/**
+ * 获取表结构对应的类型定义
+ * 
+ * @param tableName 表名
+ * @returns 表对应的类型定义（仅用于类型推断）
+ * @throws 如果找不到表结构定义
+ */
 export const getSchemaType = <T extends BaseEntity>(tableName: string): T => {
   const schema = schemaRegistry.getSchema(tableName);
   if (!schema) {
     throw new Error(`Schema not found for table: ${tableName}`);
   }
-  return {} as T; // This is just for type inference, actual data comes from the database
+  return {} as T; // 这只是用于类型推断，实际数据来自数据库
 };

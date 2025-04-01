@@ -1,6 +1,9 @@
 import { schemaRegistry, TableSchema } from '../index';
 
-// 消息表结构定义
+/**
+ * 消息表结构定义
+ * 定义消息实体的数据库结构
+ */
 const messageSchema: TableSchema = {
   name: 'messages',
   columns: [
@@ -43,16 +46,16 @@ const messageSchema: TableSchema = {
       notNull: true
     },
     {
-      name: 'isRead',
-      type: 'boolean',
+      name: 'type',
+      type: 'string',
       notNull: true,
-      defaultValue: false
+      defaultValue: 'text'
     },
     {
-      name: 'sentAt',
-      type: 'date',
+      name: 'status',
+      type: 'string',
       notNull: true,
-      defaultValue: () => new Date()
+      defaultValue: 'sent'
     },
     {
       name: 'createdAt',
@@ -77,8 +80,12 @@ const messageSchema: TableSchema = {
       columns: ['senderId', 'receiverId']
     },
     {
-      name: 'idx_messages_sent_at',
-      columns: ['sentAt']
+      name: 'idx_messages_status',
+      columns: ['status']
+    },
+    {
+      name: 'idx_messages_created_at',
+      columns: ['createdAt']
     }
   ]
 };

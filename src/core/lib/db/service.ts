@@ -1,7 +1,6 @@
-
 import { DatabaseFactory } from './factory';
 import { IDatabaseClient } from './interfaces';
-import { User, Match, Message } from './types/dating';
+import { User, Match, Message } from './models';
 import { UserRepository } from './repositories/user-repository';
 import { MatchRepository } from './repositories/match-repository';
 import { MessageRepository } from './repositories/message-repository';
@@ -89,12 +88,14 @@ export class DatabaseService {
 
   async getUser(id: string): Promise<User | null> {
     this.checkInitialized();
-    return await this.userRepository.findById(id);
+    const result = await this.userRepository.findById(id);
+    return result ? new User(result) : null;
   }
 
   async getUsers(): Promise<User[]> {
     this.checkInitialized();
-    return await this.userRepository.findAll();
+    const users = await this.userRepository.findAll();
+    return users.map(user => new User(user));
   }
 
   async updateUser(user: User): Promise<void> {
@@ -119,17 +120,20 @@ export class DatabaseService {
 
   async getMatch(id: string): Promise<Match | null> {
     this.checkInitialized();
-    return await this.matchRepository.findById(id);
+    const result = await this.matchRepository.findById(id);
+    return result ? new Match(result) : null;
   }
 
   async getMatches(): Promise<Match[]> {
     this.checkInitialized();
-    return await this.matchRepository.findAll();
+    const matches = await this.matchRepository.findAll();
+    return matches.map(match => new Match(match));
   }
 
   async getMatchesByUserId(userId: string): Promise<Match[]> {
     this.checkInitialized();
-    return await this.matchRepository.findByUserId(userId);
+    const matches = await this.matchRepository.findByUserId(userId);
+    return matches.map(match => new Match(match));
   }
 
   async deleteMatch(id: string): Promise<void> {
@@ -149,12 +153,14 @@ export class DatabaseService {
 
   async getMessage(id: string): Promise<Message | null> {
     this.checkInitialized();
-    return await this.messageRepository.findById(id);
+    const result = await this.messageRepository.findById(id);
+    return result ? new Message(result) : null;
   }
 
   async getMessages(matchId: string): Promise<Message[]> {
     this.checkInitialized();
-    return await this.messageRepository.findByMatchId(matchId);
+    const messages = await this.messageRepository.findByMatchId(matchId);
+    return messages.map(message => new Message(message));
   }
 
   async deleteMessage(id: string): Promise<void> {
@@ -165,26 +171,29 @@ export class DatabaseService {
   // 通用查询接口 - 向后兼容
   async query<T>(tableName: string, options: any): Promise<T[]> {
     this.checkInitialized();
-    return await this.client.query<T>(tableName, options);
+    const results = await this.client.query(tableName, options);
+    return results as unknown as T[];
   }
 
   async findOne<T>(tableName: string, filter: any): Promise<T | null> {
     this.checkInitialized();
-    const results = await this.client.query<T>(tableName, {
+    const results = await this.client.query(tableName, {
       where: filter,
       limit: 1
     });
-    return results.length > 0 ? results[0] : null;
+    
+    return (results as any)?.length > 0 ? (results as any)[0] as T : null;
   }
 
   async insert<T extends { id: string }>(tableName: string, data: T): Promise<T> {
     this.checkInitialized();
-    return await this.client.create<T>(tableName, data);
+    const result = await this.client.create(tableName, data as any);
+    return result as unknown as T;
   }
 
   async update<T extends { id: string }>(tableName: string, id: string, data: Partial<T>): Promise<void> {
     this.checkInitialized();
-    await this.client.update<T>(tableName, id, data);
+    await this.client.update(tableName, id, data as any);
   }
 
   async delete(tableName: string, id: string): Promise<void> {

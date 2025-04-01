@@ -1,6 +1,9 @@
 import { schemaRegistry, TableSchema } from '../index';
 
-// 匹配表结构定义
+/**
+ * 匹配表结构定义
+ * 定义匹配实体的数据库结构
+ */
 const matchSchema: TableSchema = {
   name: 'matches',
   columns: [
@@ -11,32 +14,15 @@ const matchSchema: TableSchema = {
       notNull: true
     },
     {
-      name: 'user1Id',
+      name: 'users',
+      type: 'json',
+      notNull: true
+    },
+    {
+      name: 'status',
       type: 'string',
       notNull: true,
-      references: {
-        table: 'users',
-        column: 'id'
-      }
-    },
-    {
-      name: 'user2Id',
-      type: 'string',
-      notNull: true,
-      references: {
-        table: 'users',
-        column: 'id'
-      }
-    },
-    {
-      name: 'isMatched',
-      type: 'boolean',
-      notNull: true,
-      defaultValue: false
-    },
-    {
-      name: 'matchedAt',
-      type: 'date'
+      defaultValue: 'pending'
     },
     {
       name: 'createdAt',
@@ -54,12 +40,15 @@ const matchSchema: TableSchema = {
   indexes: [
     {
       name: 'idx_matches_users',
-      columns: ['user1Id', 'user2Id'],
-      unique: true
+      columns: ['users']
     },
     {
       name: 'idx_matches_status',
-      columns: ['isMatched']
+      columns: ['status']
+    },
+    {
+      name: 'idx_matches_created_at',
+      columns: ['createdAt']
     }
   ]
 };

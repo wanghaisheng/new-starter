@@ -24,7 +24,7 @@ import {
   QueryOptions 
 } from './types/database.types';
 import { BaseEntity } from './types/base-entity';
-import { User, Match, Message } from './models';
+import { User, Match, Message } from './types';
 
 // 同步配置接口
 export interface SyncConfig {

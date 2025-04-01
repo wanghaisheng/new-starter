@@ -290,30 +290,145 @@ describe('YourEntityRepository', () => {
 });
 ```
 
-## 6. 常见问题与解决方案
+## 6. Lessons Learned From Consistency Fixes
 
-### 6.1 处理复杂查询
+在数据库一致性修复任务中，我们总结了以下关于仓储模式实现的关键经验教训：
 
-对于复杂查询，可以使用以下策略：
+### 6.1 使用基类方法而非直接访问客户端
 
-1. 使用`query`方法的高级选项
-2. 使用`executeRawQuery`方法执行原始SQL查询
-3. 创建专门的查询构建器类
+- **问题**：部分仓储类直接使用了数据库客户端方法而非通过基类方法，导致抽象层被破坏
+- **解决方案**：统一使用基类提供的方法
+  ```typescript
+  // 错误示例
+  async findByName(name: string): Promise<User[]> {
+    return await this.client.query('users', {
+      where: { name }
+    });
+  }
+  
+  // 正确示例
+  async findByName(name: string): Promise<User[]> {
+    return await this.query({
+      where: { name }
+    });
+  }
+  ```
+- **最佳实践**：
+  - 始终使用基类方法而非直接访问客户端
+  - 使用基类的`query`、`create`、`update`、`delete`等方法
+  - 避免在仓储类中引入对特定数据库客户端实现的依赖
 
-### 6.2 处理关联数据
+### 6.2 一致的错误处理模式
 
-对于关联数据，可以：
+- **问题**：缺少统一的错误处理导致调试困难，异常信息不完整
+- **解决方案**：在所有仓储方法中采用一致的错误处理模式
+  ```typescript
+  async findByName(name: string): Promise<User[]> {
+    try {
+      return await this.query({
+        where: { name }
+      });
+    } catch (error) {
+      throw new DatabaseError(
+        `查找用户名为 ${name} 的用户失败`,
+        'QUERY_ERROR',
+        { name, error }
+      );
+    }
+  }
+  ```
+- **最佳实践**：
+  - 使用专用的`DatabaseError`类封装所有数据库错误
+  - 错误消息应包含操作类型和相关参数信息
+  - 使用try-catch块包装所有数据库操作
+  - 在错误上下文中包含原始错误和操作参数，便于调试
 
-1. 在仓储类中实现专门的方法，如`findUserWithPosts`
-2. 使用事务确保数据一致性
-3. 考虑使用数据加载器（DataLoader）模式优化性能
+### 6.3 事务支持的重要性
 
-### 6.3 性能优化
+- **问题**：批量操作缺乏事务支持，导致数据一致性风险
+- **解决方案**：对需要原子性的批量操作使用事务
+  ```typescript
+  async markMultipleAsRead(messageIds: string[]): Promise<void> {
+    if (messageIds.length === 0) return;
+    
+    try {
+      // 使用事务确保原子性操作
+      await this.transaction(async () => {
+        const updatePromises = messageIds.map(id => this.update(id, { 
+          status: 'read' as const,
+          updatedAt: new Date()
+        }));
+        await Promise.all(updatePromises);
+      });
+    } catch (error) {
+      throw new DatabaseError(
+        `批量标记消息为已读失败`,
+        'UPDATE_ERROR',
+        { messageIds, error }
+      );
+    }
+  }
+  ```
+- **最佳实践**：
+  - 识别需要原子性的操作场景，如批量更新和关联数据修改
+  - 使用仓储基类提供的`transaction`方法
+  - 在事务内处理所有相关操作
+  - 确保事务回滚时有适当的错误处理
 
-- 使用适当的索引
-- 限制查询结果数量
-- 只选择需要的字段
-- 使用批量操作代替多次单独操作
+### 6.4 提高类型安全
+
+- **问题**：类型断言和类型不匹配导致潜在的运行时错误
+- **解决方案**：使用适当的类型参数和类型声明
+  ```typescript
+  // 错误示例 - 使用any类型和不必要的类型断言
+  async createMatch(users: any): Promise<Match> {
+    return await this.create(users as Match);
+  }
+  
+  // 正确示例 - 严格类型定义和必要的类型断言
+  async createMatch(users: [string, string], status: Match['status'] = 'pending'): Promise<Match> {
+    const matchData = {
+      users,
+      status
+    };
+    return await this.create(matchData);
+  }
+  ```
+- **最佳实践**：
+  - 避免使用`any`类型
+  - 为方法参数和返回值提供精确的类型声明
+  - 使用类型参数而非类型断言，必要时使用`as const`断言
+  - 导入并使用`types`目录中定义的类型接口
+
+### 6.5 方法命名规范化
+
+- **问题**：方法命名不一致导致API使用混乱
+- **解决方案**：遵循一致的命名约定
+  ```typescript
+  // 查询方法使用find前缀
+  async findByUserId(userId: string): Promise<Match[]>
+  
+  // 创建方法使用create前缀
+  async createMessage(data: CreateMessageData): Promise<Message>
+  
+  // 更新方法使用update前缀
+  async updateStatus(matchId: string, status: Match['status']): Promise<void>
+  
+  // 特殊操作使用动词开头
+  async markAsRead(messageId: string): Promise<void>
+  
+  // 计数方法使用count或get...Count
+  async getUnreadCount(userId: string): Promise<number>
+  ```
+- **最佳实践**：
+  - 查询方法：使用`find`前缀，如`findById`、`findByName`
+  - 创建方法：使用`create`前缀
+  - 更新方法：使用`update`前缀
+  - 删除方法：使用`delete`前缀
+  - 特殊操作：使用动词开头，如`markAsRead`、`activate`
+  - 在团队内统一并记录命名约定
+
+通过遵循这些经验教训，可以显著提高仓储实现的质量和一致性，减少常见错误，并使代码更易于理解和维护。
 
 ## 7. 多仓储类的集成与管理
 

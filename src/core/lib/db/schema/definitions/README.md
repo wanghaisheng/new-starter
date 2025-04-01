@@ -209,3 +209,190 @@ export default {
 - 遵循命名规范，保持一致性
 - 为所有表结构添加详细注释
 - 在定义完表结构后，确保正确注册到 SchemaRegistry
+
+## 9. Lessons Learned From Consistency Fixes
+
+在数据库一致性修复任务中，我们总结了以下关于表结构定义的关键经验教训：
+
+### 9.1 确保与模型实现一致性
+
+- **问题**：表结构定义与模型实现不一致导致数据映射错误
+- **解决方案**：同时更新表结构和模型实现
+  ```typescript
+  // 模型类
+  export class Message implements MessageType, BaseEntity {
+    // ...
+    type: 'text' | 'image'; // 模型使用type字段
+    // ...
+  }
+  
+  // 表结构定义
+  const messageSchema: TableSchema = {
+    name: 'messages',
+    columns: [
+      // ...
+      {
+        name: 'type', // 确保与模型字段名称一致
+        type: 'string',
+        notNull: true,
+        defaultValue: 'text'
+      },
+      // ...
+    ]
+    // ...
+  };
+  ```
+- **最佳实践**：
+  - 同步维护表结构定义和模型实现
+  - 确保字段名称、类型和约束保持一致
+  - 使用工具函数验证表结构和模型的一致性
+  - 在添加新字段时首先修改表结构定义
+
+### 9.2 完善的索引定义
+
+- **问题**：缺少适当的索引导致查询性能差
+- **解决方案**：为常用查询条件添加索引
+  ```typescript
+  const userSchema: TableSchema = {
+    name: 'users',
+    // ...
+    indexes: [
+      {
+        name: 'idx_users_email',
+        columns: ['email'],
+        unique: true
+      },
+      {
+        name: 'idx_users_last_active',
+        columns: ['lastActive']
+      },
+      {
+        name: 'idx_users_location',
+        columns: ['location']
+      }
+    ]
+  };
+  ```
+- **最佳实践**：
+  - 为所有外键添加索引（如`userId`、`matchId`）
+  - 为经常用于过滤或排序的字段添加索引（如`status`、`createdAt`）
+  - 为唯一性约束的字段添加唯一索引（如`email`、`phone`）
+  - 为全文搜索字段添加特殊索引（如`name`、`bio`）
+  - 避免过度索引，权衡索引带来的查询性能提升和写入性能影响
+
+### 9.3 适当的约束定义
+
+- **问题**：缺少适当的约束导致数据完整性问题
+- **解决方案**：定义必要的数据约束
+  ```typescript
+  const matchSchema: TableSchema = {
+    name: 'matches',
+    columns: [
+      // ...
+      {
+        name: 'status',
+        type: 'string',
+        notNull: true,
+        defaultValue: 'pending',
+        check: "status IN ('pending', 'matched', 'rejected')" 
+      },
+      // ...
+    ]
+  };
+  ```
+- **最佳实践**：
+  - 使用`notNull`约束确保必填字段不为空
+  - 使用`defaultValue`提供合理的默认值
+  - 使用`check`约束验证枚举值的有效性
+  - 使用`references`定义外键关系
+  - 使用唯一索引定义唯一性约束
+
+### 9.4 JSON字段的处理
+
+- **问题**：JSON字段处理不当导致数据访问和查询困难
+- **解决方案**：正确定义和使用JSON字段
+  ```typescript
+  const userSchema: TableSchema = {
+    name: 'users',
+    columns: [
+      // ...
+      {
+        name: 'preferences',
+        type: 'json',
+        notNull: true,
+        defaultValue: '{}' // 提供有效的默认JSON
+      },
+      // ...
+    ]
+  };
+  ```
+- **最佳实践**：
+  - 为JSON字段提供有效的默认值（通常是空对象或数组）
+  - 在模型层处理JSON序列化和反序列化
+  - 为经常查询的JSON属性创建计算列或单独的实体表
+  - 注意不同数据库对JSON字段查询的支持差异
+  - 适当使用JSON模式验证确保数据一致性
+
+### 9.5 关系定义的重要性
+
+- **问题**：缺少明确的关系定义导致数据完整性和查询问题
+- **解决方案**：使用`references`属性定义关系
+  ```typescript
+  const messageSchema: TableSchema = {
+    name: 'messages',
+    columns: [
+      // ...
+      {
+        name: 'matchId',
+        type: 'string',
+        notNull: true,
+        references: {
+          table: 'matches',
+          column: 'id',
+          onDelete: 'CASCADE'
+        }
+      },
+      // ...
+    ]
+  };
+  ```
+- **最佳实践**：
+  - 为所有外键定义`references`属性
+  - 明确指定引用的表和列
+  - 根据业务需求选择适当的`onDelete`和`onUpdate`行为
+  - 为多对多关系创建关联表
+  - 在模型和仓储层实现关系查询方法
+
+### 9.6 统一的表命名和字段命名
+
+- **问题**：不一致的表名和字段命名导致使用混乱
+- **解决方案**：制定并遵循命名约定
+  ```typescript
+  // 表名使用小写复数形式
+  const usersSchema: TableSchema = {
+    name: 'users', // 正确：复数形式
+    // ...
+  };
+  
+  // 字段名使用驼峰命名法
+  const userSchema: TableSchema = {
+    // ...
+    columns: [
+      // ...
+      {
+        name: 'lastActive', // 正确：驼峰命名法
+        type: 'date',
+        // ...
+      },
+      // ...
+    ]
+  };
+  ```
+- **最佳实践**：
+  - 表名使用小写复数形式（如`users`、`matches`）
+  - 字段名使用驼峰命名法（如`firstName`、`lastActive`）
+  - 外键名使用关联表的单数形式加上`Id`（如`userId`）
+  - 索引名使用`idx_表名_字段名`格式（如`idx_users_email`）
+  - 在整个项目中保持命名一致性
+
+遵循这些经验教训，可以建立结构清晰、一致和高性能的数据库表结构，为应用程序提供稳固的数据基础。

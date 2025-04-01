@@ -13,6 +13,9 @@ export interface INetworkService {
   addNetworkStatusListener(listener: (status: NetworkStatus) => void): string;
   removeNetworkStatusListener(listenerId: string): void;
   setOfflineMode(offline: boolean): void;
+  onConnect(callback: () => void): string;
+  onDisconnect(callback: () => void): string;
+  removeCallback(callbackId: string): void;
 }
 
 /**
@@ -23,6 +26,8 @@ export class NetworkService implements INetworkService {
   private static instance: NetworkService;
   private networkStatus: NetworkStatus = { connected: false, connectionType: 'none' };
   private networkListeners: Map<string, (status: NetworkStatus) => void> = new Map();
+  private connectCallbacks: Map<string, () => void> = new Map();
+  private disconnectCallbacks: Map<string, () => void> = new Map();
   private initialized: boolean = false;
   private forceOfflineMode: boolean = false;
 
@@ -153,6 +158,60 @@ export class NetworkService implements INetworkService {
   }
 
   /**
+   * 注册当网络连接建立时的回调函数
+   * @param callback 连接建立时的回调函数
+   * @returns 回调ID
+   */
+  public onConnect(callback: () => void): string {
+    const callbackId = `connect_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.connectCallbacks.set(callbackId, callback);
+    
+    // 如果当前已经连接，立即执行回调
+    if (this.isOnline()) {
+      try {
+        callback();
+      } catch (error) {
+        console.error('Error in connect callback:', error);
+      }
+    }
+    
+    return callbackId;
+  }
+
+  /**
+   * 注册当网络连接断开时的回调函数
+   * @param callback 连接断开时的回调函数
+   * @returns 回调ID
+   */
+  public onDisconnect(callback: () => void): string {
+    const callbackId = `disconnect_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.disconnectCallbacks.set(callbackId, callback);
+    
+    // 如果当前离线，立即执行回调
+    if (!this.isOnline()) {
+      try {
+        callback();
+      } catch (error) {
+        console.error('Error in disconnect callback:', error);
+      }
+    }
+    
+    return callbackId;
+  }
+
+  /**
+   * 移除连接或断开连接回调
+   * @param callbackId 回调ID
+   */
+  public removeCallback(callbackId: string): void {
+    if (callbackId.startsWith('connect_')) {
+      this.connectCallbacks.delete(callbackId);
+    } else if (callbackId.startsWith('disconnect_')) {
+      this.disconnectCallbacks.delete(callbackId);
+    }
+  }
+
+  /**
    * 更新网络状态并通知监听器
    * @param status 新的网络状态
    */
@@ -163,6 +222,13 @@ export class NetworkService implements INetworkService {
     // 如果连接状态改变，记录到控制台
     if (previouslyConnected !== status.connected) {
       console.log(`Network is now ${status.connected ? 'online' : 'offline'}`);
+      
+      // 调用适当的连接回调
+      if (status.connected) {
+        this.notifyConnectCallbacks();
+      } else {
+        this.notifyDisconnectCallbacks();
+      }
     }
     
     // 通知所有监听器
@@ -179,6 +245,32 @@ export class NetworkService implements INetworkService {
         listener(status);
       } catch (error) {
         console.error('Error in network status listener:', error);
+      }
+    });
+  }
+
+  /**
+   * 通知所有连接回调
+   */
+  private notifyConnectCallbacks(): void {
+    this.connectCallbacks.forEach(callback => {
+      try {
+        callback();
+      } catch (error) {
+        console.error('Error in connect callback:', error);
+      }
+    });
+  }
+
+  /**
+   * 通知所有断开连接回调
+   */
+  private notifyDisconnectCallbacks(): void {
+    this.disconnectCallbacks.forEach(callback => {
+      try {
+        callback();
+      } catch (error) {
+        console.error('Error in disconnect callback:', error);
       }
     });
   }

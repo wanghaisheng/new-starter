@@ -4,7 +4,7 @@
  */
 import { TableSchema, ColumnType } from './types';
 import { SyncPriority, ConflictResolution } from '../types/sync-flags';
-import { schemaRegistry } from './index';
+import { SchemaRegistry } from './schema-registry';
 
 /**
  * 离线笔记表
@@ -94,12 +94,15 @@ export const offlineSchemas: TableSchema[] = [
 
 /**
  * 向模式注册表注册所有离线表
+ * 注意：此函数设计为在index.ts中调用，不在此文件中自动执行
+ * 这样避免循环依赖问题
  */
 export function registerOfflineSchemas(): void {
+  const registry = SchemaRegistry.getInstance();
   for (const schema of offlineSchemas) {
-    schemaRegistry.register(schema);
+    registry.register(schema);
   }
 }
 
-// 自动注册所有离线表
-registerOfflineSchemas(); 
+// 不要在这里自动调用注册函数
+// 注册将在index.ts中的初始化过程中处理 

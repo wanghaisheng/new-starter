@@ -84,7 +84,8 @@ src/core/lib/db/
 ├── clients/          # 数据库客户端实现
 │   ├── capacitor-sqlite/  # 移动端SQLite
 │   ├── indexeddb/        # Web端IndexedDB
-│   ├── mock/            # Mock环境实现
+│   │   └── fake-indexeddb.ts  # 模拟IndexedDB的客户端离线存储
+│   ├── mock/            # Mock环境实现（模拟远程数据存储）
 │   └── base-client.ts   # 基础客户端抽象
 ├── repositories/     # 数据访问层
 ├── schema/          # 数据模型定义
@@ -93,9 +94,17 @@ src/core/lib/db/
 ```
 
 存储策略：
-- **开发阶段(Mock)**: 使用内存存储，预设测试数据
-- **本地阶段(Local)**: Web使用IndexedDB，移动端使用SQLite
-- **生产阶段(Production)**: 混合存储（本地+云端）
+- **开发阶段(Mock)**:
+  - **远程数据存储模拟**: 使用 MockDatabaseClient (内存/JSON模式)，模拟服务器端数据
+  - **客户端离线存储模拟**: 使用 MockIndexedDBClient (fake-indexeddb)，模拟浏览器的本地存储
+  - 这种双层模拟策略与实际生产环境的架构一致，便于测试在线/离线场景
+- **本地阶段(Local)**:
+  - **Web离线存储**: 使用IndexedDB
+  - **测试环境**: 使用fake-indexeddb模拟客户端离线存储
+  - **移动端存储**: 使用SQLite
+- **生产阶段(Production)**:
+  - **远程存储**: Firebase/Supabase等云端服务
+  - **本地离线缓存**: IndexedDB(Web)或SQLite(移动端)
 
 同步策略：
 - **在线优先**: 用户注册、个人资料更新
@@ -146,23 +155,42 @@ UI组件层 (Components)
 
 ### 数据与服务开发
 
-- [数据库开发工作流程](./guides/database-development-workflow-updated.md) - 从Mock数据到本地数据库再到生产环境数据库的渐进式开发流程
-- [数据库开发工作流程(续)](./guides/database-development-workflow-updated-part2.md) - 数据库开发工作流程的后续内容
-- [数据库模式设计](./guides/database-schema-design.md) - 数据库模式设计指南
-- [数据库故障排除](./guides/database-troubleshooting.md) - 常见数据库问题的故障排除
-- [添加新数据表](./guides/add-new-table.md) - 如何定义和集成新数据表
+1. **数据库开发**：
+   - 项目采用分层存储架构：
+     - **远程数据层**：使用服务器/云端存储（生产环境）或 MockDatabaseClient（开发环境）
+     - **本地离线存储层**：使用 IndexedDB/SQLite（生产环境）或 MockIndexedDBClient（开发环境）
+   - 从模拟(Mock)数据开始，逐步过渡到本地数据库，最后到生产环境
+   - 确保同时测试在线和离线场景，验证数据同步机制
+   - 遵循[数据库开发工作流程](./guides/database-development-workflow-updated.md)
+   - 添加新数据表时，参考[添加新数据表](./guides/add-new-table.md)
+   - 定义模式时确保包含合适的同步配置
 
-添加新数据表步骤：
-1. 定义表结构（schema/definitions/）
-2. 创建数据模型接口（types/）
-3. 实现仓库类（repositories/）
-4. 配置同步选项
+2. **服务层开发**：
+   - 使用单例模式和工厂模式
+   - 实现离线支持和网络状态响应
+   - 所有UI组件都应通过服务访问数据，而非直接访问数据库
+   - 服务应抽象存储层细节，处理远程数据和本地缓存之间的转换和同步
+   - 遵循[最佳实践](./guides/best-practices.md)中的服务层开发部分
 
-添加新服务步骤：
-1. 创建服务接口
-2. 实现服务类，遵循单例模式
-3. 集成数据服务
-4. 注册到AppService（如需要）
+3. **环境配置**：
+   - 开发环境：
+     ```
+     # 基本配置
+     NEXT_PUBLIC_DATABASE_ENV=mock
+     
+     # 高级配置（启用双存储模拟）
+     NEXT_PUBLIC_MOCK_DB_TYPE=hybrid    # 或 'memory'/'json'/'mock-indexeddb'
+     NEXT_PUBLIC_USE_FAKE_INDEXEDDB=true
+     ```
+   - 本地数据库测试：`NEXT_PUBLIC_DATABASE_ENV=local`
+   - 生产环境测试：`NEXT_PUBLIC_DATABASE_ENV=production`
+
+4. **测试与调试**：
+   - 测试离线场景：关闭网络连接并验证功能
+   - 测试同步机制：模拟网络中断后恢复，观察数据如何在两个存储层之间同步
+   - 使用 `DataServiceFactory.setUseMockData(true)` 强制使用模拟数据
+   - 检查 `localStorage` 和 `IndexedDB` 中的数据（Web环境）
+   - 监控同步操作和网络请求
 
 ### 编码指南
 
@@ -243,6 +271,22 @@ UI组件层 (Components)
 **Q: 如何在本地模式和生产模式之间切换?**  
 A: 修改环境变量 `NEXT_PUBLIC_DATABASE_ENV` 为 `mock`, `local` 或 `production`。详见[数据库环境配置](./guides/database-development-workflow-updated.md#环境配置)。
 
+**Q: 我应该使用哪种Mock客户端来模拟数据?**  
+A: 项目采用双存储模拟策略：
+- 使用 `MockDatabaseClient`（内存/JSON模式）模拟**远程服务器数据存储**
+- 使用 `MockIndexedDBClient`（fake-indexeddb）模拟**客户端本地离线存储**
+这种策略反映了实际生产环境中的分层存储架构。
+
+**Q: 如何在测试中同时使用这两种Mock存储?**  
+A: 通过配置环境变量：
+```bash
+# Mock环境下同时使用两种存储
+NEXT_PUBLIC_DATABASE_ENV=mock
+NEXT_PUBLIC_MOCK_DB_TYPE=hybrid
+NEXT_PUBLIC_USE_FAKE_INDEXEDDB=true
+```
+这会启用 `MockDatabaseClient` 作为主存储并使用 `MockIndexedDBClient` 作为离线缓存。
+
 **Q: 移动端构建失败，如何解决?**  
 A: 检查 Capacitor 配置和原生依赖，确保已运行 `npx cap sync`。查看[移动端故障排除](./guides/database-troubleshooting.md#移动平台问题)。
 
@@ -310,7 +354,11 @@ A: Web 端可使用浏览器的 IndexedDB 调试工具，移动端可启用数�
 ### 数据与服务开发指南
 
 1. **数据库开发**：
+   - 项目采用分层存储架构：
+     - **远程数据层**：使用服务器/云端存储（生产环境）或 MockDatabaseClient（开发环境）
+     - **本地离线存储层**：使用 IndexedDB/SQLite（生产环境）或 MockIndexedDBClient（开发环境）
    - 从模拟(Mock)数据开始，逐步过渡到本地数据库，最后到生产环境
+   - 确保同时测试在线和离线场景，验证数据同步机制
    - 遵循[数据库开发工作流程](./guides/database-development-workflow-updated.md)
    - 添加新数据表时，参考[添加新数据表](./guides/add-new-table.md)
    - 定义模式时确保包含合适的同步配置
@@ -319,17 +367,27 @@ A: Web 端可使用浏览器的 IndexedDB 调试工具，移动端可启用数�
    - 使用单例模式和工厂模式
    - 实现离线支持和网络状态响应
    - 所有UI组件都应通过服务访问数据，而非直接访问数据库
+   - 服务应抽象存储层细节，处理远程数据和本地缓存之间的转换和同步
    - 遵循[最佳实践](./guides/best-practices.md)中的服务层开发部分
 
 3. **环境配置**：
-   - 开发环境：`NEXT_PUBLIC_DATABASE_ENV=mock`
+   - 开发环境：
+     ```
+     # 基本配置
+     NEXT_PUBLIC_DATABASE_ENV=mock
+     
+     # 高级配置（启用双存储模拟）
+     NEXT_PUBLIC_MOCK_DB_TYPE=hybrid    # 或 'memory'/'json'/'mock-indexeddb'
+     NEXT_PUBLIC_USE_FAKE_INDEXEDDB=true
+     ```
    - 本地数据库测试：`NEXT_PUBLIC_DATABASE_ENV=local`
    - 生产环境测试：`NEXT_PUBLIC_DATABASE_ENV=production`
 
 4. **测试与调试**：
    - 测试离线场景：关闭网络连接并验证功能
+   - 测试同步机制：模拟网络中断后恢复，观察数据如何在两个存储层之间同步
    - 使用 `DataServiceFactory.setUseMockData(true)` 强制使用模拟数据
-   - 检查 `localStorage` 中的数据（Web环境）
+   - 检查 `localStorage` 和 `IndexedDB` 中的数据（Web环境）
    - 监控同步操作和网络请求
 
 ### 自动化脚本使用

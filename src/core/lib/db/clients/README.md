@@ -82,9 +82,26 @@
 
 详情请参阅 [Mock客户端文档](./mock/README.md)
 
+### MockIndexedDBClient
+
+基于 fake-indexedDB 的模拟 IndexedDB 客户端，特别适用于测试环境：
+
+- 继承自 IndexedDBClient，提供兼容的 API
+- 使用 fake-indexedDB 库模拟浏览器的本地离线存储 IndexedDB API
+- 专门用于模拟客户端的本地离线存储层，而非远程数据存储
+- 自动设置测试环境，便于单元测试和集成测试
+- 提供数据重置和清理的辅助方法
+
+详情请参阅 [Mock客户端文档](./mock/README.md)
+
 ### IndexedDBClient
 
-基于浏览器 IndexedDB API 的客户端，适用于前端应用存储。
+基于浏览器 IndexedDB API 的客户端，适用于前端应用的本地离线存储：
+
+- 使用浏览器原生 IndexedDB API 
+- 支持索引和复杂查询
+- 适用于大量数据的客户端本地离线存储
+- 提供缓存优化，提高性能
 
 ### SQLiteClient
 
@@ -92,7 +109,12 @@
 
 ### FirebaseClient
 
-基于 Firebase Firestore 的客户端，适用于云数据存储和实时数据同步。
+基于 Firebase Firestore 的客户端，适用于云数据存储和实时数据同步：
+
+- 支持实时数据更新和监听
+- 集成离线持久化功能
+- 包含认证和安全规则集成
+- 支持云端数据同步
 
 ### CapacitorSQLiteClient
 
@@ -210,17 +232,17 @@ main().catch(console.error);
 
 ## 测试和开发环境
 
-对于测试和开发环境，可以使用MockDatabaseClient的不同模式：
+对于测试和开发环境，可以使用不同的模拟客户端：
 
 ```typescript
-// 内存模式（适用于单元测试）
+// 内存模式（适用于单元测试，模拟远程数据存储）
 const memoryDb = new MockDatabaseClient({
   name: 'test-db',
   version: 1,
   mockMode: 'memory'
 });
 
-// JSON文件模式（适用于集成测试和开发环境）
+// JSON文件模式（适用于集成测试和开发环境，模拟远程数据存储）
 const jsonDb = new MockDatabaseClient({
   name: 'test-db',
   version: 1,
@@ -228,6 +250,18 @@ const jsonDb = new MockDatabaseClient({
   jsonFilePath: './data/test-db.json',
   autoSave: true
 });
+
+// Mock IndexedDB（适用于模拟客户端本地离线存储的测试）
+const mockIndexedDb = new MockIndexedDBClient({
+  name: 'test-indexeddb',
+  version: 1
+});
+
+// 使用 mock IndexedDB 进行测试
+await mockIndexedDb.initialize();
+await mockIndexedDb.createUser({ /* 用户数据 */ });
+// 测试后重置
+await mockIndexedDb.reset();
 ```
 
 ## 扩展和定制

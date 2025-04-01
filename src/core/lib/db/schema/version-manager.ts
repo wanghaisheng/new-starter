@@ -1,4 +1,4 @@
-import { DatabaseError } from '../types';
+import { DatabaseError } from '@/core/lib/db/errors/database-error';
 import { databaseVersions, getLatestVersion, getUpgradeStatements, validateVersion } from './versions';
 
 export class VersionManager {

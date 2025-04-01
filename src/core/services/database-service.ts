@@ -42,9 +42,9 @@ interface DeletedEntity extends BaseEntity {
 export class DatabaseService implements IDataService {
   private static instance: DatabaseService;
   private coreService: CoreDatabaseService;
-  private userRepository: UserRepository;
-  private matchRepository: MatchRepository;
-  private messageRepository: MessageRepository;
+  private userRepository: UserRepository | null = null;
+  private matchRepository: MatchRepository | null = null;
+  private messageRepository: MessageRepository | null = null;
   private syncManager: SyncManager | null = null;
   private networkService: NetworkService;
   private config: EnvironmentConfig;
@@ -57,11 +57,6 @@ export class DatabaseService implements IDataService {
     // 获取核心数据库服务实例
     this.coreService = CoreDatabaseService.getInstance();
     
-    // 获取仓储实例
-    this.userRepository = this.coreService.getUserRepository();
-    this.matchRepository = this.coreService.getMatchRepository();
-    this.messageRepository = this.coreService.getMessageRepository();
-    
     // 获取网络服务实例
     this.networkService = NetworkService.getInstance();
     
@@ -69,6 +64,9 @@ export class DatabaseService implements IDataService {
     if (this.config.enableDebugLogs) {
       console.log('DatabaseService 初始化，环境配置:', this.config);
     }
+    
+    // 注意：不再在构造函数中获取仓储实例
+    // 仓储实例将在初始化后或首次使用时获取
   }
 
   /**
@@ -82,7 +80,7 @@ export class DatabaseService implements IDataService {
     
     // 基础配置
     const baseConfig: EnvironmentConfig = {
-      enableSync: true,
+      enableSync: dbEnv !== 'mock', // 在mock环境下禁用同步
       syncIntervalMs: 60000, // 默认1分钟
       autoSyncOnConnect: true,
       syncEntityTypes: ['users', 'matches', 'messages'],
@@ -95,7 +93,7 @@ export class DatabaseService implements IDataService {
       case 'production':
         return {
           ...baseConfig,
-          enableSync: true,
+          enableSync: dbEnv !== 'mock' && true,
           syncIntervalMs: 300000, // 生产环境下5分钟同步一次，减少服务器负载
           enableDebugLogs: false,
           dbClientType: dbEnv === 'production' ? 
@@ -143,22 +141,38 @@ export class DatabaseService implements IDataService {
       // 初始化核心数据库服务
       await this.coreService.initialize();
       
+      // 初始化仓储实例 - 在核心服务初始化后才获取
+      this.userRepository = this.coreService.getUserRepository();
+      this.matchRepository = this.coreService.getMatchRepository();
+      this.messageRepository = this.coreService.getMessageRepository();
+      
       // 根据配置初始化同步管理器
       if (this.config.enableSync) {
-        this.syncManager = new SyncManager({
-          client: this.coreService as any, // Type casting to avoid interface mismatch
-          networkManager: this.networkService as any, // Cast to match expected interface
-          entityTypes: this.config.syncEntityTypes,
-          autoSyncOnConnect: this.config.autoSyncOnConnect,
-          syncIntervalMs: this.config.syncIntervalMs,
-        });
+        const dbEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
         
-        if (this.config.enableDebugLogs) {
-          console.log('同步管理器初始化完成，配置:', {
-            autoSyncOnConnect: this.config.autoSyncOnConnect,
-            syncIntervalMs: this.config.syncIntervalMs,
-            entityTypes: this.config.syncEntityTypes
-          });
+        // 确保在mock环境下不创建SyncManager
+        if (dbEnv !== 'mock') {
+          try {
+            this.syncManager = new SyncManager({
+              client: this.coreService as any, // Type casting to avoid interface mismatch
+              networkManager: this.networkService as any, // Cast to match expected interface
+              entityTypes: this.config.syncEntityTypes,
+              autoSyncOnConnect: this.config.autoSyncOnConnect,
+              syncIntervalMs: this.config.syncIntervalMs,
+            });
+            
+            if (this.config.enableDebugLogs) {
+              console.log('同步管理器初始化完成，配置:', {
+                autoSyncOnConnect: this.config.autoSyncOnConnect,
+                syncIntervalMs: this.config.syncIntervalMs,
+                entityTypes: this.config.syncEntityTypes
+              });
+            }
+          } catch (error) {
+            console.warn('初始化同步管理器失败，将以离线模式运行:', error);
+          }
+        } else {
+          console.log('Mock环境下跳过创建同步管理器');
         }
       } else if (this.config.enableDebugLogs) {
         console.log('同步功能已禁用，跳过同步管理器初始化');
@@ -230,17 +244,28 @@ export class DatabaseService implements IDataService {
     this.config.enableSync = enable;
     
     if (enable && !this.syncManager) {
-      // 创建同步管理器
-      this.syncManager = new SyncManager({
-        client: this.coreService as any,
-        networkManager: this.networkService as any, // Cast to match expected interface
-        entityTypes: this.config.syncEntityTypes,
-        autoSyncOnConnect: this.config.autoSyncOnConnect,
-        syncIntervalMs: this.config.syncIntervalMs,
-      });
+      // 检查是否是mock环境
+      const dbEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+      if (dbEnv === 'mock') {
+        console.log('Mock环境下不能启用同步功能');
+        return;
+      }
       
-      if (this.config.enableDebugLogs) {
-        console.log('同步功能已启用');
+      // 创建同步管理器
+      try {
+        this.syncManager = new SyncManager({
+          client: this.coreService as any,
+          networkManager: this.networkService as any, // Cast to match expected interface
+          entityTypes: this.config.syncEntityTypes,
+          autoSyncOnConnect: this.config.autoSyncOnConnect,
+          syncIntervalMs: this.config.syncIntervalMs,
+        });
+        
+        if (this.config.enableDebugLogs) {
+          console.log('同步功能已启用');
+        }
+      } catch (error) {
+        console.warn('启用同步功能失败:', error);
       }
     } else if (!enable && this.syncManager) {
       // 销毁同步管理器
@@ -344,7 +369,7 @@ export class DatabaseService implements IDataService {
    */
   public async getUser(userId: string): Promise<User> {
     this.checkInitialized();
-    const user = await this.userRepository.findById(userId);
+    const user = await this.getUserRepository().findById(userId);
     if (!user) {
       throw new Error(`User with ID ${userId} not found`);
     }
@@ -356,7 +381,7 @@ export class DatabaseService implements IDataService {
    */
   public async getUsers(): Promise<User[]> {
     this.checkInitialized();
-    return this.userRepository.findAll();
+    return this.getUserRepository().findAll();
   }
 
   /**
@@ -365,7 +390,7 @@ export class DatabaseService implements IDataService {
    */
   public async createUser(user: User): Promise<User> {
     this.checkInitialized();
-    const createdUser = await this.userRepository.create(user);
+    const createdUser = await this.getUserRepository().create(user);
     
     // 标记为需要同步（如果同步已启用且不是离线专用表）
     if (this.syncManager && this.config.enableSync) {
@@ -382,10 +407,10 @@ export class DatabaseService implements IDataService {
    */
   public async updateUser(id: string, data: Partial<User>): Promise<User> {
     this.checkInitialized();
-    await this.userRepository.update(id, data);
+    await this.getUserRepository().update(id, data);
     
     // 获取更新后的用户
-    const updatedUser = await this.userRepository.findById(id);
+    const updatedUser = await this.getUserRepository().findById(id);
     if (!updatedUser) {
       throw new Error(`用户 ${id} 不存在或更新失败`);
     }
@@ -404,7 +429,7 @@ export class DatabaseService implements IDataService {
    */
   public async deleteUser(id: string): Promise<void> {
     this.checkInitialized();
-    await this.userRepository.delete(id);
+    await this.getUserRepository().delete(id);
     
     // 使用我们的自定义方法标记用户为已删除状态
     await this.markEntityForDeletion(id, 'users');
@@ -417,7 +442,7 @@ export class DatabaseService implements IDataService {
    */
   public async getMatch(matchId: string): Promise<Match> {
     this.checkInitialized();
-    const match = await this.matchRepository.findById(matchId);
+    const match = await this.getMatchRepository().findById(matchId);
     if (!match) {
       throw new Error(`Match with ID ${matchId} not found`);
     }
@@ -431,9 +456,9 @@ export class DatabaseService implements IDataService {
   public async getMatches(userId?: string): Promise<Match[]> {
     this.checkInitialized();
     if (userId) {
-      return this.matchRepository.findByUserId(userId);
+      return this.getMatchRepository().findByUserId(userId);
     }
-    return this.matchRepository.findAll();
+    return this.getMatchRepository().findAll();
   }
 
   /**
@@ -442,7 +467,7 @@ export class DatabaseService implements IDataService {
    */
   public async createMatch(match: Match): Promise<Match> {
     this.checkInitialized();
-    const createdMatch = await this.matchRepository.create(match);
+    const createdMatch = await this.getMatchRepository().create(match);
     
     // 标记为需要同步（如果同步已启用且不是离线专用表）
     if (this.syncManager && this.config.enableSync) {
@@ -459,10 +484,10 @@ export class DatabaseService implements IDataService {
    */
   public async updateMatch(id: string, data: Partial<Match>): Promise<Match> {
     this.checkInitialized();
-    await this.matchRepository.update(id, data);
+    await this.getMatchRepository().update(id, data);
     
     // 获取更新后的匹配
-    const updatedMatch = await this.matchRepository.findById(id);
+    const updatedMatch = await this.getMatchRepository().findById(id);
     if (!updatedMatch) {
       throw new Error(`匹配 ${id} 不存在或更新失败`);
     }
@@ -481,7 +506,7 @@ export class DatabaseService implements IDataService {
    */
   public async deleteMatch(id: string): Promise<void> {
     this.checkInitialized();
-    await this.matchRepository.delete(id);
+    await this.getMatchRepository().delete(id);
     
     // 使用我们的自定义方法标记匹配为已删除状态
     await this.markEntityForDeletion(id, 'matches');
@@ -494,7 +519,7 @@ export class DatabaseService implements IDataService {
    */
   public async getMessage(messageId: string): Promise<Message> {
     this.checkInitialized();
-    const message = await this.messageRepository.findById(messageId);
+    const message = await this.getMessageRepository().findById(messageId);
     if (!message) {
       throw new Error(`Message with ID ${messageId} not found`);
     }
@@ -508,9 +533,9 @@ export class DatabaseService implements IDataService {
   public async getMessages(matchId?: string): Promise<Message[]> {
     this.checkInitialized();
     if (matchId) {
-      return this.messageRepository.findByMatchId(matchId);
+      return this.getMessageRepository().findByMatchId(matchId);
     }
-    return this.messageRepository.findAll();
+    return this.getMessageRepository().findAll();
   }
 
   /**
@@ -519,7 +544,7 @@ export class DatabaseService implements IDataService {
    */
   public async getUnreadMessages(userId: string): Promise<Message[]> {
     this.checkInitialized();
-    const allMessages = await this.messageRepository.findAll();
+    const allMessages = await this.getMessageRepository().findAll();
     return allMessages.filter(msg => 
       msg.receiverId === userId && msg.status !== 'read'
     );
@@ -531,7 +556,7 @@ export class DatabaseService implements IDataService {
    */
   public async createMessage(message: Message): Promise<Message> {
     this.checkInitialized();
-    const createdMessage = await this.messageRepository.create(message);
+    const createdMessage = await this.getMessageRepository().create(message);
     
     // 标记为需要同步（如果同步已启用且不是离线专用表）
     if (this.syncManager && this.config.enableSync) {
@@ -548,10 +573,10 @@ export class DatabaseService implements IDataService {
    */
   public async updateMessage(id: string, data: Partial<Message>): Promise<Message> {
     this.checkInitialized();
-    await this.messageRepository.update(id, data);
+    await this.getMessageRepository().update(id, data);
     
     // 获取更新后的消息
-    const updatedMessage = await this.messageRepository.findById(id);
+    const updatedMessage = await this.getMessageRepository().findById(id);
     if (!updatedMessage) {
       throw new Error(`消息 ${id} 不存在或更新失败`);
     }
@@ -570,7 +595,7 @@ export class DatabaseService implements IDataService {
    */
   public async deleteMessage(id: string): Promise<void> {
     this.checkInitialized();
-    await this.messageRepository.delete(id);
+    await this.getMessageRepository().delete(id);
     
     // 使用我们的自定义方法标记消息为已删除状态
     await this.markEntityForDeletion(id, 'messages');
@@ -716,7 +741,40 @@ export class DatabaseService implements IDataService {
    */
   private checkInitialized(): void {
     if (!this._isInitialized) {
-      throw new Error('DatabaseService has not been initialized. Call initialize() first.');
+      throw new Error('数据库服务未初始化');
     }
+  }
+
+  /**
+   * 获取用户仓储
+   */
+  private getUserRepository(): UserRepository {
+    this.checkInitialized();
+    if (!this.userRepository) {
+      this.userRepository = this.coreService.getUserRepository();
+    }
+    return this.userRepository;
+  }
+
+  /**
+   * 获取匹配仓储
+   */
+  private getMatchRepository(): MatchRepository {
+    this.checkInitialized();
+    if (!this.matchRepository) {
+      this.matchRepository = this.coreService.getMatchRepository();
+    }
+    return this.matchRepository;
+  }
+
+  /**
+   * 获取消息仓储
+   */
+  private getMessageRepository(): MessageRepository {
+    this.checkInitialized();
+    if (!this.messageRepository) {
+      this.messageRepository = this.coreService.getMessageRepository();
+    }
+    return this.messageRepository;
   }
 }

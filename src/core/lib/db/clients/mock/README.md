@@ -2,6 +2,25 @@
 
 `MockDatabaseClient` 是一个用于测试和开发环境的模拟数据库客户端实现。它提供了与真实数据库相同的接口，但使用内存或JSON文件作为数据存储。这使得开发者可以在不依赖真实数据库的情况下进行开发和测试。
 
+## 相关实现
+
+除了 `MockDatabaseClient` 外，系统还提供了 `MockIndexedDBClient`，一个专门用于测试和开发环境的基于 fake-indexedDB 的模拟实现，它具有以下特点：
+
+- 继承自 `IndexedDBClient`，提供与真实 IndexedDB 相同的 API
+- 使用 fake-indexedDB 模拟浏览器的 IndexedDB API
+- 自动设置测试环境，无需额外配置
+- 提供重置和清空测试数据的便捷方法
+- 适用于单元测试和集成测试环境
+
+## 架构设计说明
+
+在本系统中，我们采用了双重存储模拟策略：
+
+- **MockDatabaseClient（内存/JSON模式）**：用于模拟远程数据存储（如服务器端数据库、云数据库）
+- **MockIndexedDBClient（fake-indexeddb）**：用于模拟客户端的离线存储（如浏览器的 IndexedDB）
+
+这种设计与真实应用架构一致，其中远程服务器存储主数据，而客户端维护本地离线缓存。
+
 ## 特点
 
 - 实现了 `IDatabaseClient` 接口的所有方法
@@ -273,35 +292,74 @@ console.log('同步失败的任务:', failedTasks.data);
 
 ## 离线存储方案选择指南
 
-本项目提供了两种不同的离线存储模拟方案，可以根据需求选择适合的方案：
+本项目提供了两种不同的离线存储模拟方案，对应真实应用中的不同存储层：
 
 ### 1. MockDatabaseClient (内存/JSON模式)
 
 **适用场景**:
-- 原型开发和快速迭代
-- 前后端分离开发，前端团队可独立工作
-- 需要轻松查看和编辑数据文件
-- 不需要测试 IndexedDB 特定功能
+- 模拟远程服务器/云数据库
+- 需要在开发环境模拟服务器API响应
+- 需要轻松查看和编辑模拟的服务器数据
+- 测试数据同步机制
 
 **优势**:
-- 简单易用，无需浏览器环境
-- JSON文件可直接编辑，便于调试
-- 通过统一接口与生产数据库无缝切换
-- 可模拟网络延迟和各种场景
+- 简单易用，无需真实服务器环境
+- JSON文件可直接编辑，便于调试服务器数据
+- 可配置响应延迟来模拟网络延迟
+- 可模拟服务器错误和各种响应场景
 
 ### 2. fake-indexeddb 模拟方案
 
 **适用场景**:
-- 需要精确模拟 IndexedDB 行为的测试
-- 在 Node.js 环境中测试使用 IndexedDB API 的代码
-- 希望测试代码在真实 IndexedDB 环境中的表现
-- 需要测试 IndexedDB 特有功能（如索引、游标等）
+- 模拟客户端的本地离线存储
+- 测试应用程序在离线模式下的行为
+- 测试IndexedDB特有功能（如索引、游标等）
+- 测试客户端离线缓存逻辑
 
 **优势**:
 - 完全实现 IndexedDB API
-- 代码在测试和生产环境中使用完全相同的 API
-- 更准确地模拟浏览器环境
-- 适合单元测试和集成测试
+- 精确模拟客户端离线存储行为
+- 适合测试应用的离线功能
+- 不依赖真实浏览器环境
+
+## 混合离线存储策略
+
+典型应用场景是同时使用两种存储方案，创建完整的在线/离线工作流：
+
+1. 使用 **MockDatabaseClient (JSON模式)** 作为远程服务器的模拟
+2. 使用 **MockIndexedDBClient (fake-indexeddb)** 作为客户端离线存储的模拟
+
+这种混合策略适用于开发具有离线功能的应用程序，能够测试：
+- 客户端从服务器初始数据加载
+- 客户端离线操作和数据存储
+- 客户端重新连接时的数据同步
+- 同步冲突解决
+
+### 混合策略配置示例
+
+在 `.env.development` 中:
+
+```
+# 启用混合模式
+USE_HYBRID_STORAGE=true
+
+# 远程数据库模拟 (Mock)
+REMOTE_DB_TYPE=mock
+MOCK_DB_MODE=json
+MOCK_DB_FILE_PATH=./data/remote-db.json
+MOCK_DB_AUTO_SAVE=true
+
+# 本地离线存储 (fake-indexeddb)
+LOCAL_STORAGE_TYPE=indexeddb
+USE_FAKE_INDEXEDDB=true
+INDEXEDDB_NAME=local-offline-storage
+INDEXEDDB_VERSION=1
+
+# 同步配置
+SYNC_ON_CONNECT=true
+SYNC_INTERVAL=60000
+SYNC_AUTO_RESOLVE_CONFLICTS=true
+```
 
 ## .env 配置示例
 
@@ -343,139 +401,6 @@ INDEXEDDB_VERSION=1
 # Offline behavior simulation
 SIMULATE_OFFLINE=false
 SIMULATE_NETWORK_LATENCY=200
-```
-
-## 混合离线存储策略
-
-有时候，应用可能需要同时使用两种离线存储方案，例如：
-1. 使用 **MockDatabaseClient (JSON模式)** 作为远程数据库的模拟
-2. 使用 **fake-indexeddb** 作为本地离线存储的模拟
-
-这种混合策略特别适合开发具有在线/离线同步功能的应用。
-
-### 混合策略配置示例
-
-在 `.env.development` 中:
-
-```
-# 启用混合模式
-USE_HYBRID_STORAGE=true
-
-# 远程数据库模拟 (Mock)
-REMOTE_DB_TYPE=mock
-MOCK_DB_MODE=json
-MOCK_DB_FILE_PATH=./data/remote-db.json
-MOCK_DB_AUTO_SAVE=true
-
-# 本地离线存储 (fake-indexeddb)
-LOCAL_STORAGE_TYPE=indexeddb
-USE_FAKE_INDEXEDDB=true
-INDEXEDDB_NAME=local-offline-storage
-INDEXEDDB_VERSION=1
-
-# 同步配置
-SYNC_ON_CONNECT=true
-SYNC_INTERVAL=60000
-SYNC_AUTO_RESOLVE_CONFLICTS=true
-```
-
-### 混合策略实现示例
-
-```typescript
-// src/core/lib/db/hybrid-storage-manager.ts
-import { MockDatabaseClient } from './clients/mock/mock-client';
-import { IndexedDBClient } from './clients/indexeddb/indexeddb-client';
-import { setupFakeIndexedDB } from './clients/indexeddb/fake-indexeddb';
-
-export class HybridStorageManager {
-  private remoteClient: MockDatabaseClient;
-  private localClient: IndexedDBClient;
-  private isOnline: boolean = navigator.onLine;
-  
-  constructor(config) {
-    // 设置远程数据库模拟
-    this.remoteClient = new MockDatabaseClient({
-      ...config,
-      name: 'remote-db',
-      mockMode: 'json',
-      jsonFilePath: process.env.MOCK_DB_FILE_PATH || './data/remote-db.json',
-      autoSave: process.env.MOCK_DB_AUTO_SAVE === 'true'
-    });
-    
-    // 设置本地离线存储
-    if (process.env.USE_FAKE_INDEXEDDB === 'true') {
-      setupFakeIndexedDB();
-    }
-    
-    this.localClient = new IndexedDBClient({
-      ...config,
-      name: process.env.INDEXEDDB_NAME || 'local-db',
-      version: process.env.INDEXEDDB_VERSION ? parseInt(process.env.INDEXEDDB_VERSION) : 1
-    });
-    
-    // 监听在线状态
-    window.addEventListener('online', this.handleOnline);
-    window.addEventListener('offline', this.handleOffline);
-  }
-  
-  // 初始化
-  async initialize() {
-    await this.remoteClient.initialize();
-    await this.localClient.initialize();
-    
-    if (this.isOnline && process.env.SYNC_ON_CONNECT === 'true') {
-      await this.syncData();
-    }
-  }
-  
-  // 获取适当的客户端
-  getClient() {
-    return this.isOnline ? this.remoteClient : this.localClient;
-  }
-  
-  // 获取本地客户端（始终可用）
-  getLocalClient() {
-    return this.localClient;
-  }
-  
-  // 获取远程客户端（仅在在线时可用）
-  getRemoteClient() {
-    if (!this.isOnline) {
-      console.warn('应用当前处于离线状态，远程客户端不可用');
-    }
-    return this.remoteClient;
-  }
-  
-  // 在恢复在线连接时同步数据
-  private handleOnline = async () => {
-    this.isOnline = true;
-    if (process.env.SYNC_ON_CONNECT === 'true') {
-      await this.syncData();
-    }
-  }
-  
-  private handleOffline = () => {
-    this.isOnline = false;
-    console.log('应用已进入离线模式，使用本地存储');
-  }
-  
-  // 同步本地和远程数据
-  async syncData() {
-    // 实现数据同步逻辑
-    console.log('正在同步本地和远程数据...');
-    
-    // 这里实现具体的同步逻辑
-    // ...
-    
-    console.log('数据同步完成');
-  }
-  
-  // 关闭所有连接
-  async close() {
-    await this.localClient.close();
-    await this.remoteClient.close();
-  }
-}
 ```
 
 ## 作为离线存储方案与生产环境集成

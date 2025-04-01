@@ -22,17 +22,20 @@ src/core/lib/db/
 
 ### 2.1 开发阶段（Mock）
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=mock`
-- 存储类型：json/内存
+- 存储类型：
+  - **远程数据模拟**：MockDatabaseClient (json/内存)
+  - **本地离线存储模拟**：MockIndexedDBClient (fake-indexeddb)
 - 特点：
   - 快速原型验证
   - 预设测试数据
-  - 支持完整的 IndexedDB API
+  - 分层存储架构模拟
   - 可在 Node.js 环境中运行
 
 ### 2.2 本地阶段（Local）
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=local`
-- Web环境：IndexedDB或者使用 fake-indexeddb
-
+- Web环境：
+  - **本地离线存储**：IndexedDB
+  - **测试环境**：使用 fake-indexeddb 模拟客户端离线存储
 - 移动端：SQLite
 - 特点：支持离线操作，数据持久化
 

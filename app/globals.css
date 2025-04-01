@@ -3,31 +3,150 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --foreground-rgb: 15, 23, 42;
+  --background-rgb: 248, 250, 252;
+  --primary-rgb: 14, 165, 233;
+  --secondary-rgb: 217, 70, 239;
+  --accent-rgb: 20, 184, 166;
+  --ion-color-primary: #0ea5e9;
+  --ion-color-primary-rgb: 14, 165, 233;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #0c92cd;
+  --ion-color-primary-tint: #26aeeb;
+  
+  --ion-color-secondary: #d946ef;
+  --ion-color-secondary-rgb: 217, 70, 239;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #bf3dd2;
+  --ion-color-secondary-tint: #dd59f1;
+  
+  --ion-color-tertiary: #14b8a6;
+  --ion-color-tertiary-rgb: 20, 184, 166;
+  --ion-color-tertiary-contrast: #ffffff;
+  --ion-color-tertiary-contrast-rgb: 255, 255, 255;
+  --ion-color-tertiary-shade: #12a292;
+  --ion-color-tertiary-tint: #2cbfaf;
+  
+  --ion-color-success: #2dd4bf;
+  --ion-color-success-rgb: 45, 212, 191;
+  --ion-color-success-contrast: #000000;
+  --ion-color-success-contrast-rgb: 0, 0, 0;
+  --ion-color-success-shade: #28bba8;
+  --ion-color-success-tint: #42d8c5;
+  
+  --ion-color-warning: #fcd34d;
+  --ion-color-warning-rgb: 252, 211, 77;
+  --ion-color-warning-contrast: #000000;
+  --ion-color-warning-contrast-rgb: 0, 0, 0;
+  --ion-color-warning-shade: #deba44;
+  --ion-color-warning-tint: #fcd75f;
+  
+  --ion-color-danger: #f43f5e;
+  --ion-color-danger-rgb: 244, 63, 94;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #d73753;
+  --ion-color-danger-tint: #f5526e;
+  
+  --ion-color-light: #f1f5f9;
+  --ion-color-light-rgb: 241, 245, 249;
+  --ion-color-light-contrast: #000000;
+  --ion-color-light-contrast-rgb: 0, 0, 0;
+  --ion-color-light-shade: #d4d8db;
+  --ion-color-light-tint: #f2f5fa;
+  
+  --ion-color-medium: #94a3b8;
+  --ion-color-medium-rgb: 148, 163, 184;
+  --ion-color-medium-contrast: #000000;
+  --ion-color-medium-contrast-rgb: 0, 0, 0;
+  --ion-color-medium-shade: #828fa2;
+  --ion-color-medium-tint: #9fadbf;
+  
+  --ion-color-dark: #1e293b;
+  --ion-color-dark-rgb: 30, 41, 59;
+  --ion-color-dark-contrast: #ffffff;
+  --ion-color-dark-contrast-rgb: 255, 255, 255;
+  --ion-color-dark-shade: #1a2434;
+  --ion-color-dark-tint: #353e4f;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --foreground-rgb: 241, 245, 249;
+    --background-rgb: 15, 23, 42;
   }
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+/* Custom styling for Ionic components */
+ion-content {
+  --background: rgb(var(--background-rgb));
+}
+
+ion-toolbar {
+  --background: rgb(var(--primary-rgb));
+  --color: white;
+}
+
+ion-tab-bar {
+  --background: rgb(var(--background-rgb));
+  --border-color: rgba(var(--foreground-rgb), 0.1);
+}
+
+ion-tab-button {
+  --color: rgba(var(--foreground-rgb), 0.6);
+  --color-selected: rgb(var(--primary-rgb));
+}
+
+ion-button {
+  --box-shadow: none;
+}
+
+ion-card {
+  --background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 0.75rem;
+  overflow: hidden;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+/* Custom Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  ion-card {
+    --background: rgb(30, 41, 59);
+  }
+  
+  ion-content {
+    --background: rgb(var(--background-rgb));
   }
 }

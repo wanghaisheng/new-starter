@@ -38,16 +38,18 @@ export { VersionManager };
 // 导出表转换器
 export { TableConverter };
 
-// 导出单例实例
+// 创建单例实例
 export const schemaRegistry = SchemaRegistry.getInstance();
 export const versionManager = VersionManager.getInstance();
 
-// 导入并注册所有表结构
-// 这里只需导入，各个模式文件会自行注册
-import './offline-schemas';
-// 注：这里可以导入其他模式定义文件
+// 注：先创建和导出schemaRegistry，然后才导入模式文件
+// 这样可以确保schema registry已初始化
+
+// 导入所有表结构定义（但不立即注册）
+import { registerOfflineSchemas } from './offline-schemas';
+import { registerCoreSchemas } from './core-schemas';
+// 其他模式定义导入
 // import './definitions/user-schema';
-// import './definitions/match-schema';
 // import './definitions/message-schema';
 
 /**
@@ -55,7 +57,16 @@ import './offline-schemas';
  * 确保所有表结构都已注册
  */
 export function initializeSchemas(): void {
-  // 可以在这里进行其他初始化操作
+  // 现在显式注册所有模式
+  registerOfflineSchemas();
+  
+  // 注册核心应用模式（用户、匹配、消息等）
+  registerCoreSchemas();
+  
+  // 可以在这里调用其他模式的注册函数
+  // registerUserSchemas();
+  // registerMessageSchemas();
+  
   console.log(`已注册 ${schemaRegistry.getAllSchemas().length} 个表结构`);
 }
 

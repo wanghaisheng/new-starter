@@ -1,21 +1,31 @@
-import { Message, User } from '../lib/db/types';
-import { IDataService } from './data-service.interface';
+import { Message, User } from '@/core/lib/db/types';
+import { IDataService } from './data-service-interface';
 import { DataServiceFactory } from './data-service-factory';
+import { NetworkService } from './network-service';
+import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * 消息服务
+ * 提供消息相关功能，支持离线发送和接收
+ */
 export class MessageService {
   private static instance: MessageService;
-  private storageService: StorageService;
+  private dataService: IDataService;
   private messageListeners: Map<string, ((messages: Message[]) => void)[]> = new Map();
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private networkService: NetworkService;
+  private initialized: boolean = false;
 
   private constructor() {
-    this.storageService = StorageService.getInstance();
+    this.dataService = DataServiceFactory.getDataService();
+    this.networkService = NetworkService.getInstance();
     this.initialize();
   }
 
   private async initialize() {
     try {
-      await this.storageService.initialize(getFirebaseConfig());
+      await this.dataService.initialize();
+      this.initialized = true;
     } catch (error) {
       console.error('Error initializing MessageService:', error);
     }
@@ -34,10 +44,12 @@ export class MessageService {
    * @returns 消息列表
    */
   public async getMessages(matchId: string): Promise<Message[]> {
+    await this.ensureInitialized();
     try {
-      const messages = await this.storageService.getMessages();
-      return messages.filter(message => message.matchId === matchId)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      const messages = await this.dataService.getMessages(matchId);
+      return messages.sort((a, b) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
     } catch (error) {
       console.error('Error getting messages:', error);
       return [];
@@ -50,7 +62,7 @@ export class MessageService {
    * @param senderId 发送者ID
    * @param receiverId 接收者ID
    * @param content 消息内容
-   * @param contentType 消息类型
+   * @param type 消息类型
    * @returns 发送结果
    */
   public async sendMessage(
@@ -58,33 +70,31 @@ export class MessageService {
     senderId: string,
     receiverId: string,
     content: string,
-    contentType: 'text' | 'image' = 'text'
+    type: 'text' | 'image' = 'text'
   ): Promise<{ success: boolean; message?: Message; errors?: string[] }> {
+    await this.ensureInitialized();
     try {
-      const messages = await this.storageService.getMessages();
       const newMessage: Message = {
-        id: `msg_${Date.now()}`,
+        id: uuidv4(),
         matchId,
         senderId,
         receiverId,
         content,
-        contentType,
+        type,
         status: 'sent',
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
-      messages.push(newMessage);
-      await this.storageService.saveMessages(messages);
+      const message = await this.dataService.createMessage(newMessage);
       
       // 更新匹配的最后消息时间
-      this.updateMatchLastMessageTime(matchId);
+      await this.updateMatchLastMessageTime(matchId);
       
       // 通知监听器有新消息
       this.notifyMessageListeners(matchId);
       
-      return { success: true, message: newMessage };
+      return { success: true, message };
     } catch (error) {
       console.error('Error sending message:', error);
       return { success: false, errors: ['Failed to send message'] };
@@ -97,17 +107,22 @@ export class MessageService {
    * @returns 操作是否成功
    */
   public async markMessageAsRead(messageId: string): Promise<boolean> {
+    await this.ensureInitialized();
     try {
-      const messages = await this.storageService.getMessages();
-      const messageIndex = messages.findIndex(m => m.id === messageId);
+      // 获取消息
+      const message = await this.dataService.getMessage(messageId);
       
-      if (messageIndex === -1) return false;
-
-      messages[messageIndex].status = 'read';
-      messages[messageIndex].isRead = true;
-      messages[messageIndex].updatedAt = new Date().toISOString();
+      // 更新消息状态为已读
+      await this.dataService.updateMessage(messageId, {
+        status: 'read',
+        updatedAt: new Date()
+      });
       
-      await this.storageService.saveMessages(messages);
+      // 通知监听器消息状态已更新
+      if (message) {
+        this.notifyMessageListeners(message.matchId);
+      }
+      
       return true;
     } catch (error) {
       console.error('Error marking message as read:', error);
@@ -122,27 +137,31 @@ export class MessageService {
    * @returns 操作是否成功
    */
   public async markAllMessagesAsRead(matchId: string, userId: string): Promise<boolean> {
+    await this.ensureInitialized();
     try {
-      const messages = await this.storageService.getMessages();
-      let updated = false;
+      const messages = await this.dataService.getMessages(matchId);
+      const unreadMessages = messages.filter(
+        message => message.receiverId === userId && message.status !== 'read'
+      );
       
-      for (let i = 0; i < messages.length; i++) {
-        const message = messages[i];
-        if (message.matchId === matchId && message.receiverId === userId && !message.isRead) {
-          messages[i].status = 'read';
-          messages[i].isRead = true;
-          messages[i].updatedAt = new Date().toISOString();
-          updated = true;
-        }
+      if (unreadMessages.length === 0) {
+        return true; // 没有未读消息也算成功
       }
       
-      if (updated) {
-        await this.storageService.saveMessages(messages);
-        // 通知监听器消息状态已更新
-        this.notifyMessageListeners(matchId);
-      }
+      // 逐个更新消息状态
+      const updatePromises = unreadMessages.map(message => 
+        this.dataService.updateMessage(message.id, {
+          status: 'read',
+          updatedAt: new Date()
+        })
+      );
       
-      return updated;
+      await Promise.all(updatePromises);
+      
+      // 通知监听器消息状态已更新
+      this.notifyMessageListeners(matchId);
+      
+      return true;
     } catch (error) {
       console.error('Error marking all messages as read:', error);
       return false;
@@ -155,9 +174,10 @@ export class MessageService {
    * @returns 未读消息数量
    */
   public async getUnreadMessageCount(userId: string): Promise<number> {
+    await this.ensureInitialized();
     try {
-      const messages = await this.storageService.getMessages();
-      return messages.filter(m => m.receiverId === userId && !m.isRead).length;
+      const messages = await this.dataService.getUnreadMessages(userId);
+      return messages.length;
     } catch (error) {
       console.error('Error getting unread message count:', error);
       return 0;
@@ -171,9 +191,10 @@ export class MessageService {
    * @returns 未读消息数量
    */
   public async getMatchUnreadMessageCount(matchId: string, userId: string): Promise<number> {
+    await this.ensureInitialized();
     try {
-      const messages = await this.storageService.getMessages();
-      return messages.filter(m => m.matchId === matchId && m.receiverId === userId && !m.isRead).length;
+      const messages = await this.dataService.getMessages(matchId);
+      return messages.filter(m => m.receiverId === userId && m.status !== 'read').length;
     } catch (error) {
       console.error('Error getting match unread message count:', error);
       return 0;
@@ -186,13 +207,13 @@ export class MessageService {
    */
   private async updateMatchLastMessageTime(matchId: string): Promise<void> {
     try {
-      const matches = await this.storageService.getMatches();
-      const matchIndex = matches.findIndex(m => m.id === matchId);
+      // 获取匹配信息
+      const match = await this.dataService.getMatch(matchId);
       
-      if (matchIndex !== -1) {
-        matches[matchIndex].lastMessageAt = new Date().toISOString();
-        await this.storageService.saveMatches(matches);
-      }
+      // 更新匹配信息
+      await this.dataService.updateMatch(matchId, {
+        updatedAt: new Date()
+      });
     } catch (error) {
       console.error('Error updating match last message time:', error);
     }
@@ -251,48 +272,65 @@ export class MessageService {
     
     if (listeners.length > 0) {
       this.getMessages(matchId).then(messages => {
-        listeners.forEach(listener => listener(messages));
+        for (const listener of listeners) {
+          try {
+            listener(messages);
+          } catch (error) {
+            console.error('Error in message listener:', error);
+          }
+        }
       });
     }
   }
 
   /**
-   * 开始轮询新消息
+   * 开始轮询消息
    * @param matchId 匹配ID
    */
   private startPollingMessages(matchId: string): void {
-    // 如果已经在轮询，先停止
-    this.stopPollingMessages(matchId);
+    if (this.pollingIntervals.has(matchId)) {
+      return;
+    }
     
-    // 每3秒轮询一次新消息
-    const interval = setInterval(() => {
+    const intervalId = setInterval(() => {
       this.notifyMessageListeners(matchId);
-    }, 3000);
+    }, 3000); // 每3秒轮询一次
     
-    this.pollingIntervals.set(matchId, interval);
+    this.pollingIntervals.set(matchId, intervalId);
   }
 
   /**
-   * 停止轮询新消息
+   * 停止轮询消息
    * @param matchId 匹配ID
    */
   private stopPollingMessages(matchId: string): void {
-    const interval = this.pollingIntervals.get(matchId);
-    if (interval) {
-      clearInterval(interval);
+    const intervalId = this.pollingIntervals.get(matchId);
+    
+    if (intervalId) {
+      clearInterval(intervalId);
       this.pollingIntervals.delete(matchId);
     }
   }
 
   /**
-   * 清理所有监听器和轮询
+   * 确保服务已初始化
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+  }
+
+  /**
+   * 清理资源
    */
   public cleanup(): void {
-    // 清理所有轮询
-    this.pollingIntervals.forEach(interval => clearInterval(interval));
-    this.pollingIntervals.clear();
+    // 清理所有轮询间隔
+    for (const [matchId, intervalId] of Array.from(this.pollingIntervals.entries())) {
+      clearInterval(intervalId);
+    }
     
-    // 清理所有监听器
+    this.pollingIntervals.clear();
     this.messageListeners.clear();
   }
 }

@@ -1,7 +1,5 @@
 import { IDatabaseClient, HybridDatabaseConfig, SyncStrategy } from '../../interfaces';
-import { User } from '@/core/models/user';
-import { Match } from '@/core/models/match';
-import { Message } from '@/core/models/message';
+import { User, Match, Message } from '../../types';
 import { NetworkService } from '@/core/services/network-service';
 import { BaseSyncClient } from '../sync/base-sync-client';
 

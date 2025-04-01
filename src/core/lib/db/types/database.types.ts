@@ -1,5 +1,4 @@
 import { BaseEntity } from './base-entity';
-import { User, Match, Message } from './dating';
 import { SQLiteDBConnection } from '@capacitor-community/sqlite';
 
 // 数据库引擎类型

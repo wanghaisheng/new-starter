@@ -1,4 +1,4 @@
-import { User, Match, Message } from '../lib/db/models/';
+import { User, Match, Message } from '../lib/db/types';
 import { StorageService } from './storage-service';
 import { getFirebaseConfig } from '../config/firebase';
 
@@ -212,4 +212,4 @@ export class UserService {
     const users = await this.storageService.getUsers();
     return users.find(user => user.id === userId) || null;
   }
-} 
+}

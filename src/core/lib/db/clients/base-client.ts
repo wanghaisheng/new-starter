@@ -1,6 +1,6 @@
 import { IBaseDatabaseClient, IDatabaseTransaction } from '../interfaces';
 import { QueryOptions, QueryResult, BatchOperation } from '../types/database.types';
-import { BaseEntity } from '../types/base.types';
+import { BaseEntity } from '../types/base-entity';
 
 /**
  * 数据库客户端抽象基类
@@ -15,7 +15,7 @@ export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
   abstract clear(): Promise<void>;
   
   // 通用数据访问接口
-  abstract findById(tableName: string, id: string): Promise<BaseEntity | null>;
+  abstract findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null>;
   abstract findAll(tableName: string, filter?: Record<string, any>): Promise<BaseEntity[]>;
   abstract create(tableName: string, data: BaseEntity): Promise<BaseEntity>;
   abstract update(tableName: string, id: string, data: Partial<BaseEntity>): Promise<void>;
@@ -79,4 +79,4 @@ export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
       return acc;
     }, {} as Record<string, any>);
   }
-} 
+}

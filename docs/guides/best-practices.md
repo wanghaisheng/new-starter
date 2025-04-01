@@ -4,6 +4,13 @@
 
 本文档提供了数据库开发、测试和部署的最佳实践指南，帮助团队保持一致的开发标准和质量。本指南与架构文档（`docs/lessons/database/best-practise.md`）配合使用，为团队提供全面的数据库开发参考。
 
+项目采用分层架构设计，支持多环境数据存储和同步。主要特点包括：
+
+- **工厂模式的应用**：项目使用了DataServiceFactory工厂类来获取数据服务实例，而不是直接实例化具体的服务类。这符合依赖注入和控制反转的设计原则，使代码更易于测试和维护。
+- **接口分离原则**：项目定义了IDataService接口，并由具体的实现类（如MockDataService）来实现。这使得系统可以轻松切换不同的数据源实现，而不影响上层业务逻辑。
+- **单例模式的使用**：各服务类（如DatabaseService、UserService、MockDataService）都使用了单例模式，确保全应用共享同一个服务实例，避免资源浪费。
+- **环境适配**：根据不同的环境（mock、local、production）选择不同的存储策略，实现无缝切换。
+
 ## 1. 存储策略与环境配置
 
 ### 1.1 开发阶段（Mock）
@@ -472,6 +479,37 @@ function UserProfile({ userId }) {
 3. **生产环境**：使用混合存储策略，支持在线和离线操作
 
 通过环境变量 `NEXT_PUBLIC_DATABASE_ENV` 控制使用哪种服务实现，无需修改代码即可切换环境。
+
+```typescript
+// 根据环境变量自动切换数据源
+public static getInstance(): IDataService {
+  if (!DataServiceFactory.instance) {
+    const databaseEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+    
+    switch (databaseEnv) {
+      case 'mock':
+        DataServiceFactory.instance = MockDataService.getInstance();
+        break;
+      case 'local':
+        // 在移动平台使用 SQLite
+        if (Capacitor.isNativePlatform()) {
+          DataServiceFactory.instance = DatabaseService.getInstance();
+        } else {
+          // 在 Web 平台使用 IndexedDB
+          DataServiceFactory.instance = MockDataService.getInstance();
+        }
+        break;
+      case 'production':
+        // 生产环境使用混合存储
+        DataServiceFactory.instance = HybridDataService.getInstance();
+        break;
+      default:
+        // 默认使用 Mock 数据服务
+        DataServiceFactory.instance = MockDataService.getInstance();
+    }
+  }
+  return DataServiceFactory.instance;
+}
 
 ## 5. 部署阶段最佳实践
 

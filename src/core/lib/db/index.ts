@@ -7,9 +7,6 @@ export * from './factory';
 export * from './config';
 
 // 导出模型
-export * from './models/user';
-export * from './models/match';
-export * from './models/message';
 
 // 导出仓储
 export { BaseRepository } from './repositories/base-repository';

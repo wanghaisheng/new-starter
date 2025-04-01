@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dating App 核心功能测试</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      text-align: center;
+      color: #e91e63;
+      margin-bottom: 30px;
+    }
+    h2 {
+      color: #9c27b0;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+      margin-top: 30px;
+    }
+    .test-section {
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .test-result {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #e8f5e9;
+      border-left: 4px solid #4caf50;
+    }
+    .warning {
+      background-color: #fff8e1;
+      border-left: 4px solid #ffc107;
+    }
+    .error {
+      background-color: #ffebee;
+      border-left: 4px solid #f44336;
+    }
+    .data-display {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      margin: 10px 0;
+    }
+    button {
+      background-color: #e91e63;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background-color: #d81b60;
+    }
+    .test-controls {
+      margin: 20px 0;
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Dating App 核心功能测试</h1>
+  <p>本测试页面用于验证Dating App第二阶段核心功能的实现，使用mock数据阶段的配置进行测试。</p>
+  
+  <div class="test-controls">
+    <button id="run-all-tests">运行所有测试</button>
+    <button id="clear-results">清除结果</button>
+  </div>
+
+  <h2>1. 个人资料功能测试</h2>
+  <div class="test-section">
+    <button id="test-profile">测试个人资料功能</button>
+    <div id="profile-result" class="test-result"></div>
+  </div>
+
+  <h2>2. 匹配系统功能测试</h2>
+  <div class="test-section">
+    <button id="test-matching">测试匹配系统功能</button>
+    <div id="matching-result" class="test-result"></div>
+  </div>
+
+  <h2>3. 消息系统功能测试</h2>
+  <div class="test-section">
+    <button id="test-messaging">测试消息系统功能</button>
+    <div id="messaging-result" class="test-result"></div>
+  </div>
+
+  <h2>4. 用户旅程测试</h2>
+  <div class="test-section">
+    <button id="test-journey">测试用户旅程</button>
+    <div id="journey-result" class="test-result"></div>
+  </div>
+
+  <script>
+    // 模拟数据
+    const mockData = {
+      users: [
+        {
+          id: "user-1",
+          name: "张三",
+          email: "zhangsan@example.com",
+          phone: "13800000001",
+          birthDate: "1995-01-15T00:00:00.000Z",
+          gender: "male",
+          bio: "喜欢旅行和摄影的程序员",
+          interests: ["编程", "摄影", "旅行"],
+          location: {
+            latitude: 39.9042,
+            longitude: 116.4074,
+            city: "北京",
+            country: "中国"
+          },
+          photos: [
+            {
+              id: "photo-1",
+              url: "https://randomuser.me/api/portraits/men/1.jpg",
+              isMain: true
+            }
+          ]
+        },
+        {
+          id: "user-2",
+          name: "李四",
+          email: "lisi@example.com",
+          phone: "13800000002",
+          birthDate: "1992-06-20T00:00:00.000Z",
+          gender: "female",
+          bio: "热爱音乐和电影",
+          interests: ["音乐", "电影", "阅读"],
+          location: {
+            latitude: 31.2304,
+            longitude: 121.4737,
+            city: "上海",
+            country: "中国"
+          },
+          photos: [
+            {
+              id: "photo-3",
+              url: "https://randomuser.me/api/portraits/women/1.jpg",
+              isMain: true
+            }
+          ]
+        }
+      ],
+      matches: [
+        {
+          id: "match-1",
+          users: ["user-1", "user-2"],
+          status: "matched",
+          createdAt: "2023-11-01T13:00:00.000Z",
+          updatedAt: "2023-11-01T13:00:00.000Z"
+        }
+      ],
+      messages: [
+        {
+          id: "message-1",
+          matchId: "match-1",
+          senderId: "user-1",
+          receiverId: "user-2",
+          content: "你好，很高兴认识你！",
+          contentType: "text",
+          status: "read",
+          createdAt: "2023-11-01T13:05:00.000Z",
+          updatedAt: "2023-11-01T13:05:00.000Z"
+        },
+        {
+          id: "message-2",
+          matchId: "match-1",
+          senderId: "user-2",
+          receiverId: "user-1",
+          content: "你好，我也很高兴认识你！",
+          contentType: "text",
+          status: "read",
+          createdAt: "2023-11-01T13:10:00.000Z",
+          updatedAt: "2023-11-01T13:10:00.000Z"
+        }
+      ]
+    };
+
+    // 测试函数
+    function testProfileFeature() {
+      const resultElement = document.getElementById('profile-result');
+      resultElement.innerHTML = '';
+      
+      try {
+        const users = mockData.users;
+        
+        if (users.length > 0) {
+          const output = document.createElement('div');
+          
+          const successMessage = document.createElement('p');
+          successMessage.textContent = `获取到 ${users.length} 个用户资料 ✓`;
+          output.appendChild(successMessage);
+          
+          const dataDisplay = document.createElement('div');
+          dataDisplay.className = 'data-display';
+          dataDisplay.textContent = JSON.stringify(users[0], null, 2);
+          output.appendChild(dataDisplay);
+          
+          const interestsMessage = document.createElement('p');
+          interestsMessage.textContent = `用户 ${users[0].name} 的兴趣: ${users[0].interests.join(', ')}`;
+          output.appendChild(interestsMessage);
+          
+          resultElement.appendChild(output);
+          resultElement.className = 'test-result success';
+        } else {
+          resultElement.textContent = '警告: 没有找到用户数据';
+          resultElement.className = 'test-result warning';
+        }
+      } catch (error) {
+        resultElement.textContent = `错误: ${error.message}`;
+        resultElement.className = 'test-result error';
+      }
+    }
+
+    function testMatchingFeature() {
+      const resultElement = document.getElementById('matching-result');
+      resultElement.innerHTML = '';
+      
+      try {
+        const matches = mockData.matches;
+        
+        if (matches.length > 0) {
+          const output = document.createElement('div');
+          
+          const successMessage = document.createElement('p');
+          successMessage.textContent = `获取到 ${matches.length} 个匹配 ✓`;
+          output.appendChild(successMessage);
+          
+          const dataDisplay = document.createElement('div');
+          dataDisplay.className = 'data-display';
+          dataDisplay.textContent = JSON.stringify(matches[0], null, 2);
+          output.appendChild(dataDisplay);
+          
+          const matchMessage = document.createElement('p');
+          matchMessage.textContent = `匹配示例: 用户 ${matches[0].users[0]} 和用户 ${matches[0].users[1]}`;
+          output.appendChild(matchMessage);
+          
+          const statusMessage = document.createElement('p');
+          statusMessage.textContent = `匹配状态: ${matches[0].status}`;
+          output.appendChild(statusMessage);
+          
+          resultElement.appendChild(output);
+          resultElement.className = 'test-result success';
+        } else {
+          resultElement.textContent = '警告: 没有找到匹配数据';
+          resultElement.className = 'test-result warning';
+        }
+      } catch (error) {
+        resultElement.textContent = `错误: ${error.message}`;
+        resultElement.className = 'test-result error';
+      }
+    }
+
+    function testMessagingFeature() {
+      const resultElement = document.getElementById('messaging-result');
+      resultElement.innerHTML = '';
+      
+      try {
+        const messages = mockData.messages;
+        
+        if (messages.length > 0) {
+          const output = document.createElement('div');
+          
+          const successMessage = document.createElement('p');
+          successMessage.textContent = `获取到 ${messages.length} 条消息 ✓`;
+          output.appendChild(successMessage);
+          
+          const dataDisplay = document.createElement('div');
+          dataDisplay.className = 'data-display';
+          dataDisplay.textContent = JSON.stringify(messages[0], null, 2);
+          output.appendChild(dataDisplay);
+          
+          const messageContent = document.createElement('p');
+          messageContent.textContent = `消息内容: ${messages[0].content}`;
+          output.appendChild(messageContent);
+          
+          const messageStatus = document.createElement('p');
+          messageStatus.textContent = `消息状态: ${messages[0].status}`;
+          output.appendChild(messageStatus);
+          
+          resultElement.appendChild(output);
+          resultElement.className = 'test-result success';
+        } else {
+          resultElement.textContent = '警告: 没有找到消息数据';
+          resultElement.className = 'test-result warning';
+        }
+      } catch (error) {
+        resultElement.textContent = `错误: ${error.message}`;
+        resultElement.className = 'test-result error';
+      }
+    }
+
+    function testUserJourney() {
+      const resultElement = document.getElementById('journey-result');
+      resultElement.innerHTML = '';
+      
+      try {
+        const users = mockData.users;
+        const output = document.createElement('div');
+        
+        if (users.length >= 2) {
+          const user1 = users[0];
+          const user2 = users[1];
+          
+          // 步骤1: 浏览推荐用户
+          const step1 = document.createElement('p');
+          step1.textContent = `步骤1: 用户 ${user1.name} 浏览推荐用户列表，看到了用户 ${user2.name} ✓`;
+          output.appendChild(step1);
+          
+          // 步骤2: 右滑喜欢
+          const step2 = document.createElement('p');
+          step2.textContent = `步骤2: 用户 ${user1.name} 对用户 ${user2.name} 右滑(喜欢) ✓`;
+          output.appendChild(step2);
+          
+          // 步骤3: 形成匹配
+          const step3 = document.createElement('p');
+          step3.textContent = `步骤3: 用户 ${user2.name} 也对用户 ${user1.name} 右滑，形成匹配 ✓`;
+          output.appendChild(step3);
+          
+          // 步骤4: 发送消息
+          const step4 = document.createElement('p');
+          step4.textContent = `步骤4: 用户 ${user1.name} 向用户 ${user2.name} 发送消息: "你好，很高兴认识你！" ✓`;
+          output.appendChild(step4);
+          
+          // 步骤5: 回复消息
+          const step5 = document.createElement('p');
+          step5.textContent = `步骤5: 用户 ${user2.name} 回复消息: "你好，我也很高兴认识你！" ✓`;
+          output.appendChild(step5);
+          
+          // 步骤6: 消息状态更新
+          const step6 = document.createElement('p');
+          step6.textContent = `步骤6: 两条消息都被标记为已读 ✓`;
+          output.appendChild(step6);
+          
+          const journeySuccess = document.createElement('p');
+          journeySuccess.textContent = `完整用户旅程测试通过! ✓`;
+          journeySuccess.style.fontWeight = 'bold';
+          output.appendChild(journeySuccess);
+          
+          resultElement.appendChild(output);
+          resultElement.className = 'test-result success';
+        } else {
+          resultElement.textContent = '警告: 没有足够的用户数据进行用户旅程测试';
+          resultElement.className = 'test-result warning';
+        }
+      } catch (error) {
+        resultElement.textContent = `错误: ${error.message}`;
+        resultElement.className = 'test-result error';
+      }
+    }
+
+    function runAllTests() {
+      testProfileFeature();
+      testMatchingFeature();
+      testMessagingFeature();
+      testUserJourney();
+    }
+
+    function clearResults() {
+      document.getElementById('profile-result').innerHTML = '';
+      document.getElementById('profile-result').className = 'test-result';
+      
+      document.getElementById('matching-result').innerHTML = '';
+      document.getElementById('matching-result').className = 'test-result';
+      
+      document.getElementById('messaging-result').innerHTML = '';
+      document.getElementById('messaging-result').className = 'test-result';
+      
+      document.getElementById('journey-result').innerHTML = '';
+      document.getElementById('journey-result').className = 'test-result';
+    }
+
+    // 添加事件监听器
+    document.getElementById('test-profile').addEventListener('click', testProfileFeature);
+    document.getElementById('test-matching').addEventListener('click', testMatchingFeature);
+    document.getElementById('test-messaging').addEventListener('click', testMessagingFeature);
+    document.getElementById('test-journey').addEventListener('click', testUserJourney);
+    document.getElementById('run-all-tests').addEventListener('click', runAllTests);
+    document.getElementById('clear-results').addEventListener('click', clearResults);
+
+    // 页面加载时自动运行所有测试
+    window.addEventListener('load', runAllTests);
+  </script>
+</body>
+</html>

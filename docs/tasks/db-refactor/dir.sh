@@ -1,4 +1,4 @@
-mkdir -p d:\Download\audio-visual\heytcm\new-starter\src\core\lib\db\clients\base-client.ts
+# 注意：base-client.ts是文件，不是目录，不需要创建
 mkdir -p d:\Download\audio-visual\heytcm\new-starter\src\core\lib\db\clients\cloudflare
 mkdir -p d:\Download\audio-visual\heytcm\new-starter\src\core\lib\db\clients\firebase
 mkdir -p d:\Download\audio-visual\heytcm\new-starter\src\core\lib\db\clients\indexeddb

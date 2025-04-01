@@ -1,0 +1,9 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 临时空状态插图 -->
+  <title>数据为空状态</title>
+  <rect x="40" y="60" width="120" height="80" stroke="currentColor" stroke-width="2" fill="none" />
+  <circle cx="100" cy="100" r="30" stroke="currentColor" stroke-width="2" fill="none" />
+  <path d="M70 130L130 70" stroke="currentColor" stroke-width="2" />
+  <text x="100" y="160" text-anchor="middle" fill="currentColor" font-size="12">暂无数据</text>
+  <!-- 注释：这是临时SVG，将被实际设计替换 -->
+</svg>

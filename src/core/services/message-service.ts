@@ -1,7 +1,6 @@
-import { Message } from '../lib/db/models/message';
-import { StorageService } from './storage-service';
-import { getFirebaseConfig } from '../config/firebase';
-import { User } from '../lib/db/models/user';
+import { Message, User } from '../lib/db/types';
+import { IDataService } from './data-service.interface';
+import { DataServiceFactory } from './data-service-factory';
 
 export class MessageService {
   private static instance: MessageService;

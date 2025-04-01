@@ -1,7 +1,5 @@
 import { BaseClient } from '../base-client';
-import { User } from '../../models/user';
-import { Match } from '../../models/match';
-import { Message } from '../../models/message';
+import { User, Match, Message } from '../../types';
 import { IDatabaseClient, DatabaseConfig } from '../../interfaces';
 
 /**

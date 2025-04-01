@@ -1,4 +1,4 @@
-import { TableSchema } from '../types';
+import { schemaRegistry, TableSchema } from '../index';
 
 export const photoSchema: TableSchema = {
   name: 'photos',
@@ -71,3 +71,17 @@ export const blockSchema: TableSchema = {
     { name: 'idx_blocks_expires', columns: ['expiresAt'] }
   ]
 }; 
+
+// 注册所有dating相关的表结构
+schemaRegistry.register(photoSchema);
+schemaRegistry.register(matchActionSchema);
+schemaRegistry.register(reportSchema);
+schemaRegistry.register(blockSchema);
+
+// 导出所有schema
+export default {
+  photoSchema,
+  matchActionSchema,
+  reportSchema,
+  blockSchema
+};

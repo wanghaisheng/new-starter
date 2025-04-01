@@ -1,16 +1,30 @@
-import { User, Match, Message } from './types/dating';
+/**
+ * 数据库接口定义
+ * 定义了数据库客户端和仓储的接口
+ */
+
+/**
+ * 数据库接口定义
+ * 定义了数据库客户端和仓储的接口
+ */
+
+/**
+ * 数据库接口定义文件
+ * 定义了数据库客户端、仓储和事务的接口
+ */
+
+// 导入类型定义 - 统一从各自的模块导入
 import { TableSchema } from './schema';
-import { QueryResult, BatchOperation } from './types/database.types';
+import { 
+  QueryResult, 
+  BatchOperation, 
+  DatabaseEngine, 
+  SyncStrategy, 
+  SyncStatus,
+  QueryOptions 
+} from './types/database.types';
 import { BaseEntity } from './types/base-entity';
-
-// 数据库引擎类型
-export type DatabaseEngine = 'mock' | 'indexeddb' | 'sqlite' | 'cloudflare-d1' | 'firebase' | 'supabase' | 'turso' | 'tidb' | 'postgres';
-
-// 同步策略类型
-export type SyncStrategy = 'immediate' | 'periodic' | 'manual';
-
-// 同步状态类型
-export type SyncStatus = 'pending' | 'syncing' | 'completed' | 'failed';
+import { User, Match, Message } from './models';
 
 // 同步配置接口
 export interface SyncConfig {
@@ -112,25 +126,4 @@ export interface IDatabaseTransaction {
   batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void>;
   executeRawQuery<T>(query: string, params?: any[]): Promise<T[]>;
   count(tableName: string, filter?: Record<string, any>): Promise<number>;
-}
-
-export interface QueryOptions {
-  where?: {
-    field: string;
-    operator: '==' | '<' | '<=' | '>' | '>=' | '!=' | '$in' | '$ne' | '$contains' | '$gt' | '$lt' | '$gte' | '$lte' | '$and' | '$or';
-    value: any;
-  } | {
-    $and?: QueryOptions['where'][];
-    $or?: QueryOptions['where'][];
-    [key: string]: any;
-  };
-  orderBy?: {
-    field: string;
-    direction: 'asc' | 'desc';
-  };
-  limit?: number;
-  offset?: number;
-}
-
-export * from './types/database.types';
-  
+}  

@@ -1,5 +1,5 @@
 import { BaseClient } from '../base-client';
-import { User, Match, Message } from '../../models';
+import { User, Match, Message } from '../../types';
 import { IDatabaseClient, DatabaseConfig } from '../../interfaces';
 import { v4 as uuidv4 } from 'uuid';
 

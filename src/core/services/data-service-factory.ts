@@ -82,6 +82,15 @@ export class DataServiceFactory {
   }
   
   /**
+   * 获取数据服务实例
+   * 与getDataService方法相同，提供兼容性支持
+   * @returns 数据服务实例
+   */
+  public static getInstance(): IDataService {
+    return this.getDataService();
+  }
+
+  /**
    * 初始化所有服务
    * 用于应用启动时预初始化
    */

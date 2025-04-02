@@ -424,6 +424,22 @@ export class UserService implements IUserService {
   }
 
   /**
+   * 获取用户的匹配列表
+   * @param userId 用户ID
+   * @returns 匹配列表
+   */
+  public async getMatches(userId?: string): Promise<Match[]> {
+    await this.ensureInitialized();
+    
+    try {
+      return await this.dataService.getMatches(userId);
+    } catch (error) {
+      console.error('Error getting matches:', error);
+      return [];
+    }
+  }
+
+  /**
    * 确保服务已初始化
    */
   private async ensureInitialized(): Promise<void> {

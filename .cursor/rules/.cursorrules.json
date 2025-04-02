@@ -1,60 +1,74 @@
 {
   "project": {
     "name": "Capacitor-Next.js 15 + Ionic + Tailwind 全栈启动项目",
-    "description": "一个集成了Next.js 15、Ionic、Tailwind CSS 和 Capacitor 的全栈移动应用启动项目",
-    "version": "1.0.0"
+    "description": "一个集成了Next.js 15、Ionic、Tailwind CSS 和 Capacitor 的全栈移动应用启动项目，支持Web和移动端开发",
+    "version": "1.0.0",
+    "techStack": {
+      "frontend": "Next.js 14.x, TailwindCSS 3.x",
+      "stateManagement": "React Context + Hooks",
+      "mobileAdaptation": "Capacitor 5.x",
+      "dataStorage": {
+        "web": "IndexedDB",
+        "mobile": "SQLite (通过Capacitor)"
+      },
+      "apiCommunication": "Fetch API, SWR",
+      "dataSync": "自定义SyncManager"
+    }
   },
   "initialization": {
     "checkEnvironment": {
-      "command": "bash docs/tasks/check-environment.sh",
+      "command": "bash docs/bash-scripts/check-environment.sh",
       "description": "在首次克隆项目或未确认项目初始化状态时运行环境检查脚本，确认项目环境是否已正确初始化"
     },
     "setupSteps": [
       {
         "name": "项目初始化",
-        "command": "bash docs/tasks/init-project.sh",
+        "command": "bash docs/bash-scripts/init-project.sh",
         "description": "创建基础项目结构和配置文件"
       },
       {
         "name": "Git初始化",
-        "command": "bash docs/tasks/git-init.sh",
+        "command": "bash docs/bash-scripts/init-git-repo.sh",
         "description": "初始化Git仓库并设置.gitignore"
       },
       {
         "name": "安装依赖",
-        "command": "bash docs/tasks/install-dependencies.sh",
+        "command": "bash docs/bash-scripts/install-dependencies.sh",
         "description": "安装项目所需的依赖"
       },
       {
-        "name": "创建移动端页面",
-        "command": "bash docs/tasks/create-mobile-pages.sh",
-        "description": "创建移动端的基本页面结构"
+        "name": "Python环境设置",
+        "command": "bash docs/bash-scripts/setup-python-env.sh",
+        "description": "配置Python开发环境"
       }
     ],
     "verificationFiles": [
-      "docs/tasks/environment-check-results.txt",
-      "docs/tasks/git-init-results.txt",
-      "docs/tasks/dependencies-results.txt",
-      "docs/tasks/environment-check-results.txt",
-      "docs/tasks/mobile-pages-results.txt"
+      "docs/bash-scripts/logs/environment-check-results.txt",
+      "docs/bash-scripts/logs/git-init-results.txt",
+      "docs/bash-scripts/logs/dependencies-results.txt",
+      "docs/bash-scripts/logs/python-env-results.txt"
     ],
     "initializationFlag": ".env.local",
     "troubleshooting": {
       "dependencyIssues": {
-        "command": "bash docs/tasks/fix-dependencies.sh",
+        "command": "bash docs/bash-scripts/fix-dependencies.sh",
         "description": "修复依赖安装过程中的常见问题"
       },
       "minimalEnvironmentCheck": {
-        "command": "bash docs/tasks/check-minimal-env.sh",
+        "command": "bash docs/bash-scripts/check-minimal-env.sh",
         "description": "检查项目是否可以正常运行的最小要求"
       },
       "hydrationErrors": {
-        "command": "bash docs/tasks/fix-hydration-error.sh",
+        "command": "bash docs/bash-scripts/fix-hydration-error.sh",
         "description": "修复Next.js与Ionic组件之间的水合错误"
       },
       "routingIssues": {
-        "command": "bash docs/tasks/fix-mobile-routes.sh",
+        "command": "bash docs/bash-scripts/fix-mobile-routes.sh",
         "description": "修复移动端路由结构问题"
+      },
+      "dataSync": {
+        "command": "bash docs/bash-scripts/sync-guidelines.sh",
+        "description": "数据同步指南和自动化工具"
       }
     }
   },
@@ -74,19 +88,94 @@
     "db": "src/core/lib/db",
     "plugins": "src/mobile/plugins"
   },
+  "database": {
+    "architecture": {
+      "clients": "src/core/lib/db/clients",
+      "repositories": "src/core/lib/db/repositories",
+      "schema": "src/core/lib/db/schema",
+      "types": "src/core/lib/db/types",
+      "service": "src/core/lib/db/service.ts"
+    },
+    "storageStrategy": {
+      "development": {
+        "remoteStorage": "MockDatabaseClient (内存/JSON模式)",
+        "offlineStorage": "MockIndexedDBClient (fake-indexeddb)"
+      },
+      "local": {
+        "webStorage": "IndexedDB",
+        "mobileStorage": "SQLite"
+      },
+      "production": {
+        "remoteStorage": "Firebase/Supabase等云端服务",
+        "offlineCache": "IndexedDB(Web)或SQLite(移动端)"
+      }
+    },
+    "syncStrategy": {
+      "onlinePriority": ["用户注册", "个人资料更新"],
+      "offlinePriority": ["消息", "匹配操作"],
+      "manualSync": ["批量数据同步", "大文件传输"],
+      "offlineOnly": ["本地数据"]
+    }
+  },
+  "serviceLayer": {
+    "architecture": [
+      "UI组件层 (Components)",
+      "服务层 (UserService, MessageService, 等)",
+      "数据访问层 (DataServiceFactory → DatabaseService/MockDataService)",
+      "存储层 (Repositories, SyncManager)"
+    ],
+    "keyServices": [
+      "IDataService",
+      "DatabaseService",
+      "MockDataService",
+      "DataServiceFactory",
+      "OfflineStorageService",
+      "StorageService",
+      "UserService/MessageService"
+    ]
+  },
   "docs": {
     "importantFiles": [
       "docs/README.md",
-      "docs/CONTRIBUTING.md",
-      "docs/ARCHITECTURE.md",
-      "docs/API.md",
-      "docs/MOBILE.md",
-      "docs/WEB.md",
-      "docs/DEPLOYMENT.md",
-      "docs/TESTING.md",
-      "docs/project-progress-report.md",
-      "docs/project-status-report.md"
-    ]
+      "docs/guides/project-initialization-guide.md",
+      "docs/guides/development-process-guide.md",
+      "docs/guides/database-development-workflow-updated.md",
+      "docs/guides/database-schema-design.md",
+      "docs/guides/add-new-table.md",
+      "docs/guides/best-practices.md",
+      "docs/guides/coding-standards.md",
+      "docs/guides/frontend-development-standards.md",
+      "docs/guides/backend-development-standards.md",
+      "docs/guides/git-branch-strategy.md",
+      "docs/guides/app-release-workflow.md",
+      "docs/guides/performance-optimization.md",
+      "docs/guides/database-troubleshooting.md",
+      "docs/templates/feature-task-plan-template.md",
+      "docs/templates/task-plan-template.md"
+    ],
+    "tutorials": {
+      "database": [
+        "docs/guides/lessons/database/best-practise.md",
+        "docs/guides/lessons/database/firebase-initialization-fallback.md"
+      ],
+      "pwa": [
+        "docs/guides/lessons/pwa/readme.md"
+      ],
+      "environment": [
+        "docs/guides/lessons/bash/windows-compatibility.md"
+      ]
+    }
+  },
+  "environmentConfig": {
+    "development": {
+      "basic": "NEXT_PUBLIC_DATABASE_ENV=mock",
+      "advanced": {
+        "NEXT_PUBLIC_MOCK_DB_TYPE": "hybrid",
+        "NEXT_PUBLIC_USE_FAKE_INDEXEDDB": "true"
+      }
+    },
+    "local": "NEXT_PUBLIC_DATABASE_ENV=local",
+    "production": "NEXT_PUBLIC_DATABASE_ENV=production"
   },
   "helpfulCommands": {
     "development": [
@@ -126,34 +215,54 @@
     "automation": [
       {
         "name": "环境检查",
-        "command": "bash docs/tasks/check-environment.sh",
-        "description": "检查项目环境是否已正确初始化"
-      },
-      {
-        "name": "修复依赖问题",
-        "command": "bash docs/tasks/fix-dependencies.sh",
-        "description": "修复依赖安装过程中的常见问题"
+        "command": "bash docs/bash-scripts/check-environment.sh",
+        "description": "全面检查开发环境配置"
       },
       {
         "name": "最小环境检查",
-        "command": "bash docs/tasks/check-minimal-env.sh",
-        "description": "检查项目是否可以正常运行的最小要求"
+        "command": "bash docs/bash-scripts/check-minimal-env.sh",
+        "description": "检查开发环境是否满足最低要求"
       },
       {
-        "name": "修复水合错误",
-        "command": "bash docs/tasks/fix-hydration-error.sh",
-        "description": "修复Next.js与Ionic组件之间的水合错误"
+        "name": "项目状态检查",
+        "command": "bash docs/bash-scripts/check-project-status.sh",
+        "description": "检查项目当前开发状态"
       },
       {
-        "name": "修复移动端路由",
-        "command": "bash docs/tasks/fix-mobile-routes.sh",
-        "description": "修复移动端路由结构问题"
+        "name": "代码提交",
+        "command": "bash docs/bash-scripts/commit-code.sh",
+        "description": "标准化代码提交流程"
       },
       {
-        "name": "更新移动端结构",
-        "command": "bash docs/tasks/update-mobile-structure.sh",
-        "description": "更新移动端目录结构，删除旧的(mobile)文件夹"
+        "name": "准备发布",
+        "command": "bash docs/bash-scripts/prepare-release.sh",
+        "description": "准备应用发布"
+      },
+      {
+        "name": "执行发布",
+        "command": "bash docs/bash-scripts/release.sh",
+        "description": "执行应用发布流程"
+      },
+      {
+        "name": "回滚发布",
+        "command": "bash docs/bash-scripts/rollback.sh",
+        "description": "在发布失败时回滚到先前版本"
+      },
+      {
+        "name": "创建文档索引",
+        "command": "bash docs/bash-scripts/create-docs-index.sh",
+        "description": "自动生成文档索引"
+      },
+      {
+        "name": "生成任务脚本",
+        "command": "bash docs/bash-scripts/generate-task-scripts.sh",
+        "description": "根据模板生成任务脚本"
+      },
+      {
+        "name": "执行任务",
+        "command": "bash docs/bash-scripts/execute-task.sh",
+        "description": "执行预定义的任务"
       }
     ]
   }
-} 
+}

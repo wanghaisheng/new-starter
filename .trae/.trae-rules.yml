@@ -1,30 +1,57 @@
-# Trae AI规则配置文件 - 基于开发流程指南
+# Trae AI规则配置文件 - 基于项目文档索引
 version: 2.0
-base_rule: docs/development-process-guide.md
+base_rule: docs/README.md
 dynamic_rules:
   enabled: true
   template_dir: docs/templates/
   auto_discovery: true
 
 rule_groups:
-  # 核心开发流程规则（直接从指南文档提取）
+  # 核心开发流程规则（直接从README文档提取）
   core_workflow:
-    source: development-process-guide.md
+    source: docs/README.md
     sections:
-      - "功能开发流程"
-      - "数据库开发流程"
-      - "插件集成指南"
+      - "开发指南"
+      - "数据与架构"
+      - "项目指南"
     priority: 100
     applies: ["all"]
+
+  # 数据库开发规则
+  database_development:
+    source: docs/README.md
+    sections:
+      - "数据库架构"
+      - "存储策略"
+      - "同步策略"
+    priority: 95
+    applies: ["database", "data-sync"]
+
+  # 服务层开发规则
+  service_development:
+    source: docs/README.md
+    sections:
+      - "服务层架构"
+      - "关键服务"
+    priority: 95
+    applies: ["service", "api"]
+
+  # 环境配置规则
+  environment_config:
+    source: docs/README.md
+    sections:
+      - "环境配置"
+    priority: 90
+    applies: ["environment", "config"]
 
   # 动态模板规则（按需加载）
   templates:
     discovery_pattern: "*.md"
     load_strategy: "on-demand"
-    priority: 90
+    priority: 85
     metadata:
       generated: true
-      source: "development-process-guide.md"
+      source: "docs/README.md"
 
 # 规则解析配置
 parsing:
@@ -35,17 +62,44 @@ parsing:
 # 文档版本控制
 version_control:
   sync_with: 
-    - docs/development-process-guide.md
+    - docs/README.md
+    - docs/guides/development-process-guide.md
+    - docs/guides/database-development-workflow-updated.md
   update_strategy: "cascade"
 
-# 示例模板规则映射（自动生成）
+# 项目规则映射
 template_mappings:
+  # 编码规范
   coding-standards:
     trigger: ["code-review", "code-generation"]
-    source: development-process-guide.md#代码规范
+    source: docs/guides/coding-standards.md
+  
+  # 前端开发标准
   frontend-standards: 
     trigger: ["frontend", "components"]
-    source: development-process-guide.md#目录结构
+    source: docs/guides/frontend-development-standards.md
+  
+  # 后端开发标准
   backend-standards:
     trigger: ["backend", "api"]
-    source: development-process-guide.md#数据库开发流程
+    source: docs/guides/backend-development-standards.md
+  
+  # 数据库开发工作流
+  database-workflow:
+    trigger: ["database", "data-model"]
+    source: docs/guides/database-development-workflow-updated.md
+  
+  # 项目初始化
+  project-initialization:
+    trigger: ["setup", "initialization"]
+    source: docs/guides/project-initialization-guide.md
+  
+  # Git分支策略
+  git-strategy:
+    trigger: ["git", "version-control"]
+    source: docs/guides/git-branch-strategy.md
+  
+  # 应用发布工作流
+  app-release:
+    trigger: ["release", "deployment"]
+    source: docs/guides/app-release-workflow.md

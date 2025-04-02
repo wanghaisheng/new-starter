@@ -12,7 +12,7 @@
   --ion-color-primary-rgb: 14, 165, 233;
   --ion-color-primary-contrast: #ffffff;
   --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #0c92cd;
+  --ion-color-primary-shade: #0c92ce;
   --ion-color-primary-tint: #26aeeb;
   
   --ion-color-secondary: #d946ef;
@@ -70,6 +70,11 @@
   --ion-color-dark-contrast-rgb: 255, 255, 255;
   --ion-color-dark-shade: #1a2434;
   --ion-color-dark-tint: #353e4f;
+  
+  --ion-background-color: #0f172a;
+  --ion-background-color-rgb: 15, 23, 42;
+  --ion-text-color: #ffffff;
+  --ion-text-color-rgb: 255, 255, 255;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -82,37 +87,92 @@
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
+  background-color: #0f172a;
+  color: #ffffff;
 }
 
 /* Custom styling for Ionic components */
 ion-content {
-  --background: rgb(var(--background-rgb));
+  --background: #0f172a;
+  --color: #ffffff;
 }
 
 ion-toolbar {
-  --background: rgb(var(--primary-rgb));
-  --color: white;
+  --background: #1a2234;
+  --color: #ffffff;
+  --border-color: #334155;
 }
 
+/* Update tab bar styling with even higher specificity and position fixes */
 ion-tab-bar {
-  --background: rgb(var(--background-rgb));
-  --border-color: rgba(var(--foreground-rgb), 0.1);
+  --background: #1a2234 !important;
+  --border-color: #334155 !important;
+  height: 60px !important;
+  padding-bottom: env(safe-area-inset-bottom, 0) !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1000 !important;
 }
 
+/* Fix tab button styling to ensure proper layout */
 ion-tab-button {
-  --color: rgba(var(--foreground-rgb), 0.6);
-  --color-selected: rgb(var(--primary-rgb));
+  --color: #94a3b8 !important;
+  --color-selected: #d946ef !important;
+  --padding-end: 0 !important;
+  --padding-start: 0 !important;
+  --ripple-color: transparent !important;
+  background: transparent !important;
+  flex: 1 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Add specific styling for tab button content to ensure proper centering */
+ion-tab-button .button-native {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Add specific styling for tab button labels and icons */
+ion-tab-button ion-icon {
+  font-size: 22px;
+  margin-bottom: 2px;
+}
+
+ion-tab-button.tab-selected ion-icon {
+  color: var(--ion-color-secondary);
+}
+
+ion-tab-button.tab-selected ion-label {
+  color: var(--ion-color-secondary);
+}
+
+/* Reset ion-label styling that might get inherited */
+ion-tab-button ion-label {
+  font-size: 10px;
+  font-weight: 500;
+  margin-top: 0;
 }
 
 ion-button {
-  --box-shadow: none;
+  --background: var(--ion-color-primary);
+  font-weight: 500;
 }
 
 ion-card {
-  --background: white;
+  --background: #1e293b;
+  --color: #ffffff;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   border-radius: 0.75rem;
-  overflow: hidden;
+  margin: 0;
 }
 
 @layer utilities {
@@ -137,7 +197,7 @@ ion-card {
 }
 
 .animate-slide-up {
-  animation: slideUp 0.4s ease-out;
+  animation: slideUp 0.3s ease-out;
 }
 
 /* Dark mode adjustments */

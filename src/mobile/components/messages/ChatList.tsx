@@ -142,7 +142,7 @@ const ChatList: React.FC<ChatListProps> = ({ currentUserId, onError }) => {
       <div className="flex flex-col items-center justify-center p-6 text-center">
         <p className="text-gray-500 mb-4">还没有匹配的用户</p>
         <button
-          onClick={() => router.push('/home')}
+          onClick={() => router.push('/mobile/discover')}
           className="px-4 py-2 bg-pink-600 text-white rounded-lg"
         >
           去寻找匹配

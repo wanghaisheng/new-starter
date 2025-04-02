@@ -5,7 +5,6 @@ import {
   IonIcon
 } from '@ionic/react';
 import { 
-  homeOutline, 
   heartOutline,
   searchOutline,
   chatbubbleOutline, 
@@ -25,8 +24,11 @@ export default function BottomNavBar() {
     e.stopPropagation(); // 阻止事件冒泡
     
     // 使用Next.js的Router安全导航
-    if (path) {
+    if (path && typeof path === 'string' && path.trim() !== '') {
+      console.log('Navigating to:', path); // 添加日志以便调试
       router.push(path);
+    } else {
+      console.error('Invalid navigation path:', path); // 记录错误路径
     }
   };
   
@@ -34,20 +36,7 @@ export default function BottomNavBar() {
     <div className="fixed bottom-0 left-0 right-0 w-full z-10">
       <div className="bg-[#1a2234] border-t border-gray-800 h-16 w-full flex justify-between items-center">
         <button 
-          onClick={navigateTo('/mobile/home')}
-          className={`flex-1 h-full flex flex-col items-center justify-center ${isActive('/mobile/home') ? 'text-secondary-500' : 'text-gray-400'}`}
-        >
-          <IonIcon 
-            icon={homeOutline} 
-            className="text-xl mb-0.5" 
-          />
-          <div className="text-[10px] font-medium">
-            Home
-          </div>
-        </button>
-        
-        <button 
-          onClick={navigateTo('/mobile/discover')}
+          onClick={(e) => navigateTo('/mobile/discover')(e)}
           className={`flex-1 h-full flex flex-col items-center justify-center ${isActive('/mobile/discover') ? 'text-secondary-500' : 'text-gray-400'}`}
         >
           <IonIcon 
@@ -60,7 +49,7 @@ export default function BottomNavBar() {
         </button>
         
         <button 
-          onClick={navigateTo('/mobile/matches')}
+          onClick={(e) => navigateTo('/mobile/matches')(e)}
           className={`flex-1 h-full flex flex-col items-center justify-center ${isActive('/mobile/matches') && !isActive('/mobile/matches/messages') && !isActive('/mobile/matches/chat') ? 'text-secondary-500' : 'text-gray-400'}`}
         >
           <IonIcon 
@@ -73,7 +62,7 @@ export default function BottomNavBar() {
         </button>
         
         <button 
-          onClick={navigateTo('/mobile/matches/messages')}
+          onClick={(e) => navigateTo('/mobile/matches/messages')(e)}
           className={`flex-1 h-full flex flex-col items-center justify-center ${isActive('/mobile/matches/messages') || isActive('/mobile/matches/chat') ? 'text-secondary-500' : 'text-gray-400'}`}
         >
           <IonIcon 
@@ -86,7 +75,7 @@ export default function BottomNavBar() {
         </button>
         
         <button 
-          onClick={navigateTo('/mobile/profile')}
+          onClick={(e) => navigateTo('/mobile/profile')(e)}
           className={`flex-1 h-full flex flex-col items-center justify-center ${isActive('/mobile/profile') ? 'text-secondary-500' : 'text-gray-400'}`}
         >
           <IonIcon 
@@ -99,7 +88,7 @@ export default function BottomNavBar() {
         </button>
         
         <button 
-          onClick={navigateTo('/mobile/settings')}
+          onClick={(e) => navigateTo('/mobile/settings')(e)}
           className={`flex-1 h-full flex flex-col items-center justify-center ${isActive('/mobile/settings') ? 'text-secondary-500' : 'text-gray-400'}`}
         >
           <IonIcon 
@@ -113,4 +102,4 @@ export default function BottomNavBar() {
       </div>
     </div>
   );
-} 
+}

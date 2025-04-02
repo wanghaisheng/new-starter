@@ -24,7 +24,7 @@ export default function LoginPage() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Redirect to home on success
-      router.push('/mobile/home');
+      router.push('/mobile/discover');
     } catch (err) {
       setError('Invalid credentials. Please try again.');
     } finally {
@@ -118,4 +118,4 @@ export default function LoginPage() {
       </IonContent>
     </IonPage>
   );
-} 
+}

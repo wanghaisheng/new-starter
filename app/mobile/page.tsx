@@ -105,8 +105,8 @@ export default function OnboardingPage() {
                 </div>
                 
                 <div className="mt-8 text-center">
-                  <Link href="/mobile/home" className="text-secondary-400 underline">
-                    Skip to home page
+                  <Link href="/mobile/discover" className="text-secondary-400 underline">
+                    Skip to discover page
                   </Link>
                 </div>
               </div>

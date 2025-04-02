@@ -10,12 +10,22 @@ interface NavigationBarProps {
 }
 
 export const NavigationBar: React.FC<NavigationBarProps> = ({ activeTab, onTabChange }) => {
+  const handleTabClick = (tab: string) => {
+    if (tab && typeof tab === 'string' && tab.trim() !== '') {
+      console.log('Tab clicked:', tab); // 添加日志以便调试
+      if (onTabChange) {
+        onTabChange(tab);
+      }
+    } else {
+      console.error('Invalid tab value:', tab); // 记录错误的tab值
+    }
+  };
   return (
     <IonTabBar slot="bottom" className="border-t border-neutral-200 dark:border-neutral-800 shadow-lg py-1">
       <IonTabButton 
         tab="home" 
         selected={activeTab === 'home'}
-        onClick={() => onTabChange('home')}
+        onClick={() => handleTabClick('home')}
         className="transition-all duration-200"
       >
         <IonIcon icon={home} className={activeTab === 'home' ? 'text-primary-600 text-lg' : 'text-neutral-500 text-lg'} />
@@ -25,7 +35,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({ activeTab, onTabCh
       <IonTabButton 
         tab="discover" 
         selected={activeTab === 'discover'}
-        onClick={() => onTabChange('discover')}
+        onClick={() => handleTabClick('discover')}
         className="transition-all duration-200"
       >
         <IonIcon icon={search} className={activeTab === 'discover' ? 'text-primary-600 text-lg' : 'text-neutral-500 text-lg'} />
@@ -35,7 +45,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({ activeTab, onTabCh
       <IonTabButton 
         tab="messages" 
         selected={activeTab === 'messages'}
-        onClick={() => onTabChange('messages')}
+        onClick={() => handleTabClick('messages')}
         className="transition-all duration-200"
       >
         <IonIcon icon={chatbubbles} className={activeTab === 'messages' ? 'text-primary-600 text-lg' : 'text-neutral-500 text-lg'} />
@@ -45,7 +55,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({ activeTab, onTabCh
       <IonTabButton 
         tab="profile" 
         selected={activeTab === 'profile'}
-        onClick={() => onTabChange('profile')}
+        onClick={() => handleTabClick('profile')}
         className="transition-all duration-200"
       >
         <IonIcon icon={person} className={activeTab === 'profile' ? 'text-primary-600 text-lg' : 'text-neutral-500 text-lg'} />

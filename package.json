@@ -23,7 +23,19 @@
     "deploy:test": "echo '部署到测试环境'",
     "deploy:prod": "echo '部署到生产环境'",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:ci": "jest --ci",
+    "test:coverage": "jest --coverage",
+    "test:offline": "jest --config=jest.offline.config.js",
+    "test:offline:watch": "jest --config=jest.offline.config.js --watch",
+    "test:offline:coverage": "jest --config=jest.offline.config.js --coverage",
+    "test:all": "node scripts/run-tests.js --all",
+    "test:all:report": "node scripts/run-tests.js --all --report",
+    "test:all:coverage": "node scripts/run-tests.js --all --coverage",
+    "build:next": "next build && next export -o dist",
+    "build:capacitor": "npm run build:next && cap copy",
+    "build:android": "npm run build:capacitor && cap open android",
+    "build:ios": "npm run build:capacitor && cap open ios"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.0",

@@ -210,3 +210,128 @@ ion-card {
     --background: rgb(var(--background-rgb));
   }
 }
+
+/* 增强Ionic组件样式 */
+.ion-tab-bar-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
+}
+
+ion-tab-bar {
+  --background: var(--ion-background-color) !important;
+  --border: none !important;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1) !important;
+  padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+ion-tab-button {
+  --color: var(--ion-color-medium) !important;
+  --color-selected: var(--ion-color-secondary) !important;
+  --padding-top: 8px !important;
+  --padding-bottom: 8px !important;
+}
+
+ion-tab-button ion-icon {
+  font-size: 22px !important;
+}
+
+ion-tab-button ion-label {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  margin-top: 2px !important;
+}
+
+/* 页面过渡动画 */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 250ms, transform 250ms;
+}
+
+.page-transition-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 250ms, transform 250ms;
+}
+
+/* 卡片样式增强 */
+ion-card {
+  border-radius: 16px !important;
+  margin: 12px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+  overflow: hidden !important;
+}
+
+ion-item {
+  --padding-start: 16px !important;
+  --padding-end: 16px !important;
+  --min-height: 54px !important;
+  --border-color: var(--ion-color-light) !important;
+}
+
+ion-button {
+  --border-radius: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.03em !important;
+}
+
+/* 表单样式增强 */
+ion-input, ion-textarea {
+  --padding-start: 16px !important;
+  --padding-end: 16px !important;
+  --padding-top: 12px !important;
+  --padding-bottom: 12px !important;
+  --background: var(--ion-color-light-shade) !important;
+  --border-radius: 12px !important;
+  margin-bottom: 8px !important;
+}
+
+/* 主题颜色变量 */
+:root {
+  --ion-color-primary: var(--tw-color-primary-500) !important;
+  --ion-color-primary-rgb: var(--tw-color-primary-500-rgb) !important;
+  --ion-color-primary-contrast: #ffffff !important;
+  --ion-color-primary-shade: var(--tw-color-primary-600) !important;
+  --ion-color-primary-tint: var(--tw-color-primary-400) !important;
+  
+  --ion-color-secondary: var(--tw-color-secondary-500) !important;
+  --ion-color-secondary-rgb: var(--tw-color-secondary-500-rgb) !important;
+  --ion-color-secondary-contrast: #ffffff !important;
+  --ion-color-secondary-shade: var(--tw-color-secondary-600) !important;
+  --ion-color-secondary-tint: var(--tw-color-secondary-400) !important;
+  
+  /* 确保安全区域适配 */
+  --ion-safe-area-top: env(safe-area-inset-top);
+  --ion-safe-area-bottom: env(safe-area-inset-bottom);
+}
+
+/* 深色模式适配 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ion-background-color: var(--tw-color-neutral-900) !important;
+    --ion-text-color: var(--tw-color-neutral-100) !important;
+    --ion-border-color: var(--tw-color-neutral-800) !important;
+  }
+  
+  ion-card {
+    background: var(--tw-color-neutral-800) !important;
+  }
+  
+  ion-item {
+    --background: var(--tw-color-neutral-800) !important;
+  }
+}

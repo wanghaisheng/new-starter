@@ -151,7 +151,7 @@ export default function MatchesPage() {
           <IonToolbar>
             <IonTitle>匹配列表</IonTitle>
             <IonButtons slot="start">
-              <IonBackButton defaultHref="/mobile/discover" />
+              <IonBackButton defaultHref="/home" />
             </IonButtons>
           </IonToolbar>
         </IonHeader>
@@ -172,7 +172,7 @@ export default function MatchesPage() {
           <IonToolbar>
             <IonTitle>匹配列表</IonTitle>
             <IonButtons slot="start">
-              <IonBackButton defaultHref="/mobile/discover" />
+              <IonBackButton defaultHref="/home" />
             </IonButtons>
           </IonToolbar>
         </IonHeader>
@@ -198,7 +198,7 @@ export default function MatchesPage() {
         <IonToolbar>
           <IonTitle>匹配列表</IonTitle>
           <IonButtons slot="start">
-            <IonBackButton defaultHref="/mobile/discover" />
+            <IonBackButton defaultHref="/home" />
           </IonButtons>
         </IonToolbar>
       </IonHeader>
@@ -250,4 +250,4 @@ export default function MatchesPage() {
       />
     </IonPage>
   );
-}
+} 

@@ -1,13 +1,49 @@
 'use client';
 
 import { useState } from 'react';
-import { IonContent, IonPage } from '@ionic/react';
+import { 
+  IonContent, 
+  IonPage, 
+  IonHeader, 
+  IonToolbar, 
+  IonTitle,
+  IonButtons,
+  IonButton,
+  IonIcon,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonCard,
+  IonCardContent,
+  IonChip,
+  IonAvatar,
+  IonBadge,
+  IonItemDivider,
+  IonRippleEffect,
+  IonFab,
+  IonFabButton
+} from '@ionic/react';
+import { 
+  camera, 
+  settings, 
+  pencil,
+  chatbubbleEllipsesOutline,
+  heart,
+  location,
+  calendarOutline,
+  schoolOutline,
+  briefcaseOutline,
+  peopleOutline,
+  wineOutline,
+  planetOutline
+} from 'ionicons/icons';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 
 export default function ProfilePage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('about');
 
   const handleEditProfile = () => {
     router.push('/mobile/profile/edit');
@@ -15,123 +51,197 @@ export default function ProfilePage() {
 
   return (
     <IonPage>
-      <IonContent>
-        {/* Profile header with cover photo */}
-        <div className="relative w-full h-64 bg-gradient-to-r from-purple-500 to-pink-500">
-          <button className="absolute top-3 right-3 bg-white rounded-full p-2 shadow-md z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
+      <IonHeader>
+        <IonToolbar>
+          <IonTitle>Profile</IonTitle>
+          <IonButtons slot="end">
+            <IonButton onClick={() => router.push('/mobile/settings')}>
+              <IonIcon icon={settings} />
+            </IonButton>
+          </IonButtons>
+        </IonToolbar>
+      </IonHeader>
+
+      <IonContent fullscreen>
+        {/* Cover photo with edit button */}
+        <div className="relative w-full h-48 bg-gradient-to-r from-purple-500 to-pink-500">
+          <IonFab vertical="bottom" horizontal="end" slot="fixed" edge={true}>
+            <IonFabButton size="small">
+              <IonIcon icon={camera} />
+            </IonFabButton>
+          </IonFab>
         </div>
         
-        {/* Profile avatar */}
-        <div className="relative">
-          <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-            <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
+        {/* Profile card with avatar */}
+        <div className="ion-padding relative">
+          {/* Avatar - positioned to overlap with cover photo */}
+          <div className="absolute -top-16 left-4">
+            <IonAvatar style={{ width: '80px', height: '80px', border: '4px solid white' }}>
               <Image 
                 src="/assets/images/avatar-placeholder.jpg" 
                 alt="Profile" 
-                fill
+                width={80} 
+                height={80} 
                 className="object-cover"
               />
-            </div>
-          </div>
-        </div>
-        
-        {/* Profile content */}
-        <div className="mt-16 px-4 pb-20">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold">Jessica, 26</h1>
-            <p className="text-gray-600">Software Developer</p>
-            <p className="text-sm text-gray-500 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              San Francisco, CA
-            </p>
+            </IonAvatar>
           </div>
           
-          <button 
-            onClick={handleEditProfile}
-            className="w-full bg-white border border-gray-300 rounded-full py-3 font-medium mb-8"
-          >
-            Edit Profile
-          </button>
-          
-          {/* About section */}
-          <section className="mb-8">
-            <h2 className="text-xl font-bold mb-3">About</h2>
-            <p className="text-gray-700">
-              Software developer with a passion for hiking and photography. Love trying new restaurants and exploring the city. Looking for someone to share adventures with!
-            </p>
-          </section>
-          
-          {/* Interests section */}
-          <section className="mb-8">
-            <h2 className="text-xl font-bold mb-3">Interests</h2>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">Travel</span>
-              <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">Hiking</span>
-              <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">Photography</span>
-              <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">Cooking</span>
-              <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">Reading</span>
-              <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">Coffee</span>
-              <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">Movies</span>
-              <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">Tech</span>
+          {/* Name and basic info - with padding to account for avatar */}
+          <div className="pt-16">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl font-bold">Jessica Parker</h1>
+                <div className="flex items-center text-gray-500 text-sm">
+                  <IonIcon icon={location} className="mr-1" />
+                  <span>San Francisco, CA</span>
+                </div>
+              </div>
+              
+              <IonButton size="small" fill="outline" onClick={handleEditProfile}>
+                <IonIcon icon={pencil} slot="start" />
+                Edit
+              </IonButton>
             </div>
-          </section>
-          
-          {/* Photos section */}
-          <section className="mb-8">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-xl font-bold">Photos</h2>
-              <button className="text-primary-500 text-sm font-medium">See All</button>
+            
+            {/* Action buttons */}
+            <div className="flex mt-4 space-x-2">
+              <IonButton expand="block" size="small" color="primary">
+                <IonIcon icon={chatbubbleEllipsesOutline} slot="start" />
+                Message
+              </IonButton>
+              <IonButton expand="block" size="small" color="secondary">
+                <IonIcon icon={heart} slot="start" />
+                Like
+              </IonButton>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-2 mt-6 mb-6">
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-center">
+                <div className="text-xl font-bold text-primary-600">248</div>
+                <div className="text-xs text-gray-500">Matches</div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-center">
+                <div className="text-xl font-bold text-primary-600">36</div>
+                <div className="text-xs text-gray-500">Likes</div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-center">
+                <div className="text-xl font-bold text-primary-600">142</div>
+                <div className="text-xs text-gray-500">Visits</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Tab buttons */}
+          <div className="flex border-b mb-4">
+            <button 
+              className={`py-2 px-4 font-medium text-sm ${activeTab === 'about' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-500'}`}
+              onClick={() => setActiveTab('about')}
+            >
+              About
+            </button>
+            <button 
+              className={`py-2 px-4 font-medium text-sm ${activeTab === 'photos' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-500'}`}
+              onClick={() => setActiveTab('photos')}
+            >
+              Photos
+            </button>
+            <button 
+              className={`py-2 px-4 font-medium text-sm ${activeTab === 'interests' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-500'}`}
+              onClick={() => setActiveTab('interests')}
+            >
+              Interests
+            </button>
+          </div>
+          
+          {/* Tab content */}
+          {activeTab === 'about' && (
+            <IonList lines="full">
+              <IonItem>
+                <IonIcon icon={calendarOutline} slot="start" color="medium" />
+                <IonLabel>
+                  <h3>Age</h3>
+                  <p>28 years</p>
+                </IonLabel>
+              </IonItem>
+              <IonItem>
+                <IonIcon icon={schoolOutline} slot="start" color="medium" />
+                <IonLabel>
+                  <h3>Education</h3>
+                  <p>Stanford University</p>
+                </IonLabel>
+              </IonItem>
+              <IonItem>
+                <IonIcon icon={briefcaseOutline} slot="start" color="medium" />
+                <IonLabel>
+                  <h3>Occupation</h3>
+                  <p>UX Designer at Google</p>
+                </IonLabel>
+              </IonItem>
+              <IonItem>
+                <IonIcon icon={peopleOutline} slot="start" color="medium" />
+                <IonLabel>
+                  <h3>Looking for</h3>
+                  <p>Meaningful relationship</p>
+                </IonLabel>
+              </IonItem>
+              <IonItem lines="none">
+                <IonIcon icon={planetOutline} slot="start" color="medium" />
+                <IonLabel>
+                  <h3>Languages</h3>
+                  <p>English, Spanish</p>
+                </IonLabel>
+              </IonItem>
+            </IonList>
+          )}
+          
+          {activeTab === 'photos' && (
+            <div className="grid grid-cols-3 gap-1">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="aspect-square rounded-lg overflow-hidden">
-                  <div className="relative w-full h-full">
-                    <Image 
-                      src={`/assets/images/photo-placeholder-${i}.jpg`} 
-                      alt={`Photo ${i}`} 
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
+                <div key={i} className="aspect-square relative overflow-hidden">
+                  <Image 
+                    src={`/assets/images/avatar-placeholder.jpg`} 
+                    alt={`Photo ${i}`} 
+                    layout="fill"
+                    objectFit="cover"
+                  />
                 </div>
               ))}
             </div>
-          </section>
+          )}
           
-          {/* Connections section */}
-          <section className="mb-12">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-xl font-bold">Connections</h2>
-              <button className="text-primary-500 text-sm font-medium">See All</button>
+          {activeTab === 'interests' && (
+            <div className="flex flex-wrap gap-2">
+              <IonChip color="primary">
+                <IonLabel>Travel</IonLabel>
+              </IonChip>
+              <IonChip color="primary">
+                <IonLabel>Photography</IonLabel>
+              </IonChip>
+              <IonChip color="primary">
+                <IonLabel>Hiking</IonLabel>
+              </IonChip>
+              <IonChip color="primary">
+                <IonLabel>Reading</IonLabel>
+              </IonChip>
+              <IonChip color="primary">
+                <IonLabel>Cooking</IonLabel>
+              </IonChip>
+              <IonChip color="primary">
+                <IonLabel>Movies</IonLabel>
+              </IonChip>
+              <IonChip color="primary">
+                <IonLabel>Music</IonLabel>
+              </IonChip>
+              <IonChip color="primary">
+                <IonLabel>Art</IonLabel>
+              </IonChip>
             </div>
-            <div className="flex overflow-x-auto space-x-4 py-2">
-              {['Sarah', 'Emma', 'Olivia', 'James', 'Michael'].map((name, i) => (
-                <div key={name} className="flex-shrink-0 w-20">
-                  <div className="relative w-16 h-16 mx-auto rounded-full overflow-hidden mb-2">
-                    <Image 
-                      src={`/assets/images/profile-${name.toLowerCase()}.jpg`} 
-                      alt={name} 
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <p className="text-center text-sm truncate">{name}</p>
-                </div>
-              ))}
-            </div>
-          </section>
+          )}
         </div>
       </IonContent>
       
-      {/* Use shared BottomNavBar component */}
       <BottomNavBar />
     </IonPage>
   );

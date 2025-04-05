@@ -1,8 +1,8 @@
-import { User } from './user';
-import { Photo } from './photo';
+import { Report, Block } from './interaction';
 import { Match, MatchAction } from './match';
 import { Message } from './message';
-import { Report, Block } from './interaction';
+import { Photo } from './photo';
+import { User } from './user';
 import { UserPreferences } from './user';
 
 /**

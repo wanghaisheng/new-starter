@@ -1,6 +1,7 @@
+import { IBaseDatabaseClient } from '@/core/lib/db/interfaces';
+import { Photo } from '@/core/lib/db/types';
+
 import { BaseRepository } from './base-repository';
-import { IBaseDatabaseClient } from '../interfaces';
-import { Photo } from '../types';
 
 /**
  * 照片仓储类
@@ -17,9 +18,10 @@ export class PhotoRepository extends BaseRepository<Photo> {
    * @returns 照片列表
    */
   async findByUserId(userId: string): Promise<Photo[]> {
-    return this.query({
+    const result = await this.query({
       where: { userId }
     });
+    return result.data;
   }
 
   /**
@@ -28,14 +30,14 @@ export class PhotoRepository extends BaseRepository<Photo> {
    * @returns 主照片或null
    */
   async findMainPhotoByUserId(userId: string): Promise<Photo | null> {
-    const photos = await this.query({
+    const result = await this.query({
       where: { 
         userId,
         isMain: true
       },
       limit: 1
     });
-    return photos[0] || null;
+    return result.data.length > 0 ? result.data[0] : null;
   }
 
   /**
@@ -44,12 +46,13 @@ export class PhotoRepository extends BaseRepository<Photo> {
    * @returns 按顺序排列的照片列表
    */
   async findByUserIdOrdered(userId: string): Promise<Photo[]> {
-    return this.query({
+    const result = await this.query({
       where: { userId },
       orderBy: {
         field: 'order',
         direction: 'asc'
       }
     });
+    return result.data;
   }
 }

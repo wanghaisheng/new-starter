@@ -15,16 +15,19 @@
 
 // 导入类型定义 - 统一从各自的模块导入
 import { TableSchema } from './schema';
+import { User, Match, Message } from './types';
+import { BaseEntity } from './types/base-entity';
 import { 
   QueryResult, 
   BatchOperation, 
   DatabaseEngine, 
   SyncStrategy, 
   SyncStatus,
-  QueryOptions 
+  QueryOptions,
+  SyncConfig,
+  HybridDatabaseConfig,
+  DatabaseConfig
 } from './types/database.types';
-import { BaseEntity } from './types/base-entity';
-import { User, Match, Message } from './types';
 import { 
   SyncPriority, 
   ConflictResolution, 
@@ -35,7 +38,15 @@ import {
 } from './types/sync-flags';
 
 // 导出公共类型供外部使用
-export type { SyncStrategy, SyncStatus, DatabaseEngine } from './types/database.types';
+export type { 
+  SyncStrategy, 
+  SyncStatus, 
+  DatabaseEngine,
+  SyncConfig,
+  HybridDatabaseConfig,
+  DatabaseConfig
+} from './types/database.types';
+
 export type { 
   SyncPriority, 
   ConflictResolution, 
@@ -44,39 +55,6 @@ export type {
   SyncMetadata,
   SyncableEntity
 } from './types/sync-flags';
-
-// 同步配置接口
-export interface SyncConfig {
-  enabled: boolean;
-  strategy: SyncStrategy;
-  /**
-   * 是否仅离线存储，不同步到云端
-   */
-  offlineOnly?: boolean;
-  interval?: number; // in milliseconds
-  retryAttempts?: number;
-  retryDelay?: number; // in milliseconds
-  conflictResolution?: 'client-wins' | 'server-wins' | 'last-write-wins';
-}
-
-// 混合数据库客户端配置
-export interface HybridDatabaseConfig {
-  engine: DatabaseEngine;
-  sync?: SyncConfig;
-  offline?: {
-    maxStorageSize?: number; // in bytes
-    maxEntitiesPerTable?: number;
-    compressionEnabled?: boolean;
-    encryptionEnabled?: boolean;
-  };
-}
-
-// 数据库配置接口
-export interface DatabaseConfig extends HybridDatabaseConfig {
-  name?: string;
-  version?: number;
-  schema?: TableSchema[];
-}
 
 // 基础数据库客户端接口 - 通用数据访问方法
 export interface IBaseDatabaseClient<T extends BaseEntity = BaseEntity> {

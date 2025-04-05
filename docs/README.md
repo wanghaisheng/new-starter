@@ -2,12 +2,18 @@
 
 本文档提供了项目中所有文档的索引，帮助开发者快速找到所需的文档。
 
+## 开发环境建议
+
+- **推荐使用Git Bash**：在Windows环境下，对于批量文件操作和自动化脚本任务，请优先使用Git Bash而非PowerShell或CMD。详见[Shell脚本最佳实践](./guides/shell-scripting-practices.md)。
+- **在Cursor中配置Git Bash**：将Cursor的集成终端设置为使用Git Bash，方法是在设置中搜索"terminal"并将"Terminal › Integrated › Default Profile: Windows"设置为"Git Bash"。
+
 ## 快速入门
 
 ### 环境要求
 - Node.js (v16+)
 - npm 或 yarn
 - Git
+- Git Bash (Windows环境下)
 
 ### 开始使用
 1. 克隆仓库: 

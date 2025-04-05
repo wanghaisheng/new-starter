@@ -1,4 +1,5 @@
 import { getFirestore, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+
 import { FirebaseConfig } from './firebase-config';
 
 export type UserRole = 'user' | 'admin' | 'moderator';

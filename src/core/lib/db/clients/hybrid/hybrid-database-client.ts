@@ -1,12 +1,40 @@
-import { IDatabaseClient, HybridDatabaseConfig, SyncStrategy } from '../../interfaces';
-import { User, Match, Message } from '../../types';
 import { NetworkService } from '@/core/services/network-service';
-import { BaseSyncClient } from '../sync/base-sync-client';
+import { BaseSyncClient } from '@/core/lib/db/clients/sync/base-sync-client';
+import { IDatabaseClient, SyncStrategy } from '@/core/lib/db/interfaces';
+import { User, Match, Message } from '@/core/lib/db/types';
+import { HybridDatabaseConfig, SyncConfig, QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database.types';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
 
 type EntityWithId = { id: string } & Record<string, any>;
 
 /**
- * 混合数据库客户端，支持离线和在线存储
+ * 混合数据库客户端
+ * 
+ * 支持同时使用本地客户端和远程客户端，提供在线/离线数据访问和自动同步功能。
+ * 可根据配置的同步策略确定数据存取的优先顺序和同步行为。
+ * 
+ * @example
+ * ```typescript
+ * // 创建本地和远程客户端
+ * const localClient = new IndexedDBClient({ ... });
+ * const remoteClient = new FirebaseClient({ ... });
+ * 
+ * // 创建混合客户端配置
+ * const config: HybridDatabaseConfig = {
+ *   engine: 'hybrid',
+ *   sync: {
+ *     enabled: true,
+ *     strategy: 'periodic',
+ *     localClient,
+ *     remoteClient,
+ *     syncIntervalMs: 60000
+ *   }
+ * };
+ * 
+ * // 初始化混合客户端
+ * const hybridClient = new HybridDatabaseClient(config);
+ * await hybridClient.initialize();
+ * ```
  */
 export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseClient {
   protected localClient: IDatabaseClient;
@@ -18,23 +46,52 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
   protected syncInProgress: boolean = false;
   protected syncInterval: NodeJS.Timeout | null = null;
 
+  /**
+   * 创建混合数据库客户端
+   * 
+   * @param config 混合数据库配置
+   * @throws Error 如果配置中没有提供localClient或remoteClient
+   */
   constructor(config: HybridDatabaseConfig) {
-    super(config);
-    this.localClient = config.localClient;
-    this.remoteClient = config.remoteClient;
-    this.syncStrategy = config.syncStrategy;
+    // 确保配置包含sync属性
+    const syncConfig: SyncConfig = config.sync || {
+      enabled: true,
+      strategy: 'periodic'
+    };
+
+    // 验证必要的客户端实例
+    if (!syncConfig.localClient) {
+      throw new Error('必须在配置中提供localClient');
+    }
+
+    if (!syncConfig.remoteClient) {
+      throw new Error('必须在配置中提供remoteClient');
+    }
+
+    // 初始化基础同步客户端
+    super(syncConfig);
+    
+    this.localClient = syncConfig.localClient;
+    this.remoteClient = syncConfig.remoteClient;
+    this.syncStrategy = syncConfig.strategy || 'periodic';
     
     // 监听网络状态变化
     this.setupNetworkListener();
     
     // 设置定期同步
-    this.setupPeriodicSync(config.syncIntervalMs || 60000); // 默认每分钟同步一次
+    this.setupPeriodicSync(syncConfig.syncIntervalMs || 60000); // 默认每分钟同步一次
   }
 
+  /**
+   * 设置网络状态监听
+   * 当网络状态变化时更新在线状态，并在恢复连接时自动同步待处理操作
+   */
   protected setupNetworkListener(): void {
     // 使用网络服务监听网络状态变化
     const networkService = NetworkService.getInstance();
-    networkService.onNetworkStatusChange((status) => {
+    // 注意：您可能需要确保NetworkService中有onNetworkStatusChange方法
+    // 这里使用any类型暂时绕过类型检查
+    (networkService as any).onNetworkStatusChange((status: any) => {
       const wasOffline = !this.isOnline;
       this.isOnline = status.connected;
       
@@ -45,6 +102,10 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     });
   }
 
+  /**
+   * 设置定期同步
+   * @param intervalMs 同步间隔，单位毫秒
+   */
   protected setupPeriodicSync(intervalMs: number): void {
     // 清除现有的同步间隔
     if (this.syncInterval) {
@@ -59,6 +120,11 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     }, intervalMs);
   }
 
+  /**
+   * 同步待处理操作
+   * 将本地更改同步到远程服务器
+   * @returns 同步是否成功
+   */
   protected async syncPendingOperations(): Promise<boolean> {
     if (!this.isOnline || this.syncInProgress || this.pendingSync.size === 0) return false;
     
@@ -73,24 +139,26 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
         for (const item of items) {
           try {
             // 根据不同的集合类型执行不同的同步操作
+            // 注意：这里假设IDatabaseClient接口中有saveEntity和deleteEntity方法
+            // 如果没有，您需要根据实际接口进行调整
             switch (collection) {
               case 'users':
-                await this.remoteClient.saveEntity('users', item as User);
+                await this.remoteClient.update('users', item.id, item);
                 break;
               case 'matches':
-                await this.remoteClient.saveEntity('matches', item as Match);
+                await this.remoteClient.update('matches', item.id, item);
                 break;
               case 'messages':
-                await this.remoteClient.saveEntity('messages', item as Message);
+                await this.remoteClient.update('messages', item.id, item);
                 break;
               case 'deletedUsers':
-                await this.remoteClient.deleteEntity('users', item.id);
+                await this.remoteClient.delete('users', item.id);
                 break;
               case 'deletedMatches':
-                await this.remoteClient.deleteEntity('matches', item.id);
+                await this.remoteClient.delete('matches', item.id);
                 break;
               case 'deletedMessages':
-                await this.remoteClient.deleteEntity('messages', item.id);
+                await this.remoteClient.delete('messages', item.id);
                 break;
               default:
                 console.warn(`未知的集合类型: ${collection}`);
@@ -120,6 +188,11 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     return success;
   }
 
+  /**
+   * 同步特定集合中的项目
+   * @param collection 集合名称
+   * @param items 待同步的项目
+   */
   protected async syncCollectionItems(collection: string, items: any[]): Promise<void> {
     if (!this.isOnline || this.syncInProgress) return;
     
@@ -132,22 +205,22 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
         try {
           switch (collection) {
             case 'users':
-              await this.remoteClient.saveEntity('users', item as User);
+              await this.remoteClient.update('users', item.id, item);
               break;
             case 'matches':
-              await this.remoteClient.saveEntity('matches', item as Match);
+              await this.remoteClient.update('matches', item.id, item);
               break;
             case 'messages':
-              await this.remoteClient.saveEntity('messages', item as Message);
+              await this.remoteClient.update('messages', item.id, item);
               break;
             case 'deletedUsers':
-              await this.remoteClient.deleteEntity('users', item.id);
+              await this.remoteClient.delete('users', item.id);
               break;
             case 'deletedMatches':
-              await this.remoteClient.deleteEntity('matches', item.id);
+              await this.remoteClient.delete('matches', item.id);
               break;
             case 'deletedMessages':
-              await this.remoteClient.deleteEntity('messages', item.id);
+              await this.remoteClient.delete('messages', item.id);
               break;
             default:
               console.warn(`未知的集合类型: ${collection}`);
@@ -171,7 +244,14 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     }
   }
 
+  /**
+   * 初始化数据库客户端
+   */
   async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
     // 初始化本地客户端
     await this.localClient.initialize();
     
@@ -183,8 +263,13 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
         console.error('远程客户端初始化失败', error);
       }
     }
+
+    this.initialized = true;
   }
 
+  /**
+   * 关闭数据库客户端
+   */
   async close(): Promise<void> {
     // 清除同步间隔
     if (this.syncInterval) {
@@ -208,8 +293,13 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
         console.error('远程客户端关闭失败', error);
       }
     }
+
+    this.initialized = false;
   }
 
+  /**
+   * 清空数据库
+   */
   async clear(): Promise<void> {
     // 清空本地客户端
     await this.localClient.clear();
@@ -227,111 +317,34 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     this.pendingSync.clear();
   }
 
-  // 移除特定表相关的方法，使用通用实体方法替代
+  // 实现 IDatabaseClient 接口的必要方法
 
-  // 用户相关操作 - 使用通用实体方法
-  async saveUser(user: User): Promise<void> {
-    await this.saveEntity('users', user);
+  async findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null> {
+    const result = await this.localClient.findById(tableName, id);
+    return result as T | null;
   }
 
-  async getUser(id: string): Promise<User | null> {
-    return this.getEntity<User>('users', id);
+  async findAll<T extends BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
+    const result = await this.localClient.findAll(tableName, filter);
+    return result as T[];
   }
 
-  async getUsers(): Promise<User[]> {
-    return this.getAllEntities<User>('users');
-  }
-
-  async updateUser(user: User): Promise<void> {
-    await this.updateEntity('users', user);
-  }
-
-  async deleteUser(id: string): Promise<void> {
-    await this.deleteEntity('users', id);
-  }
-
-  // 匹配相关操作 - 使用通用实体方法
-  async saveMatch(match: Match): Promise<void> {
-    await this.saveEntity('matches', match);
-  }
-
-  async getMatch(id: string): Promise<Match | null> {
-    return this.getEntity<Match>('matches', id);
-  }
-
-  async getMatches(userId?: string): Promise<Match[]> {
-    if (userId) {
-      return this.getEntitiesByRelation<Match>('matches', 'userId', userId);
-    }
-    return this.getAllEntities<Match>('matches');
-  }
-
-  async updateMatch(match: Match): Promise<void> {
-    await this.updateEntity('matches', match);
-  }
-
-  async deleteMatch(id: string): Promise<void> {
-    await this.deleteEntity('matches', id);
-  }
-
-  // 消息相关操作 - 使用通用实体方法
-  async saveMessage(message: Message): Promise<void> {
-    await this.saveEntity('messages', message);
-  }
-
-  async getMessage(id: string): Promise<Message | null> {
-    return this.getEntity<Message>('messages', id);
-  }
-
-  async getMessages(matchId: string): Promise<Message[]> {
-    return this.getEntitiesByRelation<Message>('messages', 'matchId', matchId);
-  }
-
-  async updateMessage(message: Message): Promise<void> {
-    await this.updateEntity('messages', message);
-  }
-
-  async deleteMessage(id: string): Promise<void> {
-    await this.deleteEntity('messages', id);
-  }
-
-  // 实现 IDatabaseClient 接口的其他必要方法
-  async findById<T>(tableName: string, id: string): Promise<T | null> {
-    return this.localClient.findById<T>(tableName, id);
-  }
-
-  async findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
-    return this.localClient.findAll<T>(tableName, filter);
-  }
-
-  async create<T extends { id: string }>(tableName: string, data: T): Promise<T> {
-    const result = await this.localClient.create<T>(tableName, data);
+  async create<T extends BaseEntity>(tableName: string, data: T): Promise<T> {
+    const result = await this.localClient.create(tableName, data);
     
     // 根据表名添加到相应的待同步列表
-    if (tableName === 'messages') {
-      this.addToPendingSync('messages', result);
-    } else if (tableName === 'users') {
-      this.addToPendingSync('users', result);
-    } else if (tableName === 'matches') {
-      this.addToPendingSync('matches', result);
-    }
+    await this.addToPendingSync(tableName, result as unknown as EntityWithId);
     
-    return result;
+    return result as T;
   }
 
-  async update<T extends { id: string }>(tableName: string, id: string, data: Partial<T>): Promise<void> {
-    await this.localClient.update<T>(tableName, id, data);
+  async update<T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void> {
+    await this.localClient.update(tableName, id, data);
     
     // 获取完整数据并添加到待同步列表
-    const fullData = await this.localClient.findById<T>(tableName, id);
+    const fullData = await this.localClient.findById(tableName, id);
     if (fullData) {
-      if (tableName === 'messages') {
-        this.addToPendingSync('messages', fullData);
-      } else if (tableName === 'users') {
-        this.addToPendingSync('users', fullData);
-      } else if (tableName === 'matches') {
-        this.addToPendingSync('matches', fullData);
-      }
+      await this.addToPendingSync(tableName, fullData as unknown as EntityWithId);
     }
   }
 
@@ -339,194 +352,125 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     await this.localClient.delete(tableName, id);
     
     // 添加到待删除同步列表
-    if (tableName === 'messages') {
-      this.addToPendingSync('deletedMessages', { id });
-    } else if (tableName === 'users') {
-      this.addToPendingSync('deletedUsers', { id });
-    } else if (tableName === 'matches') {
-      this.addToPendingSync('deletedMatches', { id });
-    }
+    await this.addToPendingSync(`deleted${tableName.charAt(0).toUpperCase() + tableName.slice(1)}`, { id });
   }
 
-  async query<T>(tableName: string, options: {
-    select?: string[];
-    where?: Record<string, any>;
-    orderBy?: string | string[];
-    limit?: number;
-    offset?: number;
-  }): Promise<T[]> {
-    return this.localClient.query<T>(tableName, options);
+  async query<T extends BaseEntity>(tableName: string, options: QueryOptions): Promise<QueryResult<T>> {
+    const result = await this.localClient.query(tableName, options);
+    return {
+      data: result.data as T[],
+      total: result.total,
+      hasMore: result.hasMore
+    };
   }
 
-  async executeRawQuery(query: string, params?: any[]): Promise<any> {
-    return this.localClient.executeRawQuery(query, params);
+  async count(tableName: string, filter?: Record<string, any>): Promise<number> {
+    return this.localClient.count(tableName, filter);
   }
 
-  async transaction<T>(callback: (trx: any) => Promise<T>): Promise<T> {
+  async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
+    return this.localClient.executeRawQuery<R>(query, params);
+  }
+
+  async beginTransaction(): Promise<void> {
+    return this.localClient.beginTransaction();
+  }
+
+  async commitTransaction(): Promise<void> {
+    return this.localClient.commitTransaction();
+  }
+
+  async rollbackTransaction(): Promise<void> {
+    return this.localClient.rollbackTransaction();
+  }
+
+  async transaction<T>(callback: (tx: any) => Promise<T>): Promise<T> {
     return this.localClient.transaction(callback);
   }
 
-  async isTableExists(tableName: string): Promise<boolean> {
-    return this.localClient.isTableExists(tableName);
+  async batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
+    return this.localClient.batch(tableName, operations);
   }
 
-  // 实现缺少的 IDatabaseClient 接口方法
-  async saveEntity<T extends EntityWithId>(tableName: string, entity: T): Promise<T> {
-    // 根据同步策略决定保存逻辑
-    if (this.syncStrategy === 'online-first' && this.isOnline) {
-      try {
-        // 先保存到远程
-        const remoteResult = await this.remoteClient.saveEntity(tableName, entity);
-        if (!remoteResult || !('id' in remoteResult)) {
-          throw new Error('Invalid remote result');
-        }
-        // 再保存到本地
-        const localResult = await this.localClient.saveEntity(tableName, remoteResult);
-        if (!localResult || !('id' in localResult)) {
-          throw new Error('Invalid local result');
-        }
-        return { ...entity, ...localResult } as T;
-      } catch (error) {
-        console.error(`远程保存实体失败: ${tableName}`, error);
-        // 远程保存失败，回退到本地保存
-        const localResult = await this.localClient.saveEntity(tableName, entity);
-        if (!localResult || !('id' in localResult)) {
-          throw new Error('Invalid local result');
-        }
-        return { ...entity, ...localResult } as T;
-      }
-    } else {
-      // 离线优先或手动同步模式，先保存到本地
-      const localResult = await this.localClient.saveEntity(tableName, entity);
-      // 添加到待同步队列
-      if (localResult && 'id' in localResult) {
-        const result = { ...entity, ...localResult } as T;
-        this.addToPendingSync(tableName, result);
-        return result;
-      }
-      throw new Error('Invalid local result');
+  // 实现 IDatabaseClient 接口的特定于实体的方法
+  async findUsers(query?: any): Promise<User[]> {
+    return this.localClient.findUsers(query);
+  }
+
+  async findMatches(query?: any): Promise<Match[]> {
+    return this.localClient.findMatches(query);
+  }
+
+  async findMessages(query?: any): Promise<Message[]> {
+    return this.localClient.findMessages(query);
+  }
+
+  async createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
+    const user = await this.localClient.createUser(data);
+    await this.addToPendingSync('users', user as unknown as EntityWithId);
+    return user;
+  }
+
+  async createMatch(data: Omit<Match, 'id' | 'createdAt' | 'updatedAt'>): Promise<Match> {
+    const match = await this.localClient.createMatch(data);
+    await this.addToPendingSync('matches', match as unknown as EntityWithId);
+    return match;
+  }
+
+  async createMessage(data: Omit<Message, 'id' | 'createdAt' | 'updatedAt'>): Promise<Message> {
+    const message = await this.localClient.createMessage(data);
+    await this.addToPendingSync('messages', message as unknown as EntityWithId);
+    return message;
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<void> {
+    await this.localClient.updateUser(id, data);
+    const user = await this.localClient.findById('users', id);
+    if (user) {
+      await this.addToPendingSync('users', user as unknown as EntityWithId);
     }
   }
 
-  async getEntity<T>(tableName: string, id: string): Promise<T | null> {
-    // 优先从本地获取
-    const localEntity = await this.localClient.getEntity<T>(tableName, id);
-    
-    // 如果本地没有且在线，尝试从远程获取
-    if (!localEntity && this.isOnline && this.syncStrategy === 'online-first') {
-      try {
-        const remoteEntity = await this.remoteClient.getEntity<T>(tableName, id);
-        if (remoteEntity) {
-          // 保存到本地缓存
-          await this.localClient.saveEntity(tableName, remoteEntity as T & { id: string });
-          return remoteEntity;
-        }
-      } catch (error) {
-        console.error(`远程获取实体失败: ${tableName}/${id}`, error);
-      }
-    }
-    
-    return localEntity;
-  }
-
-  async getAllEntities<T>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
-    // 优先从本地获取
-    const localEntities = await this.localClient.getAllEntities<T>(tableName, filter);
-    
-    // 如果在线且是在线优先策略，尝试从远程同步
-    if (this.isOnline && this.syncStrategy === 'online-first') {
-      try {
-        const remoteEntities = await this.remoteClient.getAllEntities<T>(tableName, filter);
-        
-        // 这里可以实现更复杂的合并逻辑，例如根据ID合并本地和远程实体
-        // 简单起见，这里只是将远程实体保存到本地
-        for (const entity of remoteEntities) {
-          await this.localClient.saveEntity(tableName, entity as T & { id: string });
-        }
-        
-        // 重新从本地获取，现在包含了同步的远程实体
-        return this.localClient.getAllEntities<T>(tableName, filter);
-      } catch (error) {
-        console.error(`远程获取所有实体失败: ${tableName}`, error);
-      }
-    }
-    
-    return localEntities;
-  }
-
-  async updateEntity<T extends { id: string }>(tableName: string, entity: T): Promise<T> {
-    // 根据同步策略决定更新逻辑
-    if (this.syncStrategy === 'online-first' && this.isOnline) {
-      try {
-        // 先更新远程
-        await this.remoteClient.updateEntity(tableName, entity);
-        // 再更新本地
-        return this.localClient.updateEntity(tableName, entity);
-      } catch (error) {
-        console.error(`远程更新实体失败: ${tableName}/${entity.id}`, error);
-        // 远程更新失败，回退到本地更新
-        return this.localClient.updateEntity(tableName, entity);
-      }
-    } else {
-      // 离线优先或手动同步模式，先更新本地
-      const result = await this.localClient.updateEntity(tableName, entity);
-      // 添加到待同步队列
-      // 这里需要实现待同步队列的逻辑
-      return result;
+  async updateMatch(id: string, data: Partial<Match>): Promise<void> {
+    await this.localClient.updateMatch(id, data);
+    const match = await this.localClient.findById('matches', id);
+    if (match) {
+      await this.addToPendingSync('matches', match as unknown as EntityWithId);
     }
   }
 
-  async deleteEntity(tableName: string, id: string): Promise<boolean> {
-    // 根据同步策略决定删除逻辑
-    if (this.syncStrategy === 'online-first' && this.isOnline) {
-      try {
-        // 先从远程删除
-        await this.remoteClient.deleteEntity(tableName, id);
-        // 再从本地删除
-        return this.localClient.deleteEntity(tableName, id);
-      } catch (error) {
-        console.error(`远程删除实体失败: ${tableName}/${id}`, error);
-        // 远程删除失败，回退到本地删除
-        return this.localClient.deleteEntity(tableName, id);
-      }
-    } else {
-      // 离线优先或手动同步模式，先从本地删除
-      const result = await this.localClient.deleteEntity(tableName, id);
-      // 添加到待同步队列
-      // 这里需要实现待同步队列的逻辑
-      return result;
+  async updateMessage(id: string, data: Partial<Message>): Promise<void> {
+    await this.localClient.updateMessage(id, data);
+    const message = await this.localClient.findById('messages', id);
+    if (message) {
+      await this.addToPendingSync('messages', message as unknown as EntityWithId);
     }
   }
 
-  async getEntitiesByRelation<T>(
-    tableName: string, 
-    relationField: string, 
-    relationId: string
-  ): Promise<T[]> {
-    // 优先从本地获取
-    const localEntities = await this.localClient.getEntitiesByRelation<T>(tableName, relationField, relationId);
-    
-    // 如果在线且是在线优先策略，尝试从远程同步
-    if (this.isOnline && this.syncStrategy === 'online-first') {
-      try {
-        const remoteEntities = await this.remoteClient.getEntitiesByRelation<T>(tableName, relationField, relationId);
-        
-        // 将远程实体保存到本地
-        for (const entity of remoteEntities) {
-          await this.localClient.saveEntity(tableName, entity as T & { id: string });
-        }
-        
-        // 重新从本地获取，现在包含了同步的远程实体
-        return this.localClient.getEntitiesByRelation<T>(tableName, relationField, relationId);
-      } catch (error) {
-        console.error(`远程获取关联实体失败: ${tableName}/${relationField}/${relationId}`, error);
-      }
-    }
-    
-    return localEntities;
+  async deleteUser(id: string): Promise<void> {
+    await this.localClient.deleteUser(id);
+    await this.addToPendingSync('deletedUsers', { id });
   }
 
-  protected addToPendingSync(tableName: string, item: EntityWithId): void {
+  async deleteMatch(id: string): Promise<void> {
+    await this.localClient.deleteMatch(id);
+    await this.addToPendingSync('deletedMatches', { id });
+  }
+
+  async deleteMessage(id: string): Promise<void> {
+    await this.localClient.deleteMessage(id);
+    await this.addToPendingSync('deletedMessages', { id });
+  }
+
+  // 以下是额外的辅助方法，非接口要求但对实现有用的方法
+  // 这些方法使用内部接口而不是IDatabaseClient接口
+
+  /**
+   * 添加项目到待同步队列
+   * @param tableName 表名
+   * @param item 待同步的项目
+   */
+  protected async addToPendingSync(tableName: string, item: EntityWithId): Promise<void> {
     const items = this.pendingSync.get(tableName) || [];
     items.push(item);
     this.pendingSync.set(tableName, items);

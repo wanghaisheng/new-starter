@@ -2,9 +2,9 @@
  * 同步元数据表定义
  * 用于数据库离线存储和同步功能
  */
-import { schemaRegistry } from '../index';
-import { TableSchema } from '../types';
-import { SyncState, SyncPriority, ConflictResolution } from '../../types/sync-flags';
+import { schemaRegistry } from '@/core/lib/db/schema/index';
+import { TableSchema } from '@/core/lib/db/schema/types';
+import { SyncState, SyncPriority, ConflictResolution } from '@/core/lib/db/types/sync-flags';
 
 /**
  * 同步元数据表结构

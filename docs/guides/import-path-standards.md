@@ -41,7 +41,7 @@ import { Button } from '@/core/components/ui/Button';
 import { formatDate } from '@/utils/date-utils';
 
 // 4. 类型导入
-import type { User } from '@/core/models/user';
+import type { User } from '@/core/lib/db/models/user';
 
 // 5. 样式导入
 import styles from './Component.module.css';
@@ -138,7 +138,7 @@ import { useUserData } from '@/features/user/hooks/useUserData';
 import { api } from '@/core/lib/api';
 import { logger } from '@/core/lib/logger';
 import { UserNotFoundError } from '@/core/errors/user-errors';
-import type { User, UserPreference } from '@/core/models/user';
+import type { User, UserPreference } from '@/core/lib/db/models/user';
 ```
 
 ### 4.3 库和工具导入

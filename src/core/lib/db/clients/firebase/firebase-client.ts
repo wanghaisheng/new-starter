@@ -30,20 +30,22 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
+
 import { BaseClient } from '@/core/lib/db/clients/base-client';
-import { BaseEntity } from '@/core/lib/db/types/base-entity';
-import { IDatabaseClient, IDatabaseTransaction } from '@/core/lib/db/interfaces';
-import { FirebaseConfig } from './firebase-config';
 import { DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
+import { IDatabaseClient, IDatabaseTransaction } from '@/core/lib/db/interfaces';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import {
   BatchOperation, 
   QueryOptions, 
   QueryResult,
   DatabaseEvent,
 } from '@/core/lib/db/types/database.types';
-import { User } from '@/core/lib/db/types/user';
 import { Match } from '@/core/lib/db/types/match';
 import { Message } from '@/core/lib/db/types/message';
+import { User } from '@/core/lib/db/types/user';
+
+import { FirebaseConfig } from './firebase-config';
 
 // 导入辅助类
 import { 

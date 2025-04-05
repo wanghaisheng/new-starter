@@ -1,4 +1,5 @@
 import { DrizzleSchemaAdapter } from './adapters/drizzle-adapter';
+
 import { schemaRegistry } from './index';
 
 // 导入所有表结构定义

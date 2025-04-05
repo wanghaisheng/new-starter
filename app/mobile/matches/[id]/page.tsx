@@ -14,7 +14,8 @@ import {
   IonFooter
 } from '@ionic/react';
 import { useParams } from 'next/navigation';
-import { Match, User } from '@/core/models/user';
+import { User } from '@/core/lib/db/types/user';
+import { Match } from '@/core/lib/db/types/match';
 import { UserService } from '@/core/services/user-service';
 import { MessageService } from '@/core/services/message-service';
 import RealTimeChat from '@/mobile/components/messages/RealTimeChat';

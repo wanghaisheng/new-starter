@@ -7,7 +7,8 @@ import {
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
-import { BaseEntity } from '../../interfaces';
+
+import { BaseEntity } from '@/core/lib/db/interfaces';
 
 export interface ConflictResolutionStrategy {
   // 服务器优先：使用服务器版本

@@ -1,11 +1,13 @@
-import { User, Match, Message } from '@/core/lib/db/types';
-import { IDataService } from './data-service-interface';
-import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { DatabaseFactory, DatabaseClientType } from '@/core/lib/db/factory';
-import { DatabaseService as CoreDatabaseService } from '@/core/lib/db/service';
-import { NetworkService } from './network-service';
-import { SyncManager } from '@/core/lib/db/sync/sync-manager';
 import { DatabaseConfig } from '@/core/lib/db/interfaces';
+import { DatabaseService as CoreDatabaseService } from '@/core/lib/db/service';
+import { SyncManager } from '@/core/lib/db/sync/sync-manager';
+import { User, Match, Message } from '@/core/lib/db/types';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+
+import { IDataService } from './data-service-interface';
+import { NetworkService } from './network-service';
+
 
 /**
  * Mock数据服务

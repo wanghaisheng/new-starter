@@ -1,7 +1,8 @@
-import { IBaseDatabaseClient } from '../interfaces';
-import { BaseEntity, SyncableBaseEntity } from '../types/base-entity';
-import { SchemaRegistry } from '../schema/schema-registry';
-import { SyncState, SyncPriority } from '../types/sync-flags';
+import { IBaseDatabaseClient } from '@/core/lib/db/interfaces';
+import { BaseEntity, SyncableBaseEntity } from '@/core/lib/db/types/base-entity';
+import { SchemaRegistry } from '@/core/lib/db/schema/schema-registry';
+import { SyncState, SyncPriority } from '@/core/lib/db/types/sync-flags';
+import { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database.types';
 
 /**
  * 基础仓储抽象类
@@ -42,7 +43,14 @@ export abstract class BaseRepository<T extends BaseEntity> {
    * @returns 实体列表
    */
   async findAll(filter?: Record<string, any>): Promise<T[]> {
-    return this.client.findAll(this.tableName, filter) as Promise<T[]>;
+    // 修复: 处理QueryResult，获取数据部分
+    const result = await this.client.findAll(this.tableName, filter);
+    // 如果结果是QueryResult类型（有data属性），则返回data部分
+    // 否则假定结果本身就是实体数组
+    if (result && typeof result === 'object' && 'data' in result) {
+      return result.data as T[];
+    }
+    return result as T[];
   }
   
   /**
@@ -106,7 +114,7 @@ export abstract class BaseRepository<T extends BaseEntity> {
    * @returns 查询结果
    */
   async query(options: QueryOptions): Promise<QueryResult<T>> {
-    return this.client.query<T>(this.tableName, options);
+    return this.client.query(this.tableName, options) as Promise<QueryResult<T>>;
   }
 
   /**
@@ -114,7 +122,7 @@ export abstract class BaseRepository<T extends BaseEntity> {
    * @param operations 批量操作列表
    */
   async batch(operations: BatchOperation<T>[]): Promise<void> {
-    await this.client.batch<T>(this.tableName, operations);
+    await this.client.batch(this.tableName, operations as BatchOperation<BaseEntity>[]);
   }
 
   /**

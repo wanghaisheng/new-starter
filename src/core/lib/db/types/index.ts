@@ -1,8 +1,10 @@
-import { schemaRegistry } from '../schema';
+import { schemaRegistry } from '@/core/lib/db/schema';
+
 import { BaseEntity } from './base-entity';
 
 // 明确导入两个不同的BatchOperation接口，避免命名冲突
 import { BatchOperation as DBBatchOperation } from './database.types';
+import * as DatabaseTypes from './database.types';
 import { BatchOperation as SimBatchOperation } from './simulator';
 
 /**
@@ -30,7 +32,6 @@ export * from './repository';
 export * from './converters';
 
 // 使用命名空间导出方式，避免命名冲突
-import * as DatabaseTypes from './database.types';
 import * as SimulatorTypes from './simulator';
 
 // 重新导出命名空间，但排除BatchOperation

@@ -1,5 +1,5 @@
-import { BaseEntity } from '../types/base-entity';
-import { Match as MatchType } from '../types/match';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { Match as MatchType } from '@/core/lib/db/types/match';
 
 /**
  * 匹配模型类

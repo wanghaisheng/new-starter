@@ -1,6 +1,7 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
-import { pgTable, uuid, varchar, timestamp, jsonb } from 'drizzle-orm/pg-core';
 import { mysqlTable } from 'drizzle-orm/mysql-core';
+import { pgTable, uuid, varchar, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+
 import { DatabaseType, TableSchema } from './types';
 
 export class TableConverter {

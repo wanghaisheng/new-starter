@@ -1,5 +1,5 @@
 import React from 'react';
-import { Message } from '@/core/lib/db/models/message';
+import { Message } from '@/core/lib/db/types/message';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { checkmarkOutline, checkmarkDoneOutline, timeOutline } from 'ionicons/icons';
@@ -16,9 +16,10 @@ interface MessageBubbleProps {
  */
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrentUser }) => {
   // 格式化消息时间
-  const formatMessageTime = (timestamp: string): string => {
+  const formatMessageTime = (timestamp: Date | string): string => {
     try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: false, locale: zhCN });
+      const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+      return formatDistanceToNow(date, { addSuffix: false, locale: zhCN });
     } catch (error) {
       return '未知时间';
     }
@@ -36,7 +37,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrentUser })
           {formatMessageTime(message.createdAt)}
           {isCurrentUser && (
             <span className="ml-2 flex items-center">
-              {message.status === 'read' || message.isRead ? (
+              {message.status === 'read' ? (
                 <>
                   <IonIcon icon={checkmarkDoneOutline} className="mr-1 text-xs" />
                   已读

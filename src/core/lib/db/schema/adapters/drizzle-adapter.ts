@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, blob } from 'drizzle-orm/sqlite-core';
-import { TableSchema, ColumnDefinition } from '../index';
+
+import { TableSchema, ColumnDefinition } from '@/core/lib/db/schema/index';
 
 /**
  * Drizzle ORM 适配器

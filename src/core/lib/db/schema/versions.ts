@@ -1,4 +1,4 @@
-import { DatabaseVersion } from '../types';
+import { DatabaseVersion } from '@/core/lib/db/types';
 
 // 数据库版本定义
 export const databaseVersions: DatabaseVersion[] = [

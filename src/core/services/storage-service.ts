@@ -1,21 +1,24 @@
-import { User, Match, Message } from '@/core/lib/db/types';
+import { Capacitor } from '@capacitor/core';
 import { Storage } from '@capacitor/storage';
 import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, 
-  collection, 
   doc, 
   setDoc, 
   getDoc, 
-  getDocs, 
+  collection, 
   query, 
   where, 
+  getDocs, 
   updateDoc, 
   deleteDoc,
   DocumentData,
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
+import { v4 as uuidv4 } from 'uuid';
+import { User, Match, Message } from '@/core/lib/db/types';
+import { getFirebaseConfig as importedGetFirebaseConfig } from '@/core/lib/db/clients/firebase';
 import { DataServiceFactory } from './data-service-factory';
 import { IDataService } from './data-service-interface';
 
@@ -33,18 +36,12 @@ export interface StorageConfig {
 /**
  * 获取 Firebase 配置
  * 从环境变量中读取 Firebase 配置信息
+ * 
+ * @deprecated 使用从 @/core/lib/db/clients/firebase 导入的 getFirebaseConfig 代替
  */
 function getFirebaseConfig(): StorageConfig {
-  return {
-    firebase: {
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
-      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || ''
-    }
-  };
+  // 现在使用导入的函数
+  return importedGetFirebaseConfig();
 }
 
 export interface IStorageService {

@@ -1,4 +1,4 @@
-import { SyncConfig } from '../types/sync-flags';
+import { SyncConfig } from '@/core/lib/db/types/sync-flags';
 
 /**
  * 列类型枚举

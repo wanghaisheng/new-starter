@@ -11,6 +11,7 @@ import { OfflineStorageService } from './offline-storage-service';
 export class DataServiceFactory {
   private static instance: IDataService | null = null;
   private static useMock: boolean = false;
+  private static useHybrid: boolean = false;
 
   /**
    * 获取数据服务实例
@@ -29,6 +30,8 @@ export class DataServiceFactory {
           DataServiceFactory.instance = mockService as unknown as IDataService;
         } else {
           console.log('Using DatabaseService for data operations');
+          // 当useHybrid为true时，会使用混合数据库客户端
+          // 这由DatabaseService内部处理，因为它会检查环境变量
           const dbService = DatabaseService.getInstance();
           DataServiceFactory.instance = dbService as unknown as IDataService;
         }
@@ -52,6 +55,24 @@ export class DataServiceFactory {
       DataServiceFactory.useMock = useMock;
     } else {
       console.warn('Cannot change data service type after it has been initialized');
+    }
+  }
+
+  /**
+   * 设置是否使用混合数据库客户端
+   * 
+   * @param useHybrid 是否使用混合客户端
+   */
+  public static setUseHybridClient(useHybrid: boolean): void {
+    // 只有在实例未创建前可以更改设置
+    if (!DataServiceFactory.instance) {
+      DataServiceFactory.useHybrid = useHybrid;
+      // 将设置保存到环境变量中，使DatabaseService可以访问
+      if (typeof process !== 'undefined' && process.env) {
+        process.env.NEXT_PUBLIC_USE_HYBRID_CLIENT = useHybrid ? 'true' : 'false';
+      }
+    } else {
+      console.warn('Cannot change database client type after it has been initialized');
     }
   }
 
@@ -88,6 +109,31 @@ export class DataServiceFactory {
    */
   public static getInstance(): IDataService {
     return this.getDataService();
+  }
+
+  /**
+   * 获取混合数据库服务实例
+   * 强制使用混合数据库客户端，无论环境设置如何
+   * 
+   * @returns 混合数据库服务实例
+   */
+  public static getHybridService(): IDataService {
+    // 保存当前设置
+    const currentHybridSetting = DataServiceFactory.useHybrid;
+    
+    try {
+      // 临时强制使用混合客户端
+      DataServiceFactory.setUseHybridClient(true);
+      
+      // 重置当前实例，以便下次获取时创建新实例
+      DataServiceFactory.resetDataService();
+      
+      // 获取使用混合客户端的服务实例
+      return DataServiceFactory.getDataService();
+    } finally {
+      // 恢复原始设置，但不重置实例，因为我们已经创建了一个
+      DataServiceFactory.useHybrid = currentHybridSetting;
+    }
   }
 
   /**

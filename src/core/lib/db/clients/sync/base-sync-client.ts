@@ -1,6 +1,7 @@
-import { IDatabaseClient, SyncConfig, SyncStrategy, SyncStatus } from '../../interfaces';
-import { NetworkService } from '@/core/services/network-service';
 import { EventEmitter } from 'events';
+
+import { NetworkService } from '@/core/services/network-service';
+import { IDatabaseClient, SyncConfig, SyncStrategy, SyncStatus } from '@/core/lib/db/interfaces';
 
 /**
  * 基础同步客户端

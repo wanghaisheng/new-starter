@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+
 import { IonButton } from '@ionic/react';
 import { motion } from 'framer-motion';
-import GlassCard from '../ui/GlassCard';
+
 import { User } from '@/core/lib/db/models/user';
+import GlassCard from '@/src/mobile/components/ui/GlassCard';
 
 interface MatchSuccessProps {
   currentUser: User;

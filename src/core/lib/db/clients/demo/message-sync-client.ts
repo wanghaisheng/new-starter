@@ -1,6 +1,6 @@
-import { IDatabaseClient, SyncConfig } from '../../interfaces';
-import { Message } from '@/core/models/message';
-import { BaseSyncClient } from '../sync/base-sync-client';
+import { Message } from '@/core/lib/db/models/message';
+import { BaseSyncClient } from '@/core/lib/db/clients/sync/base-sync-client';
+import { IDatabaseClient, SyncConfig } from '@/core/lib/db/interfaces';
 
 /**
  * 消息同步状态

@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
+
 import { IonButton, IonContent, IonHeader, IonTitle, IonToolbar, IonIcon } from '@ionic/react';
 import { camera, images } from 'ionicons/icons';
-import { User } from '@/core/models/user';
-import { Form, FormItem } from './Form';
+
+import { User } from '@/core/lib/db/models/user';
+
 import { Card } from './Card';
+import { Form, FormItem } from './Form';
 
 interface ProfileEditorProps {
   user: User;

@@ -1,13 +1,15 @@
-import { IDataService } from './data-service-interface';
-import { User, Match, Message, BaseEntity } from '@/core/lib/db/types';
-import { DatabaseService as CoreDatabaseService } from '@/core/lib/db/service';
-import { UserRepository } from '@/core/lib/db/repositories/user-repository';
+import { DatabaseClientType } from '@/core/lib/db/factory';
 import { MatchRepository } from '@/core/lib/db/repositories/match-repository';
 import { MessageRepository } from '@/core/lib/db/repositories/message-repository';
-import { NetworkService } from './network-service';
+import { UserRepository } from '@/core/lib/db/repositories/user-repository';
+import { DatabaseService as CoreDatabaseService } from '@/core/lib/db/service';
 import { SyncManager } from '@/core/lib/db/sync/sync-manager';
-import { DatabaseClientType } from '@/core/lib/db/factory';
+import { User, Match, Message, BaseEntity } from '@/core/lib/db/types';
 import { SyncState, SyncPriority } from '@/core/lib/db/types/sync-flags';
+
+import { IDataService } from './data-service-interface';
+import { NetworkService } from './network-service';
+
 
 /**
  * 环境配置类型
@@ -26,6 +28,15 @@ export interface EnvironmentConfig {
   enableDebugLogs: boolean;
   /** 数据库客户端类型 */
   dbClientType: string;
+  /** 是否使用混合客户端 */
+  useHybridClient?: boolean;
+  /** 混合客户端配置 */
+  hybridConfig?: {
+    /** 同步策略：立即、定期或手动 */
+    syncStrategy: 'immediate' | 'periodic' | 'manual';
+    /** 冲突解决策略 */
+    conflictResolution: 'client-wins' | 'server-wins' | 'last-write-wins';
+  };
 }
 
 // Delete operations need to handle changes when an entity has already been deleted
@@ -77,6 +88,7 @@ export class DatabaseService implements IDataService {
     // 获取环境类型
     const env = process.env.NEXT_PUBLIC_ENV || 'development';
     const dbEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+    const useHybrid = process.env.NEXT_PUBLIC_USE_HYBRID_CLIENT === 'true';
     
     // 基础配置
     const baseConfig: EnvironmentConfig = {
@@ -85,7 +97,12 @@ export class DatabaseService implements IDataService {
       autoSyncOnConnect: true,
       syncEntityTypes: ['users', 'matches', 'messages'],
       enableDebugLogs: false,
-      dbClientType: DatabaseClientType.MOCK_INDEXEDDB
+      dbClientType: DatabaseClientType.MOCK_INDEXEDDB,
+      useHybridClient: useHybrid,
+      hybridConfig: {
+        syncStrategy: 'periodic',
+        conflictResolution: 'last-write-wins'
+      }
     };
     
     // 根据环境类型调整配置
@@ -96,11 +113,17 @@ export class DatabaseService implements IDataService {
           enableSync: dbEnv !== 'mock' && true,
           syncIntervalMs: 300000, // 生产环境下5分钟同步一次，减少服务器负载
           enableDebugLogs: false,
-          dbClientType: dbEnv === 'production' ? 
-            (typeof window !== 'undefined' && 'capacitor' in window ? 
-              DatabaseClientType.CAPACITOR_SQLITE : 
-              DatabaseClientType.INDEXEDDB) : 
-            DatabaseClientType.MOCK_INDEXEDDB
+          dbClientType: useHybrid ? 
+            DatabaseClientType.HYBRID :
+            (dbEnv === 'production' ? 
+              (typeof window !== 'undefined' && 'capacitor' in window ? 
+                DatabaseClientType.CAPACITOR_SQLITE : 
+                DatabaseClientType.INDEXEDDB) : 
+              DatabaseClientType.MOCK_INDEXEDDB),
+          hybridConfig: {
+            syncStrategy: 'periodic', 
+            conflictResolution: 'server-wins'
+          }
         };
         
       case 'test':
@@ -108,7 +131,8 @@ export class DatabaseService implements IDataService {
           ...baseConfig,
           enableSync: false, // 测试环境禁用同步
           enableDebugLogs: true,
-          dbClientType: DatabaseClientType.MOCK
+          dbClientType: DatabaseClientType.MOCK,
+          useHybridClient: false // 测试环境不使用混合客户端
         };
         
       case 'development':
@@ -117,9 +141,15 @@ export class DatabaseService implements IDataService {
           ...baseConfig,
           syncIntervalMs: 30000, // 开发环境30秒同步一次，方便调试
           enableDebugLogs: true,
-          dbClientType: dbEnv === 'local' ? 
-            DatabaseClientType.INDEXEDDB : 
-            DatabaseClientType.MOCK_INDEXEDDB
+          dbClientType: useHybrid ? 
+            DatabaseClientType.HYBRID :
+            (dbEnv === 'local' ? 
+              DatabaseClientType.INDEXEDDB : 
+              DatabaseClientType.MOCK_INDEXEDDB),
+          hybridConfig: {
+            syncStrategy: 'immediate', // 开发环境下使用即时同步便于调试
+            conflictResolution: 'last-write-wins'
+          }
         };
     }
   }

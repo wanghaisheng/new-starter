@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
+
 import { IonInput, IonButton, IonIcon, IonSpinner } from '@ionic/react';
 import { sendOutline } from 'ionicons/icons';
+
 import MessageStatus from './MessageStatus';
 
 interface MessageInputProps {

@@ -1,5 +1,5 @@
-import { BaseEntity } from '../types/base-entity';
-import { Message as MessageType } from '../types/message';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { Message as MessageType } from '@/core/lib/db/types/message';
 
 /**
  * 消息模型类

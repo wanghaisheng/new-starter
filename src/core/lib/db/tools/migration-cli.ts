@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { DataMigrationService } from '../../../services/data-migration-service';
-import { schemaRegistry } from '../schema';
+
+import { schemaRegistry } from '@/core/lib/db/schema';
+import { DataMigrationService } from '@/core/services/data-migration-service';
 
 // 创建命令行程序
 const program = new Command();

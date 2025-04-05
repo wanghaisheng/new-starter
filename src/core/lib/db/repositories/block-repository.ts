@@ -1,6 +1,7 @@
+import { IBaseDatabaseClient } from '@/core/lib/db/interfaces';
+import { Block } from '@/core/lib/db/types';
+
 import { BaseRepository } from './base-repository';
-import { IBaseDatabaseClient } from '../interfaces';
-import { Block } from '../types';
 
 /**
  * 拉黑仓储类
@@ -17,9 +18,10 @@ export class BlockRepository extends BaseRepository<Block> {
    * @returns 拉黑记录列表
    */
   async findByBlockerId(blockerId: string): Promise<Block[]> {
-    return this.query({
+    const result = await this.query({
       where: { blockerId }
     });
+    return result.data;
   }
 
   /**
@@ -28,9 +30,10 @@ export class BlockRepository extends BaseRepository<Block> {
    * @returns 拉黑记录列表
    */
   async findByBlockedId(blockedId: string): Promise<Block[]> {
-    return this.query({
+    const result = await this.query({
       where: { blockedId }
     });
+    return result.data;
   }
 
   /**
@@ -50,7 +53,7 @@ export class BlockRepository extends BaseRepository<Block> {
         ]
       }
     });
-    return blocks.length > 0;
+    return blocks.data.length > 0;
   }
 
   /**
@@ -59,7 +62,7 @@ export class BlockRepository extends BaseRepository<Block> {
    * @returns 有效的拉黑记录列表
    */
   async findActiveByBlockerId(blockerId: string): Promise<Block[]> {
-    return this.query({
+    const result = await this.query({
       where: {
         blockerId,
         $or: [
@@ -68,5 +71,6 @@ export class BlockRepository extends BaseRepository<Block> {
         ]
       }
     });
+    return result.data;
   }
 }

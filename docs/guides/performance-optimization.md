@@ -75,8 +75,8 @@
         </div>
       )}
     </FixedSizeList>
-  );
-  ```
+);
+```
 
 ### 1.2 资源加载优化
 
@@ -207,7 +207,7 @@
 ### 2.1 IndexedDB优化
 
 - **批量操作**：使用事务和批量操作减少数据库交互
-  ```typescript
+```typescript
   const db = await openDatabase();
   const tx = db.transaction('users', 'readwrite');
   const store = tx.objectStore('users');
@@ -221,7 +221,7 @@
   ```
 
 - **索引优化**：为常用查询创建索引
-  ```typescript
+```typescript
   // 在数据库模式中添加索引
   userStore.createIndex('email', 'email', { unique: true });
   userStore.createIndex('age', 'age', { unique: false });
@@ -296,12 +296,12 @@
       }
     } catch (error) {
       console.log('Using cached data due to network error');
-    }
   }
-  ```
+}
+```
 
 - **背景同步**：使用Background Sync API在连接稳定时同步数据
-  ```typescript
+```typescript
   // 注册后台同步
   async function registerBackgroundSync() {
     if ('serviceWorker' in navigator && 'SyncManager' in window) {
@@ -414,7 +414,7 @@
 ### 3.1 前端性能监测
 
 - **使用Performance API**：测量关键操作的性能
-  ```typescript
+```typescript
   function measureOperation(operationName, operation) {
     performance.mark(`${operationName}-start`);
     
@@ -440,7 +440,7 @@
   ```
 
 - **监控首次内容绘制**：追踪页面加载性能
-  ```typescript
+```typescript
   function reportLoadMetrics() {
     const paint = performance.getEntriesByType('paint');
     const fcp = paint.find(entry => entry.name === 'first-contentful-paint');

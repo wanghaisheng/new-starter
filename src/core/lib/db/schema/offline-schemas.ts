@@ -2,9 +2,10 @@
  * 离线专用表结构定义
  * 此模块定义了仅在本地存储、从不与远程同步的表
  */
-import { TableSchema, ColumnType } from './types';
-import { SyncPriority, ConflictResolution } from '../types/sync-flags';
+import { SyncPriority, ConflictResolution } from '@/core/lib/db/types/sync-flags';
+
 import { SchemaRegistry } from './schema-registry';
+import { TableSchema, ColumnType } from './types';
 
 /**
  * 离线笔记表

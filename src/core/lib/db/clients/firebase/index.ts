@@ -10,6 +10,9 @@ export { FirebaseClient } from './firebase-client';
 // 导出配置类型
 export type { FirebaseConfig } from './firebase-config';
 
+// 导出环境配置
+export { getFirebaseConfig } from './firebase-env-config';
+
 // 导出辅助类
 export { FirebaseAuthService } from './firebase-auth';
 export { FirebasePermissionsService } from './firebase-permissions';

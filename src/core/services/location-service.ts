@@ -1,7 +1,9 @@
 import { Capacitor } from '@capacitor/core';
 import { Geolocation, GeolocationPosition, PositionOptions } from '@capacitor/geolocation';
-import { OfflineStorageService } from './offline-storage-service';
+
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
+
+import { OfflineStorageService } from './offline-storage-service';
 
 // Define a type alias for cleaner code
 type Position = GeolocationPosition;

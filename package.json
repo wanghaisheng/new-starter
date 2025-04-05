@@ -32,6 +32,7 @@
     "test:all": "node scripts/run-tests.js --all",
     "test:all:report": "node scripts/run-tests.js --all --report",
     "test:all:coverage": "node scripts/run-tests.js --all --coverage",
+    "generate:offline-test": "node scripts/generate-offline-test.js",
     "build:next": "next build && next export -o dist",
     "build:capacitor": "npm run build:next && cap copy",
     "build:android": "npm run build:capacitor && cap open android",

@@ -1,5 +1,5 @@
-import { schemaRegistry, TableSchema } from '../index';
 import { SyncPriority, ConflictResolution } from '@/core/lib/db/types/sync-flags';
+import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
 
 /**
  * 离线笔记表 - 示例表结构

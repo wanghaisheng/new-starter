@@ -1,8 +1,10 @@
-import { Message, User } from '@/core/lib/db/types';
-import { IDataService } from './data-service-interface';
-import { DataServiceFactory } from './data-service-factory';
-import { NetworkService } from './network-service';
 import { v4 as uuidv4 } from 'uuid';
+
+import { Message, User } from '@/core/lib/db/types';
+
+import { DataServiceFactory } from './data-service-factory';
+import { IDataService } from './data-service-interface';
+import { NetworkService } from './network-service';
 
 /**
  * 消息服务

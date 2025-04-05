@@ -21,7 +21,7 @@ import {
   IDBVersionChangeEvent
 } from 'fake-indexeddb';
 
-import { IndexedDBClient, IndexedDBConfig } from './indexeddb-client';
+import { IndexedDBClient, IndexedDBConfig } from '@/core/lib/db/clients/indexeddb/indexeddb-client';
 import { schemaRegistry } from '@/core/lib/db/schema';
 import { DatabaseErrorCode } from '@/core/lib/db/errors';
 import { TableSchema } from '@/core/lib/db/schema/types';
@@ -286,7 +286,7 @@ export class MockIndexedDBClient extends IndexedDBClient {
       
       // 核心表检查
       const coreTables = ['users', 'matches', 'messages'];
-      const missingCoreTables = missingTables.filter(name => coreTables.includes(name));
+      const missingCoreTables = missingTables.filter((name: string) => coreTables.includes(name));
       if (missingCoreTables.length > 0) {
         console.error(`❌ 致命错误: 缺少核心表: ${missingCoreTables.join(', ')}`);
         return false;

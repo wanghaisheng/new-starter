@@ -1,0 +1,48 @@
+依赖安装结果报告
+=========================
+执行时间: Fri, Mar 28, 2025  7:01:43 AM
+
+检查Node.js和bun版本...
+Node.js版本: v22.14.0
+bun版本: 1.2.5
+
+
+检查package.json是否存在...
+✅ package.json存在
+
+安装依赖...
+这可能需要几分钟时间，请耐心等待...
+[0.00ms] ".env.local"
+bun install v1.2.5 (013fdddc)
+Resolving dependencies
+Resolved, downloaded and extracted [4]
+Saved lockfile
+
++ next@15.2.4
+
+3 packages installed [10.58s]
+✅ 依赖安装成功
+
+安装Capacitor CLI...
+bun add v1.2.5 (013fdddc)
+Resolving dependencies
+Resolved, downloaded and extracted [30]
+Saved lockfile
+
+installed @capacitor/cli@7.1.0 with binaries:
+ - capacitor
+ - cap
+
+100 packages installed [841.00ms]
+
+warn: To run "capacitor", add the global bin folder to $PATH:
+
+C:\\Users\\Administrator\\.bun\\bin
+✅ Capacitor CLI安装成功
+
+
+依赖安装完成！
+=========================
+下一步：
+1. 运行 'bun run dev' 启动开发服务器
+2. 在浏览器中访问 http://localhost:3000

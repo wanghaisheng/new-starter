@@ -1,8 +1,9 @@
+import { DatabaseError } from '@/core/lib/db/errors/database-error';
+import { IBaseDatabaseClient } from '@/core/lib/db/interfaces';
+import { CreateMatchData } from '@/core/lib/db/types/match';
+import { Match } from '@/core/lib/db/types/match';
+
 import { BaseRepository } from './base-repository';
-import { IBaseDatabaseClient } from '../interfaces';
-import { Match } from '../types/match';
-import { DatabaseError } from '../errors/database-error';
-import { CreateMatchData } from '../types/match';
 
 /**
  * 匹配仓储类
@@ -47,11 +48,12 @@ export class MatchRepository extends BaseRepository<Match> {
    */
   async findByUserId(userId: string): Promise<Match[]> {
     try {
-      return await this.query({
+      const result = await this.query({
         where: {
           users: { $contains: userId }
         }
       });
+      return result.data;
     } catch (error) {
       throw new DatabaseError(
         `查找用户 ${userId} 的所有匹配失败`,
@@ -70,13 +72,13 @@ export class MatchRepository extends BaseRepository<Match> {
    */
   async findByUsers(userId1: string, userId2: string): Promise<Match | null> {
     try {
-      const matches = await this.query({
+      const result = await this.query({
         where: {
           users: { $contains: [userId1, userId2] }
         },
         limit: 1
       });
-      return matches.length > 0 ? matches[0] : null;
+      return result.data.length > 0 ? result.data[0] : null;
     } catch (error) {
       throw new DatabaseError(
         `查找用户 ${userId1} 和 ${userId2} 之间的匹配失败`,

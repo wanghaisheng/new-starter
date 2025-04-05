@@ -1,3 +1,4 @@
+import { getApp } from 'firebase/app';
 import { 
   getFirestore, 
   collection, 
@@ -20,12 +21,14 @@ import {
   OrderByDirection,
   writeBatch
 } from 'firebase/firestore';
-import { getApp } from 'firebase/app';
-import { FirebaseConfig } from './firebase-config';
-import { BaseEntity } from '@/core/lib/db/types/base-entity';
+
+
 import { DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { SyncStatus } from '@/core/lib/db/types/database.types';
+
+import { FirebaseConfig } from './firebase-config';
 
 export interface SyncOptions {
   enableOfflineCache?: boolean;

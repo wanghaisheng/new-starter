@@ -1,6 +1,7 @@
 import './globals.css';
-import { Providers } from '../src/providers';
 import { Metadata } from 'next';
+
+import { Providers } from '@/src/providers';
 
 export const metadata: Metadata = {
   title: 'Capacitor-Next.js 15 + Ionic + Tailwind 全栈启动项目',

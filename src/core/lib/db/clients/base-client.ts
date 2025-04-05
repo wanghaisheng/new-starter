@@ -1,8 +1,8 @@
-import { IBaseDatabaseClient, IDatabaseTransaction } from '../interfaces';
-import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError } from '../types/database.types';
-import { BaseEntity } from '../types/base-entity';
-import { DatabaseLogger, getLogger } from '../errors/database-logger';
-import { DatabaseErrorCode, createDatabaseError } from '../errors/database-error';
+import { IBaseDatabaseClient, IDatabaseTransaction } from '@/core/lib/db/interfaces';
+import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError } from '@/core/lib/db/types/database.types';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseErrorCode, createDatabaseError } from '@/core/lib/db/errors/database-error';
 
 /**
  * 数据库客户端抽象基类

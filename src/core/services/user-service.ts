@@ -1,8 +1,10 @@
+import { v4 as uuid } from 'uuid';
+
 import { User, Match, Message } from '@/core/lib/db/types';
-import { NetworkService } from './network-service';
+
 import { DataServiceFactory } from './data-service-factory';
 import { IDataService } from './data-service-interface';
-import { v4 as uuid } from 'uuid';
+import { NetworkService } from './network-service';
 
 /**
  * 用户服务接口

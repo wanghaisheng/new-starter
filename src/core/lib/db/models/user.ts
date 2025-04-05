@@ -1,7 +1,7 @@
-import { BaseEntity } from '../types/base-entity';
-import { User as UserType, UserPreferences } from '../types/user';
-import { Photo } from '../types/photo';
-import { Location } from '../types/location';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { Location } from '@/core/lib/db/types/location';
+import { Photo } from '@/core/lib/db/types/photo';
+import { User as UserType, UserPreferences } from '@/core/lib/db/types/user';
 
 /**
  * 用户模型类

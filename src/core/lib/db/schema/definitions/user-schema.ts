@@ -1,4 +1,4 @@
-import { schemaRegistry, TableSchema } from '../index';
+import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
 
 /**
  * 用户表结构定义

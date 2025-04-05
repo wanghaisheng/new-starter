@@ -1,10 +1,10 @@
-import { DatabaseFactory } from './factory';
-import { IDatabaseClient } from './interfaces';
-import { User, Match, Message } from './models';
-import { UserRepository } from './repositories/user-repository';
-import { MatchRepository } from './repositories/match-repository';
-import { MessageRepository } from './repositories/message-repository';
-import { initializeSchemas } from './schema';
+import { DatabaseFactory } from '@/core/lib/db/factory';
+import { IDatabaseClient } from '@/core/lib/db/interfaces';
+import { User, Match, Message } from '@/core/lib/db/models';
+import { UserRepository } from '@/core/lib/db/repositories/user-repository';
+import { MatchRepository } from '@/core/lib/db/repositories/match-repository';
+import { MessageRepository } from '@/core/lib/db/repositories/message-repository';
+import { initializeSchemas } from '@/core/lib/db/schema';
 
 /**
  * 数据库服务类

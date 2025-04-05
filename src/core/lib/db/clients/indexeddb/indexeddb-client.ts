@@ -1,12 +1,12 @@
-import { BaseClient } from '../base-client';
-import { IDatabaseClient, DatabaseConfig, IDatabaseTransaction } from '../../interfaces';
-import { schemaRegistry } from '../../schema/index';
+import { BaseClient } from '@/core/lib/db/clients/base-client';
+import { IDatabaseClient, DatabaseConfig, IDatabaseTransaction } from '@/core/lib/db/interfaces';
+import { schemaRegistry } from '@/core/lib/db/schema/index';
 import { IDBPDatabase, openDB, IDBPTransaction } from 'idb';
-import { User, Match, Message } from '../../types';
-import { IndexDefinition } from '../../schema/types';
-import { BaseEntity } from '../../types/base-entity';
-import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent } from '../../types/database.types';
-import { DatabaseError, DatabaseErrorCode } from '../../errors/database-error';
+import { User, Match, Message } from '@/core/lib/db/types';
+import { IndexDefinition } from '@/core/lib/db/schema/types';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent } from '@/core/lib/db/types/database.types';
+import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 
 // Update DatabaseEvent type to include 'performance'
 // This extends the existing type declared in database.types.ts

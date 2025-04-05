@@ -1,8 +1,8 @@
 import { BaseEntity, DatabaseRecord } from './base-entity';
-import { User } from './user';
 import { Match } from './match';
 import { Message } from './message';
 import { Photo } from './photo';
+import { User } from './user';
 
 /**
  * 类型转换工具

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+
 import { IonContent, IonSpinner } from '@ionic/react';
-import { Message } from '@/core/lib/db/models/message';
-import { User } from '@/core/lib/db/models/user';
+
+import { Message } from '@/core/lib/db/types/message';
+import { User } from '@/core/lib/db/types/user';
 import { MessageService } from '@/core/services/message-service';
+
 import MessageBubble from './MessageBubble';
 
 interface RealTimeChatProps {
@@ -88,7 +91,7 @@ const RealTimeChat: React.FC<RealTimeChatProps> = ({
     try {
       // 找出所有发送给当前用户且未读的消息
       const unreadMessages = messageList.filter(
-        msg => msg.receiverId === currentUserId && !msg.isRead
+        msg => msg.receiverId === currentUserId && msg.status !== 'read'
       );
       
       if (unreadMessages.length > 0) {

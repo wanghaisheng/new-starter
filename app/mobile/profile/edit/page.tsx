@@ -24,7 +24,7 @@ import {
 } from '@ionic/react';
 import { add, remove, camera } from 'ionicons/icons';
 import { useRouter } from 'next/navigation';
-import { User } from '@/core/models/user';
+import { User } from '@/core/lib/db/models/user';
 import { UserService } from '@/core/services/user-service';
 import { CameraService } from '@/core/services/camera-service';
 

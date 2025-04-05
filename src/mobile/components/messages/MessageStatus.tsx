@@ -4,7 +4,6 @@ import { checkmarkOutline, checkmarkDoneOutline, timeOutline } from 'ionicons/ic
 
 interface MessageStatusProps {
   status: 'sent' | 'delivered' | 'read';
-  isRead?: boolean;
   className?: string;
   showText?: boolean;
 }
@@ -15,12 +14,11 @@ interface MessageStatusProps {
  */
 const MessageStatus: React.FC<MessageStatusProps> = ({ 
   status, 
-  isRead, 
   className = '', 
   showText = false 
 }) => {
   // 确定实际状态（兼容isRead字段）
-  const actualStatus = isRead ? 'read' : status;
+  const actualStatus = status;
   
   return (
     <div className={`flex items-center ${className}`}>

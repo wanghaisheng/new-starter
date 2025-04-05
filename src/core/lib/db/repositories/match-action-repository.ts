@@ -1,6 +1,7 @@
+import { IBaseDatabaseClient } from '@/core/lib/db/interfaces';
+import { MatchAction } from '@/core/lib/db/types';
+
 import { BaseRepository } from './base-repository';
-import { IBaseDatabaseClient } from '../interfaces';
-import { MatchAction } from '../types';
 
 /**
  * 匹配操作仓储类
@@ -17,9 +18,10 @@ export class MatchActionRepository extends BaseRepository<MatchAction> {
    * @returns 匹配操作列表
    */
   async findByUserId(userId: string): Promise<MatchAction[]> {
-    return this.query({
+    const result = await this.query({
       where: { userId }
     });
+    return result.data;
   }
 
   /**
@@ -28,9 +30,10 @@ export class MatchActionRepository extends BaseRepository<MatchAction> {
    * @returns 匹配操作列表
    */
   async findByTargetUserId(targetUserId: string): Promise<MatchAction[]> {
-    return this.query({
+    const result = await this.query({
       where: { targetUserId }
     });
+    return result.data;
   }
 
   /**
@@ -40,7 +43,7 @@ export class MatchActionRepository extends BaseRepository<MatchAction> {
    * @returns 匹配操作列表
    */
   async findBetweenUsers(userId: string, targetUserId: string): Promise<MatchAction[]> {
-    return this.query({
+    const result = await this.query({
       where: {
         $or: [
           { userId, targetUserId },
@@ -48,6 +51,7 @@ export class MatchActionRepository extends BaseRepository<MatchAction> {
         ]
       }
     });
+    return result.data;
   }
 
   /**
@@ -57,8 +61,9 @@ export class MatchActionRepository extends BaseRepository<MatchAction> {
    * @returns 匹配操作列表
    */
   async findByUserIdAndAction(userId: string, action: MatchAction['action']): Promise<MatchAction[]> {
-    return this.query({
+    const result = await this.query({
       where: { userId, action }
     });
+    return result.data;
   }
 }

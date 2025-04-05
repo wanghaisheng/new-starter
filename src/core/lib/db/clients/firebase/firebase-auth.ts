@@ -17,9 +17,11 @@ import {
   browserLocalPersistence,
   browserSessionPersistence
 } from 'firebase/auth';
-import { FirebaseConfig } from './firebase-config';
-import { BaseEntity } from '@/core/lib/db/types/base-entity';
+
 import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+
+import { FirebaseConfig } from './firebase-config';
 
 export interface AuthUser {
   uid: string;

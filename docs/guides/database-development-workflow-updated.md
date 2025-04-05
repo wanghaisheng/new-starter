@@ -885,7 +885,7 @@ export class DatabaseService {
 
 ```typescript
 // 错误示例：直接导入mock数据
-import { getRecommendedUsers } from '@/core/models/mock-data';
+import { getRecommendedUsers } from '@/core/lib/db/models/mock-data';
 
 function DiscoverPage()
 ```

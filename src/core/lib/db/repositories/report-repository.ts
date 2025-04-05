@@ -1,6 +1,7 @@
+import { IBaseDatabaseClient } from '@/core/lib/db/interfaces';
+import { Report } from '@/core/lib/db/types';
+
 import { BaseRepository } from './base-repository';
-import { IBaseDatabaseClient } from '../interfaces';
-import { Report } from '../types';
 
 /**
  * 举报仓储类
@@ -17,9 +18,10 @@ export class ReportRepository extends BaseRepository<Report> {
    * @returns 举报列表
    */
   async findByReporterId(reporterId: string): Promise<Report[]> {
-    return this.query({
+    const result = await this.query({
       where: { reporterId }
     });
+    return result.data;
   }
 
   /**
@@ -28,9 +30,10 @@ export class ReportRepository extends BaseRepository<Report> {
    * @returns 举报列表
    */
   async findByTargetUserId(targetUserId: string): Promise<Report[]> {
-    return this.query({
+    const result = await this.query({
       where: { targetUserId }
     });
+    return result.data;
   }
 
   /**
@@ -39,9 +42,10 @@ export class ReportRepository extends BaseRepository<Report> {
    * @returns 举报列表
    */
   async findByStatus(status: Report['status']): Promise<Report[]> {
-    return this.query({
+    const result = await this.query({
       where: { status }
     });
+    return result.data;
   }
 
   /**

@@ -1,7 +1,8 @@
+import { DatabaseError } from '@/core/lib/db/errors/database-error';
+import { IBaseDatabaseClient } from '@/core/lib/db/interfaces';
+import { User } from '@/core/lib/db/types/user';
+
 import { BaseRepository } from './base-repository';
-import { IBaseDatabaseClient } from '../interfaces';
-import { User } from '../types/user';
-import { DatabaseError } from '../errors/database-error';
 
 /**
  * 用户仓储类
@@ -23,9 +24,10 @@ export class UserRepository extends BaseRepository<User> {
    */
   async findByName(name: string): Promise<User[]> {
     try {
-      return await this.query({
+      const result = await this.query({
         where: { name }
       });
+      return result.data;
     } catch (error) {
       throw new DatabaseError(
         `查找用户名为 ${name} 的用户失败`,
@@ -44,11 +46,12 @@ export class UserRepository extends BaseRepository<User> {
   async findByInterest(interest: string): Promise<User[]> {
     try {
       // 使用基类query方法而不是直接client调用
-      return await this.query({
+      const result = await this.query({
         where: {
           interests: { $contains: interest }
         }
       });
+      return result.data;
     } catch (error) {
       throw new DatabaseError(
         `查找兴趣为 ${interest} 的用户失败`,
@@ -66,10 +69,11 @@ export class UserRepository extends BaseRepository<User> {
    */
   async findRecentlyActive(limit: number = 10): Promise<User[]> {
     try {
-      return await this.query({
+      const result = await this.query({
         orderBy: { field: 'lastActive', direction: 'desc' },
         limit
       });
+      return result.data;
     } catch (error) {
       throw new DatabaseError(
         `查找最近活跃用户失败`,
@@ -87,11 +91,11 @@ export class UserRepository extends BaseRepository<User> {
    */
   async findByGoogleId(googleId: string): Promise<User | null> {
     try {
-      const users = await this.query({
+      const result = await this.query({
         where: { googleId },
         limit: 1
       });
-      return users.length > 0 ? users[0] : null;
+      return result.data.length > 0 ? result.data[0] : null;
     } catch (error) {
       throw new DatabaseError(
         `查找Google ID为 ${googleId} 的用户失败`,

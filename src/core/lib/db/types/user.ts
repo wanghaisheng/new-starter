@@ -1,6 +1,6 @@
 import { BaseEntity } from './base-entity';
-import { Photo } from './photo';
 import { Location } from './location';
+import { Photo } from './photo';
 
 /**
  * 用户实体接口

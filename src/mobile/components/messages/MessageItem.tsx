@@ -3,8 +3,8 @@ import { IonItem, IonAvatar, IonLabel, IonBadge, IonIcon } from '@ionic/react';
 import { timeOutline, checkmarkOutline, checkmarkDoneOutline } from 'ionicons/icons';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { User } from '@/core/lib/db/models/user';
-import { Message } from '@/core/lib/db/models/message';
+import { User } from '@/core/lib/db/types/user';
+import { Message } from '@/core/lib/db/types/message';
 
 interface MessageItemProps {
   matchId: string;
@@ -28,12 +28,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
   // 判断是否有未读消息
   const hasUnread = lastMessage && 
     lastMessage.senderId !== currentUserId && 
-    (lastMessage.status !== 'read' && !lastMessage.isRead);
+    lastMessage.status !== 'read';
   
   // 格式化最后消息时间
-  const formatLastMessageTime = (timestamp: string): string => {
+  const formatLastMessageTime = (timestamp: Date | string): string => {
     try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: zhCN });
+      const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+      return formatDistanceToNow(date, { addSuffix: true, locale: zhCN });
     } catch (error) {
       return '未知时间';
     }

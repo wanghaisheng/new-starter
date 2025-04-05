@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { IonList, IonItem, IonLabel, IonSkeletonText } from '@ionic/react';
+
 import { useRouter } from 'next/navigation';
-import { Match, User, Message } from '@/core/lib/db/models/user';
-import { UserService } from '@/core/services/user-service';
+
+import { IonList, IonItem, IonLabel, IonSkeletonText } from '@ionic/react';
+
+import { Match } from '@/core/lib/db/types/match';
+import { Message } from '@/core/lib/db/types/message';
+import { User } from '@/core/lib/db/types/user';
 import { MessageService } from '@/core/services/message-service';
+import { UserService } from '@/core/services/user-service';
+
 import MessageItem from './MessageItem';
 
 interface ChatListProps {

@@ -395,7 +395,7 @@ export default function ProfilePage() {
 // src/mobile/stores/auth-store.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User } from '@/core/models/user';
+import { User } from '@/core/lib/db/models/user';
 import { AuthService } from '@/core/lib/api/auth';
 
 interface AuthState {

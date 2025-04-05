@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom';
 import { MockDataService } from '../mock-data-service';
 import { DataServiceFactory } from '../data-service-factory';
-import { User } from '@/core/models/user';
-import { Match } from '@/core/models/match';
-import { Message } from '@/core/models/message';
+import { User } from '@/core/lib/db/models/user';
+import { Match } from '@/core/lib/db/models/match';
+import { Message } from '@/core/lib/db/models/message';
 
 describe('DataService Tests', () => {
   let mockService: MockDataService;

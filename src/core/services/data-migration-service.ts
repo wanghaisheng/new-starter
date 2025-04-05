@@ -1,6 +1,6 @@
-import { DataMigrationTool, MigrationResult } from '../lib/db/tools/data-migration-tool';
-import { DatabaseFactory } from '../lib/db/factory';
-import { IDatabaseClient } from '../lib/db/interfaces';
+import { DatabaseFactory } from '@/core/lib/db/factory';
+import { IDatabaseClient } from '@/core/lib/db/interfaces';
+import { DataMigrationTool, MigrationResult } from '@/core/lib/db/tools/data-migration-tool';
 
 /**
  * 数据迁移服务

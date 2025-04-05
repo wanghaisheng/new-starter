@@ -1,8 +1,9 @@
 'use client';
 
 import { PropsWithChildren } from 'react';
-import { IonicProvider } from './ionic';
+
 import { DatabaseProvider } from './database';
+import { IonicProvider } from './ionic';
 
 export function Providers({ children }: PropsWithChildren) {
   return (

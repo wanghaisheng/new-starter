@@ -2,16 +2,19 @@
  * Firebase Realtime Database 客户端
  * 提供对 Firebase Realtime Database 的访问和操作
  */
+import { getApp } from 'firebase/app';
 import { getDatabase, ref, set, get, remove, update, query, orderByChild, 
          equalTo, startAt, endAt, limitToFirst, limitToLast, onValue, 
          off, push, Database, DatabaseReference, DataSnapshot, Query, 
          connectDatabaseEmulator } from 'firebase/database';
-import { getApp } from 'firebase/app';
-import { FirebaseConfig } from './firebase-config';
+
+import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
+import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { QueryOptions, QueryResult } from '@/core/lib/db/types/database.types';
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
-import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
+
+import { FirebaseConfig } from './firebase-config';
+
 
 /**
  * Realtime Database 监听器配置

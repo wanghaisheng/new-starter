@@ -1,9 +1,9 @@
-import { BaseClient } from '../base-client';
-import { User, Match, Message } from '../../types';
-import { IDatabaseClient, DatabaseConfig, IDatabaseTransaction } from '../../interfaces';
-import { QueryOptions, QueryResult, BatchOperation } from '../../types/database.types';
-import { BaseEntity } from '../../types/base-entity';
-import { DatabaseError, DatabaseErrorCode } from '../../errors/database-error';
+import { BaseClient } from '@/core/lib/db/clients/base-client';
+import { User, Match, Message } from '@/core/lib/db/types';
+import { IDatabaseClient, DatabaseConfig, IDatabaseTransaction } from '@/core/lib/db/interfaces';
+import { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database.types';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 import * as fs from 'fs';
 import * as path from 'path';
 

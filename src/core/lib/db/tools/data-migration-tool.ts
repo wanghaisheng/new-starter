@@ -1,8 +1,10 @@
-import { IDatabaseClient } from '../interfaces';
-import { BaseEntity } from '../types/base-entity';
-import { DatabaseFactory } from '../factory';
-import { schemaRegistry } from '../schema';
-import { EntityConverter } from '../schema/entity-converter';
+import { DatabaseFactory } from '@/core/lib/db/factory';
+import { IDatabaseClient } from '@/core/lib/db/interfaces';
+import { schemaRegistry } from '@/core/lib/db/schema';
+import { EntityConverter } from '@/core/lib/db/schema/entity-converter';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+
+
 
 /**
  * 数据迁移工具

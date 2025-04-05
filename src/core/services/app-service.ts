@@ -1,11 +1,13 @@
+import { DatabaseFactory } from '@/core/lib/db/factory';
 import { SyncManager } from '@/core/lib/db/sync/sync-manager';
+import { DatabaseClient } from '@/core/lib/db/types/database.types';
+import { SyncPriority, ConflictResolution } from '@/core/lib/db/types/sync-flags';
+
+import { DataServiceFactory } from './data-service-factory';
 import { DatabaseService } from './database-service';
 import { NetworkService } from './network-service';
 import { OfflineStorageService } from './offline-storage-service';
-import { DataServiceFactory } from './data-service-factory';
-import { DatabaseFactory } from '@/core/lib/db/factory';
-import { SyncPriority, ConflictResolution } from '@/core/lib/db/types/sync-flags';
-import { DatabaseClient } from '@/core/lib/db/types/database.types';
+
 
 /**
  * 应用服务

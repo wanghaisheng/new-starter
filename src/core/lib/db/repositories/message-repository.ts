@@ -1,8 +1,9 @@
+import { DatabaseError } from '@/core/lib/db/errors/database-error';
+import { IBaseDatabaseClient } from '@/core/lib/db/interfaces';
+import { CreateMessageData } from '@/core/lib/db/types/message';
+import { Message } from '@/core/lib/db/types/message';
+
 import { BaseRepository } from './base-repository';
-import { IBaseDatabaseClient } from '../interfaces';
-import { Message } from '../types/message';
-import { DatabaseError } from '../errors/database-error';
-import { CreateMessageData } from '../types/message';
 
 /**
  * 消息仓储类
@@ -47,10 +48,11 @@ export class MessageRepository extends BaseRepository<Message> {
    */
   async findByMatchId(matchId: string): Promise<Message[]> {
     try {
-      return await this.query({
+      const result = await this.query({
         where: { matchId },
         orderBy: { field: 'createdAt', direction: 'asc' }
       });
+      return result.data;
     } catch (error) {
       throw new DatabaseError(
         `查找匹配 ${matchId} 的所有消息失败`,
@@ -68,7 +70,7 @@ export class MessageRepository extends BaseRepository<Message> {
    */
   async findByUserId(userId: string): Promise<Message[]> {
     try {
-      return await this.query({
+      const result = await this.query({
         where: {
           $or: [
             { senderId: userId },
@@ -77,6 +79,7 @@ export class MessageRepository extends BaseRepository<Message> {
         },
         orderBy: { field: 'createdAt', direction: 'desc' }
       });
+      return result.data;
     } catch (error) {
       throw new DatabaseError(
         `查找用户 ${userId} 的所有消息失败`,
@@ -94,13 +97,14 @@ export class MessageRepository extends BaseRepository<Message> {
    */
   async findUnreadByUserId(userId: string): Promise<Message[]> {
     try {
-      return await this.query({
+      const result = await this.query({
         where: {
           receiverId: userId,
           status: 'sent'
         },
         orderBy: { field: 'createdAt', direction: 'desc' }
       });
+      return result.data;
     } catch (error) {
       throw new DatabaseError(
         `查找用户 ${userId} 的未读消息失败`,
@@ -174,11 +178,11 @@ export class MessageRepository extends BaseRepository<Message> {
         whereClause.matchId = matchId;
       }
       
-      const messages = await this.query({
+      const result = await this.query({
         where: whereClause
       });
       
-      return messages.length;
+      return result.data.length;
     } catch (error) {
       throw new DatabaseError(
         `获取未读消息数量失败`,

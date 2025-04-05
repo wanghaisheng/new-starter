@@ -1,4 +1,4 @@
-import { schemaRegistry, TableSchema } from '../index';
+import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
 
 export const photoSchema: TableSchema = {
   name: 'photos',

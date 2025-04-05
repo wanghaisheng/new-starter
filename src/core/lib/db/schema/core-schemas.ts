@@ -1,5 +1,6 @@
-import { schemaRegistry } from './index';
 import { TableSchema, ColumnType } from './types';
+
+import { schemaRegistry } from './index';
 
 /**
  * 注册核心应用模式

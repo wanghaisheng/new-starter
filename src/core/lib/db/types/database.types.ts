@@ -1,8 +1,9 @@
-import { BaseEntity } from './base-entity';
 import { SQLiteDBConnection } from '@capacitor-community/sqlite';
+import { BaseEntity } from './base-entity';
+import { TableSchema } from '../schema';
 
 // 数据库引擎类型
-export type DatabaseEngine = 'mock' | 'indexeddb' | 'sqlite' | 'cloudflare-d1' | 'firebase' | 'supabase' | 'turso' | 'tidb' | 'postgres';
+export type DatabaseEngine = 'mock' | 'mock-indexeddb' | 'indexeddb' | 'sqlite' | 'capacitor-sqlite' | 'cloudflare-d1' | 'firebase' | 'supabase' | 'turso' | 'tidb' | 'postgres' | 'hybrid';
 
 // 同步策略类型
 export type SyncStrategy = 'immediate' | 'periodic' | 'manual';
@@ -10,26 +11,58 @@ export type SyncStrategy = 'immediate' | 'periodic' | 'manual';
 // 同步状态类型
 export type SyncStatus = 'pending' | 'syncing' | 'completed' | 'failed';
 
+// 同步配置接口
+export interface SyncConfig {
+  enabled: boolean;
+  strategy: SyncStrategy;
+  /**
+   * 是否仅离线存储，不同步到云端
+   */
+  offlineOnly?: boolean;
+  interval?: number; // in milliseconds
+  retryAttempts?: number;
+  retryDelay?: number; // in milliseconds
+  conflictResolution?: 'client-wins' | 'server-wins' | 'last-write-wins';
+  /**
+   * 本地客户端实例 - 由HybridDatabaseClient使用
+   */
+  localClient?: any;
+  /**
+   * 远程客户端实例 - 由HybridDatabaseClient使用
+   */
+  remoteClient?: any;
+  /**
+   * 同步间隔（毫秒）
+   */
+  syncIntervalMs?: number;
+  /**
+   * 最大重试次数
+   */
+  maxSyncRetries?: number;
+  /**
+   * 重试延迟（毫秒）
+   */
+  syncRetryDelayMs?: number;
+}
+
+// 混合数据库客户端配置
+export interface HybridDatabaseConfig {
+  engine: DatabaseEngine;
+  sync?: SyncConfig;
+  offline?: {
+    maxStorageSize?: number; // in bytes
+    maxEntitiesPerTable?: number;
+    compressionEnabled?: boolean;
+    encryptionEnabled?: boolean;
+  };
+}
+
 // 数据库配置接口
-export interface DatabaseConfig {
+export interface DatabaseConfig extends HybridDatabaseConfig {
   name: string;
   version: number;
-  engine: string;
   encryptionKey?: string;
-  sync?: {
-    enabled: boolean;
-    strategy: SyncStrategy;
-    interval?: number; // in milliseconds
-    retryAttempts?: number;
-    retryDelay?: number; // in milliseconds
-    conflictResolution?: 'client-wins' | 'server-wins' | 'last-write-wins';
-  };
-  offline: {
-    maxStorageSize: number;
-    maxEntitiesPerTable: number;
-    compressionEnabled: boolean;
-    encryptionEnabled: boolean;
-  };
+  schema?: TableSchema[];
   tables: {
     [key: string]: {
       columns: {
@@ -196,13 +229,7 @@ export type FilterOperator =
   | 'lt'
   | '<='
   | 'lte'
-  | 'in'
-  | 'not-in'
-  | 'notIn'
-  | 'array-contains'
-  | 'contains'
-  | 'array-contains-any'
-  | 'containsAny';
+  | 'in';
 
 /**
  * 查询过滤条件
@@ -263,6 +290,36 @@ export interface ExtendedQueryOptions extends QueryOptions {
   /**
    * 分页偏移量
    * 注意：有些数据库引擎不支持偏移，如 Firestore
+   */
+  offset?: number;
+}
+
+/**
+ * 游标相关配置
+ */
+export interface CursorOptions {
+  /**
+   * 开始位置的游标值（包含）
+   */
+  startAt?: any;
+  
+  /**
+   * 开始位置的游标值（不包含）
+   */
+  startAfter?: any;
+  
+  /**
+   * 结束位置的游标值（包含）
+   */
+  endAt?: any;
+  
+  /**
+   * 结束位置的游标值（不包含）
+   */
+  endBefore?: any;
+  
+  /**
+   * 跳过的记录数
    */
   offset?: number;
 } 

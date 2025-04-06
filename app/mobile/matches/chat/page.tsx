@@ -1,238 +1,205 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonPage, IonTitle, IonToolbar } from '@ionic/react';
-import { sendOutline, callOutline, videocamOutline, ellipsisHorizontalOutline } from 'ionicons/icons';
+import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
-
-// Mock data for contacts
-const mockContacts = {
-  '1': {
-    id: '1',
-    name: 'Sarah',
-    online: true,
-    image: '/assets/images/profile-sarah.jpg',
-  },
-  '2': {
-    id: '2',
-    name: 'Emma',
-    online: false,
-    image: '/assets/images/profile-emma.jpg',
-  },
-  '3': {
-    id: '3',
-    name: 'Olivia',
-    online: true,
-    image: '/assets/images/profile-olivia.jpg',
-  },
-  '4': {
-    id: '4',
-    name: 'James',
-    online: false,
-    image: '/assets/images/profile-james.jpg',
-  },
-};
-
-// Mock messages
-const mockMessagesByContact = {
-  '1': [
-    { id: '1', text: 'Hey there! How\'s your day going?', sender: 'them', time: '10:24 AM' },
-    { id: '2', text: 'Pretty good! Just finished work. How about you?', sender: 'me', time: '10:26 AM' },
-    { id: '3', text: 'Not bad! I was thinking, would you like to grab coffee this weekend?', sender: 'them', time: '10:27 AM' },
-    { id: '4', text: 'That sounds great! Saturday morning?', sender: 'me', time: '10:28 AM' },
-  ],
-  '2': [
-    { id: '1', text: 'Let\'s meet this weekend!', sender: 'them', time: '11:24 AM' },
-    { id: '2', text: 'Sounds good! Where would you like to go?', sender: 'me', time: '11:30 AM' },
-  ],
-  '3': [
-    { id: '1', text: 'Thanks for the great time yesterday 😊', sender: 'them', time: '09:24 AM' },
-    { id: '2', text: 'I had a wonderful time too!', sender: 'me', time: '09:30 AM' },
-    { id: '3', text: 'We should do it again sometime soon', sender: 'them', time: '09:32 AM' },
-  ],
-  '4': [
-    { id: '1', text: 'Are you free for coffee tomorrow?', sender: 'them', time: '08:15 AM' },
-    { id: '2', text: 'Yes, I should be free in the afternoon', sender: 'me', time: '08:20 AM' },
-  ],
-};
+import { User } from '@/core/lib/db/types/user';
+import { Message } from '@/core/lib/db/types/message';
+import { useServices } from '@/core/hooks/useServices';
+import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
+import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
+import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 
 export default function ChatPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const contentRef = useRef<HTMLIonContentElement>(null);
-  const contactId = searchParams.get('id') || '1';
-  const contact = mockContacts[contactId as keyof typeof mockContacts];
-  const [messages, setMessages] = useState(mockMessagesByContact[contactId as keyof typeof mockMessagesByContact] || []);
+  const { userService, messageService, authService, isLoading, error } = useServices();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [otherUser, setOtherUser] = useState<User | null>(null);
   const [newMessage, setNewMessage] = useState('');
-
-  // Scroll to bottom when messages change
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const userId = searchParams.get('id');
+  
   useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollToBottom(300);
+    if (userId) {
+      loadChat();
     }
-  }, [messages]);
-
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+  }, [userId, userService, messageService]);
+  
+  const loadChat = async () => {
+    if (!userService || !messageService || !userId) return;
     
-    const newMsg = {
-      id: String(Date.now()),
-      text: newMessage,
-      sender: 'me',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    
-    setMessages([...messages, newMsg]);
-    setNewMessage('');
-    
-    // Simulate reply after 1-3 seconds
-    setTimeout(() => {
-      const replyMsg = {
-        id: String(Date.now() + 1),
-        text: getRandomReply(),
-        sender: 'them',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
+    try {
+      // Load other user's profile
+      const users = await userService.getUsers();
+      const user = users.find(u => u.id === userId);
+      if (!user) {
+        setToastMessage('User not found');
+        setShowToast(true);
+        return;
+      }
+      setOtherUser(user);
       
-      setMessages(prev => [...prev, replyMsg]);
-    }, 1000 + Math.random() * 2000);
+      // Load messages
+      const chatMessages = await messageService.getMessages(userId, { orderBy: { createdAt: 'asc' } });
+      setMessages(chatMessages);
+      
+      // Scroll to bottom
+      scrollToBottom();
+    } catch (err) {
+      console.error('Error loading chat:', err);
+      setToastMessage('Failed to load chat. Please try again.');
+      setShowToast(true);
+    }
   };
-
-  const getRandomReply = () => {
-    const replies = [
-      'That sounds great!',
-      'Interesting! Tell me more.',
-      'I\'m not sure about that.',
-      'Haha, that\'s funny!',
-      'I was thinking the same thing!',
-      'When are you free to meet up?',
-      'What are your plans for the weekend?',
-      'Have you tried that new restaurant downtown?',
-      'I\'d love to hear more about that.',
-      'Sorry, I was busy. What were you saying?'
-    ];
+  
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  const handleSendMessage = async () => {
+    if (!messageService || !userId || !newMessage.trim() || !authService) return;
     
-    return replies[Math.floor(Math.random() * replies.length)];
+    try {
+      const currentUser = await authService.getCurrentUser();
+      if (!currentUser) {
+        setToastMessage('Please sign in to send messages');
+        setShowToast(true);
+        return;
+      }
+
+      const message = await messageService.sendMessage(
+        userId,
+        currentUser.id,
+        userId,
+        newMessage.trim(),
+        'text'
+      );
+      setMessages(prev => [...prev, message]);
+      setNewMessage('');
+      scrollToBottom();
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setToastMessage('Failed to send message. Please try again.');
+      setShowToast(true);
+    }
+  };
+  
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
-  if (!contact) {
-    return <div>Contact not found</div>;
+  if (isLoading) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message="Loading chat..." />
+        </IonContent>
+      </IonPage>
+    );
   }
 
+  if (error) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={error.toString()} onRetry={loadChat} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+  
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref="/mobile/matches/messages" />
-          </IonButtons>
-          
-          <div className="flex items-center">
-            <div className="relative w-8 h-8 mr-2">
-              <Image 
-                src={contact.image}
-                alt={contact.name}
-                className="rounded-full object-cover"
+      <IonContent className="bg-[#0f172a]">
+        <div className="flex flex-col h-full">
+          {/* Chat header */}
+          <div className="flex items-center p-4 bg-white shadow-md">
+            <button
+              onClick={() => router.back()}
+              className="mr-4 text-gray-600"
+            >
+              ←
+            </button>
+            
+            <div className="relative w-10 h-10 mr-3">
+              <Image
+                src={otherUser?.photos?.[0]?.url || '/assets/images/profile-placeholder.jpg'}
+                alt={otherUser?.name || 'User'}
                 fill
+                className="object-cover rounded-full"
               />
-              {contact.online && (
-                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></div>
-              )}
             </div>
             
-            <IonTitle>{contact.name}</IonTitle>
-          </div>
-          
-          <IonButtons slot="end">
-            <button className="p-2">
-              <IonIcon icon={callOutline} className="text-gray-600 w-5 h-5" />
-            </button>
-            <button className="p-2">
-              <IonIcon icon={videocamOutline} className="text-gray-600 w-5 h-5" />
-            </button>
-            <button className="p-2">
-              <IonIcon icon={ellipsisHorizontalOutline} className="text-gray-600 w-5 h-5" />
-            </button>
-          </IonButtons>
-        </IonToolbar>
-      </IonHeader>
-      
-      <IonContent ref={contentRef} className="ion-padding">
-        <div className="space-y-4 pb-4">
-          {/* Today divider */}
-          <div className="flex items-center justify-center my-4">
-            <div className="bg-gray-200 text-gray-500 text-xs px-2 py-1 rounded-full">
-              Today
+            <div>
+              <h2 className="font-semibold">{otherUser?.name}</h2>
+              <p className="text-sm text-gray-500">Online</p>
             </div>
           </div>
           
           {/* Messages */}
-          {messages.map((message) => (
-            <div 
-              key={message.id}
-              className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.sender === 'them' && (
-                <div className="relative w-8 h-8 mr-2 flex-shrink-0 self-end">
-                  <Image 
-                    src={contact.image}
-                    alt={contact.name}
-                    className="rounded-full object-cover"
-                    fill
-                  />
-                </div>
-              )}
-              
-              <div className="max-w-[75%]">
-                <div 
-                  className={`p-3 rounded-2xl ${
-                    message.sender === 'me' 
-                      ? 'bg-primary-500 text-white rounded-tr-none' 
-                      : 'bg-gray-100 text-gray-800 rounded-tl-none'
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map(message => (
+              <div
+                key={message.id}
+                className={`flex ${message.senderId === userId ? 'justify-start' : 'justify-end'}`}
+              >
+                <div
+                  className={`max-w-[70%] rounded-lg p-3 ${
+                    message.senderId === userId
+                      ? 'bg-white text-gray-800'
+                      : 'bg-pink-500 text-white'
                   }`}
                 >
-                  {message.text}
-                </div>
-                <div 
-                  className={`text-xs text-gray-500 mt-1 ${
-                    message.sender === 'me' ? 'text-right' : 'text-left'
-                  }`}
-                >
-                  {message.time}
+                  <p>{message.content}</p>
+                  <p className="text-xs mt-1 opacity-70">
+                    {new Date(message.createdAt).toLocaleTimeString()}
+                  </p>
                 </div>
               </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+          
+          {/* Message input */}
+          <div className="p-4 bg-white border-t">
+            <div className="flex space-x-2">
+              <textarea
+                value={newMessage}
+                onChange={e => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type a message..."
+                className="flex-1 p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-pink-500"
+                rows={1}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!newMessage.trim()}
+                className="px-4 py-2 bg-pink-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-600 transition-colors"
+              >
+                Send
+              </button>
             </div>
-          ))}
+          </div>
         </div>
       </IonContent>
       
-      {/* Message input */}
-      <div className="p-2 border-t border-gray-200 bg-white">
-        <div className="flex items-center">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message"
-            className="flex-1 p-3 border border-gray-300 rounded-full focus:outline-none focus:border-primary-500"
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                handleSendMessage();
-              }
-            }}
-          />
-          <button
-            onClick={handleSendMessage}
-            className={`ml-2 p-3 rounded-full ${
-              newMessage.trim() ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-400'
-            }`}
-            disabled={!newMessage.trim()}
-          >
-            <IonIcon icon={sendOutline} className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+      <BottomNavBar />
+      
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={toastMessage}
+        duration={2000}
+        position="bottom"
+      />
     </IonPage>
   );
 } 

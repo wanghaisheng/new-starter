@@ -917,4 +917,73 @@ export class StorageService {
       console.error('初始化 Mock 数据失败:', error);
     }
   }
+
+  /**
+   * 从本地存储获取数据
+   * 
+   * @param key 存储键
+   * @returns 存储的数据，如果不存在返回null
+   */
+  public getItem<T>(key: string): T | null {
+    try {
+      const value = localStorage.getItem(key);
+      if (!value) {
+        return null;
+      }
+      
+      return JSON.parse(value) as T;
+    } catch (error) {
+      console.error(`Error getting item from storage with key ${key}:`, error);
+      return null;
+    }
+  }
+  
+  /**
+   * 将数据保存到本地存储
+   * 
+   * @param key 存储键
+   * @param value 要存储的数据
+   */
+  public setItem<T>(key: string, value: T): void {
+    try {
+      const serialized = JSON.stringify(value);
+      localStorage.setItem(key, serialized);
+    } catch (error) {
+      console.error(`Error setting item in storage with key ${key}:`, error);
+    }
+  }
+  
+  /**
+   * 从本地存储中移除数据
+   * 
+   * @param key 存储键
+   */
+  public removeItem(key: string): void {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error(`Error removing item from storage with key ${key}:`, error);
+    }
+  }
+  
+  /**
+   * 获取本地存储中的所有键
+   * 
+   * @returns 存储键列表
+   */
+  public getAllKeys(): string[] {
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          keys.push(key);
+        }
+      }
+      return keys;
+    } catch (error) {
+      console.error('Error getting all keys from storage:', error);
+      return [];
+    }
+  }
 }

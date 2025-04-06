@@ -178,7 +178,64 @@ UI组件层 (Components)
    - 服务应抽象存储层细节，处理远程数据和本地缓存之间的转换和同步
    - 遵循[最佳实践](./guides/best-practices.md)中的服务层开发部分
 
-3. **环境配置**：
+3. **认证服务开发**：
+   - 项目支持多种认证服务实现：
+     - **Better Auth**: 自定义认证服务，支持邮箱和手机号登录
+     - **Firebase Auth**: 基于Firebase的认证服务，提供完整的身份验证功能
+     - **Mock Auth**: 用于开发和测试的模拟认证服务，提供预定义的测试账户
+   - 认证服务配置：
+     ```
+     # 选择认证服务类型
+     NEXT_PUBLIC_AUTH_SERVICE_TYPE=better|firebase|mock
+     
+     # Better Auth配置
+     NEXT_PUBLIC_BETTER_AUTH_API_KEY=your_api_key
+     NEXT_PUBLIC_BETTER_AUTH_API_URL=https://api.better-auth.com
+     
+     # Firebase Auth配置
+     NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_app.firebaseapp.com
+     NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+     
+     # Mock Auth配置
+     NEXT_PUBLIC_MOCK_AUTH_ENABLED=true
+     NEXT_PUBLIC_MOCK_AUTH_USERS=test@example.com:password123,admin@example.com:admin123
+     NEXT_PUBLIC_MOCK_AUTH_PHONES=+8613800138000:123456,+8613900139000:654321
+     ```
+   - 认证服务使用：
+     ```typescript
+     // 获取认证服务实例
+     const authService = AuthServiceFactory.getInstance().getAuthService();
+     
+     // 邮箱登录
+     const user = await authService.login('test@example.com', 'password123');
+     
+     // 手机号登录
+     const user = await authService.loginWithPhone('+8613800138000', '123456');
+     
+     // 发送验证码
+     await authService.sendVerificationCode('+8613800138000');
+     
+     // 获取当前用户
+     const currentUser = authService.getCurrentUser();
+     
+     // 检查认证状态
+     const isAuthenticated = authService.isAuthenticated();
+     
+     // 登出
+     await authService.logout();
+     ```
+   - 环境切换：
+     - **Mock环境**: 使用预定义的测试账户，无需真实后端服务
+     - **开发环境**: 使用Better Auth服务进行开发和测试
+     - **生产环境**: 使用Firebase Auth服务进行身份验证
+   - 注意事项：
+     - 所有认证服务实现相同的接口，确保代码在不同环境间的一致性
+     - Mock环境提供完整的用户数据，便于测试各种场景
+     - 生产环境应使用安全的认证服务，如Firebase Auth
+     - 认证服务应与数据服务协同工作，确保用户数据的同步
+
+4. **环境配置**：
    - 开发环境：
      ```
      # 基本配置
@@ -191,7 +248,7 @@ UI组件层 (Components)
    - 本地数据库测试：`NEXT_PUBLIC_DATABASE_ENV=local`
    - 生产环境测试：`NEXT_PUBLIC_DATABASE_ENV=production`
 
-4. **测试与调试**：
+5. **测试与调试**：
    - 测试离线场景：关闭网络连接并验证功能
    - 测试同步机制：模拟网络中断后恢复，观察数据如何在两个存储层之间同步
    - 使用 `DataServiceFactory.setUseMockData(true)` 强制使用模拟数据
@@ -303,6 +360,31 @@ A: 系统使用离线优先策略，操作先存在本地，联网后自动同�
 **Q: 如何处理同步冲突?**  
 A: 项目使用最后写入者获胜策略，可通过 `syncConfig` 自定义冲突解决策略。详见[冲突解决](./guides/database-schema-design.md#同步配置)。
 
+### 认证服务
+**Q: 如何在不同认证服务之间切换?**  
+A: 通过修改环境变量 `NEXT_PUBLIC_AUTH_SERVICE_TYPE` 为 `better`、`firebase` 或 `mock`。详见[认证服务开发](./guides/auth-service-development.md#环境切换)。
+
+**Q: Mock认证服务有哪些预定义的测试账户?**  
+A: Mock环境提供以下测试账户：
+- 邮箱账户: `test@example.com:password123`, `admin@example.com:admin123`
+- 手机账户: `+8613800138000:123456`, `+8613900139000:654321`
+这些账户可以在 `.env.mock` 文件中配置。
+
+**Q: 如何在开发过程中测试不同的认证场景?**  
+A: 使用Mock认证服务可以快速测试各种场景：
+- 正常登录流程
+- 验证码发送和验证
+- 登录失败处理
+- 会话管理和登出
+无需真实后端服务即可完成测试。
+
+**Q: 生产环境应该使用哪种认证服务?**  
+A: 推荐使用Firebase Auth服务，它提供：
+- 完整的身份验证功能
+- 高可用性和安全性
+- 与Firebase其他服务的无缝集成
+- 符合行业标准的安全实践
+
 ### 开发与调试
 **Q: 如何测试不同的网络状态?**  
 A: 使用 Chrome DevTools 中的网络条件模拟器或 `NetworkService.simulateOffline()`。
@@ -376,7 +458,64 @@ A: Web 端可使用浏览器的 IndexedDB 调试工具，移动端可启用数�
    - 服务应抽象存储层细节，处理远程数据和本地缓存之间的转换和同步
    - 遵循[最佳实践](./guides/best-practices.md)中的服务层开发部分
 
-3. **环境配置**：
+3. **认证服务开发**：
+   - 项目支持多种认证服务实现：
+     - **Better Auth**: 自定义认证服务，支持邮箱和手机号登录
+     - **Firebase Auth**: 基于Firebase的认证服务，提供完整的身份验证功能
+     - **Mock Auth**: 用于开发和测试的模拟认证服务，提供预定义的测试账户
+   - 认证服务配置：
+     ```
+     # 选择认证服务类型
+     NEXT_PUBLIC_AUTH_SERVICE_TYPE=better|firebase|mock
+     
+     # Better Auth配置
+     NEXT_PUBLIC_BETTER_AUTH_API_KEY=your_api_key
+     NEXT_PUBLIC_BETTER_AUTH_API_URL=https://api.better-auth.com
+     
+     # Firebase Auth配置
+     NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_app.firebaseapp.com
+     NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+     
+     # Mock Auth配置
+     NEXT_PUBLIC_MOCK_AUTH_ENABLED=true
+     NEXT_PUBLIC_MOCK_AUTH_USERS=test@example.com:password123,admin@example.com:admin123
+     NEXT_PUBLIC_MOCK_AUTH_PHONES=+8613800138000:123456,+8613900139000:654321
+     ```
+   - 认证服务使用：
+     ```typescript
+     // 获取认证服务实例
+     const authService = AuthServiceFactory.getInstance().getAuthService();
+     
+     // 邮箱登录
+     const user = await authService.login('test@example.com', 'password123');
+     
+     // 手机号登录
+     const user = await authService.loginWithPhone('+8613800138000', '123456');
+     
+     // 发送验证码
+     await authService.sendVerificationCode('+8613800138000');
+     
+     // 获取当前用户
+     const currentUser = authService.getCurrentUser();
+     
+     // 检查认证状态
+     const isAuthenticated = authService.isAuthenticated();
+     
+     // 登出
+     await authService.logout();
+     ```
+   - 环境切换：
+     - **Mock环境**: 使用预定义的测试账户，无需真实后端服务
+     - **开发环境**: 使用Better Auth服务进行开发和测试
+     - **生产环境**: 使用Firebase Auth服务进行身份验证
+   - 注意事项：
+     - 所有认证服务实现相同的接口，确保代码在不同环境间的一致性
+     - Mock环境提供完整的用户数据，便于测试各种场景
+     - 生产环境应使用安全的认证服务，如Firebase Auth
+     - 认证服务应与数据服务协同工作，确保用户数据的同步
+
+4. **环境配置**：
    - 开发环境：
      ```
      # 基本配置
@@ -389,7 +528,7 @@ A: Web 端可使用浏览器的 IndexedDB 调试工具，移动端可启用数�
    - 本地数据库测试：`NEXT_PUBLIC_DATABASE_ENV=local`
    - 生产环境测试：`NEXT_PUBLIC_DATABASE_ENV=production`
 
-4. **测试与调试**：
+5. **测试与调试**：
    - 测试离线场景：关闭网络连接并验证功能
    - 测试同步机制：模拟网络中断后恢复，观察数据如何在两个存储层之间同步
    - 使用 `DataServiceFactory.setUseMockData(true)` 强制使用模拟数据

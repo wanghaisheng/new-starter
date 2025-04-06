@@ -55,6 +55,7 @@
     "@stencil/core": "^4.28.2",
     "@types/better-sqlite3": "^7.6.12",
     "better-sqlite3": "^11.9.1",
+    "clsx": "^2.1.1",
     "copyfiles": "^2.4.1",
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.41.0",
@@ -69,8 +70,10 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "sql.js": "^1.13.0",
+    "tailwind-merge": "^3.1.0",
     "ts-node": "^10.9.2",
-    "typeorm": "^0.3.21"
+    "typeorm": "^0.3.21",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.1.0",

@@ -23,7 +23,8 @@ import {
   IonItemOptions,
   IonItemOption,
   IonCard,
-  IonCardContent
+  IonCardContent,
+  IonToast
 } from '@ionic/react';
 import { 
   chevronForwardOutline, 
@@ -40,13 +41,38 @@ import {
   starOutline
 } from 'ionicons/icons';
 import Image from 'next/image';
+import { useState, useEffect } from 'react';
+import { useServices } from '@/core/hooks/useServices';
+import { User } from '@/core/lib/db/types/user';
+import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
+import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
-import { useState } from 'react';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { userService, authService, isLoading, error } = useServices();
+  const [user, setUser] = useState<User | null>(null);
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  useEffect(() => {
+    loadUserProfile();
+  }, [userService]);
+
+  const loadUserProfile = async () => {
+    if (!userService) return;
+
+    try {
+      const currentUser = await userService.getCurrentUser();
+      setUser(currentUser);
+    } catch (err) {
+      console.error('Failed to load user profile:', err);
+      setToastMessage('Failed to load profile. Please try again.');
+      setShowToast(true);
+    }
+  };
 
   const handleAccountPress = () => {
     router.push('/mobile/settings/account');
@@ -60,10 +86,38 @@ export default function SettingsPage() {
     setShowLogoutAlert(true);
   };
   
-  const confirmLogout = () => {
-    // Implement logout logic
-    router.push('/mobile');
+  const confirmLogout = async () => {
+    if (!authService) return;
+
+    try {
+      await authService.logout();
+      router.push('/mobile/auth/login');
+    } catch (err) {
+      console.error('Failed to logout:', err);
+      setToastMessage('Failed to logout. Please try again.');
+      setShowToast(true);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message="Loading settings..." />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (error) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={error.toString()} onRetry={loadUserProfile} />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   return (
     <IonPage>
@@ -73,7 +127,7 @@ export default function SettingsPage() {
         </IonToolbar>
       </IonHeader>
       
-      <IonContent className="ion-padding-vertical">
+      <IonContent className="bg-[#0f172a]">
         {/* Account section */}
         <IonItemDivider className="ion-padding-start">
           <IonLabel color="medium">ACCOUNT</IonLabel>
@@ -82,19 +136,29 @@ export default function SettingsPage() {
         <IonList lines="full">
           <IonItem button detail onClick={handleAccountPress}>
             <IonAvatar slot="start">
-              <Image 
-                src="/assets/images/avatar-placeholder.jpg" 
-                alt="Profile" 
-                width={48}
-                height={48}
-                className="object-cover"
-              />
+              {user?.photos && user.photos.length > 0 ? (
+                <Image 
+                  src={user.photos[0].url} 
+                  alt={user.name} 
+                  width={48}
+                  height={48}
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center">
+                  <span className="text-xl text-gray-300">
+                    {user?.name?.charAt(0).toUpperCase() || '?'}
+                  </span>
+                </div>
+              )}
             </IonAvatar>
             <IonLabel>
-              <h2>Jessica</h2>
-              <p>Premium Member</p>
+              <h2>{user?.name || 'Guest'}</h2>
+              <p>Member</p>
             </IonLabel>
-            <IonBadge color="primary" slot="end">PRO</IonBadge>
+            {user?.isVerified && (
+              <IonBadge color="primary" slot="end">VERIFIED</IonBadge>
+            )}
           </IonItem>
           
           <IonItem button detail onClick={handleEditProfile}>
@@ -199,6 +263,14 @@ export default function SettingsPage() {
             handler: confirmLogout
           }
         ]}
+      />
+      
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={toastMessage}
+        duration={2000}
+        position="bottom"
       />
       
       <BottomNavBar />

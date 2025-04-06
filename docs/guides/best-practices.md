@@ -1268,3 +1268,314 @@ export class MockUserService implements IUserService {
    - 通过工厂模式获取服务实例
    - 根据环境变量自动切换数据源
    - 避免直接导入模型或mock数据
+
+## 5. Ionic 与 React Hooks 集成
+
+### 5.1 概述
+
+Ionic 完全支持 React 和 React Hooks，我们可以充分利用 Hooks 的特性来管理 Ionic 应用中的状态和副作用。本节将详细介绍如何在 Ionic 应用中最佳地使用 React Hooks。
+
+### 5.2 Ionic 生命周期与 Hooks
+
+#### 5.2.1 生命周期映射
+
+Ionic 的生命周期方法可以通过 Hooks 实现：
+
+```typescript
+// 传统 Ionic 生命周期
+class MyPage extends React.Component {
+  ionViewDidEnter() {
+    // 页面进入时的逻辑
+  }
+  
+  ionViewWillLeave() {
+    // 页面离开时的逻辑
+  }
+}
+
+// 使用 Hooks 实现
+const MyPage: React.FC = () => {
+  // 使用 Ionic 提供的 Hooks
+  useIonViewDidEnter(() => {
+    // 页面进入时的逻辑
+  });
+
+  useIonViewWillLeave(() => {
+    // 页面离开时的逻辑
+  });
+
+  return (
+    // ... 组件内容
+  );
+};
+```
+
+#### 5.2.2 常用生命周期 Hooks
+
+```typescript
+import {
+  useIonViewDidEnter,
+  useIonViewWillEnter,
+  useIonViewDidLeave,
+  useIonViewWillLeave,
+  useIonViewCanEnter,
+  useIonViewCanLeave
+} from '@ionic/react';
+
+const MyPage: React.FC = () => {
+  // 页面即将进入
+  useIonViewWillEnter(() => {
+    console.log('页面即将进入');
+  });
+
+  // 页面已进入
+  useIonViewDidEnter(() => {
+    console.log('页面已进入');
+  });
+
+  // 页面即将离开
+  useIonViewWillLeave(() => {
+    console.log('页面即将离开');
+  });
+
+  // 页面已离开
+  useIonViewDidLeave(() => {
+    console.log('页面已离开');
+  });
+
+  // 控制页面是否可以进入
+  useIonViewCanEnter(() => {
+    return true; // 返回 false 将阻止页面进入
+  });
+
+  // 控制页面是否可以离开
+  useIonViewCanLeave(() => {
+    return true; // 返回 false 将阻止页面离开
+  });
+
+  return (
+    // ... 组件内容
+  );
+};
+```
+
+### 5.3 Ionic 特定功能与 Hooks
+
+#### 5.3.1 创建 Ionic 服务 Hook
+
+```typescript
+// src/core/hooks/useIonService.ts
+import { IonLoading, IonToast, IonAlert } from '@ionic/react';
+import { useServices } from './useServices';
+
+export function useIonService() {
+  const { userService, messageService } = useServices();
+  const [loading, setLoading] = useState<HTMLIonLoadingElement | null>(null);
+  const [toast, setToast] = useState<HTMLIonToastElement | null>(null);
+  const [alert, setAlert] = useState<HTMLIonAlertElement | null>(null);
+
+  const showLoading = async (message: string) => {
+    const loading = await IonLoading.create({
+      message,
+      duration: 2000
+    });
+    setLoading(loading);
+    await loading.present();
+  };
+
+  const hideLoading = async () => {
+    if (loading) {
+      await loading.dismiss();
+      setLoading(null);
+    }
+  };
+
+  const showToast = async (message: string, duration = 2000) => {
+    const toast = await IonToast.create({
+      message,
+      duration,
+      position: 'bottom'
+    });
+    setToast(toast);
+    await toast.present();
+  };
+
+  const showAlert = async (options: AlertOptions) => {
+    const alert = await IonAlert.create(options);
+    setAlert(alert);
+    await alert.present();
+  };
+
+  return {
+    userService,
+    messageService,
+    showLoading,
+    hideLoading,
+    showToast,
+    showAlert
+  };
+}
+```
+
+#### 5.3.2 在页面中使用 Ionic 服务 Hook
+
+```typescript
+// src/mobile/pages/ProfilePage.tsx
+import { IonPage, IonContent, IonButton } from '@ionic/react';
+import { useIonService } from '@/core/hooks/useIonService';
+
+export const ProfilePage: React.FC = () => {
+  const { userService, showLoading, showToast, showAlert } = useIonService();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  const loadProfile = async () => {
+    try {
+      await showLoading('Loading profile...');
+      const userProfile = await userService?.getCurrentUser();
+      setProfile(userProfile);
+    } catch (error) {
+      await showToast('Failed to load profile');
+    } finally {
+      await hideLoading();
+    }
+  };
+
+  const handleDelete = async () => {
+    await showAlert({
+      header: 'Confirm Delete',
+      message: 'Are you sure you want to delete your profile?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Delete',
+          handler: async () => {
+            try {
+              await showLoading('Deleting profile...');
+              await userService?.deleteProfile();
+              await showToast('Profile deleted successfully');
+            } catch (error) {
+              await showToast('Failed to delete profile');
+            } finally {
+              await hideLoading();
+            }
+          }
+        }
+      ]
+    });
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, [userService]);
+
+  return (
+    <IonPage>
+      <IonContent>
+        {/* 使用 Ionic 组件显示数据 */}
+      </IonContent>
+    </IonPage>
+  );
+};
+```
+
+### 5.4 性能优化
+
+#### 5.4.1 使用 useMemo 优化渲染
+
+```typescript
+const UserListPage: React.FC = () => {
+  const { userService } = useServices();
+  const [users, setUsers] = useState<User[]>([]);
+
+  // 缓存用户列表渲染函数
+  const renderUserItem = useMemo(() => (user: User) => (
+    <IonItem key={user.id}>
+      <IonLabel>{user.name}</IonLabel>
+      <IonButton slot="end" onClick={() => handleUserAction(user)}>
+        Action
+      </IonButton>
+    </IonItem>
+  ), []);
+
+  // 缓存用户操作处理函数
+  const handleUserAction = useCallback(async (user: User) => {
+    // 处理用户操作
+  }, []);
+
+  return (
+    <IonPage>
+      <IonContent>
+        <IonList>
+          {users.map(renderUserItem)}
+        </IonList>
+      </IonContent>
+    </IonPage>
+  );
+};
+```
+
+#### 5.4.2 使用 useCallback 优化事件处理
+
+```typescript
+const ChatPage: React.FC = () => {
+  const { messageService } = useServices();
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  const handleSendMessage = useCallback(async (text: string) => {
+    if (!messageService) return;
+    
+    try {
+      await messageService.sendMessage(text);
+      // 更新消息列表
+    } catch (error) {
+      // 错误处理
+    }
+  }, [messageService]);
+
+  return (
+    <IonPage>
+      <IonContent>
+        <IonList>
+          {messages.map(message => (
+            <IonItem key={message.id}>
+              {message.text}
+            </IonItem>
+          ))}
+        </IonList>
+        <IonButton onClick={() => handleSendMessage('Hello')}>
+          Send
+        </IonButton>
+      </IonContent>
+    </IonPage>
+  );
+};
+```
+
+### 5.5 最佳实践
+
+1. **生命周期管理**
+   - 使用 Ionic 提供的生命周期 Hooks 替代类组件的生命周期方法
+   - 在适当的生命周期 Hook 中初始化和清理资源
+
+2. **状态管理**
+   - 使用 `useState` 管理本地状态
+   - 使用 `useReducer` 管理复杂状态
+   - 使用 Context API 管理全局状态
+
+3. **性能优化**
+   - 使用 `useMemo` 缓存计算结果
+   - 使用 `useCallback` 缓存函数
+   - 使用 `React.memo` 优化组件重渲染
+
+4. **错误处理**
+   - 使用 Ionic 的 Toast 和 Alert 组件显示错误信息
+   - 实现统一的错误处理机制
+   - 提供清晰的错误恢复策略
+
+5. **代码组织**
+   - 创建可复用的自定义 Hooks
+   - 将业务逻辑从组件中抽离
+   - 保持组件的单一职责

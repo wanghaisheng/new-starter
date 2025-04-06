@@ -43,7 +43,7 @@ export { VersionManager };
 export { TableConverter };
 
 // 创建单例实例
-export const schemaRegistry = SchemaRegistry.getInstance();
+export const schemaRegistryInstance = SchemaRegistry.getInstance();
 export const versionManager = VersionManager.getInstance();
 
 // 注：先创建和导出schemaRegistry，然后才导入模式文件
@@ -69,21 +69,21 @@ export function initializeSchemas(): void {
   // registerUserSchemas();
   // registerMessageSchemas();
   
-  console.log(`已注册 ${schemaRegistry.getAllSchemas().length} 个表结构`);
+  console.log(`已注册 ${schemaRegistryInstance.getAllSchemas().length} 个表结构`);
 }
 
 /**
  * 获取所有注册的表名
  */
 export function getAllTableNames(): string[] {
-  return schemaRegistry.getAllSchemas().map(schema => schema.name);
+  return schemaRegistryInstance.getAllSchemas().map(schema => schema.name);
 }
 
 /**
  * 获取所有离线专用表名
  */
 export function getOfflineOnlyTableNames(): string[] {
-  return schemaRegistry.getAllSchemas()
+  return schemaRegistryInstance.getAllSchemas()
     .filter(schema => schema.syncConfig?.offlineOnly === true)
     .map(schema => schema.name);
 }

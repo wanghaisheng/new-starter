@@ -1,73 +1,136 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { IonContent, IonPage } from '@ionic/react';
+import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
+import { User } from '@/core/lib/db/types/user';
+import { useServices } from '@/core/hooks/useServices';
+import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
+import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 
-// Mock data for user profiles
-const mockProfiles = [
-  {
-    id: '1',
-    name: 'Sarah',
-    age: 28,
-    distance: 5,
-    bio: 'Dog lover. Coffee addict. Adventure seeker.',
-    images: ['/assets/images/profile-sarah.jpg'],
-  },
-  {
-    id: '2',
-    name: 'Jessica',
-    age: 26,
-    distance: 3,
-    bio: 'Traveling the world one country at a time.',
-    images: ['/assets/images/profile-jessica.jpg'],
-  },
-  {
-    id: '3',
-    name: 'Emma',
-    age: 24,
-    distance: 8,
-    bio: 'Foodie, photographer, and hiking enthusiast.',
-    images: ['/assets/images/profile-emma.jpg'],
-  },
-];
+// Add type definition for Photo
+interface Photo {
+  url: string;
+  id: string;
+}
+
+interface Match {
+  users: string[];
+}
+
+// Add utility function to calculate age from birthDate
+const calculateAge = (birthDate: Date): number => {
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDifference = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return age;
+};
 
 export default function DiscoverPage() {
   const router = useRouter();
-  const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
+  const { userService, isLoading, error } = useServices();
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const [showMatch, setShowMatch] = useState(false);
-  const [matchedProfile, setMatchedProfile] = useState<any>(null);
+  const [matchedUser, setMatchedUser] = useState<User | null>(null);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
-
-  const currentProfile = mockProfiles[currentProfileIndex];
-
-  const handleLike = () => {
-    // 50% chance of a match for demo purposes
-    const isMatch = Math.random() > 0.5;
+  
+  useEffect(() => {
+    loadRecommendedUsers();
+  }, [userService]);
+  
+  const loadRecommendedUsers = async () => {
+    if (!userService) return;
     
-    if (isMatch) {
-      setMatchedProfile(currentProfile);
-      setShowMatch(true);
-    } else {
-      goToNextProfile();
+    try {
+      const allUsers = await userService.getUsers();
+      const currentUser = await userService.getCurrentUser();
+      
+      if (!currentUser) {
+        setToastMessage('Please login first');
+        setShowToast(true);
+        return;
+      }
+
+      // Filter out current user and already matched users
+      let matchedUserIds: string[] = [];
+      try {
+        const matches: Match[] = await userService.getMatches(currentUser.id);
+        matchedUserIds = matches.flatMap(match => match.users);
+      } catch (err) {
+        console.log('getMatches is not available', err);
+      }
+      
+      // Filter users based on preferences
+      const filteredUsers = allUsers.filter(user => 
+        user.id !== currentUser.id && 
+        !matchedUserIds.includes(user.id)
+      );
+      
+      setUsers(filteredUsers);
+    } catch (err) {
+      console.error('Error loading recommended users:', err);
+      setToastMessage('Failed to load recommendations. Please try again.');
+      setShowToast(true);
     }
   };
-
-  const handleDislike = () => {
-    goToNextProfile();
+  
+  const handleLike = async () => {
+    handleSwipe('right');
   };
 
+  const handleDislike = async () => {
+    handleSwipe('left');
+  };
+  
+  const handleSwipe = async (direction: 'left' | 'right') => {
+    if (!userService) return;
+    
+    const currentUser = await userService.getCurrentUser();
+    if (!currentUser) {
+      setToastMessage('Please login first');
+      setShowToast(true);
+      return;
+    }
+
+    const swipedUser = users[currentIndex];
+    if (!swipedUser) return;
+
+    if (direction === 'right') {
+      try {
+        const match = await userService.createMatch([currentUser.id, swipedUser.id]);
+        if (match) {
+          setMatchedUser(swipedUser);
+          setShowMatch(true);
+          return;
+        }
+      } catch (err) {
+        console.error('Error creating match:', err);
+        setToastMessage('Failed to create match');
+        setShowToast(true);
+      }
+    }
+    
+    goToNextProfile();
+  };
+  
   const goToNextProfile = () => {
     setSwipeDirection(null);
-    if (currentProfileIndex < mockProfiles.length - 1) {
-      setCurrentProfileIndex(currentProfileIndex + 1);
+    if (currentIndex < users.length - 1) {
+      setCurrentIndex(currentIndex + 1);
     } else {
-      // Start over when we reach the end
-      setCurrentProfileIndex(0);
+      setCurrentIndex(0);
     }
   };
 
@@ -108,7 +171,6 @@ export default function DiscoverPage() {
       card.style.transform = 'translateX(0) rotate(0)';
     }
     
-    // Reset card position after animation
     setTimeout(() => {
       if (cardRef.current) {
         cardRef.current.style.transition = 'none';
@@ -132,15 +194,36 @@ export default function DiscoverPage() {
     goToNextProfile();
   };
 
+  if (isLoading) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message="Loading recommendations..." />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (error) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={error.toString()} onRetry={loadRecommendedUsers} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+  
+  const currentUser = users[currentIndex];
+  
   return (
     <IonPage>
-      <IonContent className="ion-padding">
+      <IonContent className="bg-[#0f172a]">
         {showMatch ? (
-          // Match screen
           <div className="fixed inset-0 bg-opacity-90 bg-gray-900 z-50 flex items-center justify-center">
             <div className="text-center p-6 max-w-sm mx-auto">
-              <h1 className="text-3xl font-bold text-pink-500 mb-4">It's a Match!</h1>
-              <p className="text-white mb-6">You and {matchedProfile.name} have liked each other</p>
+              <h1 className="text-3xl font-bold text-pink-500 mb-4">It&apos;s a Match!</h1>
+              <p className="text-white mb-6">You and {matchedUser?.name} have liked each other</p>
               
               <div className="flex justify-center space-x-4 mb-8">
                 <div className="w-20 h-20 relative">
@@ -157,8 +240,8 @@ export default function DiscoverPage() {
                 <div className="w-20 h-20 relative">
                   <div className="absolute inset-0 rounded-full overflow-hidden border-2 border-white">
                     <Image 
-                      src={matchedProfile.images[0]}
-                      alt={matchedProfile.name}
+                      src={matchedUser?.photos?.[0]?.url || '/assets/images/profile-placeholder.jpg'}
+                      alt={matchedUser?.name || 'Match'}
                       fill
                       className="object-cover"
                     />
@@ -166,96 +249,93 @@ export default function DiscoverPage() {
                 </div>
               </div>
               
-              <div className="space-y-3">
-                <button 
+              <div className="space-y-4">
+                <button
                   onClick={handleSendMessage}
-                  className="w-full bg-pink-500 text-white py-3 px-4 rounded-md font-medium"
+                  className="w-full bg-pink-500 text-white py-3 rounded-lg font-semibold"
                 >
                   Send Message
                 </button>
                 
-                <button 
+                <button
                   onClick={handleKeepSwiping}
-                  className="w-full bg-gray-700 text-white py-3 px-4 rounded-md font-medium"
+                  className="w-full bg-gray-700 text-white py-3 rounded-lg font-semibold"
                 >
                   Keep Swiping
                 </button>
               </div>
             </div>
           </div>
-        ) : (
-          // Main swiping interface
-          <div className="flex flex-col h-full pb-20">
-            {/* Profile card */}
+        ) : currentUser ? (
+          // Profile card
+          <div className="h-full flex flex-col">
             <div 
               ref={cardRef}
-              className="flex-1 relative overflow-hidden rounded-xl shadow-lg transition-transform duration-300"
+              className="flex-1 relative mx-4 my-4 rounded-xl overflow-hidden bg-white shadow-xl transition-transform duration-300"
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
               <div className="absolute inset-0">
                 <Image
-                  src={currentProfile.images[0] || '/assets/images/profile-placeholder.jpg'}
-                  alt={currentProfile.name}
+                  src={currentUser.photos?.[0]?.url || '/assets/images/profile-placeholder.jpg'}
+                  alt={currentUser.name}
                   fill
                   className="object-cover"
                 />
               </div>
               
-              {/* Gradient overlay for better text visibility */}
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black opacity-70"></div>
-              
-              {/* Swipe direction indicators */}
-              {swipeDirection === 'right' && (
-                <div className="absolute top-10 right-10 transform rotate-12">
-                  <div className="text-green-500 border-4 border-green-500 rounded-md px-4 py-2 text-2xl font-bold">
-                    LIKE
-                  </div>
-                </div>
-              )}
-              
-              {swipeDirection === 'left' && (
-                <div className="absolute top-10 left-10 transform -rotate-12">
-                  <div className="text-red-500 border-4 border-red-500 rounded-md px-4 py-2 text-2xl font-bold">
-                    PASS
-                  </div>
-                </div>
-              )}
-              
-              {/* Profile info */}
-              <div className="absolute bottom-0 left-0 p-6 text-white">
-                <h2 className="text-3xl font-bold">{currentProfile.name}, {currentProfile.age}</h2>
-                <p className="text-sm">{currentProfile.distance} miles away</p>
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6">
+                <h2 className="text-2xl font-bold text-white mb-1">
+                  {currentUser.name}, {calculateAge(new Date(currentUser.birthDate))}
+                </h2>
+                <p className="text-gray-200">{currentUser.bio}</p>
               </div>
+              
+              {swipeDirection && (
+                <div className={`absolute top-8 ${swipeDirection === 'right' ? 'right-8' : 'left-8'} p-4 rounded-lg border-4 ${
+                  swipeDirection === 'right' ? 'border-green-500 text-green-500' : 'border-red-500 text-red-500'
+                }`}>
+                  {swipeDirection === 'right' ? 'LIKE' : 'NOPE'}
+                </div>
+              )}
             </div>
             
-            {/* Action buttons */}
-            <div className="flex justify-center py-6 space-x-4">
-              <button 
+            <div className="flex justify-center space-x-8 p-4">
+              <button
                 onClick={handleDislike}
-                className="w-14 h-14 flex items-center justify-center bg-white rounded-full shadow-lg"
+                className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <span className="text-3xl">✕</span>
               </button>
               
-              <button 
+              <button
                 onClick={handleLike}
-                className="w-14 h-14 flex items-center justify-center bg-pink-500 rounded-full shadow-lg"
+                className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                </svg>
+                <span className="text-3xl">♥</span>
               </button>
             </div>
           </div>
+        ) : (
+          <div className="h-full flex items-center justify-center p-4">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-white mb-2">No more profiles</h2>
+              <p className="text-gray-400">Check back later for new recommendations</p>
+            </div>
+          </div>
         )}
+        
+        <BottomNavBar />
       </IonContent>
       
-      {/* Use shared BottomNavBar component */}
-      <BottomNavBar />
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={toastMessage}
+        duration={2000}
+        position="bottom"
+      />
     </IonPage>
   );
 }

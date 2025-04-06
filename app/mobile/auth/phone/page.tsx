@@ -2,182 +2,187 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IonBackButton, IonButtons, IonCol, IonContent, IonGrid, IonHeader, IonPage, IonRow, IonTitle, IonToolbar } from '@ionic/react';
+import { 
+  IonContent, 
+  IonPage, 
+  IonHeader, 
+  IonToolbar, 
+  IonTitle,
+  IonButtons,
+  IonBackButton,
+  IonInput,
+  IonItem,
+  IonLabel,
+  IonButton,
+  IonToast
+} from '@ionic/react';
+import { useServices } from '@/core/hooks/useServices';
+import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
+import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 
 export default function PhoneSignupPage() {
   const router = useRouter();
+  const { authService, isLoading, error } = useServices();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [step, setStep] = useState<'phone' | 'verification'>('phone');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [step, setStep] = useState<'phone' | 'verify'>('phone');
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError('');
+    setToastMessage('');
+
+    if (!authService) {
+      setToastMessage('Authentication service not available');
+      setShowToast(true);
+      return;
+    }
 
     try {
-      // Simulate API call to send verification code
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Move to verification step
-      setStep('verification');
+      await authService.sendVerificationCode(phoneNumber);
+      setStep('verify');
     } catch (err) {
-      setError('Failed to send verification code. Please try again.');
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to send verification code:', err);
+      setToastMessage('Failed to send verification code. Please try again.');
+      setShowToast(true);
     }
   };
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError('');
+    setToastMessage('');
+
+    if (!authService) {
+      setToastMessage('Authentication service not available');
+      setShowToast(true);
+      return;
+    }
 
     try {
-      // Simulate API call to verify code
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Redirect to profile setup on success
-      router.push('/mobile/profile/setup');
+      await authService.loginWithPhone(phoneNumber, verificationCode);
+      router.push('/mobile/home');
     } catch (err) {
-      setError('Invalid verification code. Please try again.');
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to verify code:', err);
+      setToastMessage('Invalid verification code. Please try again.');
+      setShowToast(true);
     }
   };
+
+  if (isLoading) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonButtons slot="start">
+              <IonBackButton defaultHref="/mobile/auth/login" />
+            </IonButtons>
+            <IonTitle>Phone Sign In</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message={step === 'phone' ? 'Sending code...' : 'Verifying code...'} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (error) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonButtons slot="start">
+              <IonBackButton defaultHref="/mobile/auth/login" />
+            </IonButtons>
+            <IonTitle>Phone Sign In</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={error.toString()} />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref="/mobile" />
+            <IonBackButton defaultHref="/mobile/auth/login" />
           </IonButtons>
-          <IonTitle>{step === 'phone' ? 'Phone Number' : 'Verification'}</IonTitle>
+          <IonTitle>Phone Sign In</IonTitle>
         </IonToolbar>
       </IonHeader>
       
-      <IonContent className="ion-padding">
-        <IonGrid>
-          <IonRow>
-            <IonCol>
-              <div className="max-w-md mx-auto">
-                {step === 'phone' ? (
-                  <>
-                    <h1 className="text-2xl font-bold mb-2">Enter your phone number</h1>
-                    <p className="text-gray-600 mb-6">We'll send you a verification code</p>
-                    
-                    {error && (
-                      <div className="bg-red-50 text-red-600 p-3 rounded-md mb-4">
-                        {error}
-                      </div>
-                    )}
-                    
-                    <form onSubmit={handleSendCode} className="space-y-4">
-                      <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                          Phone Number
-                        </label>
-                        <input
-                          id="phone"
-                          type="tel"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-md"
-                          placeholder="Enter your phone number"
-                          required
-                        />
-                      </div>
-                      
-                      <button
-                        type="submit"
-                        className={`w-full bg-primary-500 text-white py-3 px-4 rounded-full font-medium transition-colors hover:bg-primary-600 ${
-                          isLoading ? 'opacity-70 cursor-not-allowed' : ''
-                        }`}
-                        disabled={isLoading || !phoneNumber}
-                      >
-                        {isLoading ? 'Sending...' : 'Send Verification Code'}
-                      </button>
-                    </form>
-                  </>
-                ) : (
-                  <>
-                    <h1 className="text-2xl font-bold mb-2">Verify your phone</h1>
-                    <p className="text-gray-600 mb-6">
-                      We've sent a code to {phoneNumber}
-                    </p>
-                    
-                    {error && (
-                      <div className="bg-red-50 text-red-600 p-3 rounded-md mb-4">
-                        {error}
-                      </div>
-                    )}
-                    
-                    <form onSubmit={handleVerifyCode} className="space-y-4">
-                      <div>
-                        <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
-                          Verification Code
-                        </label>
-                        <input
-                          id="code"
-                          type="text"
-                          value={verificationCode}
-                          onChange={(e) => setVerificationCode(e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-md text-center text-xl tracking-widest"
-                          placeholder="Enter code"
-                          maxLength={6}
-                          required
-                        />
-                      </div>
-                      
-                      <button
-                        type="submit"
-                        className={`w-full bg-primary-500 text-white py-3 px-4 rounded-full font-medium transition-colors hover:bg-primary-600 ${
-                          isLoading ? 'opacity-70 cursor-not-allowed' : ''
-                        }`}
-                        disabled={isLoading || verificationCode.length < 4}
-                      >
-                        {isLoading ? 'Verifying...' : 'Verify and Continue'}
-                      </button>
-                      
-                      <div className="text-center mt-4">
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            setVerificationCode('');
-                            setError('');
-                            setStep('phone');
-                          }}
-                          className="text-primary-500"
-                        >
-                          Change phone number
-                        </button>
-                      </div>
-                      
-                      <div className="text-center">
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            setVerificationCode('');
-                            setError('');
-                            handleSendCode(new Event('submit') as any);
-                          }}
-                          className="text-primary-500"
-                          disabled={isLoading}
-                        >
-                          Resend code
-                        </button>
-                      </div>
-                    </form>
-                  </>
-                )}
-              </div>
-            </IonCol>
-          </IonRow>
-        </IonGrid>
+      <IonContent className="bg-[#0f172a]">
+        <div className="max-w-md mx-auto p-4">
+          <h1 className="text-2xl font-bold mb-2 text-white">
+            {step === 'phone' ? 'Enter Phone Number' : 'Verify Code'}
+          </h1>
+          <p className="text-gray-400 mb-6">
+            {step === 'phone' 
+              ? 'We will send you a verification code'
+              : 'Enter the code we sent to your phone'
+            }
+          </p>
+          
+          {step === 'phone' ? (
+            <form onSubmit={handleSendCode} className="space-y-4">
+              <IonItem>
+                <IonLabel position="floating">Phone Number</IonLabel>
+                <IonInput
+                  type="tel"
+                  value={phoneNumber}
+                  onIonChange={e => setPhoneNumber(e.detail.value!)}
+                  required
+                  placeholder="+1234567890"
+                />
+              </IonItem>
+              
+              <IonButton
+                expand="block"
+                type="submit"
+                className="mt-6"
+                disabled={!phoneNumber}
+              >
+                Send Code
+              </IonButton>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyCode} className="space-y-4">
+              <IonItem>
+                <IonLabel position="floating">Verification Code</IonLabel>
+                <IonInput
+                  type="text"
+                  value={verificationCode}
+                  onIonChange={e => setVerificationCode(e.detail.value!)}
+                  required
+                  placeholder="123456"
+                />
+              </IonItem>
+              
+              <IonButton
+                expand="block"
+                type="submit"
+                className="mt-6"
+                disabled={!verificationCode}
+              >
+                Verify Code
+              </IonButton>
+            </form>
+          )}
+        </div>
       </IonContent>
+
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={toastMessage}
+        duration={2000}
+        position="bottom"
+      />
     </IonPage>
   );
 } 

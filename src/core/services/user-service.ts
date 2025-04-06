@@ -7,6 +7,15 @@ import { IDataService } from './data-service-interface';
 import { NetworkService } from './network-service';
 
 /**
+ * 离线资料更新项
+ */
+interface OfflineProfileUpdate {
+  userId: string;
+  data: Partial<User>;
+  timestamp: Date;
+}
+
+/**
  * 用户服务接口
  * 定义用户相关的服务方法
  */
@@ -18,10 +27,15 @@ export interface IUserService {
   saveUsers(users: User[]): Promise<void>;
   createUser(user: Partial<User>): Promise<User>;
   updateUser(userId: string, updates: Partial<User>): Promise<User>;
+  updateUserProfile(userId: string, updates: Partial<User>): Promise<{ success: boolean; errors?: string[] }>;
+  syncOfflineProfileUpdates(): Promise<number>;
   deleteUser(userId: string): Promise<void>;
   getUserById(userId: string): Promise<User | null>;
+  getUsersByIds(userIds: string[]): Promise<User[]>;
   createMatch(userIds: string[]): Promise<Match>;
+  getMatches(userId: string, options?: any): Promise<Match[]>;
   deleteMatch(matchId: string): Promise<void>;
+  getRecommendedUsers(options?: any): Promise<User[]>;
   sendMessage(matchId: string, senderId: string, receiverId: string, content: string, type?: string): Promise<Message>;
   markMessageAsRead(messageId: string): Promise<Message>;
 }
@@ -36,6 +50,8 @@ export class UserService implements IUserService {
   private networkService: NetworkService;
   private initialized: boolean = false;
   private currentUserId: string | null = null;
+  private offlineProfileUpdates: OfflineProfileUpdate[] = [];
+  private offlineStorageKey: string = 'offline_profile_updates';
 
   /**
    * 构造函数
@@ -43,6 +59,17 @@ export class UserService implements IUserService {
   private constructor() {
     this.dataService = DataServiceFactory.getDataService();
     this.networkService = NetworkService.getInstance();
+    
+    // 加载离线资料更新
+    this.loadOfflineProfileUpdates();
+    
+    // 监听网络状态变化
+    this.networkService.addNetworkStatusListener((status) => {
+      const isOnline = status.connected;
+      if (isOnline && this.offlineProfileUpdates.length > 0) {
+        this.syncOfflineProfileUpdates();
+      }
+    });
   }
 
   /**
@@ -247,6 +274,226 @@ export class UserService implements IUserService {
   }
 
   /**
+   * 更新用户资料，支持离线更新
+   * @param userId 用户ID
+   * @param updates 资料更新内容
+   * @returns 更新结果
+   */
+  public async updateUserProfile(userId: string, updates: Partial<User>): Promise<{ success: boolean; errors?: string[] }> {
+    await this.ensureInitialized();
+    
+    try {
+      // 检查网络连接
+      if (this.networkService.isOnline()) {
+        // 在线状态下直接更新
+        await this.dataService.updateUser(userId, updates);
+        return { success: true };
+      } else {
+        // 离线状态下保存更新
+        console.log('Device is offline, saving profile update to offline queue');
+        this.addOfflineProfileUpdate(userId, updates);
+        return { success: true };
+      }
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      
+      // 如果更新失败但可能是网络问题，保存到离线队列
+      if (!this.networkService.isOnline()) {
+        this.addOfflineProfileUpdate(userId, updates);
+        return { success: true, errors: ['Operation saved for later synchronization'] };
+      }
+      
+      return { 
+        success: false, 
+        errors: [error instanceof Error ? error.message : String(error)] 
+      };
+    }
+  }
+  
+  /**
+   * 添加离线资料更新到队列
+   * @param userId 用户ID
+   * @param data 更新数据
+   */
+  private addOfflineProfileUpdate(userId: string, data: Partial<User>): void {
+    // 创建新的离线更新
+    const update: OfflineProfileUpdate = {
+      userId,
+      data,
+      timestamp: new Date()
+    };
+    
+    // 添加到队列
+    this.offlineProfileUpdates.push(update);
+    
+    // 持久化到本地存储
+    this.persistOfflineProfileUpdates();
+    
+    console.log(`Added offline profile update for user ${userId}`);
+  }
+  
+  /**
+   * 同步离线资料更新
+   * @returns 成功同步的更新数量
+   */
+  public async syncOfflineProfileUpdates(): Promise<number> {
+    await this.ensureInitialized();
+    
+    // 检查网络连接
+    if (!this.networkService.isOnline()) {
+      console.log('Cannot sync offline profile updates: device is offline');
+      return 0;
+    }
+    
+    if (this.offlineProfileUpdates.length === 0) {
+      return 0;
+    }
+    
+    console.log(`Syncing ${this.offlineProfileUpdates.length} offline profile updates`);
+    
+    // 同步计数
+    let syncedCount = 0;
+    const failedUpdates: OfflineProfileUpdate[] = [];
+    
+    // 通知网络服务开始同步
+    this.networkService.updateSyncStatus('syncing', {
+      pending: this.offlineProfileUpdates.length,
+      completed: 0,
+      failed: 0
+    });
+    
+    // 创建副本以避免遍历过程中修改数组
+    const updatesToSync = [...this.offlineProfileUpdates];
+    
+    // 逐一应用更新
+    for (const update of updatesToSync) {
+      try {
+        // 对同一用户的多次更新合并为一次
+        const userUpdates = updatesToSync
+          .filter(u => u.userId === update.userId)
+          .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        
+        // 合并所有更新
+        const mergedUpdate = userUpdates.reduce((merged, current) => {
+          return { ...merged, ...current.data };
+        }, {});
+        
+        // 应用更新
+        await this.dataService.updateUser(update.userId, mergedUpdate);
+        
+        // 记录同步成功的更新
+        userUpdates.forEach(() => {
+          syncedCount++;
+        });
+        
+        // 从队列中移除所有该用户的更新
+        this.offlineProfileUpdates = this.offlineProfileUpdates.filter(
+          u => u.userId !== update.userId
+        );
+        
+        // 更新同步状态
+        this.networkService.updateSyncStatus('syncing', {
+          pending: this.offlineProfileUpdates.length,
+          completed: syncedCount,
+          failed: failedUpdates.length
+        });
+        
+        // 跳过已处理的更新
+        continue;
+      } catch (error) {
+        console.error(`Failed to sync profile update for user ${update.userId}:`, error);
+        failedUpdates.push(update);
+        
+        // 更新同步状态以显示失败
+        this.networkService.updateSyncStatus('error', {
+          pending: this.offlineProfileUpdates.length - failedUpdates.length,
+          completed: syncedCount,
+          failed: failedUpdates.length
+        });
+      }
+    }
+    
+    // 更新离线队列
+    this.offlineProfileUpdates = failedUpdates;
+    
+    // 持久化更新后的队列
+    this.persistOfflineProfileUpdates();
+    
+    // 更新最终同步状态
+    if (syncedCount > 0) {
+      if (failedUpdates.length === 0) {
+        this.networkService.updateSyncStatus('synced');
+      } else {
+        this.networkService.updateSyncStatus('error', {
+          pending: 0,
+          completed: syncedCount,
+          failed: failedUpdates.length
+        });
+      }
+    }
+    
+    return syncedCount;
+  }
+  
+  /**
+   * 将离线资料更新持久化到本地存储
+   */
+  private persistOfflineProfileUpdates(): void {
+    try {
+      // 将更新转换为可序列化的格式
+      const serializable = this.offlineProfileUpdates.map(update => ({
+        ...update,
+        timestamp: update.timestamp.toISOString()
+      }));
+      
+      // 保存到本地存储
+      localStorage.setItem(this.offlineStorageKey, JSON.stringify(serializable));
+    } catch (error) {
+      console.error('Failed to persist offline profile updates:', error);
+    }
+  }
+  
+  /**
+   * 从本地存储加载离线资料更新
+   */
+  private loadOfflineProfileUpdates(): void {
+    try {
+      // 从本地存储获取数据
+      const stored = localStorage.getItem(this.offlineStorageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        
+        // 转换日期字符串为Date对象
+        this.offlineProfileUpdates = parsed.map((update: any) => ({
+          ...update,
+          timestamp: new Date(update.timestamp)
+        }));
+        
+        console.log(`Loaded ${this.offlineProfileUpdates.length} offline profile updates`);
+      }
+    } catch (error) {
+      console.error('Failed to load offline profile updates from storage:', error);
+    }
+  }
+  
+  /**
+   * 计算年龄
+   * @param birthDate 出生日期
+   * @returns 年龄
+   */
+  private calculateAge(birthDate: Date): number {
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  }
+
+  /**
    * 删除用户
    * @param userId 用户ID
    */
@@ -428,19 +675,162 @@ export class UserService implements IUserService {
   /**
    * 获取用户的匹配列表
    * @param userId 用户ID
+   * @param options 查询选项，如限制数量和排序
    * @returns 匹配列表
    */
-  public async getMatches(userId?: string): Promise<Match[]> {
+  public async getMatches(userId: string, options?: { limit?: number; orderBy?: string | Record<string, 'asc' | 'desc'> }): Promise<Match[]> {
     await this.ensureInitialized();
     
     try {
-      return await this.dataService.getMatches(userId);
+      // 使用基础方法获取匹配
+      const matches = await this.dataService.getMatches(userId);
+      
+      // 应用排序
+      if (options?.orderBy) {
+        if (typeof options.orderBy === 'string') {
+          // 简单排序，例如按 'lastMessageAt'
+          matches.sort((a, b) => {
+            const aValue = a[options.orderBy as keyof Match];
+            const bValue = b[options.orderBy as keyof Match];
+            
+            if (aValue instanceof Date && bValue instanceof Date) {
+              return bValue.getTime() - aValue.getTime(); // 默认降序
+            }
+            
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+              return bValue.localeCompare(aValue); // 默认降序
+            }
+            
+            return 0;
+          });
+        } else {
+          // 复杂排序，例如 { createdAt: 'desc' }
+          const field = Object.keys(options.orderBy)[0] as keyof Match;
+          const direction = options.orderBy[field];
+          
+          matches.sort((a, b) => {
+            const aValue = a[field];
+            const bValue = b[field];
+            
+            if (aValue instanceof Date && bValue instanceof Date) {
+              return direction === 'asc' 
+                ? aValue.getTime() - bValue.getTime()
+                : bValue.getTime() - aValue.getTime();
+            }
+            
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+              return direction === 'asc'
+                ? aValue.localeCompare(bValue)
+                : bValue.localeCompare(aValue);
+            }
+            
+            return 0;
+          });
+        }
+      }
+      
+      // 应用限制
+      if (options?.limit && options.limit > 0 && matches.length > options.limit) {
+        return matches.slice(0, options.limit);
+      }
+      
+      return matches;
     } catch (error) {
       console.error('Error getting matches:', error);
       return [];
     }
   }
-
+  
+  /**
+   * 根据ID列表获取多个用户资料
+   * 
+   * @param userIds 用户ID列表
+   * @returns 用户资料列表
+   */
+  public async getUsersByIds(userIds: string[]): Promise<User[]> {
+    await this.ensureInitialized();
+    
+    if (!userIds || userIds.length === 0) {
+      return [];
+    }
+    
+    try {
+      const users: User[] = [];
+      
+      // 批量获取用户资料
+      for (const userId of userIds) {
+        try {
+          const user = await this.getUserById(userId);
+          if (user) {
+            users.push(user);
+          }
+        } catch (error) {
+          console.error(`Error fetching user ${userId}:`, error);
+        }
+      }
+      
+      return users;
+    } catch (error) {
+      console.error('Error fetching users by IDs:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * 获取推荐用户列表
+   * 
+   * @param options 查询选项
+   * @returns 推荐用户列表
+   */
+  public async getRecommendedUsers(options?: { limit?: number }): Promise<User[]> {
+    await this.ensureInitialized();
+    
+    try {
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) {
+        return [];
+      }
+      
+      // 查询数据库中的用户
+      const allUsers = await this.dataService.getUsers();
+      
+      // 筛选出符合当前用户偏好的用户
+      let recommendations = allUsers.filter(user => {
+        // 排除当前用户
+        if (user.id === currentUser.id) {
+          return false;
+        }
+        
+        // 根据性别偏好筛选
+        if (currentUser.preferences.gender && 
+            !currentUser.preferences.gender.includes(user.gender)) {
+          return false;
+        }
+        
+        // 年龄筛选
+        const userAge = this.calculateAge(user.birthDate);
+        if (userAge < currentUser.preferences.ageRange.min || 
+            userAge > currentUser.preferences.ageRange.max) {
+          return false;
+        }
+        
+        // TODO: 增加更多筛选逻辑（距离、兴趣等）
+        
+        return true;
+      });
+      
+      // 应用限制
+      if (options?.limit && options.limit > 0) {
+        recommendations = recommendations.slice(0, options.limit);
+      }
+      
+      return recommendations;
+    } catch (error) {
+      console.error('Error getting recommended users:', error);
+      return [];
+    }
+  }
+  
   /**
    * 确保服务已初始化
    */

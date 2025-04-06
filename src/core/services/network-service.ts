@@ -1,6 +1,31 @@
 import { NetworkStatus } from '@capacitor/network';
 import { Network } from '@capacitor/network';
 import { Capacitor } from '@capacitor/core';
+import { NetworkManager, NetworkEventHandler } from '@/core/lib/network/network-manager';
+
+/**
+ * 连接状态枚举
+ */
+export type ConnectionStatus = 'online' | 'offline' | 'limited';
+
+/**
+ * 同步状态
+ */
+export type SyncStatus = 'syncing' | 'synced' | 'error' | 'waiting';
+
+/**
+ * 同步状态详情
+ */
+export interface SyncDetails {
+  pending: number;
+  completed: number;
+  failed: number;
+}
+
+/**
+ * 同步状态监听器
+ */
+export type SyncStatusListener = (status: SyncStatus, details?: SyncDetails) => void;
 
 /**
  * 网络服务接口
@@ -9,27 +34,43 @@ import { Capacitor } from '@capacitor/core';
 export interface INetworkService {
   initialize(): Promise<void>;
   isOnline(): boolean;
+  isConnected(): boolean;
   getNetworkStatus(): NetworkStatus;
+  getConnectionStatus(): ConnectionStatus;
+  getConnectionType(): string;
   addNetworkStatusListener(listener: (status: NetworkStatus) => void): string;
   removeNetworkStatusListener(listenerId: string): void;
+  addSyncStatusListener(listener: SyncStatusListener): string;
+  removeSyncStatusListener(listenerId: string): void;
   setOfflineMode(offline: boolean): void;
+  enableOfflineMode(enable: boolean): void;
+  isOfflineMode(): boolean;
+  canSync(): boolean;
   onConnect(callback: () => void): string;
   onDisconnect(callback: () => void): string;
   removeCallback(callbackId: string): void;
+  offConnect(handler: NetworkEventHandler): void;
+  offDisconnect(handler: NetworkEventHandler): void;
+  simulateLatency(latencyMs: number): void;
+  simulateOffline(offline: boolean): void;
 }
 
 /**
  * 网络服务
  * 提供网络状态监测和管理功能
  */
-export class NetworkService implements INetworkService {
+export class NetworkService implements INetworkService, NetworkManager {
   private static instance: NetworkService;
   private networkStatus: NetworkStatus = { connected: false, connectionType: 'none' };
   private networkListeners: Map<string, (status: NetworkStatus) => void> = new Map();
+  private syncStatusListeners: Map<string, SyncStatusListener> = new Map();
   private connectCallbacks: Map<string, () => void> = new Map();
   private disconnectCallbacks: Map<string, () => void> = new Map();
   private initialized: boolean = false;
   private forceOfflineMode: boolean = false;
+  private latencyMs: number = 0;
+  private currentSyncStatus: SyncStatus = 'synced';
+  private syncDetails: SyncDetails = { pending: 0, completed: 0, failed: 0 };
 
   private constructor() {}
 
@@ -119,6 +160,39 @@ export class NetworkService implements INetworkService {
   }
 
   /**
+   * 获取当前连接状态
+   * @returns 连接状态
+   */
+  public getConnectionStatus(): ConnectionStatus {
+    if (this.forceOfflineMode) {
+      return 'offline';
+    }
+    
+    if (!this.networkStatus.connected) {
+      return 'offline';
+    }
+    
+    // 根据连接类型判断是否为有限连接
+    if (this.networkStatus.connectionType === 'cellular') {
+      // 在某些情况下，您可能想将蜂窝连接视为有限连接
+      return 'limited';
+    }
+    
+    return 'online';
+  }
+
+  /**
+   * 获取当前连接类型
+   * @returns 连接类型字符串
+   */
+  public getConnectionType(): string {
+    if (this.forceOfflineMode) {
+      return 'none';
+    }
+    return this.networkStatus.connectionType;
+  }
+
+  /**
    * 添加网络状态变化监听器
    * @param listener 监听器函数
    * @returns 监听器ID
@@ -155,6 +229,32 @@ export class NetworkService implements INetworkService {
       
       console.log(`Force offline mode ${offline ? 'enabled' : 'disabled'}`);
     }
+  }
+
+  /**
+   * 启用/禁用离线模式
+   * 与setOfflineMode功能相同，提供另一个命名选项
+   * @param enable 是否启用离线模式
+   */
+  public enableOfflineMode(enable: boolean): void {
+    this.setOfflineMode(enable);
+  }
+
+  /**
+   * 检查是否处于强制离线模式
+   * @returns 是否处于强制离线模式
+   */
+  public isOfflineMode(): boolean {
+    return this.forceOfflineMode;
+  }
+
+  /**
+   * 检查是否可以进行数据同步
+   * 当网络可用且未启用强制离线模式时返回true
+   * @returns 是否可以进行同步
+   */
+  public canSync(): boolean {
+    return this.isOnline() && !this.forceOfflineMode;
   }
 
   /**
@@ -271,6 +371,129 @@ export class NetworkService implements INetworkService {
         callback();
       } catch (error) {
         console.error('Error in disconnect callback:', error);
+      }
+    });
+  }
+
+  /**
+   * 检查当前是否连接到网络
+   * 实现NetworkManager接口的方法
+   * @returns 是否连接到网络
+   */
+  public isConnected(): boolean {
+    return this.isOnline();
+  }
+
+  /**
+   * 移除连接回调
+   * 实现NetworkManager接口的方法
+   * @param handler 要移除的回调函数
+   */
+  public offConnect(handler: NetworkEventHandler): void {
+    // 查找匹配的处理函数并移除
+    this.connectCallbacks.forEach((callback, id) => {
+      if (callback === handler) {
+        this.removeCallback(id);
+      }
+    });
+  }
+
+  /**
+   * 移除断开连接回调
+   * 实现NetworkManager接口的方法
+   * @param handler 要移除的回调函数
+   */
+  public offDisconnect(handler: NetworkEventHandler): void {
+    // 查找匹配的处理函数并移除
+    this.disconnectCallbacks.forEach((callback, id) => {
+      if (callback === handler) {
+        this.removeCallback(id);
+      }
+    });
+  }
+
+  /**
+   * 模拟网络延迟
+   * 开发和测试时可用
+   * @param latencyMs 延迟毫秒数
+   */
+  public simulateLatency(latencyMs: number): void {
+    this.latencyMs = latencyMs;
+    console.log(`Network latency simulation set to ${latencyMs}ms`);
+  }
+
+  /**
+   * 模拟网络离线状态
+   * 开发和测试时可用
+   * @param offline 是否模拟离线
+   */
+  public simulateOffline(offline: boolean): void {
+    this.setOfflineMode(offline);
+  }
+
+  /**
+   * 获取当前模拟的网络延迟（毫秒）
+   * @returns 当前延迟毫秒数
+   */
+  public getLatency(): number {
+    return this.latencyMs;
+  }
+
+  /**
+   * 添加同步状态监听器
+   * @param listener 监听器函数
+   * @returns 监听器ID
+   */
+  public addSyncStatusListener(listener: SyncStatusListener): string {
+    const listenerId = crypto.randomUUID();
+    this.syncStatusListeners.set(listenerId, listener);
+    
+    // 立即通知当前状态
+    try {
+      listener(this.currentSyncStatus, this.syncDetails);
+    } catch (error) {
+      console.error('Error in sync status listener:', error);
+    }
+    
+    return listenerId;
+  }
+
+  /**
+   * 移除同步状态监听器
+   * @param listenerId 监听器ID
+   */
+  public removeSyncStatusListener(listenerId: string): void {
+    this.syncStatusListeners.delete(listenerId);
+  }
+
+  /**
+   * 更新同步状态
+   * @param status 同步状态
+   * @param details 同步详情
+   */
+  public updateSyncStatus(status: SyncStatus, details?: Partial<SyncDetails>): void {
+    this.currentSyncStatus = status;
+    
+    if (details) {
+      this.syncDetails = {
+        ...this.syncDetails,
+        ...details
+      };
+    }
+    
+    // 通知所有监听器
+    this.notifySyncStatusListeners();
+  }
+
+  /**
+   * 通知所有同步状态监听器
+   */
+  private notifySyncStatusListeners(): void {
+    this.syncStatusListeners.forEach(listener => {
+      try {
+        listener(this.currentSyncStatus, this.syncDetails);
+      } catch (error) {
+        console.error('Error in sync status listener:', error);
       }
     });
   }

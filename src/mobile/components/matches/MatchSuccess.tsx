@@ -57,7 +57,7 @@ const MatchSuccess: React.FC<MatchSuccessProps> = ({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-3xl font-bold text-pink-500 mb-2">It's a Match!</h2>
+          <h2 className="text-3xl font-bold text-pink-500 mb-2">It&apos;s a Match!</h2>
           <p className="text-slate-300">You and {matchedUserName} have liked each other</p>
         </motion.div>
         

@@ -17,6 +17,50 @@ export class UserRepository extends BaseRepository<User> {
   }
   
   /**
+   * 根据邮箱查找用户
+   * @param email 用户邮箱
+   * @returns 用户或null
+   * @throws {DatabaseError} 当查询失败时抛出
+   */
+  async findByEmail(email: string): Promise<User | null> {
+    try {
+      const result = await this.query({
+        where: { email },
+        limit: 1
+      });
+      return result.data.length > 0 ? result.data[0] : null;
+    } catch (error) {
+      throw new DatabaseError(
+        `查找邮箱为 ${email} 的用户失败`,
+        'QUERY_ERROR',
+        { email, error }
+      );
+    }
+  }
+
+  /**
+   * 根据手机号查找用户
+   * @param phone 用户手机号
+   * @returns 用户或null
+   * @throws {DatabaseError} 当查询失败时抛出
+   */
+  async findByPhone(phone: string): Promise<User | null> {
+    try {
+      const result = await this.query({
+        where: { phone },
+        limit: 1
+      });
+      return result.data.length > 0 ? result.data[0] : null;
+    } catch (error) {
+      throw new DatabaseError(
+        `查找手机号为 ${phone} 的用户失败`,
+        'QUERY_ERROR',
+        { phone, error }
+      );
+    }
+  }
+  
+  /**
    * 根据用户名查找用户
    * @param name 用户名
    * @returns 用户列表

@@ -1,0 +1,91 @@
+{
+  "test": {
+    "loading": "Loading...",
+    "errors": {
+      "loadFailed": "Failed to load",
+      "notFound": "Test result not found"
+    },
+    "testsTitle": "Psychological Tests",
+    "availableTests": "Available Tests",
+    "status": {
+      "available": "Available",
+      "inProgress": "In Progress",
+      "completed": "Completed"
+    },
+    "resultTitle": "Test Result",
+    "traits": "Trait Analysis",
+    "suggestions": "Suggestions",
+    "shareTitle": "Share Test Result",
+    "shareText": "I scored {score} in {testName}! My trait analysis: {traits}",
+    "suggestions": {
+      "personality": {
+        "openness": {
+          "high": "You are curious and enthusiastic about new things. Try new experiences and engage in creative activities.",
+          "medium": "You maintain a balance in accepting new things. Feel free to explore new areas while staying in your comfort zone.",
+          "low": "You tend to be conservative and traditional. Try to gradually accept new things and broaden your horizons."
+        },
+        "conscientiousness": {
+          "high": "You are responsible and well-planned. Keep this attitude but remember to relax occasionally.",
+          "medium": "You maintain a good balance between responsibility and relaxation. Keep up this good state.",
+          "low": "You are more casual and may need to strengthen planning and responsibility. Try setting small goals."
+        },
+        "extraversion": {
+          "high": "You are outgoing and social. Use this advantage but remember to have some alone time.",
+          "medium": "You balance well between socializing and solitude. This is good, adjust flexibly based on situations.",
+          "low": "You tend to be introverted and like solitude. This is fine, but try joining some small social activities."
+        },
+        "agreeableness": {
+          "high": "You are friendly and easy to get along with. This is a good quality, but remember to protect your interests.",
+          "medium": "You balance well between friendliness and independence. Keep handling relationships flexibly.",
+          "low": "You are independent and not easily influenced. This has its merits, but try to consider others' perspectives more."
+        },
+        "neuroticism": {
+          "high": "Your emotions fluctuate significantly. Learn some emotion management techniques for mental health.",
+          "medium": "Your emotions are relatively stable. Keep this state and learn more emotion management skills.",
+          "low": "Your emotions are very stable. This is a great trait, keep it up."
+        }
+      },
+      "interest": {
+        "art": {
+          "high": "You are very interested in art. Participate in more artistic activities to develop your talent.",
+          "medium": "You have some interest in art. Selectively participate in some artistic activities.",
+          "low": "You have less interest in art. Try experiencing basic art forms to cultivate interest."
+        },
+        "science": {
+          "high": "You are very interested in science. Follow tech news and participate in scientific activities.",
+          "medium": "You have some interest in science. Explore scientific fields that interest you.",
+          "low": "You have less interest in science. Start with scientific phenomena in daily life."
+        },
+        "social": {
+          "high": "You are very interested in social activities. Participate in volunteer work and community activities.",
+          "medium": "You have some interest in social activities. Selectively participate in community activities.",
+          "low": "You have less interest in social activities. Start with small community events."
+        }
+      },
+      "values": {
+        "tradition": {
+          "high": "You value traditional values highly. This helps maintain stability, but adapt to social development.",
+          "medium": "You balance well between traditional and modern values. This is a good state.",
+          "low": "You lean towards modern values. Stay open while respecting traditions."
+        },
+        "achievement": {
+          "high": "You focus a lot on achievement. Keep pursuing goals but maintain life balance.",
+          "medium": "You handle achievement and life balance well. Keep this state.",
+          "low": "You care less about achievement. This attitude is relaxed, but try setting some small goals."
+        }
+      },
+      "lifestyle": {
+        "activity": {
+          "high": "Your life is very active. Keep up this positive lifestyle.",
+          "medium": "Your life pace is moderate. This is a good state, maintain it.",
+          "low": "Your life is relatively quiet. Consider adding some activities."
+        },
+        "health": {
+          "high": "You pay great attention to health. Keep up this healthy lifestyle.",
+          "medium": "You have some focus on health. Further cultivate healthy habits.",
+          "low": "You pay less attention to health. Focus more on health and develop good habits."
+        }
+      }
+    }
+  }
+} 

@@ -1,4 +1,4 @@
-import { AuthServiceFactory } from '@/core/services/auth-service';
+import { AuthServiceFactory } from '@/core/services/auth/auth-service-factory';
 import { DatabaseService } from '@/core/services/database-service';
 import { UserService } from '@/core/services/user-service';
 import { NetworkService } from '@/core/services/network-service';

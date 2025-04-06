@@ -1,27 +1,27 @@
-import { AuthServiceFactory } from '@/core/services/auth-service';
-import { MockAuthService } from '@/core/services/providers/mock-auth-service';
-import { BetterAuthService } from '@/core/services/better-auth-service';
-import { FirebaseAuthService } from '@/core/services/firebase-auth-service';
+import { AuthServiceFactory } from '@/core/services/auth/auth-service-factory';
+import { MockAuthProvider } from '@/core/services/auth/mock-auth-provider';
+import { BetterAuthProvider } from '@/core/services/auth/better-auth-provider';
+import { FirebaseAuthProvider } from '@/core/services/auth/firebase-auth-provider';
 
 describe('AuthService', () => {
-  let mockAuthService: MockAuthService;
-  let betterAuthService: BetterAuthService;
-  let firebaseAuthService: FirebaseAuthService;
+  let mockAuthService: MockAuthProvider;
+  let betterAuthService: BetterAuthProvider;
+  let firebaseAuthService: FirebaseAuthProvider;
 
   beforeEach(() => {
     // 重置所有服务实例
     AuthServiceFactory.getInstance().resetAuthService();
     
     // 创建新的服务实例
-    mockAuthService = new MockAuthService({
+    mockAuthService = new MockAuthProvider({
       enableDelay: false,
       mockUserCount: 1,
       defaultPassword: 'test123',
       persistAuth: false
     });
     
-    betterAuthService = BetterAuthService.getInstance();
-    firebaseAuthService = FirebaseAuthService.getInstance();
+    betterAuthService = BetterAuthProvider.getInstance();
+    firebaseAuthService = FirebaseAuthProvider.getInstance();
   });
 
   describe('Password Reset', () => {

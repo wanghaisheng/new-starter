@@ -1,0 +1,33 @@
+{
+  "selectType": "Select Test Type",
+  "description": "Complete any test to start matching. You can also complete more tests to unlock different matching modes.",
+  "loading": "Loading test types...",
+  "questions": "{count} questions",
+  "estimatedTime": "{minutes} min",
+  "errors": {
+    "loadFailed": "Failed to load test types",
+    "saveFailed": "Failed to save progress"
+  },
+  "testTypes": {
+    "personality": "Personality Test",
+    "interest": "Interest Analysis",
+    "value": "Value Assessment",
+    "lifestyle": "Lifestyle Survey"
+  },
+  "status": {
+    "available": "Available",
+    "inProgress": "In Progress",
+    "completed": "Completed"
+  },
+  "question": "Question {current} of {total}",
+  "scale": {
+    "disagree": "Strongly Disagree",
+    "neutral": "Neutral",
+    "agree": "Strongly Agree"
+  },
+  "buttons": {
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit"
+  }
+} 

@@ -1,18 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonList, IonItem, IonLabel, IonBadge, IonIcon } from '@ionic/react';
+import { timeOutline, checkmarkCircle, hourglassOutline } from 'ionicons/icons';
 import { TestService } from '@/core/services/test-service';
-import { TestType } from '@/core/lib/db/types';
-import { TestTypeCard } from '@/mobile/components/tests/TestTypeCard';
-import { useTestNavigation } from '@/core/hooks/useTest';
-import { LoadingScreen } from '@/mobile/components/ui/LoadingScreen';
-import { ErrorScreen } from '@/mobile/components/ui/ErrorScreen';
+import type { TestType } from '@/core/lib/db/types';
+import { LoadingScreen } from '@/core/components/common/LoadingScreen';
+import { ErrorScreen } from '@/core/components/common/ErrorScreen';
 
-export default function TestsPage() {
-  const [testTypes, setTestTypes] = useState<TestType[]>([]);
+export default function TestTypesPage() {
+  const router = useRouter();
+  const t = useTranslations('test');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const { navigateToTest } = useTestNavigation();
+  const [testTypes, setTestTypes] = useState<TestType[]>([]);
 
   useEffect(() => {
     async function loadTestTypes() {
@@ -21,39 +24,88 @@ export default function TestsPage() {
         const types = await service.getTestTypes();
         setTestTypes(types);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to load test types'));
+        setError(err instanceof Error ? err : new Error(t('errors.loadFailed')));
       } finally {
         setLoading(false);
       }
     }
 
     loadTestTypes();
-  }, []);
+  }, [t]);
+
+  const handleTestSelect = (testId: string) => {
+    router.push(`/mobile/tests/${testId}`);
+  };
+
+  const getStatusIcon = (status: TestType['status']) => {
+    switch (status) {
+      case 'completed':
+        return checkmarkCircle;
+      case 'inProgress':
+        return hourglassOutline;
+      default:
+        return timeOutline;
+    }
+  };
+
+  const getStatusColor = (status: TestType['status']) => {
+    switch (status) {
+      case 'completed':
+        return 'success';
+      case 'inProgress':
+        return 'warning';
+      default:
+        return 'primary';
+    }
+  };
 
   if (loading) {
-    return <LoadingScreen message="加载测试类型..." />;
+    return <LoadingScreen message={t('loading')} />;
   }
 
   if (error) {
-    return <ErrorScreen error={error} />;
+    return <ErrorScreen message={error.message} onRetry={() => window.location.reload()} />;
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">选择测试类型</h1>
-      <p className="text-gray-600 mb-8">
-        完成任意一项测试即可开始匹配。您也可以完成更多测试来开启不同的匹配模式。
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {testTypes.map((test) => (
-          <TestTypeCard
-            key={test.id}
-            test={test}
-            isSelected={false}
-            onSelect={() => navigateToTest(test.id)}
-          />
-        ))}
-      </div>
-    </div>
+    <IonPage>
+      <IonHeader>
+        <IonToolbar>
+          <IonTitle>{t('testsTitle')}</IonTitle>
+        </IonToolbar>
+      </IonHeader>
+      <IonContent className="ion-padding">
+        <IonCard>
+          <IonCardHeader>
+            <IonCardTitle>{t('availableTests')}</IonCardTitle>
+          </IonCardHeader>
+          <IonCardContent>
+            <IonList>
+              {testTypes.map((test) => (
+                <IonItem 
+                  key={test.id} 
+                  button 
+                  onClick={() => handleTestSelect(test.id)}
+                  detail={true}
+                >
+                  <IonIcon 
+                    icon={getStatusIcon(test.status)} 
+                    slot="start"
+                    color={getStatusColor(test.status)}
+                  />
+                  <IonLabel>
+                    <h2>{test.title}</h2>
+                    <p>{test.description}</p>
+                  </IonLabel>
+                  <IonBadge slot="end" color={getStatusColor(test.status)}>
+                    {t(`status.${test.status}`)}
+                  </IonBadge>
+                </IonItem>
+              ))}
+            </IonList>
+          </IonCardContent>
+        </IonCard>
+      </IonContent>
+    </IonPage>
   );
 } 

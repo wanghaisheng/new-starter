@@ -261,3 +261,285 @@ const userSchema: TableSchema = {
 3. 监控网络请求和同步操作
 4. 使用 `StorageService.getOfflineDataStats()` 检查离线数据状态
 5. 在服务方法中添加适当的日志记录
+
+## 认证服务
+
+### 架构概述
+
+认证服务采用工厂模式和提供者模式，支持多环境配置：
+
+```
+src/core/services/auth/
+├── auth-service.ts          # 统一的认证服务接口
+├── auth-service-factory.ts  # 认证服务工厂
+├── firebase-auth-provider.ts # Firebase认证提供者
+└── mock-auth-provider.ts    # 模拟认证提供者
+```
+
+### 环境配置
+
+认证服务支持以下环境配置：
+
+```bash
+# .env.local
+NEXT_PUBLIC_DATABASE_ENV=mock    # mock, local, production
+NEXT_PUBLIC_MOCK_DB_TYPE=hybrid  # memory, json, hybrid
+```
+
+### 核心接口
+
+#### AuthProvider 接口
+
+```typescript
+interface AuthProvider {
+  initialize(): Promise<void>;
+  signIn(email: string, password: string): Promise<AuthUser>;
+  signOut(): Promise<void>;
+  getCurrentUser(): Promise<AuthUser | null>;
+  refreshToken(): Promise<string>;
+  resetPassword(email: string): Promise<void>;
+  updateProfile(data: Partial<AuthUser>): Promise<AuthUser>;
+}
+```
+
+#### AuthService 接口
+
+```typescript
+interface AuthService {
+  initialize(): Promise<void>;
+  signIn(email: string, password: string): Promise<AuthUser>;
+  signOut(): Promise<void>;
+  getCurrentUser(): Promise<AuthUser | null>;
+  refreshToken(): Promise<string>;
+  resetPassword(email: string): Promise<void>;
+  updateProfile(data: Partial<AuthUser>): Promise<AuthUser>;
+}
+```
+
+### 使用示例
+
+#### 初始化认证服务
+
+```typescript
+import { AuthService } from '@/core/services/auth/auth-service';
+
+// 获取认证服务实例
+const authService = AuthService.getInstance();
+
+// 初始化认证服务
+await authService.initialize();
+```
+
+#### 用户认证
+
+```typescript
+// 用户登录
+const user = await authService.signIn('user@example.com', 'password');
+
+// 获取当前用户
+const currentUser = await authService.getCurrentUser();
+
+// 更新用户资料
+const updatedUser = await authService.updateProfile({
+  displayName: 'New Name',
+  photoURL: 'https://example.com/photo.jpg'
+});
+
+// 登出
+await authService.signOut();
+```
+
+### 错误处理
+
+认证服务使用统一的错误处理机制：
+
+```typescript
+try {
+  await authService.signIn(email, password);
+} catch (error) {
+  if (error instanceof AuthError) {
+    console.error('认证错误:', error.message);
+    // 处理认证错误
+  } else {
+    console.error('未知错误:', error);
+    // 处理其他错误
+  }
+}
+```
+
+### 日志记录
+
+认证服务包含详细的日志记录：
+
+```typescript
+// 日志示例
+logger.info('用户登录成功', { userId: user.id });
+logger.error('认证失败', { error: error.message });
+```
+
+## 数据服务
+
+### 架构概述
+
+数据服务采用分层架构，支持多环境数据存储：
+
+```
+src/core/services/data/
+├── data-service.ts          # 数据服务接口
+├── data-service-factory.ts  # 数据服务工厂
+├── database-service.ts      # 数据库服务实现
+└── mock-data-service.ts     # 模拟数据服务
+```
+
+### 环境配置
+
+数据服务支持以下环境配置：
+
+```bash
+# .env.local
+NEXT_PUBLIC_DATABASE_ENV=mock    # mock, local, production
+NEXT_PUBLIC_MOCK_DB_TYPE=hybrid  # memory, json, hybrid
+```
+
+### 核心接口
+
+#### IDataService 接口
+
+```typescript
+interface IDataService {
+  initialize(): Promise<void>;
+  getClient(): IDatabaseClient;
+  
+  // 用户相关
+  getUserById(id: string): Promise<User | null>;
+  createUser(data: CreateUserDTO): Promise<User>;
+  updateUser(id: string, data: Partial<User>): Promise<User>;
+  
+  // 其他方法...
+}
+```
+
+### 使用示例
+
+#### 初始化数据服务
+
+```typescript
+import { DataServiceFactory } from '@/core/services/data/data-service-factory';
+
+// 获取数据服务实例
+const dataService = DataServiceFactory.getInstance().getService();
+
+// 初始化数据服务
+await dataService.initialize();
+```
+
+#### 数据操作
+
+```typescript
+// 创建用户
+const user = await dataService.createUser({
+  email: 'user@example.com',
+  name: 'Test User'
+});
+
+// 更新用户
+const updatedUser = await dataService.updateUser(user.id, {
+  name: 'Updated Name'
+});
+
+// 获取用户
+const fetchedUser = await dataService.getUserById(user.id);
+```
+
+### 错误处理
+
+数据服务使用统一的错误处理机制：
+
+```typescript
+try {
+  await dataService.createUser(data);
+} catch (error) {
+  if (error instanceof ServiceError) {
+    console.error('服务错误:', error.message);
+    // 处理服务错误
+  } else {
+    console.error('未知错误:', error);
+    // 处理其他错误
+  }
+}
+```
+
+### 日志记录
+
+数据服务包含详细的日志记录：
+
+```typescript
+// 日志示例
+logger.info('创建用户成功', { userId: user.id });
+logger.error('数据操作失败', { error: error.message });
+```
+
+## 其他服务
+
+### 用户服务
+
+用户服务提供用户相关的业务逻辑：
+
+```typescript
+import { UserService } from '@/core/services/user-service';
+
+const userService = UserService.getInstance();
+
+// 获取用户资料
+const profile = await userService.getUserProfile(userId);
+
+// 更新用户设置
+await userService.updateUserSettings(userId, settings);
+```
+
+### 消息服务
+
+消息服务处理应用内的消息通信：
+
+```typescript
+import { MessageService } from '@/core/services/message-service';
+
+const messageService = MessageService.getInstance();
+
+// 发送消息
+await messageService.sendMessage({
+  from: userId,
+  to: recipientId,
+  content: 'Hello!'
+});
+
+// 获取消息历史
+const messages = await messageService.getMessages(userId, recipientId);
+```
+
+## 最佳实践
+
+1. **服务初始化**
+   - 在应用启动时初始化所有服务
+   - 使用单例模式确保服务实例唯一
+   - 正确处理初始化错误
+
+2. **错误处理**
+   - 使用统一的错误类型
+   - 记录详细的错误信息
+   - 提供友好的错误提示
+
+3. **日志记录**
+   - 记录关键操作
+   - 包含必要的上下文信息
+   - 使用适当的日志级别
+
+4. **性能优化**
+   - 实现适当的缓存策略
+   - 优化数据库查询
+   - 使用批量操作减少请求
+
+5. **测试**
+   - 编写单元测试
+   - 实现集成测试
+   - 测试错误场景

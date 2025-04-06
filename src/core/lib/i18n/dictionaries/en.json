@@ -1,0 +1,41 @@
+{
+  "common": {
+    "welcome": "Welcome",
+    "buttons": {
+      "submit": "Submit",
+      "cancel": "Cancel",
+      "save": "Save",
+      "delete": "Delete",
+      "edit": "Edit"
+    },
+    "errors": {
+      "required": "This field is required",
+      "invalid": "Invalid input",
+      "network": "Network error occurred"
+    }
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password"
+  },
+  "profile": {
+    "title": "Profile",
+    "edit": "Edit Profile",
+    "name": "Name",
+    "bio": "Bio",
+    "location": "Location"
+  },
+  "test": {
+    "title": "Tests",
+    "start": "Start Test",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit Test",
+    "results": "Test Results",
+    "score": "Score",
+    "retake": "Retake Test"
+  }
+} 

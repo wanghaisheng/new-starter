@@ -1,0 +1,50 @@
+.offline-message {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 12px;
+  margin-bottom: 16px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.last-updated {
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+
+.policy-sections section {
+  margin-bottom: 32px;
+}
+
+.policy-sections h2 {
+  color: #2c3e50;
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.policy-sections p {
+  color: #4a5568;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .offline-message {
+    background-color: #382f1a;
+    color: #ffd970;
+  }
+
+  .last-updated {
+    color: #a0aec0;
+  }
+
+  .policy-sections h2 {
+    color: #e2e8f0;
+  }
+
+  .policy-sections p {
+    color: #cbd5e0;
+  }
+} 

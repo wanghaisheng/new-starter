@@ -324,24 +324,38 @@ export class MockIDBRequest<T = any> implements IDBRequest<T> {
   dispatchEvent(event: Event): boolean { return true; }
 }
 
-// Mock the global indexedDB object
-const mockIndexedDB = {
-  open(name: string, version: number): IDBOpenDBRequest {
-    const request = new MockIDBRequest();
-    request.result = new MockIDBDatabase(name, version);
-    if (request.onsuccess) {
-      request.onsuccess(new Event('success'));
-    }
-    return request as unknown as IDBOpenDBRequest;
-  },
-  deleteDatabase(name: string): IDBOpenDBRequest {
-    const request = new MockIDBRequest();
-    if (request.onsuccess) {
-      request.onsuccess(new Event('success'));
-    }
-    return request as unknown as IDBOpenDBRequest;
+// Mock data
+const mockData = {
+  'help-center': {
+    categories: [
+      {
+        id: '1',
+        name: 'Account Issues',
+        icon: 'account',
+        questions: [
+          {
+            id: '1',
+            title: 'How to change password?',
+            content: 'Detailed steps to change password...'
+          }
+        ]
+      }
+    ]
   }
-};
+}
 
-// Add the mock to the global scope
-(global as any).indexedDB = mockIndexedDB; 
+export const mockIndexedDB = {
+  setup: () => {
+    // No setup needed for static data
+  },
+  teardown: () => {
+    // No cleanup needed for static data
+  },
+  open: async (name: string) => {
+    return {
+      getAll: async () => {
+        return mockData[name].categories
+      }
+    }
+  }
+} 

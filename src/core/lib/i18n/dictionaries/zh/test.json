@@ -1,0 +1,33 @@
+{
+  "selectType": "选择测试类型",
+  "description": "完成任意一项测试即可开始匹配。您也可以完成更多测试来开启不同的匹配模式。",
+  "loading": "正在加载测试类型...",
+  "questions": "{count}个问题",
+  "estimatedTime": "{minutes}分钟",
+  "errors": {
+    "loadFailed": "加载测试类型失败",
+    "saveFailed": "保存进度失败"
+  },
+  "testTypes": {
+    "personality": "性格测试",
+    "interest": "兴趣分析",
+    "value": "价值观评估",
+    "lifestyle": "生活方式调查"
+  },
+  "status": {
+    "available": "可开始",
+    "inProgress": "进行中",
+    "completed": "已完成"
+  },
+  "question": "第 {current} 题，共 {total} 题",
+  "scale": {
+    "disagree": "非常不同意",
+    "neutral": "中立",
+    "agree": "非常同意"
+  },
+  "buttons": {
+    "next": "下一题",
+    "previous": "上一题",
+    "submit": "提交"
+  }
+} 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/core/services/auth-service';
+import { useAuthStore } from '@/core/services/auth/auth-service';
 import { Button } from '@/core/components/ui/button';
 import { Input } from '@/core/components/ui/input';
 import { Card } from '@/core/components/ui/card';
@@ -30,49 +30,17 @@ export default function RegisterPage() {
       // TODO: 实现实际的注册逻辑
       setUser({
         id: '1',
-        name: name,
         email: email,
-        birthDate: new Date('1990-01-01'),
-        gender: 'other',
-        photos: [],
-        interests: [],
-        location: {
-          latitude: 0,
-          longitude: 0,
-          city: '',
-          country: ''
-        },
-        preferences: {
-          ageRange: { min: 18, max: 100 },
-          distance: 50,
-          gender: ['male', 'female', 'other'],
-          interests: []
-        },
-        privacySettings: {
-          showProfileToEveryone: true,
-          showOnlineStatus: true,
-          showLastActive: true,
-          showInDiscovery: true,
-          showDistance: true,
-          allowDataCollection: true,
-          allowPersonalizedAds: true,
-          showEmailToMatches: true,
-          showPhoneToMatches: true,
-          allowProfileSharing: true
-        },
-        notificationSettings: {
-          newMatches: true,
-          matchMessages: true,
-          profileViews: true,
-          profileLikes: true,
-          appUpdates: true,
-          promotions: false
-        },
-        isVerified: false,
-        lastActive: new Date(),
-        status: 'active',
+        emailVerified: false,
+        phoneVerified: false,
+        token: 'mock-token',
+        refreshToken: 'mock-refresh-token',
         createdAt: new Date(),
-        updatedAt: new Date()
+        lastLoginAt: new Date(),
+        provider: 'email',
+        displayName: name,
+        photoURL: undefined,
+        phoneNumber: undefined
       });
       router.push('/');
     } catch (err) {

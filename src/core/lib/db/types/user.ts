@@ -1,6 +1,7 @@
-import { BaseEntity } from './base-entity';
+import { BaseEntity } from './base';
 import { Location } from './location';
 import { Photo } from './photo';
+import { TestType } from './test';
 
 /**
  * 用户实体接口
@@ -23,8 +24,17 @@ export interface User extends BaseEntity {
   /** 用户名称 */
   name: string;
   
+  /** 昵称 */
+  nickname?: string;
+  
+  /** 头像 */
+  avatar?: string;
+  
   /** 出生日期 */
   birthDate: Date;
+  
+  /** 出生时辰（用于八字） */
+  birthTime?: string;
   
   /** 
    * 性别
@@ -43,6 +53,12 @@ export interface User extends BaseEntity {
   /** 兴趣爱好列表 */
   interests: string[];
   
+  /** 职业（可选） */
+  occupation?: string;
+  
+  /** 教育背景（可选） */
+  education?: string;
+  
   /** 用户位置信息 */
   location: Location;
   
@@ -56,13 +72,26 @@ export interface User extends BaseEntity {
   notificationSettings: NotificationSettings;
 
   /** 安全设置 */
-  securitySettings?: {
-    /** 是否启用双因素认证 */
-    twoFactorEnabled: boolean;
-    /** 是否启用邮件通知 */
-    emailNotifications: boolean;
-    /** 是否启用登录提醒 */
-    loginAlerts: boolean;
+  securitySettings?: SecuritySettings;
+  
+  /** 测试和匹配相关信息 */
+  matching: {
+    /** 已完成的测试类型ID列表 */
+    completedTests: string[];
+    
+    /** 测试权重设置 */
+    testWeights: {
+      [K in TestType['type']]?: number;
+    };
+    
+    /** 各类测试的最新结果 */
+    testResults: {
+      [K in TestType['type']]?: {
+        score: number;
+        details: any; // 具体类型由TestResult.details定义
+        lastUpdated: string;
+      };
+    };
   };
   
   /** 是否已验证账号 */
@@ -71,6 +100,9 @@ export interface User extends BaseEntity {
   /** 最后活跃时间 */
   lastActive: Date;
   
+  /** 是否在线 */
+  isOnline: boolean;
+  
   /**
    * 用户状态
    * - active: 活跃状态
@@ -78,22 +110,29 @@ export interface User extends BaseEntity {
    * - suspended: 暂停/受限状态
    */
   status: 'active' | 'inactive' | 'suspended';
+
+  /** 认证相关字段 */
+  /** 邮箱是否已验证 */
+  emailVerified?: boolean;
+  /** 手机号是否已验证 */
+  phoneVerified?: boolean;
+  /** 密码哈希 */
+  passwordHash?: string;
+  /** 认证提供者 */
+  provider?: 'email' | 'phone' | 'google' | 'facebook' | 'apple';
+  /** 显示名称 */
+  displayName?: string;
+  /** 头像URL */
+  photoURL?: string;
+  /** 手机号码 */
+  phoneNumber?: string;
 }
 
 /**
  * 用户偏好设置接口
- * 定义用户的匹配偏好
- * 
- * @description
- * 表示用户在匹配过程中的偏好设置，包括年龄范围、距离限制、
- * 性别偏好、兴趣偏好和排除条件
  */
 export interface UserPreferences {
-  /** 
-   * 年龄范围偏好 
-   * @property min 最小年龄
-   * @property max 最大年龄
-   */
+  /** 年龄范围偏好 */
   ageRange: {
     min: number;
     max: number;
@@ -125,10 +164,6 @@ export interface UserPreferences {
 
 /**
  * 通知设置接口
- * 定义用户的通知偏好
- * 
- * @description
- * 表示用户对各种通知的偏好设置，包括匹配通知、个人资料通知和系统通知
  */
 export interface NotificationSettings {
   /** 新匹配通知 */
@@ -152,11 +187,6 @@ export interface NotificationSettings {
 
 /**
  * 隐私设置接口
- * 定义用户的隐私偏好
- * 
- * @description
- * 表示用户对个人资料和数据的隐私设置，包括资料可见性、在线状态、
- * 位置信息和个人数据收集等设置
  */
 export interface PrivacySettings {
   /** 是否向所有人显示个人资料 */
@@ -191,15 +221,28 @@ export interface PrivacySettings {
 }
 
 /**
+ * 安全设置接口
+ */
+export interface SecuritySettings {
+  /** 是否启用双因素认证 */
+  twoFactorEnabled: boolean;
+  /** 是否启用邮件通知 */
+  emailNotifications: boolean;
+  /** 是否启用登录提醒 */
+  loginAlerts: boolean;
+}
+
+/**
  * 用户创建接口
- * 用于创建新用户时的数据类型
  */
 export interface CreateUserData {
   phone?: string;
   email?: string;
   googleId?: string;
   name: string;
+  nickname?: string;
   birthDate: Date;
+  birthTime?: string;
   gender: 'male' | 'female' | 'other';
   bio?: string;
   photos?: Photo[];
@@ -212,10 +255,10 @@ export interface CreateUserData {
 
 /**
  * 用户更新接口
- * 用于更新用户时的数据类型
  */
 export interface UpdateUserData {
   name?: string;
+  nickname?: string;
   phone?: string;
   email?: string;
   bio?: string;
@@ -225,6 +268,11 @@ export interface UpdateUserData {
   privacySettings?: PrivacySettings;
   preferences?: UserPreferences;
   notificationSettings?: NotificationSettings;
+  matching?: {
+    testWeights?: {
+      [K in TestType['type']]?: number;
+    };
+  };
   isVerified?: boolean;
   status?: 'active' | 'inactive' | 'suspended';
 }

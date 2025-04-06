@@ -41,9 +41,12 @@
     "init:project": "bash docs/tasks/tools/init-project.sh",
     "init:git": "bash docs/tasks/tools/init-git-repo.sh",
     "install:deps": "bash docs/tasks/tools/install-dependencies.sh",
-    "commit:code": "bash docs/tasks/tools/commit-code.sh"
+    "commit:code": "bash docs/tasks/tools/commit-code.sh",
+    "auth:generate": "npx @better-auth/cli generate",
+    "auth:migrate": "npx @better-auth/cli migrate"
   },
   "dependencies": {
+    "@better-auth/client": "^0.0.2-alpha.3",
     "@capacitor-community/sqlite": "^7.0.0",
     "@capacitor/android": "^5.7.0",
     "@capacitor/camera": "7.0.0",
@@ -59,17 +62,20 @@
     "@ionic/react": "^7.8.0",
     "@stencil/core": "^4.28.2",
     "@types/better-sqlite3": "^7.6.12",
+    "@types/firebase": "^3.2.3",
+    "@types/winston": "^2.4.4",
     "better-sqlite3": "^11.9.1",
     "clsx": "^2.1.1",
     "copyfiles": "^2.4.1",
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.41.0",
     "fake-indexeddb": "^6.0.0",
-    "firebase": "^11.5.0",
+    "firebase": "^11.6.0",
     "framer-motion": "^12.6.2",
     "idb": "^8.0.2",
     "jeep-sqlite": "^2.8.0",
     "next": "^15.0.0",
+    "next-intl": "^4.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "reflect-metadata": "^0.2.2",
@@ -78,6 +84,7 @@
     "tailwind-merge": "^3.1.0",
     "ts-node": "^10.9.2",
     "typeorm": "^0.3.21",
+    "winston": "^3.17.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

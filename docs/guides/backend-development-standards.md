@@ -1,263 +1,372 @@
 # 后端开发规范
 
-## 1. API 路由结构
+## 1. API 架构
 
-### 1.1 Next.js API 路由结构
+### 1.1 目录结构
 ```
 app/
-├── api/                    # API 路由
-│   ├── v1/                # API 版本
-│   │   ├── resources/     # 资源端点
-│   │   │   ├── route.ts   # 资源路由处理
-│   │   │   └── [id]/      # 单个资源
+├── api/                    # API 路由根目录
+│   ├── _lib/              # API共享工具和中间件
+│   │   ├── middleware/    # 中间件
+│   │   │   ├── auth.ts    # 认证中间件
+│   │   │   ├── cors.ts    # CORS中间件
+│   │   │   └── error.ts   # 错误处理中间件
+│   │   ├── utils/         # 工具函数
+│   │   │   ├── response.ts # 响应格式化
+│   │   │   └── validation.ts # 请求验证
+│   │   └── constants.ts   # API常量
+│   ├── v1/                # API版本1
+│   │   ├── auth/          # 认证相关
+│   │   │   └── route.ts   # 认证路由
+│   │   ├── users/         # 用户相关
+│   │   │   ├── route.ts   # 用户列表
+│   │   │   └── [id]/      # 单个用户
 │   │   │       └── route.ts
-│   │   └── relationships/ # 关系端点
-│   └── middleware.ts      # API 中间件
+│   │   └── tests/         # 测试相关
+│   │       ├── route.ts   # 测试列表
+│   │       └── [id]/      # 单个测试
+│   │           └── route.ts
+│   └── middleware.ts      # 全局中间件
 └── (mobile)/              # 移动端路由
     └── api/               # 移动端特定API
 ```
 
-> **重要说明**: 所有导入应使用 `@/` 前缀的绝对路径，而非相对路径。请参阅[导入路径规范](./import-path-standards.md)了解详情。
+### 1.2 API实现规范
 
-### 1.2 API 路由实现
+#### 1.2.1 路由处理
 ```typescript
-// app/api/v1/resources/route.ts
-import { NextResponse } from 'next/server';
-import { db } from '@/core/lib/db';
-import { validateRequest } from '@/core/lib/api/middleware';
-import { logger } from '@/core/lib/logger';
+// app/api/v1/tests/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/app/api/_lib/middleware/auth';
+import { validateRequest } from '@/app/api/_lib/utils/validation';
+import { APIResponseBuilder } from '@/app/api/_lib/utils/response';
+import { TestService } from '@/core/services/test-service';
+import { testSchema } from '@/core/schemas/test';
 
-export async function GET(request: Request) {
-  try {
-    // 验证请求
-    await validateRequest(request);
-    
-    // 获取查询参数
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    
-    // 查询数据
-    const { data, meta } = await db.getResources({
-      page,
-      limit
-    });
-    
-    return NextResponse.json({
+export async function GET(req: NextRequest) {
+  return withAuth(req, async () => {
+    try {
+      const testService = TestService.getInstance();
+      const types = await testService.getTestTypes();
+      return NextResponse.json(APIResponseBuilder.success(types));
+    } catch (error) {
+      return APIResponseBuilder.error(error);
+    }
+  });
+}
+
+export async function POST(req: NextRequest) {
+  return withAuth(req, async () => {
+    const validation = await validateRequest(req, testSchema);
+    if (!validation.success) {
+      return validation.response;
+    }
+
+    try {
+      const testService = TestService.getInstance();
+      const result = await testService.createTest(validation.data);
+      return NextResponse.json(
+        APIResponseBuilder.success(result),
+        { status: 201 }
+      );
+    } catch (error) {
+      return APIResponseBuilder.error(error);
+    }
+  });
+}
+```
+
+#### 1.2.2 响应格式
+```typescript
+// app/api/_lib/utils/response.ts
+export interface APIResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  meta?: {
+    page?: number;
+    perPage?: number;
+    total?: number;
+  };
+}
+
+export class APIResponseBuilder {
+  static success<T>(data: T, meta?: APIResponse['meta']): APIResponse<T> {
+    return {
+      success: true,
       data,
       meta
-    });
-  } catch (error) {
-    logger.error('获取资源列表失败', {
-      error: error.message,
-      stack: error.stack
-    });
-    
-    return NextResponse.json({
-      errors: [{
-        code: error.code,
-        message: error.message
-      }]
-    }, { status: error.status || 500 });
+    };
   }
-}
 
-// app/api/v1/resources/[id]/route.ts
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    await validateRequest(request);
-    
-    const resource = await db.getResourceById(params.id);
-    
-    return NextResponse.json({
-      data: resource
+  static error(error: any): NextResponse {
+    const response: APIResponse = {
+      success: false,
+      error: {
+        code: error.code || 'INTERNAL_ERROR',
+        message: error.message || '系统内部错误'
+      }
+    };
+
+    if (error.details) {
+      response.error.details = error.details;
+    }
+
+    return NextResponse.json(response, { 
+      status: error.status || 500 
     });
-  } catch (error) {
-    logger.error('获取单个资源失败', {
-      id: params.id,
-      error: error.message,
-      stack: error.stack
-    });
-    
-    return NextResponse.json({
-      errors: [{
-        code: error.code,
-        message: error.message
-      }]
-    }, { status: error.status || 500 });
   }
 }
 ```
 
-## 2. 数据库开发规范
+## 2. 服务层规范
 
-### 2.1 数据库访问层
+### 2.1 服务实现
 ```typescript
-// src/core/lib/db/index.ts
-import { createClient } from '@supabase/supabase-js';
-import { DatabaseClient } from './types';
-import { logger } from '../logger';
+// src/core/services/test-service.ts
+export class TestService {
+  private static instance: TestService;
+  private dataService: IDataService;
 
-export class DatabaseService {
-  private static instance: DatabaseService;
-  private client: DatabaseClient;
-  
   private constructor() {
-    this.client = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_KEY!
-    );
+    this.dataService = DataServiceFactory.getInstance();
   }
-  
-  public static getInstance(): DatabaseService {
-    if (!DatabaseService.instance) {
-      DatabaseService.instance = new DatabaseService();
+
+  static getInstance(): TestService {
+    if (!TestService.instance) {
+      TestService.instance = new TestService();
     }
-    return DatabaseService.instance;
+    return TestService.instance;
   }
-  
-  async getResources({ page, limit }: { page: number; limit: number }) {
+
+  async getTestTypes(): Promise<TestType[]> {
     try {
-      const start = (page - 1) * limit;
-      const end = start + limit - 1;
-      
-      const { data, count, error } = await this.client
-        .from('resources')
-        .select('*', { count: 'exact' })
-        .range(start, end)
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      
-      return {
-        data,
-        meta: {
-          page,
-          perPage: limit,
-          total: count
-        }
-      };
+      return await this.dataService.getTestTypes();
     } catch (error) {
-      logger.error('数据库查询失败', {
-        error: error.message,
-        stack: error.stack
-      });
-      throw error;
+      logger.error('获取测试类型失败', { error });
+      throw new ServiceError('获取测试类型失败', error);
+    }
+  }
+
+  async createTest(data: CreateTestDTO): Promise<Test> {
+    try {
+      return await this.dataService.createTest(data);
+    } catch (error) {
+      logger.error('创建测试失败', { error, data });
+      throw new ServiceError('创建测试失败', error);
     }
   }
 }
 ```
 
-### 2.2 数据模型定义
+### 2.2 错误处理
 ```typescript
-// src/core/models/resource.ts
-export interface Resource {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at?: string;
-  name: string;
-  description?: string;
-  status: 'active' | 'inactive';
-  user_id: string;
-}
-
-// src/core/models/user.ts
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'user';
-  created_at: string;
-  updated_at: string;
-}
-```
-
-## 3. 错误处理规范
-
-### 3.1 错误类型定义
-```typescript
-// src/core/lib/api/errors.ts
-export class ApiError extends Error {
+// src/core/lib/errors/service-error.ts
+export class ServiceError extends Error {
   constructor(
     message: string,
-    public code: string,
+    public originalError?: any,
+    public code: string = 'SERVICE_ERROR',
     public status: number = 500
   ) {
     super(message);
-    this.name = 'ApiError';
-  }
-}
-
-export class ValidationError extends ApiError {
-  constructor(message: string, public details: Record<string, string>) {
-    super(message, 'VALIDATION_ERROR', 400);
-    this.name = 'ValidationError';
-  }
-}
-
-export class NotFoundError extends ApiError {
-  constructor(message: string) {
-    super(message, 'NOT_FOUND', 404);
-    this.name = 'NotFoundError';
+    this.name = 'ServiceError';
   }
 }
 ```
 
-### 3.2 错误处理中间件
-```typescript
-// app/api/middleware.ts
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { ApiError } from '@/core/lib/api/errors';
-import { logger } from '@/core/lib/logger';
+## 3. 数据访问规范
 
-export async function middleware(request: NextRequest) {
-  try {
-    // 验证请求
-    await validateRequest(request);
-    
-    // 处理请求
-    const response = await handleRequest(request);
-    
-    return response;
-  } catch (error) {
-    logger.error('API请求处理失败', {
-      method: request.method,
-      url: request.url,
-      error: error.message,
-      stack: error.stack
+### 3.1 数据服务接口
+```typescript
+// src/core/lib/db/interfaces.ts
+export interface IDataService {
+  initialize(): Promise<void>;
+  getClient(): IDatabaseClient;
+  
+  // 测试相关
+  getTestTypes(): Promise<TestType[]>;
+  getTestById(id: string): Promise<Test | null>;
+  createTest(data: CreateTestDTO): Promise<Test>;
+  updateTest(id: string, data: Partial<Test>): Promise<Test>;
+  deleteTest(id: string): Promise<void>;
+  
+  // 其他方法...
+}
+```
+
+### 3.2 数据库客户端
+```typescript
+// src/core/lib/db/clients/base-client.ts
+export abstract class BaseDatabaseClient implements IDatabaseClient {
+  abstract connect(): Promise<void>;
+  abstract disconnect(): Promise<void>;
+  abstract query<T>(options: QueryOptions): Promise<T[]>;
+  abstract findById<T>(collection: string, id: string): Promise<T | null>;
+  abstract create<T>(collection: string, data: any): Promise<T>;
+  abstract update<T>(collection: string, id: string, data: any): Promise<T>;
+  abstract delete(collection: string, id: string): Promise<void>;
+}
+```
+
+## 4. 测试规范
+
+### 4.1 单元测试
+```typescript
+// test/services/test-service.test.ts
+describe('TestService', () => {
+  let testService: TestService;
+  let mockDataService: jest.Mocked<IDataService>;
+
+  beforeEach(() => {
+    mockDataService = {
+      getTestTypes: jest.fn(),
+      createTest: jest.fn()
+    } as any;
+
+    // 注入mock数据服务
+    jest.spyOn(DataServiceFactory, 'getInstance')
+      .mockReturnValue(mockDataService);
+
+    testService = TestService.getInstance();
+  });
+
+  describe('getTestTypes', () => {
+    it('should return test types', async () => {
+      const mockTypes = [{ id: '1', name: 'Test' }];
+      mockDataService.getTestTypes.mockResolvedValue(mockTypes);
+
+      const result = await testService.getTestTypes();
+      expect(result).toEqual(mockTypes);
     });
-    
-    if (error instanceof ApiError) {
-      return NextResponse.json({
-        errors: [{
-          code: error.code,
-          message: error.message,
-          details: error instanceof ValidationError ? error.details : undefined
-        }]
-      }, { status: error.status });
+
+    it('should handle errors', async () => {
+      mockDataService.getTestTypes.mockRejectedValue(new Error('DB Error'));
+
+      await expect(testService.getTestTypes())
+        .rejects
+        .toThrow('获取测试类型失败');
+    });
+  });
+});
+```
+
+### 4.2 集成测试
+```typescript
+// test/api/tests.test.ts
+describe('Tests API', () => {
+  it('GET /api/v1/tests should return test types', async () => {
+    const response = await request(app)
+      .get('/api/v1/tests')
+      .set('Authorization', `Bearer ${testToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(Array.isArray(response.body.data)).toBe(true);
+  });
+
+  it('POST /api/v1/tests should create new test', async () => {
+    const testData = {
+      type: 'personality',
+      questions: []
+    };
+
+    const response = await request(app)
+      .post('/api/v1/tests')
+      .set('Authorization', `Bearer ${testToken}`)
+      .send(testData);
+
+    expect(response.status).toBe(201);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toHaveProperty('id');
+  });
+});
+```
+
+## 5. 安全规范
+
+### 5.1 认证中间件
+```typescript
+// app/api/_lib/middleware/auth.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import { APIResponseBuilder } from '../utils/response';
+
+export async function withAuth(
+  req: NextRequest,
+  handler: (req: NextRequest) => Promise<NextResponse>
+) {
+  try {
+    const token = await getToken({ req });
+    if (!token) {
+      return NextResponse.json(
+        APIResponseBuilder.error({
+          code: 'UNAUTHORIZED',
+          message: '需要认证',
+          status: 401
+        })
+      );
     }
-    
-    // 系统错误
-    return NextResponse.json({
-      errors: [{
-        code: 'INTERNAL_ERROR',
-        message: '系统内部错误'
-      }]
-    }, { status: 500 });
+    return handler(req);
+  } catch (error) {
+    return APIResponseBuilder.error(error);
   }
 }
 ```
 
-## 4. 日志规范
-
-### 4.1 日志记录
+### 5.2 请求验证
 ```typescript
-// src/core/lib/logger.ts
+// app/api/_lib/utils/validation.ts
+import { z } from 'zod';
+import { NextRequest, NextResponse } from 'next/server';
+import { APIResponseBuilder } from './response';
+
+export async function validateRequest<T>(
+  req: NextRequest,
+  schema: z.Schema<T>
+): Promise<
+  { success: true; data: T } | 
+  { success: false; response: NextResponse }
+> {
+  try {
+    const body = await req.json();
+    const data = schema.parse(body);
+    return { success: true, data };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        response: NextResponse.json(
+          APIResponseBuilder.error({
+            code: 'VALIDATION_ERROR',
+            message: '请求数据验证失败',
+            details: error.errors,
+            status: 400
+          })
+        )
+      };
+    }
+    return {
+      success: false,
+      response: APIResponseBuilder.error({
+        code: 'PARSE_ERROR',
+        message: '请求数据解析失败',
+        status: 400
+      })
+    };
+  }
+}
+```
+
+## 6. 日志规范
+
+### 6.1 日志配置
+```typescript
+// src/core/lib/logger/index.ts
 import { createLogger, format, transports } from 'winston';
 
 export const logger = createLogger({
@@ -267,221 +376,144 @@ export const logger = createLogger({
     format.json()
   ),
   transports: [
-    new transports.Console(),
-    new transports.File({ filename: 'error.log', level: 'error' }),
-    new transports.File({ filename: 'combined.log' })
+    new transports.Console({
+      format: format.combine(
+        format.colorize(),
+        format.simple()
+      )
+    }),
+    new transports.File({ 
+      filename: 'logs/error.log',
+      level: 'error'
+    }),
+    new transports.File({ 
+      filename: 'logs/combined.log' 
+    })
   ]
 });
-
-// 使用示例
-export async function handleApiRequest(request: Request) {
-  logger.info('开始处理API请求', {
-    method: request.method,
-    url: request.url,
-    timestamp: new Date().toISOString()
-  });
-  
-  try {
-    // 处理请求
-    logger.info('API请求处理完成', {
-      method: request.method,
-      url: request.url,
-      status: 'success'
-    });
-  } catch (error) {
-    logger.error('API请求处理失败', {
-      method: request.method,
-      url: request.url,
-      error: error.message,
-      stack: error.stack
-    });
-    throw error;
-  }
-}
 ```
 
-## 5. 测试规范
-
-### 5.1 API 测试
+### 6.2 日志使用
 ```typescript
-// test/api/resources.test.ts
-import { test, expect } from '@playwright/test';
-
-test('GET /api/v1/resources returns correct response', async ({ request }) => {
-  const response = await request.get('/api/v1/resources');
-  expect(response.ok()).toBeTruthy();
-  
-  const data = await response.json();
-  expect(data).toHaveProperty('data');
-  expect(data).toHaveProperty('meta');
-  expect(data.meta).toHaveProperty('page');
-  expect(data.meta).toHaveProperty('perPage');
-  expect(data.meta).toHaveProperty('total');
+// 服务层日志
+logger.info('开始处理请求', {
+  service: 'TestService',
+  method: 'getTestTypes',
+  userId: user.id
 });
 
-test('GET /api/v1/resources/:id returns correct resource', async ({ request }) => {
-  const response = await request.get('/api/v1/resources/123');
-  expect(response.ok()).toBeTruthy();
-  
-  const data = await response.json();
-  expect(data).toHaveProperty('data');
-  expect(data.data).toHaveProperty('id');
-  expect(data.data).toHaveProperty('name');
+// 错误日志
+logger.error('操作失败', {
+  service: 'TestService',
+  method: 'createTest',
+  error: error.message,
+  stack: error.stack,
+  data: testData
+});
+
+// 性能日志
+logger.debug('数据库查询完成', {
+  service: 'TestService',
+  method: 'getTestTypes',
+  duration: endTime - startTime,
+  resultCount: results.length
 });
 ```
 
-## 6. 安全规范
-
-### 6.1 认证与授权
-```typescript
-// src/core/lib/auth/index.ts
-import { createClient } from '@supabase/supabase-js';
-import { jwtVerify } from 'jose';
-import { ApiError } from '../api/errors';
-import { logger } from '../logger';
-
-export class AuthService {
-  private static instance: AuthService;
-  private supabase;
-  
-  private constructor() {
-    this.supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_KEY!
-    );
-  }
-  
-  public static getInstance(): AuthService {
-    if (!AuthService.instance) {
-      AuthService.instance = new AuthService();
-    }
-    return AuthService.instance;
-  }
-  
-  async validateToken(token: string) {
-    try {
-      const { payload } = await jwtVerify(
-        token,
-        new TextEncoder().encode(process.env.JWT_SECRET)
-      );
-      return payload;
-    } catch (error) {
-      logger.error('令牌验证失败', {
-        error: error.message,
-        stack: error.stack
-      });
-      throw new ApiError('无效的认证令牌', 'INVALID_TOKEN', 401);
-    }
-  }
-  
-  async checkPermission(userId: string, resourceId: string) {
-    try {
-      const { data: permission, error } = await this.supabase
-        .from('permissions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('resource_id', resourceId)
-        .single();
-        
-      if (error) throw error;
-      
-      if (!permission) {
-        throw new ApiError('没有访问权限', 'FORBIDDEN', 403);
-      }
-    } catch (error) {
-      logger.error('权限检查失败', {
-        userId,
-        resourceId,
-        error: error.message,
-        stack: error.stack
-      });
-      throw error;
-    }
-  }
-}
-```
-
-### 6.2 数据安全
-- 使用 HTTPS 传输
-- 实现数据加密存储
-- 定期数据备份
-- 敏感数据脱敏
-
-## 7. 性能规范
+## 7. 性能优化
 
 ### 7.1 缓存策略
 ```typescript
 // src/core/lib/cache/index.ts
-import { Redis } from 'ioredis';
-import { logger } from '../logger';
-
 export class CacheService {
   private static instance: CacheService;
-  private redis: Redis;
-  
+  private cache: Map<string, any>;
+  private ttls: Map<string, number>;
+
   private constructor() {
-    this.redis = new Redis(process.env.REDIS_URL!);
-    
-    this.redis.on('error', (error) => {
-      logger.error('Redis连接错误', {
-        error: error.message,
-        stack: error.stack
-      });
-    });
+    this.cache = new Map();
+    this.ttls = new Map();
   }
-  
-  public static getInstance(): CacheService {
+
+  static getInstance(): CacheService {
     if (!CacheService.instance) {
       CacheService.instance = new CacheService();
     }
     return CacheService.instance;
   }
-  
+
   async get<T>(key: string): Promise<T | null> {
-    try {
-      const data = await this.redis.get(key);
-      return data ? JSON.parse(data) : null;
-    } catch (error) {
-      logger.error('缓存读取失败', {
-        key,
-        error: error.message,
-        stack: error.stack
-      });
+    const expireTime = this.ttls.get(key);
+    if (expireTime && Date.now() > expireTime) {
+      this.cache.delete(key);
+      this.ttls.delete(key);
       return null;
     }
+    return this.cache.get(key) || null;
   }
-  
-  async set(key: string, value: any, ttl: number = 3600) {
-    try {
-      await this.redis.set(key, JSON.stringify(value), 'EX', ttl);
-    } catch (error) {
-      logger.error('缓存写入失败', {
-        key,
-        error: error.message,
-        stack: error.stack
-      });
-    }
+
+  async set(key: string, value: any, ttl: number = 3600): Promise<void> {
+    this.cache.set(key, value);
+    this.ttls.set(key, Date.now() + ttl * 1000);
   }
-  
-  async invalidate(pattern: string) {
-    try {
-      const keys = await this.redis.keys(pattern);
-      if (keys.length > 0) {
-        await this.redis.del(...keys);
-      }
-    } catch (error) {
-      logger.error('缓存清理失败', {
-        pattern,
-        error: error.message,
-        stack: error.stack
-      });
-    }
+
+  async invalidate(pattern: string): Promise<void> {
+    const keys = Array.from(this.cache.keys())
+      .filter(key => key.startsWith(pattern));
+    
+    keys.forEach(key => {
+      this.cache.delete(key);
+      this.ttls.delete(key);
+    });
   }
 }
 ```
 
-### 7.2 并发处理
-- 使用连接池管理数据库连接
-- 实现请求队列
-- 使用异步处理耗时操作
-- 实现限流机制 
+### 7.2 数据库优化
+```typescript
+// src/core/lib/db/clients/database-client.ts
+export class DatabaseClient extends BaseDatabaseClient {
+  private connectionPool: Pool;
+
+  constructor(config: DatabaseConfig) {
+    super();
+    this.connectionPool = new Pool(config);
+  }
+
+  async query<T>(options: QueryOptions): Promise<T[]> {
+    const client = await this.connectionPool.connect();
+    try {
+      const result = await client.query(options.sql, options.params);
+      return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+
+  // 批量操作优化
+  async batchCreate<T>(
+    collection: string,
+    items: any[]
+  ): Promise<T[]> {
+    const client = await this.connectionPool.connect();
+    try {
+      await client.query('BEGIN');
+      const results = await Promise.all(
+        items.map(item => 
+          client.query(
+            `INSERT INTO ${collection} (...) VALUES (...)`,
+            Object.values(item)
+          )
+        )
+      );
+      await client.query('COMMIT');
+      return results.map(r => r.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+}
+```

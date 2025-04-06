@@ -1,6 +1,9 @@
-import { TestType } from '@/core/lib/db/types';
-import { GlassCard } from '@/mobile/components/ui/GlassCard';
-import { Icon } from '@/mobile/components/ui/Icon';
+'use client';
+
+import { IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon } from '@ionic/react';
+import { timeOutline, helpCircleOutline } from 'ionicons/icons';
+import { useTranslations } from 'next-intl';
+import type { TestType } from '@/core/lib/db/types';
 
 interface TestTypeCardProps {
   test: TestType;
@@ -9,29 +12,31 @@ interface TestTypeCardProps {
 }
 
 export function TestTypeCard({ test, isSelected, onSelect }: TestTypeCardProps) {
+  const t = useTranslations('test');
+
   return (
-    <GlassCard
-      className={`relative overflow-hidden cursor-pointer transition-all duration-300 ${
-        isSelected ? 'ring-2 ring-primary-500' : ''
+    <IonCard 
+      className={`cursor-pointer transition-all duration-200 ${
+        isSelected ? 'border-primary-500 shadow-lg' : 'hover:shadow-md'
       }`}
       onClick={onSelect}
     >
-      <div
-        className="absolute inset-0 opacity-10"
-        style={{ backgroundColor: test.color }}
-      />
-      <div className="relative p-6">
-        <div className="flex items-center mb-4">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center mr-4"
-            style={{ backgroundColor: test.color }}
-          >
-            <Icon name={test.icon} className="w-6 h-6 text-white" />
+      <IonCardHeader>
+        <IonCardTitle className="text-xl font-bold">{test.title}</IonCardTitle>
+      </IonCardHeader>
+      <IonCardContent>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">{test.description}</p>
+        <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-1">
+            <IonIcon icon={helpCircleOutline} />
+            <span>{t('questions', { count: test.questionCount })}</span>
           </div>
-          <h2 className="text-xl font-semibold text-gray-800">{test.name}</h2>
+          <div className="flex items-center gap-1">
+            <IonIcon icon={timeOutline} />
+            <span>{t('estimatedTime', { minutes: test.estimatedMinutes })}</span>
+          </div>
         </div>
-        <p className="text-gray-600">{test.description}</p>
-      </div>
-    </GlassCard>
+      </IonCardContent>
+    </IonCard>
   );
 } 

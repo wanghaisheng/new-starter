@@ -2,142 +2,127 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { GlassCard } from '@/mobile/components/common/GlassCard';
-import { TestQuestion } from '@/core/lib/db/types';
-import { useTestQuestions } from '@/core/hooks/useTest';
-import { useTestProgress } from '@/core/hooks/useTest';
-import { useTestNavigation } from '@/core/hooks/useTest';
+import { useTranslations } from 'next-intl';
+import { IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonProgressBar } from '@ionic/react';
+import { arrowBack } from 'ionicons/icons';
 import { TestService } from '@/core/services/test-service';
+import type { TestQuestion, TestProgress, TestAnswer } from '@/core/lib/db/types';
+import { LoadingScreen } from '@/core/components/common/LoadingScreen';
+import { ErrorScreen } from '@/core/components/common/ErrorScreen';
+import { QuestionCard } from '@/core/components/tests/QuestionCard';
 
-export default function TestDetailPage() {
+export default function TestPage() {
   const params = useParams();
-  const testTypeId = params.id as string;
-  const { questions, loading: questionsLoading, error: questionsError } = useTestQuestions(testTypeId);
-  const { progress, loading: progressLoading, error: progressError, updateProgress } = useTestProgress(testTypeId);
-  const { navigateToResult } = useTestNavigation();
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const t = useTranslations('test');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [questions, setQuestions] = useState<TestQuestion[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [testProgress, setTestProgress] = useState<TestProgress | null>(null);
+  const [answers, setAnswers] = useState<Record<string, number | number[]>>({});
 
   useEffect(() => {
-    if (progress) {
-      setCurrentQuestionIndex(progress.currentQuestionIndex);
-      setAnswers(progress.answers);
+    async function loadTest() {
+      try {
+        const service = TestService.getInstance();
+        const testId = params.id as string;
+        const [loadedQuestions, savedProgress] = await Promise.all([
+          service.getTestQuestions(testId),
+          service.getTestProgress('current-user', testId) // TODO: Replace with actual user ID
+        ]);
+        
+        setQuestions(loadedQuestions);
+        if (savedProgress) {
+          setTestProgress(savedProgress);
+          setCurrentIndex(savedProgress.currentQuestionIndex);
+          setAnswers(savedProgress.answers);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(t('errors.loadFailed')));
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [progress]);
 
-  const handleAnswerSelect = (answerId: string) => {
-    setSelectedAnswer(answerId);
-  };
+    loadTest();
+  }, [params.id, t]);
 
-  const handleNext = async () => {
-    if (!selectedAnswer) return;
+  const handleAnswer = async (value: number | number[]) => {
+    const currentQuestion = questions[currentIndex];
+    const newAnswers = { ...answers, [currentQuestion.id]: value };
+    setAnswers(newAnswers);
 
-    const newAnswers = {
-      ...answers,
-      [questions[currentQuestionIndex].id]: selectedAnswer,
-    };
-
-    await updateProgress(currentQuestionIndex + 1, newAnswers);
-    setSelectedAnswer(null);
-
-    if (currentQuestionIndex === questions.length - 1) {
+    try {
       const service = TestService.getInstance();
-      const score = await service.calculateScore(testTypeId, newAnswers);
-      const details = await service.generateResultDetails(testTypeId, score);
-      await service.saveTestResult({
-        userId: progress!.userId,
-        testTypeId,
-        score,
-        details,
+      const testId = params.id as string;
+      
+      await service.saveTestProgress({
+        id: testProgress?.id,
+        userId: 'current-user', // TODO: Replace with actual user ID
+        testId,
+        currentQuestionIndex: currentIndex,
+        answers: newAnswers,
+        startedAt: testProgress?.startedAt || new Date()
       });
-      navigateToResult(testTypeId);
-    } else {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+
+      if (currentIndex < questions.length - 1) {
+        setCurrentIndex(prev => prev + 1);
+      } else {
+        const score = await service.calculateScore(questions, newAnswers);
+        const testAnswers: TestAnswer[] = Object.entries(newAnswers).map(([questionId, value]) => ({
+          questionId,
+          value,
+          timestamp: new Date().toISOString()
+        }));
+
+        await service.saveTestResult({
+          userId: 'current-user', // TODO: Replace with actual user ID
+          testId,
+          score,
+          answers: testAnswers,
+          traits: [], // TODO: Generate traits from score
+          completedAt: new Date().toISOString()
+        });
+        // TODO: Navigate to results page
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(t('errors.saveFailed')));
     }
   };
 
-  const handleSkip = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer(null);
-    }
-  };
-
-  if (questionsLoading || progressLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-white">Loading...</div>
-      </div>
-    );
+  if (loading) {
+    return <LoadingScreen message={t('loading')} />;
   }
 
-  if (questionsError || progressError) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-red-500">
-          {questionsError?.message || progressError?.message || 'Failed to load test'}
-        </div>
-      </div>
-    );
+  if (error) {
+    return <ErrorScreen message={error.message} onRetry={() => window.location.reload()} />;
   }
 
-  const currentQuestion = questions[currentQuestionIndex];
+  const currentQuestion = questions[currentIndex];
+  const progressValue = (currentIndex + 1) / questions.length;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-white">Question {currentQuestionIndex + 1}</h2>
-          <span className="text-gray-400">
-            {currentQuestionIndex + 1} / {questions.length}
-          </span>
-        </div>
-        <div className="h-2 bg-gray-700 rounded-full">
-          <div
-            className="h-full bg-blue-500 rounded-full"
-            style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+    <IonPage>
+      <IonHeader>
+        <IonToolbar>
+          <IonButtons slot="start">
+            <IonButton onClick={() => window.history.back()}>
+              <IonIcon icon={arrowBack} />
+            </IonButton>
+          </IonButtons>
+          <IonTitle>{t('question', { current: currentIndex + 1, total: questions.length })}</IonTitle>
+        </IonToolbar>
+        <IonProgressBar value={progressValue} />
+      </IonHeader>
+      <IonContent className="ion-padding">
+        {currentQuestion && (
+          <QuestionCard
+            question={currentQuestion}
+            value={answers[currentQuestion.id]}
+            onAnswer={handleAnswer}
           />
-        </div>
-      </div>
-
-      <GlassCard className="mb-8">
-        <div className="p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">{currentQuestion.text}</h3>
-          <div className="space-y-4">
-            {currentQuestion.options.map((option) => (
-              <button
-                key={option.id}
-                className={`w-full p-4 rounded-lg text-left transition-colors ${
-                  selectedAnswer === option.id
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-                onClick={() => handleAnswerSelect(option.id)}
-              >
-                {option.text}
-              </button>
-            ))}
-          </div>
-        </div>
-      </GlassCard>
-
-      <div className="flex justify-between">
-        <button
-          className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-          onClick={handleSkip}
-          disabled={currentQuestionIndex === questions.length - 1}
-        >
-          Skip
-        </button>
-        <button
-          className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          onClick={handleNext}
-          disabled={!selectedAnswer}
-        >
-          {currentQuestionIndex === questions.length - 1 ? 'Finish' : 'Next'}
-        </button>
-      </div>
-    </div>
+        )}
+      </IonContent>
+    </IonPage>
   );
 } 

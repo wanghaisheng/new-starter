@@ -1,0 +1,41 @@
+{
+  "common": {
+    "welcome": "欢迎",
+    "buttons": {
+      "submit": "提交",
+      "cancel": "取消",
+      "save": "保存",
+      "delete": "删除",
+      "edit": "编辑"
+    },
+    "errors": {
+      "required": "此字段为必填项",
+      "invalid": "输入无效",
+      "network": "网络错误"
+    }
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "logout": "退出",
+    "email": "邮箱",
+    "password": "密码"
+  },
+  "profile": {
+    "title": "个人资料",
+    "edit": "编辑资料",
+    "name": "姓名",
+    "bio": "简介",
+    "location": "位置"
+  },
+  "test": {
+    "title": "测试",
+    "start": "开始测试",
+    "next": "下一题",
+    "previous": "上一题",
+    "submit": "提交测试",
+    "results": "测试结果",
+    "score": "得分",
+    "retake": "重新测试"
+  }
+} 

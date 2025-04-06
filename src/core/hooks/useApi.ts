@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { NetworkService } from '@/core/services/network-service';
-import { DataServiceFactory } from '@/core/services/data-service-factory';
+import { NetworkService } from '@/core/services/data/network-service';
+import { DataServiceFactory } from '@/core/services/data/data-service-factory';
+import { useAuth } from './useAuth';
 
 export interface UseApiOptions {
   immediate?: boolean;
@@ -9,6 +10,7 @@ export interface UseApiOptions {
   retries?: number;
   retryDelay?: number;
   cacheDuration?: number;
+  requireAuth?: boolean;
 }
 
 export interface UseApiResult<T, R = T> {
@@ -31,9 +33,11 @@ export function useApi<T>(
     useHybridClient = false,
     retries = 3,
     retryDelay = 1000,
-    cacheDuration = 5 * 60 * 1000 // 5 minutes
+    cacheDuration = 5 * 60 * 1000, // 5 minutes
+    requireAuth = false
   } = options;
 
+  const { isAuthenticated } = useAuth();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -63,6 +67,10 @@ export function useApi<T>(
 
   const execute = useCallback(
     async <U = T>(apiFunction: () => Promise<U>): Promise<U> => {
+      if (requireAuth && !isAuthenticated) {
+        throw new Error('Authentication required');
+      }
+
       setLoading(true);
       setError(null);
 
@@ -95,7 +103,7 @@ export function useApi<T>(
       // TypeScript需要这个返回语句，但实际上永远不会执行到这里
       throw new Error('Unexpected execution path');
     },
-    [data, retries, retryDelay]
+    [data, retries, retryDelay, requireAuth, isAuthenticated]
   );
 
   const reset = useCallback(() => {
@@ -112,10 +120,10 @@ export function useApi<T>(
 
   // 如果设置了immediate，组件挂载时执行
   useEffect(() => {
-    if (immediate) {
+    if (immediate && (!requireAuth || isAuthenticated)) {
       execute(defaultFunction);
     }
-  }, [immediate, execute, defaultFunction]);
+  }, [immediate, execute, defaultFunction, requireAuth, isAuthenticated]);
 
   return {
     data,

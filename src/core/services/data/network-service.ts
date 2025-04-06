@@ -52,6 +52,7 @@ export interface INetworkService {
   canSync(): boolean;
   simulateLatency(latencyMs: number): void;
   simulateOffline(offline: boolean): void;
+  updateSyncStatus(status: SyncStatus, details?: SyncDetails): void;
 }
 
 /**
@@ -205,6 +206,19 @@ export class NetworkService implements INetworkService {
     this.setOfflineMode(offline);
   }
 
+  /**
+   * 更新同步状态
+   * @param status 同步状态
+   * @param details 同步详情
+   */
+  public updateSyncStatus(status: SyncStatus, details?: SyncDetails): void {
+    this.currentSyncStatus = status;
+    if (details) {
+      this.syncDetails = details;
+    }
+    this.notifySyncStatusChange();
+  }
+
   private updateNetworkStatus(status: NetworkStatus): void {
     this.networkStatus = status;
     this.notifyNetworkStatusChange();
@@ -219,14 +233,6 @@ export class NetworkService implements INetworkService {
         console.error('Error in network status listener:', error);
       }
     });
-  }
-
-  private updateSyncStatus(status: SyncStatus, details?: SyncDetails): void {
-    this.currentSyncStatus = status;
-    if (details) {
-      this.syncDetails = details;
-    }
-    this.notifySyncStatusChange();
   }
 
   private notifySyncStatusChange(): void {

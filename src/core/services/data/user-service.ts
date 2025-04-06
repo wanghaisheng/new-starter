@@ -120,7 +120,7 @@ export class UserService implements IUserService {
     }
     
     try {
-      return await this.dataService.getUser(this.currentUserId);
+      return await this.dataService.getUserById(this.currentUserId);
     } catch (error) {
       console.error('Error getting current user:', error);
       return null;
@@ -220,16 +220,41 @@ export class UserService implements IUserService {
           city: '',
           country: ''
         },
+        privacySettings: user.privacySettings || {
+          showProfileToEveryone: true,
+          showOnlineStatus: true,
+          showLastActive: true,
+          showInDiscovery: true,
+          showDistance: true,
+          allowDataCollection: true,
+          allowPersonalizedAds: true,
+          showEmailToMatches: false,
+          showPhoneToMatches: false,
+          allowProfileSharing: true
+        },
         preferences: user.preferences || {
           ageRange: { min: 18, max: 99 },
           distance: 100,
           gender: ['male', 'female', 'other'],
           interests: []
         },
+        notificationSettings: user.notificationSettings || {
+          newMatches: true,
+          matchMessages: true,
+          profileViews: true,
+          profileLikes: true,
+          appUpdates: true,
+          promotions: true
+        },
+        matching: user.matching || {
+          completedTests: [],
+          testWeights: {},
+          testResults: {}
+        },
         isVerified: user.isVerified || false,
-        lastActive: user.lastActive || now,
-        status: user.status || 'active',
-        googleId: user.googleId || undefined,
+        lastActive: now,
+        isOnline: false,
+        status: 'active',
         createdAt: now,
         updatedAt: now
       };
@@ -531,7 +556,7 @@ export class UserService implements IUserService {
     }
     
     try {
-      return await this.dataService.getUser(userId);
+      return await this.dataService.getUserById(userId);
     } catch (error) {
       console.error('Error getting user by ID:', error);
       return null;
@@ -755,21 +780,8 @@ export class UserService implements IUserService {
     }
     
     try {
-      const users: User[] = [];
-      
-      // 批量获取用户资料
-      for (const userId of userIds) {
-        try {
-          const user = await this.getUserById(userId);
-          if (user) {
-            users.push(user);
-          }
-        } catch (error) {
-          console.error(`Error fetching user ${userId}:`, error);
-        }
-      }
-      
-      return users;
+      // 使用批量查询替代循环查询
+      return await this.dataService.getUsersByIds(userIds);
     } catch (error) {
       console.error('Error fetching users by IDs:', error);
       return [];

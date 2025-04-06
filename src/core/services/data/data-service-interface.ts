@@ -23,6 +23,12 @@ export interface IDataService {
   getUser(userId: string): Promise<User>;
   
   /**
+   * 根据ID获取用户
+   * @param userId 用户ID
+   */
+  getUserById(userId: string): Promise<User | null>;
+  
+  /**
    * 通过邮箱获取用户
    * @param email 用户邮箱
    */
@@ -38,6 +44,12 @@ export interface IDataService {
    * 获取所有用户
    */
   getUsers(): Promise<User[]>;
+  
+  /**
+   * 根据ID列表获取多个用户
+   * @param userIds 用户ID列表
+   */
+  getUsersByIds(userIds: string[]): Promise<User[]>;
   
   /**
    * 创建用户

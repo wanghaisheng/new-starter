@@ -1,7 +1,7 @@
 import { Match, CreateMatchData, UpdateMatchData, MatchAction } from '@/core/lib/db/types/match';
 import { User } from '@/core/lib/db/types/user';
-import { IDataService } from '@/core/services/data-service-interface';
-import { NetworkService } from '@/core/services/network-service';
+import { IDataService } from '@/core/services/data/data-service-interface';
+import { NetworkService } from '@/core/services/data/network-service';
 
 /**
  * 匹配服务接口

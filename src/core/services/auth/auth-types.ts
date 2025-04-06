@@ -95,4 +95,10 @@ export interface AuthProvider {
   resetPassword(email: string): Promise<void>;
   sendEmailVerification(): Promise<void>;
   verifyEmail(code: string): Promise<void>;
+  createUser(data: Partial<User>): Promise<User>;
+  getUser(id: string): Promise<User | null>;
+  getUserByEmail(email: string): Promise<User | null>;
+  getUserByPhone(phoneNumber: string): Promise<User | null>;
+  updateUser(id: string, updates: Partial<User>): Promise<User>;
+  deleteUser(id: string): Promise<void>;
 } 

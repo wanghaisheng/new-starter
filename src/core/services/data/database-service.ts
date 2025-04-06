@@ -406,6 +406,49 @@ export class DatabaseService implements IDataService {
     return user;
   }
 
+  public async getUserById(userId: string): Promise<User | null> {
+    this.checkInitialized();
+    try {
+      return await this.getUserRepository().findById(userId);
+    } catch (error) {
+      console.error('Error getting user by ID:', error);
+      return null;
+    }
+  }
+
+  public async getUsersByIds(userIds: string[]): Promise<User[]> {
+    this.checkInitialized();
+    try {
+      const users = await Promise.all(
+        userIds.map(id => this.getUserRepository().findById(id))
+      );
+      return users.filter((user): user is User => user !== null);
+    } catch (error) {
+      console.error('Error getting users by IDs:', error);
+      return [];
+    }
+  }
+
+  public async getUserByEmail(email: string): Promise<User | null> {
+    this.checkInitialized();
+    try {
+      return await this.getUserRepository().findByEmail(email);
+    } catch (error) {
+      console.error('Error getting user by email:', error);
+      return null;
+    }
+  }
+
+  public async getUserByPhone(phoneNumber: string): Promise<User | null> {
+    this.checkInitialized();
+    try {
+      return await this.getUserRepository().findByPhone(phoneNumber);
+    } catch (error) {
+      console.error('Error getting user by phone:', error);
+      return null;
+    }
+  }
+
   /**
    * 获取所有用户
    */

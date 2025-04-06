@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useApi } from './useApi';
+import { useAuth } from './useAuth';
 import { Match, CreateMatchData } from '@/core/lib/db/types/match';
 import { User } from '@/core/lib/db/types/user';
-import { DataServiceFactory } from '@/core/services/data-service-factory';
+import { DataServiceFactory } from '@/core/services/data/data-service-factory';
 
 export interface UseMatchesResult {
   matches: Match[];
@@ -14,27 +15,39 @@ export interface UseMatchesResult {
   updateMatch: (matchId: string, data: Partial<Match>) => Promise<Match>;
   deleteMatch: (matchId: string) => Promise<void>;
   getMatchedUsers: (userId: string) => Promise<User[]>;
+  acceptMatch: (matchId: string) => Promise<Match>;
+  rejectMatch: (matchId: string) => Promise<Match>;
 }
 
 export function useMatches(): UseMatchesResult {
+  const { isAuthenticated, user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchedUsers, setMatchedUsers] = useState<User[]>([]);
 
   const matchApi = useApi(() => Promise.resolve(matches), {
     offlineFirst: true,
-    useHybridClient: true
+    useHybridClient: true,
+    requireAuth: true
   });
 
   const getUserMatches = useCallback(async (userId: string) => {
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
     const result = await matchApi.execute(async () => {
       const service = DataServiceFactory.getDataService();
       return service.getMatches(userId);
     });
     setMatches(result);
     return result;
-  }, [matchApi]);
+  }, [matchApi, isAuthenticated]);
 
   const createMatch = useCallback(async (userId: string, targetUserId: string) => {
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
     const result = await matchApi.execute(async () => {
       const service = DataServiceFactory.getDataService();
       const now = new Date();
@@ -49,26 +62,38 @@ export function useMatches(): UseMatchesResult {
     });
     setMatches(prev => [...prev, result]);
     return result;
-  }, [matchApi]);
+  }, [matchApi, isAuthenticated]);
 
   const updateMatch = useCallback(async (matchId: string, data: Partial<Match>) => {
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
     const result = await matchApi.execute(async () => {
       const service = DataServiceFactory.getDataService();
       return service.updateMatch(matchId, data);
     });
     setMatches(prev => prev.map(match => match.id === matchId ? result : match));
     return result;
-  }, [matchApi]);
+  }, [matchApi, isAuthenticated]);
 
   const deleteMatch = useCallback(async (matchId: string) => {
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
     await matchApi.execute(async () => {
       const service = DataServiceFactory.getDataService();
       await service.deleteMatch(matchId);
     });
     setMatches(prev => prev.filter(match => match.id !== matchId));
-  }, [matchApi]);
+  }, [matchApi, isAuthenticated]);
 
   const getMatchedUsers = useCallback(async (userId: string) => {
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
     const result = await matchApi.execute(async () => {
       const service = DataServiceFactory.getDataService();
       const userMatches = await service.getMatches(userId);
@@ -85,7 +110,40 @@ export function useMatches(): UseMatchesResult {
     });
     setMatchedUsers(result);
     return result;
-  }, [matchApi]);
+  }, [matchApi, isAuthenticated]);
+
+  const acceptMatch = useCallback(async (matchId: string) => {
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
+    const result = await matchApi.execute(async () => {
+      const service = DataServiceFactory.getDataService();
+      return service.updateMatch(matchId, { status: 'matched' });
+    });
+    setMatches(prev => prev.map(match => match.id === matchId ? result : match));
+    return result;
+  }, [matchApi, isAuthenticated]);
+
+  const rejectMatch = useCallback(async (matchId: string) => {
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
+    const result = await matchApi.execute(async () => {
+      const service = DataServiceFactory.getDataService();
+      return service.updateMatch(matchId, { status: 'rejected' });
+    });
+    setMatches(prev => prev.map(match => match.id === matchId ? result : match));
+    return result;
+  }, [matchApi, isAuthenticated]);
+
+  // 自动加载用户匹配列表
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      getUserMatches(user.id);
+    }
+  }, [isAuthenticated, user?.id, getUserMatches]);
 
   return {
     matches,
@@ -96,6 +154,8 @@ export function useMatches(): UseMatchesResult {
     createMatch,
     updateMatch,
     deleteMatch,
-    getMatchedUsers
+    getMatchedUsers,
+    acceptMatch,
+    rejectMatch
   };
 } 

@@ -1,4 +1,5 @@
 import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
+import { ColumnType } from '@/core/lib/db/schema/types';
 
 /**
  * 消息表结构定义
@@ -9,13 +10,13 @@ const messageSchema: TableSchema = {
   columns: [
     {
       name: 'id',
-      type: 'string',
+      type: ColumnType.STRING,
       primaryKey: true,
       notNull: true
     },
     {
       name: 'matchId',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
       references: {
         table: 'matches',
@@ -24,7 +25,7 @@ const messageSchema: TableSchema = {
     },
     {
       name: 'senderId',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
       references: {
         table: 'users',
@@ -33,7 +34,7 @@ const messageSchema: TableSchema = {
     },
     {
       name: 'receiverId',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
       references: {
         table: 'users',
@@ -42,32 +43,32 @@ const messageSchema: TableSchema = {
     },
     {
       name: 'content',
-      type: 'text',
+      type: ColumnType.TEXT,
       notNull: true
     },
     {
       name: 'type',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
-      defaultValue: 'text'
+      defValue: 'text'
     },
     {
       name: 'status',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
-      defaultValue: 'sent'
+      defValue: 'sent'
     },
     {
       name: 'createdAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     }
   ],
   indexes: [
@@ -76,12 +77,12 @@ const messageSchema: TableSchema = {
       columns: ['matchId']
     },
     {
-      name: 'idx_messages_participants',
-      columns: ['senderId', 'receiverId']
+      name: 'idx_messages_sender',
+      columns: ['senderId']
     },
     {
-      name: 'idx_messages_status',
-      columns: ['status']
+      name: 'idx_messages_receiver',
+      columns: ['receiverId']
     },
     {
       name: 'idx_messages_created_at',

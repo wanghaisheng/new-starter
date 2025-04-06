@@ -2,12 +2,12 @@ import { NextRequest } from 'next/server';
 import { withAuth } from '@/app/api/_lib/middleware/auth';
 import { validateRequest } from '@/app/api/_lib/utils/validation';
 import { APIResponseBuilder } from '@/app/api/_lib/utils/response';
-import { ChatService } from '@/core/services/chat-service';
+import { MessageService } from '@/core/services/data/message-service';
 
 // GET /api/mobile/v1/chats - Get user's chat messages
 export async function GET(req: NextRequest) {
   return withAuth(req, async () => {
-    const chatService = ChatService.getInstance();
+    const chatService = MessageService.getInstance();
     const userId = req.headers.get('user-id');
     const matchId = req.nextUrl.searchParams.get('matchId');
     

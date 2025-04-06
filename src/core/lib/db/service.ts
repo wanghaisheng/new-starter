@@ -4,7 +4,7 @@ import { User, Match, Message } from '@/core/lib/db/models';
 import { UserRepository } from '@/core/lib/db/repositories/user-repository';
 import { MatchRepository } from '@/core/lib/db/repositories/match-repository';
 import { MessageRepository } from '@/core/lib/db/repositories/message-repository';
-import { initializeSchemas } from '@/core/lib/db/schema';
+import { initializeSchemas } from '@/core/lib/db/schema/index';
 
 /**
  * 数据库服务类

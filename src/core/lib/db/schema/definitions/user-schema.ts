@@ -1,4 +1,5 @@
 import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
+import { ColumnType } from '@/core/lib/db/schema/types';
 
 /**
  * 用户表结构定义
@@ -9,92 +10,92 @@ const userSchema: TableSchema = {
   columns: [
     {
       name: 'id',
-      type: 'string',
+      type: ColumnType.STRING,
       primaryKey: true,
       notNull: true
     },
     {
       name: 'name',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true
     },
     {
       name: 'email',
-      type: 'string'
+      type: ColumnType.STRING
     },
     {
       name: 'phone',
-      type: 'string'
+      type: ColumnType.STRING
     },
     {
       name: 'googleId',
-      type: 'string'
+      type: ColumnType.STRING
     },
     {
       name: 'bio',
-      type: 'text'
+      type: ColumnType.TEXT
     },
     {
       name: 'birthDate',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true
     },
     {
       name: 'gender',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true
     },
     {
       name: 'photos',
-      type: 'json',
+      type: ColumnType.JSON,
       notNull: true,
-      defaultValue: '[]'
+      defValue: '[]'
     },
     {
       name: 'interests',
-      type: 'json',
+      type: ColumnType.JSON,
       notNull: true,
-      defaultValue: '[]'
+      defValue: '[]'
     },
     {
       name: 'location',
-      type: 'json',
+      type: ColumnType.JSON,
       notNull: true
     },
     {
       name: 'preferences',
-      type: 'json',
+      type: ColumnType.JSON,
       notNull: true
     },
     {
       name: 'isVerified',
-      type: 'boolean',
+      type: ColumnType.BOOLEAN,
       notNull: true,
-      defaultValue: false
+      defValue: false
     },
     {
       name: 'lastActive',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'status',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
-      defaultValue: 'active'
+      defValue: 'active'
     },
     {
       name: 'createdAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     }
   ],
   indexes: [

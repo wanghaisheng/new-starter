@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
 import { User } from '@/core/lib/db/types/user';
-import { useServices } from '@/core/hooks/useServices';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { useApi } from '@/core/hooks/useApi';
+import { apiClient } from '@/utils/api-client';
 
 // Add type definition for Photo
 interface Photo {
@@ -18,6 +19,7 @@ interface Photo {
 
 interface Match {
   users: string[];
+  id: string;
 }
 
 // Add utility function to calculate age from birthDate
@@ -35,8 +37,6 @@ const calculateAge = (birthDate: Date): number => {
 
 export default function DiscoverPage() {
   const router = useRouter();
-  const { userService, isLoading, error } = useServices();
-  const [users, setUsers] = useState<User[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -45,46 +45,36 @@ export default function DiscoverPage() {
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
-  
-  useEffect(() => {
-    loadRecommendedUsers();
-  }, [userService]);
-  
-  const loadRecommendedUsers = async () => {
-    if (!userService) return;
-    
-    try {
-      const allUsers = await userService.getUsers();
-      const currentUser = await userService.getCurrentUser();
-      
+
+  const { 
+    data: users,
+    loading: isLoading,
+    error,
+    execute: fetchUsers,
+    networkStatus
+  } = useApi<User[]>(
+    async () => {
+      const currentUser = await apiClient.getCurrentUser();
       if (!currentUser) {
-        setToastMessage('Please login first');
-        setShowToast(true);
-        return;
+        throw new Error('Please login first');
       }
 
-      // Filter out current user and already matched users
-      let matchedUserIds: string[] = [];
-      try {
-        const matches: Match[] = await userService.getMatches(currentUser.id);
-        matchedUserIds = matches.flatMap(match => match.users);
-      } catch (err) {
-        console.log('getMatches is not available', err);
-      }
-      
-      // Filter users based on preferences
-      const filteredUsers = allUsers.filter(user => 
+      const allUsers = await apiClient.getUsers();
+      const matches = await apiClient.getUserMatches();
+      const matchedUserIds = matches.flatMap((match: Match) => match.users);
+
+      // Filter users based on preferences and matches
+      return allUsers.filter((user: User) => 
         user.id !== currentUser.id && 
         !matchedUserIds.includes(user.id)
       );
-      
-      setUsers(filteredUsers);
-    } catch (err) {
-      console.error('Error loading recommended users:', err);
-      setToastMessage('Failed to load recommendations. Please try again.');
-      setShowToast(true);
+    },
+    {
+      immediate: true,
+      offlineFirst: true,
+      requireAuth: true
     }
-  };
+  );
   
   const handleLike = async () => {
     handleSwipe('right');
@@ -95,9 +85,9 @@ export default function DiscoverPage() {
   };
   
   const handleSwipe = async (direction: 'left' | 'right') => {
-    if (!userService) return;
+    if (!users) return;
     
-    const currentUser = await userService.getCurrentUser();
+    const currentUser = await apiClient.getCurrentUser();
     if (!currentUser) {
       setToastMessage('Please login first');
       setShowToast(true);
@@ -109,7 +99,7 @@ export default function DiscoverPage() {
 
     if (direction === 'right') {
       try {
-        const match = await userService.createMatch([currentUser.id, swipedUser.id]);
+        const match = await apiClient.createMatch([currentUser.id, swipedUser.id]);
         if (match) {
           setMatchedUser(swipedUser);
           setShowMatch(true);
@@ -127,7 +117,7 @@ export default function DiscoverPage() {
   
   const goToNextProfile = () => {
     setSwipeDirection(null);
-    if (currentIndex < users.length - 1) {
+    if (users && currentIndex < users.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
       setCurrentIndex(0);
@@ -194,6 +184,10 @@ export default function DiscoverPage() {
     goToNextProfile();
   };
 
+  const handleRetry = () => {
+    fetchUsers(() => apiClient.getUsers());
+  };
+
   if (isLoading) {
     return (
       <IonPage>
@@ -208,7 +202,25 @@ export default function DiscoverPage() {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={loadRecommendedUsers} />
+          <ErrorDisplay error={error.toString()} onRetry={handleRetry} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (!users || users.length === 0) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <div className="flex flex-col items-center justify-center h-full">
+            <p className="text-gray-400 mb-4">No recommendations available</p>
+            <button
+              onClick={handleRetry}
+              className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         </IonContent>
       </IonPage>
     );
@@ -248,35 +260,33 @@ export default function DiscoverPage() {
                   </div>
                 </div>
               </div>
-              
-              <div className="space-y-4">
-                <button
-                  onClick={handleSendMessage}
-                  className="w-full bg-pink-500 text-white py-3 rounded-lg font-semibold"
-                >
-                  Send Message
-                </button>
-                
+
+              <div className="flex justify-center space-x-4">
                 <button
                   onClick={handleKeepSwiping}
-                  className="w-full bg-gray-700 text-white py-3 rounded-lg font-semibold"
+                  className="px-6 py-2 bg-gray-600 text-white rounded-full hover:bg-gray-700 transition-colors"
                 >
                   Keep Swiping
+                </button>
+                <button
+                  onClick={handleSendMessage}
+                  className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
+                >
+                  Send Message
                 </button>
               </div>
             </div>
           </div>
-        ) : currentUser ? (
-          // Profile card
-          <div className="h-full flex flex-col">
-            <div 
+        ) : (
+          <div className="relative h-full">
+            <div
               ref={cardRef}
-              className="flex-1 relative mx-4 my-4 rounded-xl overflow-hidden bg-white shadow-xl transition-transform duration-300"
+              className="absolute inset-0 m-4 bg-white rounded-xl overflow-hidden shadow-lg transition-transform duration-300"
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              <div className="absolute inset-0">
+              <div className="relative h-[70vh]">
                 <Image
                   src={currentUser.photos?.[0]?.url || '/assets/images/profile-placeholder.jpg'}
                   alt={currentUser.name}
@@ -285,49 +295,37 @@ export default function DiscoverPage() {
                 />
               </div>
               
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6">
-                <h2 className="text-2xl font-bold text-white mb-1">
-                  {currentUser.name}, {calculateAge(new Date(currentUser.birthDate))}
-                </h2>
-                <p className="text-gray-200">{currentUser.bio}</p>
-              </div>
-              
-              {swipeDirection && (
-                <div className={`absolute top-8 ${swipeDirection === 'right' ? 'right-8' : 'left-8'} p-4 rounded-lg border-4 ${
-                  swipeDirection === 'right' ? 'border-green-500 text-green-500' : 'border-red-500 text-red-500'
-                }`}>
-                  {swipeDirection === 'right' ? 'LIKE' : 'NOPE'}
+              <div className="p-4">
+                <h2 className="text-xl font-bold">{currentUser.name}</h2>
+                <p className="text-gray-600">{currentUser.bio}</p>
+                
+                <div className="mt-4 flex justify-center space-x-4">
+                  <button
+                    onClick={handleDislike}
+                    className="w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center"
+                  >
+                    ✕
+                  </button>
+                  <button
+                    onClick={handleLike}
+                    className="w-12 h-12 rounded-full bg-green-500 text-white flex items-center justify-center"
+                  >
+                    ♥
+                  </button>
                 </div>
-              )}
-            </div>
-            
-            <div className="flex justify-center space-x-8 p-4">
-              <button
-                onClick={handleDislike}
-                className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center"
-              >
-                <span className="text-3xl">✕</span>
-              </button>
-              
-              <button
-                onClick={handleLike}
-                className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center"
-              >
-                <span className="text-3xl">♥</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="h-full flex items-center justify-center p-4">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-white mb-2">No more profiles</h2>
-              <p className="text-gray-400">Check back later for new recommendations</p>
+              </div>
             </div>
           </div>
         )}
-        
-        <BottomNavBar />
+
+        {networkStatus === 'offline' && (
+          <div className="fixed bottom-16 left-0 right-0 bg-yellow-500 text-black py-2 px-4 text-center">
+            You're offline. Some features may be limited.
+          </div>
+        )}
       </IonContent>
+      
+      <BottomNavBar />
       
       <IonToast
         isOpen={showToast}

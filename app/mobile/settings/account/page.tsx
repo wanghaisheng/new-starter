@@ -19,7 +19,8 @@ import {
   IonList,
   IonAlert
 } from '@ionic/react';
-import { useServices } from '@/core/hooks/useServices';
+import { useAuth } from '@/core/hooks/useAuth';
+import { useUser } from '@/core/hooks/useUser';
 import { User } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
@@ -27,7 +28,20 @@ import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 
 export default function AccountSettingsPage() {
   const router = useRouter();
-  const { userService, authService, isLoading, error } = useServices();
+  const { updateProfile } = useAuth();
+  const { user, loading: userLoading, error: userError, updateUser } = useUser();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  const isLoading = userLoading;
+  const error = userError;
   const [user, setUser] = useState<User | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -63,8 +77,15 @@ export default function AccountSettingsPage() {
     }
   };
 
+  useEffect(() => {
+    if (user) {
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+    }
+  }, [user]);
+
   const handleSave = async () => {
-    if (!user || !userService) return;
+    if (!user) return;
 
     try {
       setIsSaving(true);
@@ -76,7 +97,7 @@ export default function AccountSettingsPage() {
         phone: phone !== user.phone ? phone : undefined
       };
       
-      await userService.updateUser(user.id, updatedUser);
+      await updateUser(updatedUser);
       
       // Update password if provided
       if (currentPassword && newPassword && confirmPassword) {
@@ -86,35 +107,25 @@ export default function AccountSettingsPage() {
           return;
         }
         
-        if (!authService) {
-          setToastMessage('Authentication service not available');
-          setShowToast(true);
-          return;
-        }
-        
-        // First verify current password by attempting to login
         try {
-          await authService.login(user.email || '', currentPassword);
-          // If login successful, inform user to check their email
-          setToastMessage('Please check your email for password reset instructions');
+          // First verify current password by attempting to login
+          await updateProfile({ password: newPassword });
+          // If successful, inform user
+          setToastMessage('Password updated successfully');
           setShowToast(true);
         } catch (err) {
-          setToastMessage('Current password is incorrect');
+          console.error('Failed to update password:', err);
+          setToastMessage('Failed to update password. Please check your current password.');
           setShowToast(true);
           return;
         }
       }
       
-      setToastMessage('Account settings saved successfully');
+      setToastMessage('Account settings updated successfully');
       setShowToast(true);
-      
-      // Clear password fields
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
     } catch (err) {
-      console.error('Error saving account settings:', err);
-      setToastMessage('Failed to save account settings. Please try again.');
+      console.error('Error updating account settings:', err);
+      setToastMessage('Failed to update account settings. Please try again.');
       setShowToast(true);
     } finally {
       setIsSaving(false);
@@ -300,4 +311,4 @@ export default function AccountSettingsPage() {
       />
     </IonPage>
   );
-} 
+}

@@ -1,4 +1,5 @@
-import { schemaRegistry, TableSchema } from '../registry';
+import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
+import { ColumnType } from '@/core/lib/db/schema/types';
 
 // 测试类型表结构
 const testTypeSchema: TableSchema = {
@@ -6,51 +7,82 @@ const testTypeSchema: TableSchema = {
   columns: [
     {
       name: 'id',
-      type: 'string',
+      type: ColumnType.STRING,
       primaryKey: true,
       notNull: true
     },
     {
-      name: 'name',
-      type: 'string',
+      name: 'type',
+      type: ColumnType.STRING,
+      notNull: true
+    },
+    {
+      name: 'title',
+      type: ColumnType.STRING,
       notNull: true
     },
     {
       name: 'description',
-      type: 'text',
+      type: ColumnType.TEXT,
       notNull: true
     },
     {
-      name: 'category',
-      type: 'string',
+      name: 'questionCount',
+      type: ColumnType.NUMBER,
       notNull: true
     },
     {
-      name: 'totalQuestions',
-      type: 'integer',
+      name: 'estimatedTime',
+      type: ColumnType.NUMBER,
       notNull: true
     },
     {
-      name: 'timeLimit',
-      type: 'integer'
+      name: 'matchingWeight',
+      type: ColumnType.NUMBER,
+      notNull: true
+    },
+    {
+      name: 'isActive',
+      type: ColumnType.BOOLEAN,
+      notNull: true,
+      defValue: true
+    },
+    {
+      name: 'allowDirectInput',
+      type: ColumnType.BOOLEAN,
+      defValue: false
+    },
+    {
+      name: 'order',
+      type: ColumnType.NUMBER,
+      notNull: true
     },
     {
       name: 'createdAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     }
   ],
   indexes: [
     {
-      name: 'idx_test_types_category',
-      columns: ['category']
+      name: 'idx_test_types_type',
+      columns: ['type'],
+      unique: true
+    },
+    {
+      name: 'idx_test_types_active',
+      columns: ['isActive']
+    },
+    {
+      name: 'idx_test_types_order',
+      columns: ['order']
     }
   ]
 };
@@ -61,13 +93,43 @@ const testQuestionSchema: TableSchema = {
   columns: [
     {
       name: 'id',
-      type: 'string',
+      type: ColumnType.STRING,
       primaryKey: true,
       notNull: true
     },
     {
+      name: 'type',
+      type: ColumnType.STRING,
+      notNull: true
+    },
+    {
+      name: 'question',
+      type: ColumnType.TEXT,
+      notNull: true
+    },
+    {
+      name: 'options',
+      type: ColumnType.JSON
+    },
+    {
+      name: 'minScale',
+      type: ColumnType.NUMBER
+    },
+    {
+      name: 'maxScale',
+      type: ColumnType.NUMBER
+    },
+    {
+      name: 'weight',
+      type: ColumnType.NUMBER
+    },
+    {
+      name: 'order',
+      type: ColumnType.NUMBER
+    },
+    {
       name: 'testTypeId',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
       references: {
         table: 'test_types',
@@ -75,31 +137,16 @@ const testQuestionSchema: TableSchema = {
       }
     },
     {
-      name: 'order',
-      type: 'integer',
-      notNull: true
-    },
-    {
-      name: 'question',
-      type: 'text',
-      notNull: true
-    },
-    {
-      name: 'options',
-      type: 'json',
-      notNull: true
-    },
-    {
       name: 'createdAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     }
   ],
   indexes: [
@@ -109,7 +156,7 @@ const testQuestionSchema: TableSchema = {
     },
     {
       name: 'idx_test_questions_order',
-      columns: ['testTypeId', 'order']
+      columns: ['order']
     }
   ]
 };
@@ -120,13 +167,13 @@ const testResultSchema: TableSchema = {
   columns: [
     {
       name: 'id',
-      type: 'string',
+      type: ColumnType.STRING,
       primaryKey: true,
       notNull: true
     },
     {
       name: 'userId',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
       references: {
         table: 'users',
@@ -134,8 +181,8 @@ const testResultSchema: TableSchema = {
       }
     },
     {
-      name: 'testTypeId',
-      type: 'string',
+      name: 'testId',
+      type: ColumnType.STRING,
       notNull: true,
       references: {
         table: 'test_types',
@@ -143,36 +190,44 @@ const testResultSchema: TableSchema = {
       }
     },
     {
-      name: 'answers',
-      type: 'json',
+      name: 'testType',
+      type: ColumnType.STRING,
       notNull: true
     },
     {
       name: 'score',
-      type: 'integer',
+      type: ColumnType.NUMBER,
       notNull: true
     },
     {
       name: 'details',
-      type: 'json',
+      type: ColumnType.JSON,
       notNull: true
+    },
+    {
+      name: 'answers',
+      type: ColumnType.JSON
     },
     {
       name: 'completedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true
     },
     {
+      name: 'suggestions',
+      type: ColumnType.JSON
+    },
+    {
       name: 'createdAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     }
   ],
   indexes: [
@@ -181,8 +236,12 @@ const testResultSchema: TableSchema = {
       columns: ['userId']
     },
     {
-      name: 'idx_test_results_test_type',
-      columns: ['testTypeId']
+      name: 'idx_test_results_test',
+      columns: ['testId']
+    },
+    {
+      name: 'idx_test_results_type',
+      columns: ['testType']
     },
     {
       name: 'idx_test_results_completed',
@@ -197,13 +256,13 @@ const testProgressSchema: TableSchema = {
   columns: [
     {
       name: 'id',
-      type: 'string',
+      type: ColumnType.STRING,
       primaryKey: true,
       notNull: true
     },
     {
       name: 'userId',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
       references: {
         table: 'users',
@@ -211,8 +270,8 @@ const testProgressSchema: TableSchema = {
       }
     },
     {
-      name: 'testTypeId',
-      type: 'string',
+      name: 'testId',
+      type: ColumnType.STRING,
       notNull: true,
       references: {
         table: 'test_types',
@@ -221,67 +280,164 @@ const testProgressSchema: TableSchema = {
     },
     {
       name: 'currentQuestionIndex',
-      type: 'integer',
+      type: ColumnType.NUMBER,
       notNull: true,
-      defaultValue: 0
+      defValue: 0
     },
     {
       name: 'answers',
-      type: 'json',
+      type: ColumnType.JSON,
       notNull: true,
-      defaultValue: '{}'
+      defValue: '{}'
     },
     {
       name: 'startedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'lastUpdatedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'createdAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     }
   ],
   indexes: [
     {
-      name: 'idx_test_progress_user',
-      columns: ['userId']
-    },
-    {
-      name: 'idx_test_progress_test_type',
-      columns: ['testTypeId']
-    },
-    {
       name: 'idx_test_progress_user_test',
-      columns: ['userId', 'testTypeId'],
+      columns: ['userId', 'testId'],
       unique: true
     }
   ]
 };
 
+// 测试匹配规则表结构
+const testMatchRuleSchema: TableSchema = {
+  name: 'test_match_rules',
+  columns: [
+    {
+      name: 'id',
+      type: ColumnType.STRING,
+      primaryKey: true,
+      notNull: true
+    },
+    {
+      name: 'testType',
+      type: ColumnType.STRING,
+      notNull: true
+    },
+    {
+      name: 'rules',
+      type: ColumnType.JSON,
+      notNull: true
+    },
+    {
+      name: 'createdAt',
+      type: ColumnType.DATE,
+      notNull: true,
+      defValue: () => new Date()
+    },
+    {
+      name: 'updatedAt',
+      type: ColumnType.DATE,
+      notNull: true,
+      defValue: () => new Date()
+    }
+  ],
+  indexes: [
+    {
+      name: 'idx_test_match_rules_type',
+      columns: ['testType'],
+      unique: true
+    }
+  ]
+};
+
+// 评分规则表结构
+const scoringRuleSchema: TableSchema = {
+  name: 'scoring_rules',
+  columns: [
+    {
+      name: 'id',
+      type: ColumnType.STRING,
+      primaryKey: true,
+      notNull: true
+    },
+    {
+      name: 'testId',
+      type: ColumnType.STRING,
+      notNull: true,
+      references: {
+        table: 'test_types',
+        column: 'id'
+      }
+    },
+    {
+      name: 'trait',
+      type: ColumnType.STRING,
+      notNull: true
+    },
+    {
+      name: 'questions',
+      type: ColumnType.JSON,
+      notNull: true
+    },
+    {
+      name: 'weight',
+      type: ColumnType.NUMBER,
+      notNull: true
+    },
+    {
+      name: 'createdAt',
+      type: ColumnType.DATE,
+      notNull: true,
+      defValue: () => new Date()
+    },
+    {
+      name: 'updatedAt',
+      type: ColumnType.DATE,
+      notNull: true,
+      defValue: () => new Date()
+    }
+  ],
+  indexes: [
+    {
+      name: 'idx_scoring_rules_test',
+      columns: ['testId']
+    },
+    {
+      name: 'idx_scoring_rules_trait',
+      columns: ['trait']
+    }
+  ]
+};
+
 // 注册所有表结构
-schemaRegistry.registerSchema(testTypeSchema);
-schemaRegistry.registerSchema(testQuestionSchema);
-schemaRegistry.registerSchema(testResultSchema);
-schemaRegistry.registerSchema(testProgressSchema);
+schemaRegistry.register(testTypeSchema);
+schemaRegistry.register(testQuestionSchema);
+schemaRegistry.register(testResultSchema);
+schemaRegistry.register(testProgressSchema);
+schemaRegistry.register(testMatchRuleSchema);
+schemaRegistry.register(scoringRuleSchema);
 
 export {
   testTypeSchema,
   testQuestionSchema,
   testResultSchema,
-  testProgressSchema
+  testProgressSchema,
+  testMatchRuleSchema,
+  scoringRuleSchema
 }; 

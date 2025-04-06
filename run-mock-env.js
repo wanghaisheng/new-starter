@@ -2,13 +2,22 @@
  * 使用 Mock 环境运行应用程序的脚本
  * 同时使用 MockDatabaseClient 和 MockIndexedDBClient
  */
-const { execSync } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// 检查 .env.development 文件中的配置是否正确
-const envFile = path.join(__dirname, '.env.development');
+// 检查环境配置文件
+const mockEnvFile = path.join(__dirname, '.env.mock');
+const devEnvFile = path.join(__dirname, '.env.development');
+
+// 优先使用.env.mock文件，如果不存在则使用.env.development
+let envFile = fs.existsSync(mockEnvFile) ? mockEnvFile : devEnvFile;
 const envContent = fs.readFileSync(envFile, 'utf8');
+
+// 如果使用的是.env.development，提示用户创建.env.mock文件
+if (envFile === devEnvFile) {
+  console.warn('警告: 未找到.env.mock文件，正在使用.env.development作为备选。建议创建.env.mock文件以配置mock环境。');
+}
 
 // 检查必要的环境变量是否设置正确
 const requiredVars = {
@@ -37,10 +46,10 @@ Object.entries(requiredVars).forEach(([key, value]) => {
   }
 });
 
-// 如果需要，更新 .env.development 文件
+// 如果需要，更新环境配置文件
 if (needsUpdate) {
   fs.writeFileSync(envFile, updatedContent);
-  console.log('.env.development 文件已更新');
+  console.log(`${envFile} 文件已更新`);
 }
 
 // 创建数据目录（如果不存在）
@@ -49,6 +58,14 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir);
   console.log('创建数据目录: data/');
 }
+
+// 设置环境变量
+const env = { ...process.env };
+Object.entries(requiredVars).forEach(([key, value]) => {
+  env[key] = value;
+});
+
+// 不在这里启动应用，避免重复启动
 
 // 为 JSON 文件创建初始内容（如果不存在）
 const mockDbFile = path.join(dataDir, 'mock-db.json');
@@ -126,24 +143,62 @@ if (fs.existsSync(path.join(__dirname, '.next', 'cache'))) {
   }
 }
 
-// 设置额外的环境变量
-process.env.NEXT_PUBLIC_USE_FAKE_INDEXEDDB = 'true';
-process.env.NEXT_PUBLIC_DB_NAME = 'app_database_mock';
-process.env.NEXT_PUBLIC_DB_SYNC_ENABLED = 'false';
+// 设置所有必要的环境变量
+Object.entries(requiredVars).forEach(([key, value]) => {
+  process.env[key] = value;
+});
+
+// 设置其他必要的环境变量
+process.env.NODE_ENV = 'development';
 
 // 运行应用程序
 console.log('使用 Mock 环境启动应用程序...');
 try {
-  // 使用bun dev:mock命令，它已经在package.json中设置了NEXT_PUBLIC_DATABASE_ENV=mock
-  execSync('bun dev:mock', { 
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      NEXT_PUBLIC_MOCK_DB_TYPE: 'mock',
-      NEXT_PUBLIC_USE_FAKE_INDEXEDDB: 'true',
-      NEXT_PUBLIC_DB_NAME: 'app_database_mock',
-      NEXT_PUBLIC_DB_SYNC_ENABLED: 'false'
-    }
+  // 使用spawn直接运行npm命令，这样更可靠，不依赖于npx
+  const { spawn } = require('child_process');
+  const path = require('path');
+  
+  // 检查是否存在next可执行文件
+  const isWindows = process.platform === 'win32';
+  const nextBinPath = path.join(__dirname, 'node_modules', '.bin', isWindows ? 'next.cmd' : 'next');
+  
+  let nextProcess;
+  if (fs.existsSync(nextBinPath)) {
+    // 如果存在next可执行文件，直接使用它
+    console.log(`使用本地Next.js可执行文件: ${nextBinPath}`);
+    nextProcess = spawn(nextBinPath, ['dev'], { 
+      stdio: 'inherit',
+      env: process.env,
+      shell: isWindows // 在Windows上需要使用shell
+    });
+  } else {
+    // 回退到使用npm run dev
+    console.log('使用npm run dev启动应用...');
+    nextProcess = spawn('npm', ['run', 'dev'], { 
+      stdio: 'inherit',
+      env: process.env,
+      shell: isWindows // 在Windows上需要使用shell
+    });
+  }
+  
+  // 处理进程事件
+  nextProcess.on('error', (err) => {
+    console.error('启动应用程序时出错:', err);
+    process.exit(1);
+  });
+  
+  // 将主进程的退出信号传递给子进程
+  process.on('SIGINT', () => {
+    nextProcess.kill('SIGINT');
+  });
+  
+  process.on('SIGTERM', () => {
+    nextProcess.kill('SIGTERM');
+  });
+  
+  // 等待子进程退出
+  nextProcess.on('exit', (code) => {
+    process.exit(code);
   });
 } catch (error) {
   console.error('启动应用程序时出错:', error);

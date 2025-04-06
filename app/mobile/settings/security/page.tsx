@@ -33,7 +33,8 @@ import {
   warningOutline,
   checkmarkCircleOutline
 } from 'ionicons/icons';
-import { useServices } from '@/core/hooks/useServices';
+import { useAuth } from '@/core/hooks/useAuth';
+import { useUser } from '@/core/hooks/useUser';
 import { User } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
@@ -41,7 +42,8 @@ import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 
 export default function SecuritySettingsPage() {
   const router = useRouter();
-  const { userService, authService, isLoading, error } = useServices();
+  const { updateProfile } = useAuth();
+  const { user, loading: isLoading, error, updateUser } = useUser();
   const [user, setUser] = useState<User | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -381,4 +383,4 @@ export default function SecuritySettingsPage() {
       />
     </IonPage>
   );
-} 
+}

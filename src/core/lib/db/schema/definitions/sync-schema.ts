@@ -4,6 +4,7 @@
  */
 import { schemaRegistry } from '@/core/lib/db/schema/index';
 import { TableSchema } from '@/core/lib/db/schema/types';
+import { ColumnType } from '@/core/lib/db/schema/types';
 import { SyncState, SyncPriority, ConflictResolution } from '@/core/lib/db/types/sync-flags';
 
 /**
@@ -15,94 +16,85 @@ export const syncMetadataSchema: TableSchema = {
   columns: [
     {
       name: 'id',
-      type: 'string',
+      type: ColumnType.STRING,
       primaryKey: true,
-      required: true
+      notNull: true
     },
     {
       name: 'entityType',
-      type: 'string',
-      required: true,
-      isSyncField: true
+      type: ColumnType.STRING,
+      notNull: true
     },
     {
       name: 'entityId',
-      type: 'string',
-      required: true,
-      isSyncField: true
+      type: ColumnType.STRING,
+      notNull: true
     },
     {
       name: 'syncState',
-      type: 'string',
-      required: true,
-      default: SyncState.NEW,
-      isSyncField: true
+      type: ColumnType.STRING,
+      notNull: true,
+      defValue: SyncState.NEW
     },
     {
       name: 'lastSyncedAt',
-      type: 'date',
-      isSyncField: true
+      type: ColumnType.DATE
     },
     {
       name: 'localModifiedAt',
-      type: 'date',
-      required: true,
-      isSyncField: true
+      type: ColumnType.DATE,
+      notNull: true
     },
     {
       name: 'remoteModifiedAt',
-      type: 'date',
-      isSyncField: true
+      type: ColumnType.DATE
     },
     {
       name: 'syncAttempts',
-      type: 'number',
-      default: 0,
-      isSyncField: true
+      type: ColumnType.NUMBER,
+      defValue: 0
     },
     {
       name: 'syncPriority',
-      type: 'string',
-      required: true,
-      default: SyncPriority.MEDIUM,
-      isSyncField: true
+      type: ColumnType.STRING,
+      notNull: true,
+      defValue: SyncPriority.MEDIUM
     },
     {
       name: 'version',
-      type: 'string',
-      isSyncField: true
+      type: ColumnType.STRING
     },
     {
       name: 'conflictResolution',
-      type: 'string',
-      default: ConflictResolution.SERVER_WINS,
-      isSyncField: true
+      type: ColumnType.STRING,
+      defValue: ConflictResolution.SERVER_WINS
     },
     {
       name: 'deviceId',
-      type: 'string',
-      isSyncField: true
+      type: ColumnType.STRING
     },
     {
       name: 'meta',
-      type: 'json',
-      isSyncField: true
+      type: ColumnType.JSON
     },
     {
       name: 'createdAt',
-      type: 'date',
-      required: true
+      type: ColumnType.DATE,
+      notNull: true,
+      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
-      type: 'date',
-      required: true
+      type: ColumnType.DATE,
+      notNull: true,
+      defValue: () => new Date()
     }
   ],
   indexes: [
     {
       name: 'idx_sync_metadata_entity',
-      columns: ['entityType', 'entityId']
+      columns: ['entityType', 'entityId'],
+      unique: true
     },
     {
       name: 'idx_sync_metadata_state',
@@ -111,6 +103,10 @@ export const syncMetadataSchema: TableSchema = {
     {
       name: 'idx_sync_metadata_priority',
       columns: ['syncPriority']
+    },
+    {
+      name: 'idx_sync_metadata_device',
+      columns: ['deviceId']
     }
   ],
   syncConfig: {

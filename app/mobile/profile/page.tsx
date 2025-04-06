@@ -14,35 +14,32 @@ import {
   IonToast
 } from '@ionic/react';
 import { settingsOutline, pencilOutline } from 'ionicons/icons';
-import { useServices } from '@/core/hooks/useServices';
 import { User } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { useApi } from '@/core/hooks/useApi';
+import { apiClient } from '@/utils/api-client';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { userService, isLoading, error } = useServices();
-  const [user, setUser] = useState<User | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  useEffect(() => {
-    loadProfile();
-  }, [userService]);
-
-  const loadProfile = async () => {
-    if (!userService) return;
-
-    try {
-      const currentUser = await userService.getCurrentUser();
-      setUser(currentUser);
-    } catch (err) {
-      console.error('Failed to load profile:', err);
-      setToastMessage('Failed to load profile. Please try again.');
-      setShowToast(true);
+  const { 
+    data: user,
+    loading: isLoading,
+    error,
+    execute: fetchProfile,
+    networkStatus
+  } = useApi<User>(
+    () => apiClient.getCurrentUser(),
+    {
+      immediate: true,
+      offlineFirst: true,
+      requireAuth: true
     }
-  };
+  );
 
   const handleEditProfile = () => {
     router.push('/mobile/profile/edit');
@@ -50,6 +47,10 @@ export default function ProfilePage() {
 
   const handleSettings = () => {
     router.push('/mobile/settings');
+  };
+
+  const handleRetry = () => {
+    fetchProfile(() => apiClient.getCurrentUser());
   };
 
   if (isLoading) {
@@ -66,7 +67,7 @@ export default function ProfilePage() {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={loadProfile} />
+          <ErrorDisplay error={error.toString()} onRetry={handleRetry} />
         </IonContent>
       </IonPage>
     );
@@ -89,6 +90,12 @@ export default function ProfilePage() {
       </IonPage>
     );
   }
+
+  // Calculate age from birthDate
+  const age = user.birthDate ? Math.floor((new Date().getTime() - new Date(user.birthDate).getTime()) / 31557600000) : null;
+  
+  // Format location
+  const locationText = user.location ? `${user.location.city}, ${user.location.country}` : 'Not specified';
 
   return (
     <IonPage>
@@ -149,11 +156,11 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <h2 className="text-sm font-medium text-gray-400">Age</h2>
-                <p>{user.age || 'Not specified'}</p>
+                <p>{age || 'Not specified'}</p>
               </div>
               <div>
                 <h2 className="text-sm font-medium text-gray-400">Location</h2>
-                <p>{user.location || 'Not specified'}</p>
+                <p>{locationText}</p>
               </div>
               <div>
                 <h2 className="text-sm font-medium text-gray-400">Gender</h2>
@@ -161,7 +168,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h2 className="text-sm font-medium text-gray-400">Looking for</h2>
-                <p>{user.lookingFor || 'Not specified'}</p>
+                <p>{user.preferences?.gender?.join(', ') || 'Not specified'}</p>
               </div>
             </div>
             
@@ -182,6 +189,12 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {networkStatus === 'offline' && (
+          <div className="fixed bottom-16 left-0 right-0 bg-yellow-500 text-black py-2 px-4 text-center">
+            You're offline. Some features may be limited.
+          </div>
+        )}
       </IonContent>
       
       <BottomNavBar />

@@ -1,6 +1,6 @@
 import { SQLiteDBConnection } from '@capacitor-community/sqlite';
 import { BaseEntity } from './base-entity';
-import { TableSchema } from '../schema';
+import { TableSchema } from '../schema/index';
 
 // 数据库引擎类型
 export type DatabaseEngine = 'mock' | 'mock-indexeddb' | 'indexeddb' | 'sqlite' | 'capacitor-sqlite' | 'cloudflare-d1' | 'firebase' | 'supabase' | 'turso' | 'tidb' | 'postgres' | 'hybrid';

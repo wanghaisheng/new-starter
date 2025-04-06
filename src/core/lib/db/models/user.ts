@@ -1,7 +1,7 @@
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { Location } from '@/core/lib/db/types/location';
 import { Photo } from '@/core/lib/db/types/photo';
-import { User as UserType, UserPreferences } from '@/core/lib/db/types/user';
+import { User as UserType, UserPreferences, PrivacySettings, NotificationSettings, SecuritySettings } from '@/core/lib/db/types/user';
 
 /**
  * 用户模型类
@@ -22,8 +22,14 @@ export class User implements UserType, BaseEntity {
   googleId?: string;
   /** 用户名称 */
   name: string;
+  /** 昵称 */
+  nickname?: string;
+  /** 头像 */
+  avatar?: string;
   /** 出生日期 */
   birthDate: Date;
+  /** 出生时辰 */
+  birthTime?: string;
   /** 性别 */
   gender: 'male' | 'female' | 'other';
   /** 照片列表 */
@@ -32,20 +38,56 @@ export class User implements UserType, BaseEntity {
   bio?: string;
   /** 兴趣爱好 */
   interests: string[];
+  /** 职业 */
+  occupation?: string;
+  /** 教育背景 */
+  education?: string;
   /** 位置信息 */
   location: Location;
+  /** 隐私设置 */
+  privacySettings: PrivacySettings;
   /** 用户偏好设置 */
   preferences: UserPreferences;
+  /** 通知设置 */
+  notificationSettings: NotificationSettings;
+  /** 安全设置 */
+  securitySettings?: SecuritySettings;
+  /** 测试和匹配相关信息 */
+  matching: {
+    completedTests: string[];
+    testWeights: Record<string, number>;
+    testResults: Record<string, {
+      score: number;
+      details: any;
+      lastUpdated: string;
+    }>;
+  };
   /** 是否已验证 */
   isVerified: boolean;
   /** 最后活跃时间 */
   lastActive: Date;
+  /** 是否在线 */
+  isOnline: boolean;
   /** 用户状态 */
   status: 'active' | 'inactive' | 'suspended';
   /** 创建时间 */
   createdAt: Date;
   /** 更新时间 */
   updatedAt: Date;
+  /** 邮箱是否已验证 */
+  emailVerified?: boolean;
+  /** 手机号是否已验证 */
+  phoneVerified?: boolean;
+  /** 密码哈希 */
+  passwordHash?: string;
+  /** 认证提供者 */
+  provider?: 'email' | 'phone' | 'google' | 'facebook' | 'apple';
+  /** 显示名称 */
+  displayName?: string;
+  /** 头像URL */
+  photoURL?: string;
+  /** 手机号码 */
+  phoneNumber?: string;
 
   /**
    * 创建用户实例
@@ -79,6 +121,51 @@ export class User implements UserType, BaseEntity {
     if (!this.lastActive) this.lastActive = new Date();
     if (!this.createdAt) this.createdAt = new Date();
     if (!this.updatedAt) this.updatedAt = new Date();
+    if (!this.isOnline) this.isOnline = false;
+    if (!this.matching) {
+      this.matching = {
+        completedTests: [],
+        testWeights: {},
+        testResults: {}
+      };
+    }
+    if (!this.privacySettings) {
+      this.privacySettings = {
+        showProfileToEveryone: true,
+        showOnlineStatus: true,
+        showLastActive: true,
+        showInDiscovery: true,
+        showDistance: true,
+        allowDataCollection: true,
+        allowPersonalizedAds: true,
+        showEmailToMatches: false,
+        showPhoneToMatches: false,
+        allowProfileSharing: true
+      };
+    }
+    if (!this.notificationSettings) {
+      this.notificationSettings = {
+        newMatches: true,
+        matchMessages: true,
+        profileViews: true,
+        profileLikes: true,
+        appUpdates: true,
+        promotions: true
+      };
+    }
+    if (!this.preferences) {
+      this.preferences = {
+        ageRange: { min: 18, max: 99 },
+        distance: 50,
+        gender: ['male', 'female'],
+        interests: [],
+        language: 'zh-CN',
+        theme: {
+          darkMode: false,
+          accentColor: '#3B82F6'
+        }
+      };
+    }
   }
 
   /**
@@ -94,6 +181,10 @@ export class User implements UserType, BaseEntity {
       interests: JSON.stringify(this.interests),
       location: JSON.stringify(this.location),
       preferences: JSON.stringify(this.preferences),
+      privacySettings: JSON.stringify(this.privacySettings),
+      notificationSettings: JSON.stringify(this.notificationSettings),
+      securitySettings: this.securitySettings ? JSON.stringify(this.securitySettings) : null,
+      matching: JSON.stringify(this.matching),
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString()
     };
@@ -113,6 +204,10 @@ export class User implements UserType, BaseEntity {
       interests: typeof record.interests === 'string' ? JSON.parse(record.interests) : record.interests,
       location: typeof record.location === 'string' ? JSON.parse(record.location) : record.location,
       preferences: typeof record.preferences === 'string' ? JSON.parse(record.preferences) : record.preferences,
+      privacySettings: typeof record.privacySettings === 'string' ? JSON.parse(record.privacySettings) : record.privacySettings,
+      notificationSettings: typeof record.notificationSettings === 'string' ? JSON.parse(record.notificationSettings) : record.notificationSettings,
+      securitySettings: record.securitySettings ? (typeof record.securitySettings === 'string' ? JSON.parse(record.securitySettings) : record.securitySettings) : undefined,
+      matching: typeof record.matching === 'string' ? JSON.parse(record.matching) : record.matching,
       createdAt: record.createdAt ? new Date(record.createdAt) : undefined,
       updatedAt: record.updatedAt ? new Date(record.updatedAt) : undefined
     });

@@ -2,6 +2,14 @@ import { IDataService } from './data-service-interface';
 import { DatabaseService } from './database-service';
 import { MockDataService } from './mock-data-service';
 import { OfflineStorageService } from './offline-storage-service';
+import { Capacitor } from '@capacitor/core';
+
+// 检查是否在浏览器环境中运行
+const isBrowser = typeof window !== 'undefined';
+// 检查是否在服务器环境中运行
+const isServer = typeof process !== 'undefined' && process.versions?.node;
+// 检查是否在原生环境中运行
+const isNative = Capacitor.isNativePlatform();
 
 /**
  * 数据服务工厂类
@@ -18,27 +26,52 @@ export class DataServiceFactory {
    * 
    * 根据当前环境和配置返回适当的数据服务实例
    * @returns 数据服务实例
+   * @throws Error 如果服务初始化失败
    */
   public static getDataService(): IDataService {
     if (!DataServiceFactory.instance) {
       try {
-        // 根据环境变量或其他配置决定使用哪种数据服务
-        if (DataServiceFactory.useMock || process.env.REACT_APP_USE_MOCK_DATA === 'true') {
-          console.log('Using MockDataService for data operations');
-          // 我们使用类型断言，因为我们知道这些服务已经实现了IDataService接口
-          const mockService = MockDataService.getInstance();
-          DataServiceFactory.instance = mockService as unknown as IDataService;
+        // 获取环境配置
+        const dbEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+        const mockDbType = process.env.NEXT_PUBLIC_MOCK_DB_TYPE || 'memory';
+        const useFakeIndexedDB = process.env.NEXT_PUBLIC_USE_FAKE_INDEXEDDB === 'true';
+        const jsonFilePath = process.env.NEXT_PUBLIC_MOCK_DB_JSON_PATH;
+        const autoSave = process.env.NEXT_PUBLIC_MOCK_DB_AUTO_SAVE === 'true';
+
+        // 检查是否使用Mock数据
+        const shouldUseMock = DataServiceFactory.useMock || dbEnv === 'mock';
+
+        if (shouldUseMock || (isBrowser && !isNative)) {
+          // 在浏览器环境中使用Mock服务
+          console.log(`Using MockDataService with ${mockDbType} storage${useFakeIndexedDB ? ' and fake-indexeddb' : ''}`);
+          
+          DataServiceFactory.instance = MockDataService.getInstance({
+            mockMode: mockDbType as 'memory' | 'json',
+            jsonFilePath,
+            autoSave
+          });
+        } else if (isNative) {
+          // 在原生环境中使用Capacitor SQLite
+          console.log('Using Capacitor SQLite for data storage');
+          DataServiceFactory.instance = DatabaseService.getInstance();
+        } else if (dbEnv === 'local') {
+          // 在本地环境中使用IndexedDB
+          console.log('Using IndexedDB for data storage');
+          DataServiceFactory.instance = DatabaseService.getInstance();
         } else {
-          console.log('Using DatabaseService for data operations');
-          // 当useHybrid为true时，会使用混合数据库客户端
-          // 这由DatabaseService内部处理，因为它会检查环境变量
-          const dbService = DatabaseService.getInstance();
-          DataServiceFactory.instance = dbService as unknown as IDataService;
+          // 在生产环境中使用生产数据库
+          console.log('Using production database service');
+          DataServiceFactory.instance = DatabaseService.getInstance();
         }
       } catch (error) {
-        console.error('Error initializing data service:', error);
-        throw new Error('Failed to initialize data service');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.error('Error initializing data service:', errorMessage);
+        throw new Error(`Failed to initialize data service: ${errorMessage}`);
       }
+    }
+    
+    if (!DataServiceFactory.instance) {
+      throw new Error('Data service instance is null after initialization');
     }
     
     return DataServiceFactory.instance;
@@ -48,13 +81,13 @@ export class DataServiceFactory {
    * 设置是否使用模拟数据服务
    * 
    * @param useMock 是否使用模拟数据
+   * @throws Error 如果尝试在服务初始化后更改设置
    */
   public static setUseMockData(useMock: boolean): void {
-    // 只有在实例未创建前可以更改设置
     if (!DataServiceFactory.instance) {
       DataServiceFactory.useMock = useMock;
     } else {
-      console.warn('Cannot change data service type after it has been initialized');
+      throw new Error('Cannot change data service type after it has been initialized');
     }
   }
 
@@ -62,17 +95,16 @@ export class DataServiceFactory {
    * 设置是否使用混合数据库客户端
    * 
    * @param useHybrid 是否使用混合客户端
+   * @throws Error 如果尝试在服务初始化后更改设置
    */
   public static setUseHybridClient(useHybrid: boolean): void {
-    // 只有在实例未创建前可以更改设置
     if (!DataServiceFactory.instance) {
       DataServiceFactory.useHybrid = useHybrid;
-      // 将设置保存到环境变量中，使DatabaseService可以访问
       if (typeof process !== 'undefined' && process.env) {
         process.env.NEXT_PUBLIC_USE_HYBRID_CLIENT = useHybrid ? 'true' : 'false';
       }
     } else {
-      console.warn('Cannot change database client type after it has been initialized');
+      throw new Error('Cannot change database client type after it has been initialized');
     }
   }
 
@@ -88,6 +120,8 @@ export class DataServiceFactory {
   /**
    * 获取离线存储服务实例
    * 专门用于处理离线专用数据
+   * 
+   * @returns 离线存储服务实例
    */
   public static getOfflineStorageService(): OfflineStorageService {
     return OfflineStorageService.getInstance();
@@ -96,15 +130,17 @@ export class DataServiceFactory {
   /**
    * 获取离线模式的数据服务
    * 强制使用本地数据库，忽略环境设置
+   * 
+   * @returns 离线模式数据服务实例
    */
   public static getOfflineModeService(): IDataService {
-    const dbService = DatabaseService.getInstance();
-    return dbService as unknown as IDataService;
+    return DatabaseService.getInstance();
   }
   
   /**
    * 获取数据服务实例
    * 与getDataService方法相同，提供兼容性支持
+   * 
    * @returns 数据服务实例
    */
   public static getInstance(): IDataService {
@@ -116,22 +152,19 @@ export class DataServiceFactory {
    * 强制使用混合数据库客户端，无论环境设置如何
    * 
    * @returns 混合数据库服务实例
+   * @throws Error 如果服务初始化失败
    */
   public static getHybridService(): IDataService {
-    // 保存当前设置
     const currentHybridSetting = DataServiceFactory.useHybrid;
     
     try {
-      // 临时强制使用混合客户端
       DataServiceFactory.setUseHybridClient(true);
-      
-      // 重置当前实例，以便下次获取时创建新实例
       DataServiceFactory.resetDataService();
-      
-      // 获取使用混合客户端的服务实例
       return DataServiceFactory.getDataService();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to initialize hybrid service: ${errorMessage}`);
     } finally {
-      // 恢复原始设置，但不重置实例，因为我们已经创建了一个
       DataServiceFactory.useHybrid = currentHybridSetting;
     }
   }
@@ -139,21 +172,25 @@ export class DataServiceFactory {
   /**
    * 初始化所有服务
    * 用于应用启动时预初始化
+   * 
+   * @throws Error 如果任何服务初始化失败
    */
   public static async initializeAll(): Promise<void> {
     try {
-      // 初始化数据服务
       const dataService = this.getDataService();
-      await dataService.initialize();
-      
-      // 初始化离线存储服务
       const offlineService = this.getOfflineStorageService();
-      await offlineService.initialize();
-      
+
+      // 并行初始化服务以提高性能
+      await Promise.all([
+        dataService.initialize(),
+        offlineService.initialize()
+      ]);
+
       console.log('All data services successfully initialized');
     } catch (error) {
-      console.error('Failed to initialize data services:', error);
-      throw new Error('Service initialization failed');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Failed to initialize data services:', errorMessage);
+      throw new Error(`Service initialization failed: ${errorMessage}`);
     }
   }
 }

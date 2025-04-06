@@ -16,13 +16,13 @@ import {
   IonButton,
   IonToast
 } from '@ionic/react';
-import { useServices } from '@/core/hooks/useServices';
+import { useAuth } from '@/core/hooks/useAuth';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 
 export default function PhoneSignupPage() {
   const router = useRouter();
-  const { authService, isLoading, error } = useServices();
+  const { isLoading, error, sendVerificationCode, loginWithPhone } = useAuth();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
@@ -33,14 +33,8 @@ export default function PhoneSignupPage() {
     e.preventDefault();
     setToastMessage('');
 
-    if (!authService) {
-      setToastMessage('Authentication service not available');
-      setShowToast(true);
-      return;
-    }
-
     try {
-      await authService.sendVerificationCode(phoneNumber);
+      await sendVerificationCode(phoneNumber);
       setStep('verify');
     } catch (err) {
       console.error('Failed to send verification code:', err);
@@ -53,14 +47,8 @@ export default function PhoneSignupPage() {
     e.preventDefault();
     setToastMessage('');
 
-    if (!authService) {
-      setToastMessage('Authentication service not available');
-      setShowToast(true);
-      return;
-    }
-
     try {
-      await authService.loginWithPhone(phoneNumber, verificationCode);
+      await loginWithPhone(phoneNumber, verificationCode);
       router.push('/mobile/home');
     } catch (err) {
       console.error('Failed to verify code:', err);
@@ -185,4 +173,4 @@ export default function PhoneSignupPage() {
       />
     </IonPage>
   );
-} 
+}

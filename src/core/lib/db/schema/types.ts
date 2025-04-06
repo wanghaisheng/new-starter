@@ -22,7 +22,9 @@ export interface ColumnDefinition {
   type: ColumnType;
   primaryKey?: boolean;
   nullable?: boolean;
-  defaultValue?: any;
+  notNull?: boolean;
+  defValue?: any;
+  unique?: boolean;
   references?: {
     table: string;
     column: string;

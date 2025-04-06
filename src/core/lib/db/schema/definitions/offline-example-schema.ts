@@ -1,5 +1,6 @@
 import { SyncPriority, ConflictResolution } from '@/core/lib/db/types/sync-flags';
 import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
+import { ColumnType } from '@/core/lib/db/schema/types';
 
 /**
  * 离线笔记表 - 示例表结构
@@ -17,47 +18,46 @@ const offlineNotesSchema: TableSchema = {
   columns: [
     {
       name: 'id',
-      type: 'string',
+      type: ColumnType.STRING,
       primaryKey: true,
-      required: true
+      notNull: true
     },
     {
       name: 'title',
-      type: 'string',
-      required: true
+      type: ColumnType.STRING,
+      notNull: true
     },
     {
       name: 'content',
-      type: 'text',
-      required: true
+      type: ColumnType.TEXT,
+      notNull: true
     },
     {
       name: 'tags',
-      type: 'json',
-      default: '[]'
+      type: ColumnType.JSON,
+      defValue: '[]'
     },
     {
       name: 'isEncrypted',
-      type: 'boolean',
-      default: false
+      type: ColumnType.BOOLEAN,
+      defValue: false
     },
     {
       name: 'deviceId',
-      type: 'string',
-      required: true,
-      // description property doesn't exist in ColumnDefinition, removing it
+      type: ColumnType.STRING,
+      notNull: true
     },
     {
       name: 'createdAt',
-      type: 'date',
-      required: true,
-      default: () => new Date()
+      type: ColumnType.DATE,
+      notNull: true,
+      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
-      type: 'date',
-      required: true,
-      default: () => new Date()
+      type: ColumnType.DATE,
+      notNull: true,
+      defValue: () => new Date()
     }
   ],
   indexes: [

@@ -6,7 +6,9 @@ import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
 import { User } from '@/core/lib/db/types/user';
 import { Message } from '@/core/lib/db/types/message';
-import { useServices } from '@/core/hooks/useServices';
+import { useAuth } from '@/core/hooks/useAuth';
+import { useUser } from '@/core/hooks/useUser';
+import { useMessages } from '@/core/hooks/useMessages';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
@@ -14,8 +16,9 @@ import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 export default function ChatPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { userService, messageService, authService, isLoading, error } = useServices();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { user: currentUser } = useAuth();
+  const { loading: userLoading, error: userError } = useUser();
+  const { messages, loading: messageLoading, error: messageError, getMatchMessages, sendMessage } = useMessages();
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
@@ -23,15 +26,17 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const userId = searchParams.get('id');
+  const isLoading = userLoading || messageLoading;
+  const error = userError || messageError;
   
   useEffect(() => {
     if (userId) {
       loadChat();
     }
-  }, [userId, userService, messageService]);
+  }, [userId, getMatchMessages]);
   
   const loadChat = async () => {
-    if (!userService || !messageService || !userId) return;
+    if (!userId) return;
     
     try {
       // Load other user's profile
@@ -45,8 +50,7 @@ export default function ChatPage() {
       setOtherUser(user);
       
       // Load messages
-      const chatMessages = await messageService.getMessages(userId, { orderBy: { createdAt: 'asc' } });
-      setMessages(chatMessages);
+      await getMatchMessages(userId);
       
       // Scroll to bottom
       scrollToBottom();
@@ -57,29 +61,17 @@ export default function ChatPage() {
     }
   };
   
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  
   const handleSendMessage = async () => {
-    if (!messageService || !userId || !newMessage.trim() || !authService) return;
+    if (!userId || !newMessage.trim() || !currentUser) return;
     
     try {
-      const currentUser = await authService.getCurrentUser();
-      if (!currentUser) {
-        setToastMessage('Please sign in to send messages');
-        setShowToast(true);
-        return;
-      }
-
-      const message = await messageService.sendMessage(
-        userId,
-        currentUser.id,
-        userId,
-        newMessage.trim(),
-        'text'
-      );
-      setMessages(prev => [...prev, message]);
+      await sendMessage({
+        matchId: userId,
+        senderId: currentUser.id,
+        receiverId: userId,
+        content: newMessage.trim(),
+        type: 'text'
+      });
       setNewMessage('');
       scrollToBottom();
     } catch (err) {
@@ -87,6 +79,10 @@ export default function ChatPage() {
       setToastMessage('Failed to send message. Please try again.');
       setShowToast(true);
     }
+  };
+  
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
   
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -202,4 +198,4 @@ export default function ChatPage() {
       />
     </IonPage>
   );
-} 
+}

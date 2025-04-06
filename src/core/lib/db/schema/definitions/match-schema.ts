@@ -1,4 +1,5 @@
 import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
+import { ColumnType } from '@/core/lib/db/schema/types';
 
 /**
  * 匹配表结构定义
@@ -9,32 +10,32 @@ const matchSchema: TableSchema = {
   columns: [
     {
       name: 'id',
-      type: 'string',
+      type: ColumnType.STRING,
       primaryKey: true,
       notNull: true
     },
     {
       name: 'users',
-      type: 'json',
+      type: ColumnType.JSON,
       notNull: true
     },
     {
       name: 'status',
-      type: 'string',
+      type: ColumnType.STRING,
       notNull: true,
-      defaultValue: 'pending'
+      defValue: 'pending'
     },
     {
       name: 'createdAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
-      type: 'date',
+      type: ColumnType.DATE,
       notNull: true,
-      defaultValue: () => new Date()
+      defValue: () => new Date()
     }
   ],
   indexes: [

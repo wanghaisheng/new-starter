@@ -1,40 +1,43 @@
 import {getRequestConfig} from 'next-intl/server';
 import {notFound} from 'next/navigation';
-import {locales} from './dictionaries';
 
-export default getRequestConfig(async ({locale}) => {
+// Define supported locales as a const array for type safety
+export const locales = ['en', 'zh'] as const;
+export type Locale = typeof locales[number];
+
+export default getRequestConfig(async ({locale}: { locale: string }) => {
   // Validate that the incoming `locale` parameter is valid
-  if (!locales.includes(locale as any)) notFound();
+  if (!locales.includes(locale as Locale)) notFound();
 
   return {
-    locale,
+    locale: locale as Locale,
     messages: (await import(`./dictionaries/${locale}.json`)).default
   };
 });
 
-// 导出支持的语言列表
+// Export supported locales
 export const supportedLocales = locales;
 
-// 导出默认语言
-export const defaultLocale = 'en' as const;
+// Export default locale with type safety
+export const defaultLocale: Locale = 'en';
 
-// 导出语言切换函数
-export const changeLocale = (locale: string) => {
+// Export locale change function with type safety
+export const changeLocale = (locale: Locale) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('locale', locale);
     window.location.reload();
   }
 };
 
-// 导出语言检测函数
-export const detectLocale = (): string => {
+// Export locale detection function with type safety
+export const detectLocale = (): Locale => {
   if (typeof window !== 'undefined') {
-    const savedLocale = localStorage.getItem('locale');
+    const savedLocale = localStorage.getItem('locale') as Locale | null;
     if (savedLocale && supportedLocales.includes(savedLocale)) {
       return savedLocale;
     }
     
-    const browserLocale = navigator.language.split('-')[0];
+    const browserLocale = navigator.language.split('-')[0] as Locale;
     if (supportedLocales.includes(browserLocale)) {
       return browserLocale;
     }

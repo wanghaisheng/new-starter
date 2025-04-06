@@ -126,6 +126,9 @@ export interface User extends BaseEntity {
   photoURL?: string;
   /** 手机号码 */
   phoneNumber?: string;
+
+  /** 未读通知数量 */
+  unreadNotifications?: number;
 }
 
 /**

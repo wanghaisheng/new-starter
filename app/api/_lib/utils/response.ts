@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
 
+interface ErrorResponse {
+  code: string;
+  message: string;
+  status: number;
+  details?: any;
+}
+
 export interface APIResponse<T = any> {
   success: boolean;
   data?: T;
@@ -17,38 +24,45 @@ export interface APIResponse<T = any> {
 }
 
 export class APIResponseBuilder {
-  static success<T>(
-    data: T,
-    options: { status?: number; meta?: APIResponse['meta'] } = {}
-  ): NextResponse {
-    const response: APIResponse<T> = {
-      success: true,
-      data,
-      meta: options.meta
-    };
-
-    return NextResponse.json(response, { 
-      status: options.status || 200 
-    });
+  static success<T>(data: T, options: { status?: number } = {}) {
+    return NextResponse.json(
+      {
+        success: true,
+        data,
+      },
+      { status: options.status || 200 }
+    );
   }
 
-  static error(error: {
-    code: string;
-    message: string;
-    details?: any;
-    status?: number;
-  }): NextResponse {
-    const response: APIResponse = {
-      success: false,
-      error: {
-        code: error.code,
-        message: error.message,
-        details: error.details
-      }
-    };
+  static error(error: ErrorResponse) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        },
+      },
+      { status: error.status }
+    );
+  }
+}
 
-    return NextResponse.json(response, { 
-      status: error.status || 500 
+export function handleApiError(error: unknown, defaultMessage: string) {
+  console.error('API Error:', error);
+  
+  if (error instanceof Error) {
+    return APIResponseBuilder.error({
+      code: 'SERVER_ERROR',
+      message: error.message,
+      status: 500
     });
   }
+  
+  return APIResponseBuilder.error({
+    code: 'SERVER_ERROR',
+    message: defaultMessage,
+    status: 500
+  });
 } 

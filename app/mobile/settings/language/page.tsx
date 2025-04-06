@@ -22,7 +22,7 @@ import {
   IonIcon
 } from '@ionic/react';
 import { languageOutline } from 'ionicons/icons';
-import { useServices } from '@/core/hooks/useServices';
+import { useUser } from '@/core/hooks/useUser';
 import { User } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
@@ -30,7 +30,7 @@ import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 
 export default function LanguageSettingsPage() {
   const router = useRouter();
-  const { userService, isLoading, error } = useServices();
+  const { user, loading: isLoading, error, updateUser } = useUser();
   const [user, setUser] = useState<User | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -214,4 +214,4 @@ export default function LanguageSettingsPage() {
       />
     </IonPage>
   );
-} 
+}

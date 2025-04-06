@@ -96,25 +96,7 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
       }
 
       this.db = await openDB(this.config.name || 'app-database', this.config.version || 1, {
-        upgrade: (db) => {
-          try {
-            const schemas = schemaRegistry.getAllSchemas();
-            for (const schema of schemas) {
-              if (!db.objectStoreNames.contains(schema.name)) {
-                const store = db.createObjectStore(schema.name, { keyPath: 'id' });
-                if (schema.indexes) {
-                  for (const index of schema.indexes) {
-                    store.createIndex(index.name, index.columns, { unique: index.unique });
-                  }
-                }
-              }
-            }
-            this.logger.info('数据库模式升级成功', { version: this.config.version });
-          } catch (error) {
-            this.logger.error('数据库模式升级失败', error);
-            throw error;
-          }
-        },
+        upgrade: (db) => this.upgradeDatabase(db),
       });
 
       this.initialized = true;
@@ -188,45 +170,24 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
 
   /**
    * 通过ID查找记录
-   * @param tableName 表名
+   * @param collection 表名
    * @param id 记录ID
    * @returns 记录对象或null（如果不存在）
    */
-  async findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null> {
+  async findById<T>(collection: string, id: string): Promise<T | null> {
     try {
       this.checkInitialized();
       
-      return this.measurePerformance(`findById:${tableName}`, async () => {
-        // 检查缓存
-        if (this.enableEntityCache) {
-          const cache = this.getTableCache(tableName);
-          const cached = cache.get(id);
-          if (cached) {
-            this.logger.debug(`从缓存读取记录: ${tableName}/${id}`);
-            return this.processResult<T>(cached);
-          }
-        }
-
-        const result = await this.db!.get(tableName, id);
-        
-        if (result) {
-          const processed = this.processResult<T>(result);
-          
-          // 更新缓存
-          if (this.enableEntityCache) {
-            const cache = this.getTableCache(tableName);
-            cache.set(id, processed);
-          }
-          
-          return processed;
-        }
-        
-        return null;
-      });
+      const store = this.db!.transaction(collection, 'readonly').objectStore(collection);
+      const result = await store.get(id);
+      
+      if (!result) return null;
+      
+      return this.processResult<T>(result);
     } catch (error) {
       throw this.createError(
-        DatabaseErrorCode.QUERY_ERROR,
-        `查询记录失败: ${tableName}/${id}`,
+        DatabaseErrorCode.OPERATION_FAILED,
+        `Failed to find record by ID: ${error instanceof Error ? error.message : String(error)}`,
         error
       );
     }
@@ -234,49 +195,28 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
 
   /**
    * 查找表中的所有记录
-   * @param tableName 表名
+   * @param collection 表名
    * @param filter 过滤条件
    * @returns 记录数组
    */
-  async findAll<T extends BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
+  async findAll<T>(collection: string, filter?: Record<string, any>): Promise<T[]> {
     try {
       this.checkInitialized();
       
-      return this.measurePerformance(`findAll:${tableName}`, async () => {
-        // 如果有过滤条件，使用query方法
-        if (filter && Object.keys(filter).length > 0) {
-          const result = await this.query<T>(tableName, { where: filter });
-          return result.data;
-        }
-        
-        // 检查缓存
-        if (this.enableEntityCache) {
-          const cache = this.getTableCache(tableName);
-          if (cache.size > 0) {
-            this.logger.debug(`从缓存读取所有记录: ${tableName}`);
-            return Array.from(cache.values()).map(item => this.processResult<T>(item));
-          }
-        }
-
-        const results = await this.db!.getAll(tableName);
-        const processed = results.map(item => this.processResult<T>(item));
-        
-        // 更新缓存
-        if (this.enableEntityCache) {
-          const cache = this.getTableCache(tableName);
-          results.forEach(item => {
-            if (item.id) {
-              cache.set(item.id, item);
-            }
-          });
-        }
-        
-        return processed;
-      });
+      const store = this.db!.transaction(collection, 'readonly').objectStore(collection);
+      const results = await store.getAll();
+      
+      const processedResults = results.map(result => this.processResult<T>(result));
+      
+      if (filter) {
+        return processedResults.filter(item => this.matchesFilter(item, filter));
+      }
+      
+      return processedResults;
     } catch (error) {
       throw this.createError(
-        DatabaseErrorCode.QUERY_ERROR,
-        `查询所有记录失败: ${tableName}`,
+        DatabaseErrorCode.OPERATION_FAILED,
+        `Failed to find all records: ${error instanceof Error ? error.message : String(error)}`,
         error
       );
     }
@@ -284,38 +224,29 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
 
   /**
    * 创建新记录
-   * @param tableName 表名
+   * @param collection 表名
    * @param data 记录数据
    * @returns 创建的记录
    */
-  async create<T extends BaseEntity>(tableName: string, data: T): Promise<T> {
+  async create<T>(collection: string, data: Partial<T>): Promise<T> {
     try {
       this.checkInitialized();
       
-      return this.measurePerformance(`create:${tableName}`, async () => {
-        const now = new Date();
-        const record = {
-          ...data,
-          id: data.id || this.generateId(),
-          createdAt: data.createdAt || now,
-          updatedAt: now
-        };
-        
-        await this.db!.add(tableName, record);
-        
-        // 更新缓存
-        if (this.enableEntityCache) {
-          const cache = this.getTableCache(tableName);
-          cache.set(record.id, record);
-        }
-        
-        this.logger.info(`记录已创建: ${tableName}/${record.id}`);
-        return this.processResult<T>(record);
-      });
+      const store = this.db!.transaction(collection, 'readwrite').objectStore(collection);
+      const now = new Date();
+      const record = {
+        ...data,
+        id: (data as any).id || this.generateId(),
+        createdAt: now,
+        updatedAt: now
+      };
+      
+      await store.add(record);
+      return record as T;
     } catch (error) {
       throw this.createError(
         DatabaseErrorCode.OPERATION_FAILED,
-        `创建记录失败: ${tableName}`,
+        `Failed to create record: ${error instanceof Error ? error.message : String(error)}`,
         error
       );
     }
@@ -323,47 +254,37 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
 
   /**
    * 更新记录
-   * @param tableName 表名
+   * @param collection 表名
    * @param id 记录ID
    * @param data 要更新的数据
    */
-  async update<T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void> {
+  async update<T>(collection: string, id: string, data: Partial<T>): Promise<T> {
     try {
       this.checkInitialized();
       
-      await this.measurePerformance(`update:${tableName}`, async () => {
-        const existing = await this.db!.get(tableName, id);
-        if (!existing) {
-          throw this.createError(
-            DatabaseErrorCode.NOT_FOUND,
-            `记录不存在: ${tableName}/${id}`
-          );
-        }
-        
-        const record = {
-          ...existing,
-          ...data,
-          id,
-          updatedAt: new Date()
-        };
-        
-        await this.db!.put(tableName, record);
-        
-        // 更新缓存
-        if (this.enableEntityCache) {
-          const cache = this.getTableCache(tableName);
-          cache.set(id, record);
-        }
-        
-        this.logger.info(`记录已更新: ${tableName}/${id}`);
-      });
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
+      const store = this.db!.transaction(collection, 'readwrite').objectStore(collection);
+      const existing = await store.get(id);
+      
+      if (!existing) {
+        throw this.createError(
+          DatabaseErrorCode.NOT_FOUND,
+          `Record not found with ID: ${id}`
+        );
       }
+      
+      const updatedData = {
+        ...existing,
+        ...data,
+        id,
+        updatedAt: new Date()
+      };
+      
+      await store.put(updatedData);
+      return updatedData as T;
+    } catch (error) {
       throw this.createError(
         DatabaseErrorCode.OPERATION_FAILED,
-        `更新记录失败: ${tableName}/${id}`,
+        `Failed to update record: ${error instanceof Error ? error.message : String(error)}`,
         error
       );
     }
@@ -371,40 +292,20 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
 
   /**
    * 删除记录
-   * @param tableName 表名
+   * @param collection 表名
    * @param id 记录ID
    */
-  async delete(tableName: string, id: string): Promise<void> {
+  async delete(collection: string, id: string): Promise<boolean> {
     try {
       this.checkInitialized();
       
-      await this.measurePerformance(`delete:${tableName}`, async () => {
-        // 检查记录是否存在
-        const existing = await this.db!.get(tableName, id);
-        if (!existing) {
-          throw this.createError(
-            DatabaseErrorCode.NOT_FOUND,
-            `记录不存在: ${tableName}/${id}`
-          );
-        }
-        
-        await this.db!.delete(tableName, id);
-        
-        // 更新缓存
-        if (this.enableEntityCache) {
-          const cache = this.getTableCache(tableName);
-          cache.delete(id);
-        }
-        
-        this.logger.info(`记录已删除: ${tableName}/${id}`);
-      });
+      const store = this.db!.transaction(collection, 'readwrite').objectStore(collection);
+      await store.delete(id);
+      return true;
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
       throw this.createError(
         DatabaseErrorCode.OPERATION_FAILED,
-        `删除记录失败: ${tableName}/${id}`,
+        `Failed to delete record: ${error instanceof Error ? error.message : String(error)}`,
         error
       );
     }
@@ -412,70 +313,51 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
 
   /**
    * 执行高级查询
-   * @param tableName 表名
-   * @param options 查询选项
+   * @param collection 表名
+   * @param query 查询条件
    * @returns 查询结果
    */
-  async query<T extends BaseEntity>(tableName: string, options: QueryOptions): Promise<QueryResult<T>> {
+  async query<T>(collection: string, query: any): Promise<QueryResult<T>> {
     try {
       this.checkInitialized();
       
-      return this.measurePerformance(`query:${tableName}`, async () => {
-        // 检查缓存
-        if (this.enableQueryCache) {
-          const cacheKey = this.generateCacheKey(tableName, options);
-          const cached = this.queryCache.get(cacheKey);
-          if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-            this.logger.debug(`从缓存读取查询结果: ${cacheKey}`);
-            return {
-              data: cached.data as T[],
-              total: cached.data.length,
-              hasMore: false
-            };
-          }
-        }
-
-        let results: T[] = [];
-        
-        // 使用索引优化查询
-        const schema = schemaRegistry.getSchema(tableName);
-        if (schema?.indexes && options.where) {
-          const indexMatch = this.findMatchingIndex(schema.indexes, options.where);
-          if (indexMatch) {
-            this.logger.debug(`使用索引进行查询: ${tableName}/${indexMatch.name}`);
-            results = await this.queryUsingIndex<T>(tableName, indexMatch, options.where);
-          } else {
-            results = await this.findAll<T>(tableName);
-          }
-        } else {
-          results = await this.findAll<T>(tableName);
-        }
-        
-        const total = results.length;
-        let processedResults = this.processQueryResults(results, options);
-        
-        // 更新缓存
-        if (this.enableQueryCache) {
-          const cacheKey = this.generateCacheKey(tableName, options);
-          this.updateQueryCache(cacheKey, processedResults);
-        }
-        
-        // 确定是否有更多结果
-        let hasMore = false;
-        if (options.limit !== undefined && options.offset !== undefined) {
-          hasMore = total > (options.offset + options.limit);
-        }
-        
-        return {
-          data: processedResults,
-          total,
-          hasMore
-        };
-      });
+      const store = this.db!.transaction(collection, 'readonly').objectStore(collection);
+      let results = await store.getAll();
+      
+      if (query.where) {
+        results = results.filter(item => this.matchesFilter(item, query.where));
+      }
+      
+      if (query.orderBy) {
+        const { field, direction } = query.orderBy;
+        results.sort((a, b) => {
+          const aValue = a[field];
+          const bValue = b[field];
+          
+          if (aValue === bValue) return 0;
+          const comparison = aValue < bValue ? -1 : 1;
+          return direction === 'asc' ? comparison : -comparison;
+        });
+      }
+      
+      const total = results.length;
+      let processedResults = results.map(result => this.processResult<T>(result));
+      
+      if (query.limit !== undefined || query.offset !== undefined) {
+        const start = query.offset || 0;
+        const end = query.limit !== undefined ? start + query.limit : undefined;
+        processedResults = processedResults.slice(start, end);
+      }
+      
+      return {
+        data: processedResults,
+        total,
+        hasMore: total > (processedResults.length + (query.offset || 0))
+      };
     } catch (error) {
       throw this.createError(
-        DatabaseErrorCode.QUERY_ERROR,
-        `查询失败: ${tableName}`,
+        DatabaseErrorCode.OPERATION_FAILED,
+        `Failed to execute query: ${error instanceof Error ? error.message : String(error)}`,
         error
       );
     }
@@ -483,28 +365,28 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
 
   /**
    * 统计记录数量
-   * @param tableName 表名
+   * @param collection 表名
    * @param filter 过滤条件
    * @returns 记录数量
    */
-  async count(tableName: string, filter?: Record<string, any>): Promise<number> {
+  async count(collection: string, filter?: Record<string, any>): Promise<number> {
     try {
       this.checkInitialized();
       
-      return this.measurePerformance(`count:${tableName}`, async () => {
-        if (!filter || Object.keys(filter).length === 0) {
-          // 如果没有过滤条件，直接使用count()方法
-          return await this.db!.count(tableName);
+      return await this.measurePerformance(`count:${collection}`, async () => {
+        const store = this.db!.transaction(collection, 'readonly').objectStore(collection);
+        const results = await store.getAll();
+        
+        if (filter) {
+          return results.filter(item => this.matchesFilter(item, filter)).length;
         }
         
-        // 有过滤条件时，需要先获取所有记录再过滤
-        const results = await this.findAll(tableName);
-        return filter ? results.filter(item => this.matchesFilter(item, filter)).length : results.length;
+        return results.length;
       });
     } catch (error) {
       throw this.createError(
         DatabaseErrorCode.OPERATION_FAILED,
-        `统计记录数量失败: ${tableName}`,
+        `统计记录数量失败: ${collection}`,
         error
       );
     }
@@ -729,7 +611,7 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
 
   /**
    * 批量操作
-   * @param tableName 表名
+   * @param collection 表名
    * @param operations 操作列表
    */
   async batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
@@ -1043,30 +925,100 @@ export class IndexedDBClient extends BaseClient implements IDatabaseClient {
     let processed = results;
 
     // 应用过滤条件
-    if (options.where) {
-      processed = processed.filter(item => this.matchesFilter(item, options.where!));
+    if (options.filter) {
+      processed = processed.filter(item => this.matchesFilter(item, options.filter!));
     }
 
     // 应用排序
-    if (options.orderBy) {
-      const { field, direction } = options.orderBy;
+    if (options.sort) {
+      const { field, order } = options.sort;
       processed.sort((a, b) => {
         const aValue = (a as any)[field];
         const bValue = (b as any)[field];
         
-        if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+        if (aValue < bValue) return order === 'asc' ? -1 : 1;
+        if (aValue > bValue) return order === 'asc' ? 1 : -1;
         return 0;
       });
     }
 
     // 应用分页
-    if (options.limit !== undefined || options.offset !== undefined) {
-      const start = options.offset || 0;
-      const end = options.limit !== undefined ? start + options.limit : undefined;
-      processed = processed.slice(start, end);
+    if (options.page && options.pageSize) {
+      const start = (options.page - 1) * options.pageSize;
+      processed = processed.slice(start, start + options.pageSize);
     }
 
     return processed;
+  }
+
+  private getFromCache<T>(tableName: string, id: string): T | null {
+    if (!this.enableEntityCache) return null;
+    
+    const tableCache = this.cache.get(tableName);
+    if (!tableCache) return null;
+    
+    const item = tableCache.get(id);
+    if (!item) return null;
+    
+    return item as T;
+  }
+
+  private addToCache<T>(tableName: string, id: string, data: T): void {
+    if (!this.enableEntityCache) return;
+    
+    let tableCache = this.cache.get(tableName);
+    if (!tableCache) {
+      tableCache = new Map();
+      this.cache.set(tableName, tableCache);
+    }
+    
+    tableCache.set(id, data);
+  }
+
+  private removeFromCache(tableName: string, id: string): void {
+    const tableCache = this.cache.get(tableName);
+    if (tableCache) {
+      tableCache.delete(id);
+    }
+  }
+
+  private upgradeDatabase(db: IDBPDatabase): void {
+    try {
+      const schemas = schemaRegistry.getAllSchemas();
+      for (const schema of schemas) {
+        if (!db.objectStoreNames.contains(schema.name)) {
+          const store = db.createObjectStore(schema.name, { keyPath: 'id' });
+          if (schema.indexes) {
+            for (const index of schema.indexes) {
+              store.createIndex(index.name, index.columns, { unique: index.unique });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      throw this.createError(
+        DatabaseErrorCode.INITIALIZATION_ERROR,
+        `Failed to upgrade database: ${error instanceof Error ? error.message : String(error)}`,
+        error
+      );
+    }
+  }
+
+  async connect(): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    await this.close();
+  }
+
+  // Helper method to determine if the call is from BaseClient
+  private isBaseClientCall(): boolean {
+    // This is a simplified check. In a real implementation, you might want to use
+    // more sophisticated methods to determine the caller
+    const stack = new Error().stack || '';
+    return stack.includes('BaseClient');
   }
 } 

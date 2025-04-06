@@ -1,9 +1,9 @@
 'use client';
 
 import { PropsWithChildren, useEffect, useState } from 'react';
-import { DataServiceFactory } from '@/core/services/data-service-factory';
-import { initializeSchemas } from '@/core/lib/db/schema';
-import { schemaRegistry } from '@/core/lib/db/schema';
+import { DataServiceFactory } from '@/core/services/data/data-service-factory';
+import { initializeSchemas, schemaRegistry } from '@/core/lib/db/schema/index';
+import type { Schema } from '@/core/lib/db/schema/index';
 
 export function DatabaseProvider({ children }: PropsWithChildren) {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -25,12 +25,12 @@ export function DatabaseProvider({ children }: PropsWithChildren) {
         // 验证模式是否已注册
         const registeredSchemas = schemaRegistry.getAllSchemas();
         console.log(`✅ 已注册模式 (${registeredSchemas.length}):`, 
-                   registeredSchemas.map(s => s.name).join(', '));
+                   registeredSchemas.map((s: Schema) => s.name).join(', '));
         
         // 检查是否缺少核心模式
         const coreSchemas = ['users', 'matches', 'messages'];
         const missingCoreSchemas = coreSchemas.filter(
-          name => !registeredSchemas.some(s => s.name === name)
+          name => !registeredSchemas.some((s: Schema) => s.name === name)
         );
         
         if (missingCoreSchemas.length > 0) {

@@ -132,7 +132,7 @@ export class MockIndexedDBClient extends IndexedDBClient {
       }
       
       console.log(`📊 正在准备数据库模式...`);
-      const { schemaRegistry, initializeSchemas } = require('@/core/lib/db/schema');
+      const { schemaRegistry, initializeSchemas } = require('@/core/lib/db/schema/index');
       initializeSchemas();
       
       const schemas = schemaRegistry.getAllSchemas();

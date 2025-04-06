@@ -1,10 +1,9 @@
-import { BaseEntity } from './base';
+import { BaseEntity } from './base-entity';
 
 /**
  * 测试类型枚举
  */
-export type TestType = {
-  id: string;
+export type TestType = BaseEntity & {
   type: 'mbti' | 'bazi' | 'wuxing' | 'tcm' | 'soulmate';
   title: string;
   description: string;
@@ -42,14 +41,15 @@ export type MBTIType =
 /**
  * 测试问题类型
  */
-export type TestQuestion = {
-  id: string;
+export type TestQuestion = BaseEntity & {
   type: 'single' | 'multiple' | 'scale';
   question: string;
   options?: string[];
   minScale?: number;
   maxScale?: number;
   weight?: number;
+  order?: number;
+  testTypeId: string;
 };
 
 /**

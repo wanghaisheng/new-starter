@@ -22,6 +22,20 @@ export class SQLiteClient extends BaseClient implements IDatabaseClient {
     this.dbVersion = config.version || 1;
   }
 
+  public async connect(): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+  }
+
+  public async disconnect(): Promise<void> {
+    if (this.db) {
+      await this.db.close();
+      this.db = null;
+      this.initialized = false;
+    }
+  }
+
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
@@ -64,59 +78,94 @@ export class SQLiteClient extends BaseClient implements IDatabaseClient {
     console.log(`清空 SQLite 数据库 "${this.dbName}" 中的所有表`);
   }
 
-  // 通用数据访问方法
-  async findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null> {
+  public async findById<T>(collection: string, id: string): Promise<T | null> {
     this.checkInitialized();
-    
-    // 模拟查询
-    console.log(`查询表 ${tableName} 中ID为 ${id} 的记录`);
-    return null;
+    const result = await this.db.get(`SELECT * FROM ${collection} WHERE id = ?`, [id]);
+    return result as T | null;
   }
 
-  async findAll<T extends BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
+  public async findAll<T>(collection: string, filter?: Record<string, any>): Promise<T[]> {
     this.checkInitialized();
+    let query = `SELECT * FROM ${collection}`;
+    const params: any[] = [];
     
-    // 模拟查询
-    console.log(`查询表 ${tableName} 中的所有记录`);
     if (filter) {
-      console.log(`应用过滤条件:`, filter);
+      const conditions = Object.entries(filter).map(([key, value]) => {
+        params.push(value);
+        return `${key} = ?`;
+      });
+      query += ` WHERE ${conditions.join(' AND ')}`;
     }
     
-    return [];
+    const results = await this.db.all(query, params);
+    return results as T[];
   }
 
-  async create<T extends BaseEntity>(tableName: string, data: T): Promise<T> {
+  public async create<T>(collection: string, data: Partial<T>): Promise<T> {
     this.checkInitialized();
-    
-    // 模拟创建
-    console.log(`在表 ${tableName} 中创建记录:`, data);
-    return data;
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const entity = {
+      ...data,
+      id,
+      createdAt: now,
+      updatedAt: now
+    };
+    await this.db.run(
+      `INSERT INTO ${collection} (id, createdAt, updatedAt, ${Object.keys(data).join(', ')}) 
+       VALUES (?, ?, ?, ${Object.keys(data).map(() => '?').join(', ')})`,
+      [id, now, now, ...Object.values(data)]
+    );
+    return entity as T;
   }
 
-  async update<T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void> {
+  public async update<T>(collection: string, id: string, data: Partial<T>): Promise<T> {
     this.checkInitialized();
-    
-    // 模拟更新
-    console.log(`更新表 ${tableName} 中ID为 ${id} 的记录:`, data);
+    const now = new Date().toISOString();
+    const updates = Object.entries(data).map(([key, value]) => `${key} = ?`).join(', ');
+    await this.db.run(
+      `UPDATE ${collection} SET ${updates}, updatedAt = ? WHERE id = ?`,
+      [...Object.values(data), now, id]
+    );
+    const result = await this.findById<T>(collection, id);
+    if (!result) {
+      throw new Error(`Entity with id ${id} not found in collection ${collection}`);
+    }
+    return result;
   }
 
-  async delete(tableName: string, id: string): Promise<void> {
+  public async delete(collection: string, id: string): Promise<boolean> {
     this.checkInitialized();
-    
-    // 模拟删除
-    console.log(`删除表 ${tableName} 中ID为 ${id} 的记录`);
+    const result = await this.db.run(`DELETE FROM ${collection} WHERE id = ?`, [id]);
+    return result.changes > 0;
   }
 
-  async count(tableName: string, filter?: Record<string, any>): Promise<number> {
+  public async query<T>(collection: string, query: any): Promise<QueryResult<T>> {
     this.checkInitialized();
+    const data = await this.findAll<T>(collection, query);
+    const total = await this.count(collection, query);
+    return {
+      data,
+      total,
+      hasMore: false
+    };
+  }
+
+  public async count(collection: string, filter?: Record<string, any>): Promise<number> {
+    this.checkInitialized();
+    let query = `SELECT COUNT(*) as count FROM ${collection}`;
+    const params: any[] = [];
     
-    // 模拟计数
-    console.log(`计算表 ${tableName} 中的记录数`);
     if (filter) {
-      console.log(`应用过滤条件:`, filter);
+      const conditions = Object.entries(filter).map(([key, value]) => {
+        params.push(value);
+        return `${key} = ?`;
+      });
+      query += ` WHERE ${conditions.join(' AND ')}`;
     }
     
-    return 0;
+    const result = await this.db.get(query, params);
+    return result.count;
   }
 
   /**
@@ -150,129 +199,19 @@ export class SQLiteClient extends BaseClient implements IDatabaseClient {
     }
   }
 
-  /**
-   * 查询
-   * @param tableName 表名
-   * @param options 查询选项
-   */
-  async query<T extends BaseEntity>(tableName: string, options: QueryOptions): Promise<QueryResult<T>> {
-    this.checkInitialized();
-    
-    // 模拟查询
-    console.log(`查询表 ${tableName}，选项:`, options);
-    
-    return {
-      data: [],
-      total: 0,
-      hasMore: false
-    };
-  }
-
-  /**
-   * 执行SQL
-   * @param sql SQL语句
-   * @param params 参数
-   */
-  async execute(sql: string, params?: any[]): Promise<void> {
-    this.checkInitialized();
-    
-    // 模拟SQL执行
-    console.log(`执行SQL: ${sql}`);
-    if (params) {
-      console.log(`参数:`, params);
-    }
-  }
-
-  /**
-   * 批量操作
-   * @param tableName 表名
-   * @param operations 操作数组
-   */
-  async batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
-    this.checkInitialized();
-    
-    // 模拟批处理
-    console.log(`执行批处理操作，表 ${tableName}，共 ${operations.length} 个操作`);
-  }
-
-  /**
-   * 清空表
-   * @param tableName 表名
-   */
-  async clearTable(tableName: string): Promise<void> {
-    this.checkInitialized();
-    
-    // 模拟清空表
-    console.log(`清空表 ${tableName}`);
-  }
-
-  /**
-   * 开始事务
-   */
   public async beginTransaction(): Promise<void> {
     this.checkInitialized();
-    
-    if (this.transactionActive) {
-      throw this.createError(
-        DatabaseErrorCode.TRANSACTION_ERROR,
-        '已有活动事务'
-      );
-    }
-    
-    try {
-      await this.execute('BEGIN TRANSACTION');
-      this.transactionActive = true;
-      this.logger.debug('SQLite 事务已开始');
-    } catch (error) {
-      this.logger.error('开始事务失败', error);
-      throw this.createError(
-        DatabaseErrorCode.TRANSACTION_ERROR,
-        '开始事务失败',
-        error
-      );
-    }
+    await this.db.run('BEGIN TRANSACTION');
   }
 
-  /**
-   * 提交事务
-   */
   public async commitTransaction(): Promise<void> {
     this.checkInitialized();
-    this.checkTransactionActive();
-    
-    try {
-      await this.execute('COMMIT');
-      this.transactionActive = false;
-      this.logger.debug('SQLite 事务已提交');
-    } catch (error) {
-      this.logger.error('提交事务失败', error);
-      throw this.createError(
-        DatabaseErrorCode.TRANSACTION_COMMIT_ERROR,
-        '提交事务失败',
-        error
-      );
-    }
+    await this.db.run('COMMIT');
   }
 
-  /**
-   * 回滚事务
-   */
   public async rollbackTransaction(): Promise<void> {
     this.checkInitialized();
-    this.checkTransactionActive();
-    
-    try {
-      await this.execute('ROLLBACK');
-      this.transactionActive = false;
-      this.logger.debug('SQLite 事务已回滚');
-    } catch (error) {
-      this.logger.error('回滚事务失败', error);
-      throw this.createError(
-        DatabaseErrorCode.TRANSACTION_ROLLBACK_ERROR,
-        '回滚事务失败',
-        error
-      );
-    }
+    await this.db.run('ROLLBACK');
   }
 
   /**
@@ -282,21 +221,8 @@ export class SQLiteClient extends BaseClient implements IDatabaseClient {
    */
   public async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
     this.checkInitialized();
-    
-    try {
-      console.log(`执行原始查询: ${query}`);
-      if (params) {
-        console.log(`参数:`, params);
-      }
-      return [];
-    } catch (error) {
-      this.logger.error('执行原始查询失败', error);
-      throw this.createError(
-        DatabaseErrorCode.QUERY_ERROR,
-        '执行原始查询失败',
-        error
-      );
-    }
+    const results = await this.db.all(query, params || []);
+    return results as R[];
   }
 
   /**
@@ -396,5 +322,29 @@ export class SQLiteClient extends BaseClient implements IDatabaseClient {
    */
   public async deleteMessage(id: string): Promise<void> {
     return this.delete('messages', id);
+  }
+
+  public async batch<T>(collection: string, operations: BatchOperation<T>[]): Promise<void> {
+    this.checkInitialized();
+    await this.beginTransaction();
+    try {
+      for (const operation of operations) {
+        switch (operation.type) {
+          case 'create':
+            await this.create(collection, operation.data);
+            break;
+          case 'update':
+            await this.update(collection, operation.id, operation.data);
+            break;
+          case 'delete':
+            await this.delete(collection, operation.id);
+            break;
+        }
+      }
+      await this.commitTransaction();
+    } catch (error) {
+      await this.rollbackTransaction();
+      throw error;
+    }
   }
 }

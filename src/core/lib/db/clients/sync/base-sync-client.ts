@@ -1,7 +1,9 @@
 import { EventEmitter } from 'events';
+import { NetworkStatus } from '@capacitor/network';
 
-import { NetworkService } from '@/core/services/network-service';
+import { NetworkService } from '@/core/services/data/network-service';
 import { IDatabaseClient, SyncConfig, SyncStrategy, SyncStatus } from '@/core/lib/db/interfaces';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
 
 /**
  * 基础同步客户端
@@ -12,7 +14,7 @@ export abstract class BaseSyncClient {
   protected remoteClient: IDatabaseClient;
   protected syncStrategy: SyncStrategy;
   protected isOnline: boolean = true;
-  protected pendingSync: Map<string, any[]> = new Map();
+  protected pendingSync: Map<string, BaseEntity[]> = new Map();
   protected syncInProgress: boolean = false;
   protected syncInterval: NodeJS.Timeout | null = null;
   protected lastSyncTimestamp: number = 0;
@@ -24,7 +26,7 @@ export abstract class BaseSyncClient {
   constructor(config: SyncConfig) {
     this.localClient = config.localClient;
     this.remoteClient = config.remoteClient;
-    this.syncStrategy = config.syncStrategy || 'offline-first';
+    this.syncStrategy = config.strategy || 'offline-first';
     
     // 设置最大重试次数（如果配置中提供）
     if (config.maxSyncRetries !== undefined) {
@@ -60,11 +62,9 @@ export abstract class BaseSyncClient {
    * 触发同步状态变化事件
    */
   protected emitSyncStatusChange() {
-    const status: SyncStatus = {
-      lastSyncTimestamp: this.lastSyncTimestamp,
-      pendingChanges: this.getTotalPendingChanges(),
-      isSyncing: this.syncInProgress,
-    };
+    const status: SyncStatus = this.syncInProgress ? 'syncing' : 
+                              this.pendingSync.size > 0 ? 'pending' : 
+                              this.syncRetryCount > 0 ? 'failed' : 'completed';
     
     this.eventEmitter.emit('syncStatusChange', status);
   }
@@ -74,7 +74,7 @@ export abstract class BaseSyncClient {
    */
   protected getTotalPendingChanges(): number {
     let total = 0;
-    for (const items of this.pendingSync.values()) {
+    for (const items of Array.from(this.pendingSync.values())) {
       total += items.length;
     }
     return total;
@@ -86,7 +86,7 @@ export abstract class BaseSyncClient {
   protected setupNetworkListener() {
     // 使用网络服务监听网络状态变化
     const networkService = NetworkService.getInstance();
-    networkService.onNetworkStatusChange((status) => {
+    networkService.addNetworkStatusListener((status: NetworkStatus) => {
       const wasOffline = !this.isOnline;
       this.isOnline = status.connected;
       
@@ -161,7 +161,7 @@ export abstract class BaseSyncClient {
     
     try {
       // 同步所有待处理的操作
-      for (const [collection, items] of this.pendingSync.entries()) {
+      for (const [collection, items] of Array.from(this.pendingSync.entries())) {
         await this.syncCollectionItems(collection, items);
       }
       
@@ -203,7 +203,7 @@ export abstract class BaseSyncClient {
    * 同步特定集合的项目
    * 子类必须实现此方法以处理特定类型的数据同步
    */
-  protected abstract syncCollectionItems(collection: string, items: any[]): Promise<void>;
+  protected abstract syncCollectionItems(collection: string, items: BaseEntity[]): Promise<void>;
 
   /**
    * 初始化数据库连接
@@ -269,10 +269,9 @@ export abstract class BaseSyncClient {
       }
     }
     
-    // 清空待同步操作
+    // 清空待同步队列
     this.pendingSync.clear();
-    
-    // 通知状态变化
+    this.lastSyncTimestamp = 0;
     this.emitSyncStatusChange();
   }
 
@@ -280,11 +279,9 @@ export abstract class BaseSyncClient {
    * 获取同步状态
    */
   async getSyncStatus(): Promise<SyncStatus> {
-    return {
-      lastSyncTimestamp: this.lastSyncTimestamp,
-      pendingChanges: this.getTotalPendingChanges(),
-      isSyncing: this.syncInProgress
-    };
+    return this.syncInProgress ? 'syncing' : 
+           this.pendingSync.size > 0 ? 'pending' : 
+           this.syncRetryCount > 0 ? 'failed' : 'completed';
   }
 
   /**
@@ -295,41 +292,14 @@ export abstract class BaseSyncClient {
   }
 
   /**
-   * 添加项目到待同步列表
-   * @param collection 集合/表名
-   * @param item 要同步的项目
+   * 添加项目到待同步队列
    */
-  protected async addToPendingSync(collection: string, item: any) {
-    // 检查表是否被标记为离线专用
-    try {
-      const { SchemaRegistry } = await import('@/core/lib/db/schema/schema-registry');
-      const registry = SchemaRegistry.getInstance();
-      const schema = registry.getSchema(collection);
-      
-      // 如果表被标记为仅离线存储，则不添加到同步队列
-      if (schema?.syncConfig?.offlineOnly === true) {
-        return; // 跳过同步
-      }
-    } catch (error) {
-      console.warn(`检查表 ${collection} 的离线标记时出错:`, error);
-      // 继续处理，假设表不是离线专用的
-    }
-    
+  protected async addToPendingSync(collection: string, item: BaseEntity) {
     if (!this.pendingSync.has(collection)) {
       this.pendingSync.set(collection, []);
     }
     
-    // 检查是否已存在相同ID的项目，如果存在则更新
-    const items = this.pendingSync.get(collection)!;
-    const existingIndex = items.findIndex(existing => existing.id === item.id);
-    
-    if (existingIndex >= 0) {
-      items[existingIndex] = item;
-    } else {
-      items.push(item);
-    }
-    
-    // 通知状态变化
+    this.pendingSync.get(collection)?.push(item);
     this.emitSyncStatusChange();
   }
 }

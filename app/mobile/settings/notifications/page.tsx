@@ -28,16 +28,15 @@ import {
   globeOutline,
   megaphoneOutline
 } from 'ionicons/icons';
-import { useServices } from '@/core/hooks/useServices';
+import { useUser } from '@/core/hooks/useUser';
 import { User } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 
-export default function NotificationSettingsPage() {
+export default function NotificationsSettingsPage() {
   const router = useRouter();
-  const { userService, isLoading, error } = useServices();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading: isLoading, error, updateUser } = useUser();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -51,34 +50,19 @@ export default function NotificationSettingsPage() {
   });
 
   useEffect(() => {
-    loadUserData();
-  }, [userService]);
-
-  const loadUserData = async () => {
-    if (!userService) return;
-
-    try {
-      const currentUser = await userService.getCurrentUser();
-      if (!currentUser) {
-        setToastMessage('Please login first');
-        setShowToast(true);
-        return;
-      }
-      setUser(currentUser);
-      
-      // Load notification settings from user data
-      if (currentUser.notificationSettings) {
-        setNotificationSettings(currentUser.notificationSettings);
-      }
-    } catch (err) {
-      console.error('Error loading user data:', err);
-      setToastMessage('Failed to load notification settings. Please try again.');
-      setShowToast(true);
+    // Load notification settings from user data when user is available
+    if (user && user.notificationSettings) {
+      setNotificationSettings(user.notificationSettings);
     }
+  }, [user]);
+
+  const loadUserData = () => {
+    // This function is now just used as a retry callback for ErrorDisplay
+    // The actual data loading is handled by the useUser hook
   };
 
   const handleSave = async () => {
-    if (!user || !userService) return;
+    if (!user) return;
 
     try {
       setIsSaving(true);
@@ -89,7 +73,7 @@ export default function NotificationSettingsPage() {
         notificationSettings
       };
       
-      await userService.updateUser(user.id, updatedUser);
+      await updateUser(updatedUser);
       setToastMessage('Notification settings saved successfully');
       setShowToast(true);
     } catch (err) {
@@ -260,4 +244,4 @@ export default function NotificationSettingsPage() {
       />
     </IonPage>
   );
-} 
+}

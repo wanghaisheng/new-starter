@@ -28,7 +28,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
+      "@/*": ["./src/*"],      
+      "@/app/*": ["./app/*"],
       "@core/*": ["./src/core/*"],
       "@mobile/*": ["./src/mobile/*"],
       "@web/*": ["./src/web/*"],

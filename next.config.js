@@ -31,6 +31,13 @@ const nextConfig = {
         alias: {
           ...config.resolve.alias,
           '@': require('path').resolve(__dirname, 'src'),
+          '@core': require('path').resolve(__dirname, 'src/core'),
+          '@mobile': require('path').resolve(__dirname, 'src/mobile'),
+          '@web': require('path').resolve(__dirname, 'src/web'),
+          '@db': require('path').resolve(__dirname, 'src/core/lib/db'),
+          '@db/types': require('path').resolve(__dirname, 'src/core/lib/db/types'),
+          '@db/interfaces': require('path').resolve(__dirname, 'src/core/lib/db/interfaces'),
+          '@db/test': require('path').resolve(__dirname, 'src/core/lib/db/test')
         },
       },
     };

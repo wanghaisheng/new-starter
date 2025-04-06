@@ -27,6 +27,7 @@ export * from './match';
 export * from './message';
 export * from './interaction';
 export * from './repository';
+export * from './test';
 
 // 导出类型转换工具
 export * from './converters';

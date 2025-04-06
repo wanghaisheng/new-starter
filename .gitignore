@@ -5,10 +5,12 @@
 
 # testing
 /coverage
+/.nyc_output
 
 # next.js
 /.next/
 /out/
+/dist/
 
 # production
 /build
@@ -16,6 +18,12 @@
 # misc
 .DS_Store
 *.pem
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.mock
 
 # debug
 npm-debug.log*
@@ -32,12 +40,43 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# capacitor
-/android
-/ios
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
-# python
-/venv
-__pycache__/
-*.py[cod]
-*$py.class
+# Capacitor
+/android/
+/ios/
+/capacitor/
+
+# Database
+/data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+/logs/
+*.log
+
+# Cache
+.cache/
+.temp/
+
+# Build
+/dist/
+/build/
+/out/
+
+# Test
+/coverage/
+/.nyc_output/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.temp

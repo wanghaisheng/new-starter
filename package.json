@@ -11,7 +11,10 @@
     "mock:debug": "cross-env NEXT_PUBLIC_DB_DEBUG=true NEXT_PUBLIC_DB_LOG_LEVEL=debug node run-mock-env.js",
     "verify:schema": "node tools/verify-schema.js",
     "build": "next build",
-    "build:static": "next build",
+    "build:static": "next build && next start",
+    "build:capacitor": "next build && mkdir -p dist && cp -r .next/standalone/* dist/ && cp -r .next/static dist/",
+    "build:android": "bun run build:capacitor && bunx cap sync android && bunx cap open android",
+    "build:ios": "bun run build:capacitor && bunx cap sync ios && bunx cap open ios",
     "start": "next start",
     "copy:sql:wasm": "copyfiles -u 3 node_modules/sql.js/dist/sql-wasm.wasm app/assets",
     "lint": "next lint",
@@ -33,10 +36,12 @@
     "test:all:report": "node scripts/run-tests.js --all --report",
     "test:all:coverage": "node scripts/run-tests.js --all --coverage",
     "generate:offline-test": "node scripts/generate-offline-test.js",
-    "build:next": "next build && next export -o dist",
-    "build:capacitor": "npm run build:next && cap copy",
-    "build:android": "npm run build:capacitor && cap open android",
-    "build:ios": "npm run build:capacitor && cap open ios"
+    "check:env": "bash docs/tasks/tools/check-environment.sh",
+    "check:env:force": "bash docs/tasks/tools/check-environment.sh --force",
+    "init:project": "bash docs/tasks/tools/init-project.sh",
+    "init:git": "bash docs/tasks/tools/init-git-repo.sh",
+    "install:deps": "bash docs/tasks/tools/install-dependencies.sh",
+    "commit:code": "bash docs/tasks/tools/commit-code.sh"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.0",

@@ -3,6 +3,8 @@
 - [项目初始化指南](./guides/project-initialization-guide.md) - 项目初始化的步骤和说明
 - [开发流程指南](./guides/development-process-guide.md) - 项目开发流程的说明
 - [Git分支策略](./guides/git-branch-strategy.md) - 项目Git分支策略的说明
+- [后端数据服务最佳实践](./guides/backend-best-practices.md) - 项目中数据库表、服务的说明
+
 - [导入路径规范](./guides/import-path-standards.md) - 规定使用 @/ 前缀绝对路径而非相对路径的导入规范
 - [导入路径实施细节](./guides/import-path-enforcement-implementation.md) - 详细说明导入路径规范的实施措施和工具
 - [导入路径更新摘要](./guides/import-path-updates-summary.md) - 导入路径更新的摘要信息
@@ -21,6 +23,7 @@
 - [离线功能测试报告](./guides/offline-test-report.md) - 离线功能测试的详细报告和最佳实践
 - [性能测试报告](./guides/performance-test-report.md) - 应用性能测试结果和优化建议
 - [UI组件测试报告](./guides/ui-component-test-report.md) - UI组件测试覆盖率和测试方法
+- [测试开发指南](./guides/lessons/test/readme.md) - 测试数据服务的架构、实现和使用指南
 
 ## 数据与架构
 

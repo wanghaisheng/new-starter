@@ -6,6 +6,9 @@ import { Pool } from 'pg';
 import { Capacitor } from '@capacitor/core';
 import { IndexedDBClient } from '@/core/lib/db/clients/indexeddb';
 import { SQLiteClient } from '@/core/lib/db/clients/sqlite/sqlite-client';
+import { Database as BetterSQLiteDatabase } from 'better-sqlite3';
+import { SqliteDialect } from 'kysely';
+import { Logger } from '@/core/lib/utils/logger';
 
 export class KyselyClient implements IDatabaseClient {
   private db: Kysely<Database>;

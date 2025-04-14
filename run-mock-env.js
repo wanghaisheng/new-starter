@@ -25,7 +25,8 @@ const requiredVars = {
   'NEXT_PUBLIC_MOCK_DB_TYPE': 'mock', 
   'NEXT_PUBLIC_USE_FAKE_INDEXEDDB': 'true',
   'NEXT_PUBLIC_DB_NAME': 'app_database_mock',
-  'NEXT_PUBLIC_DB_SYNC_ENABLED': 'false'
+  'NEXT_PUBLIC_DB_SYNC_ENABLED': 'false',
+  'NODE_ENV': 'development'
 };
 
 let needsUpdate = false;
@@ -64,8 +65,6 @@ const env = { ...process.env };
 Object.entries(requiredVars).forEach(([key, value]) => {
   env[key] = value;
 });
-
-// 不在这里启动应用，避免重复启动
 
 // 为 JSON 文件创建初始内容（如果不存在）
 const mockDbFile = path.join(dataDir, 'mock-db.json');
@@ -148,39 +147,24 @@ Object.entries(requiredVars).forEach(([key, value]) => {
   process.env[key] = value;
 });
 
-// 设置其他必要的环境变量
-process.env.NODE_ENV = 'development';
-
 // 运行应用程序
 console.log('使用 Mock 环境启动应用程序...');
 try {
-  // 使用spawn直接运行npm命令，这样更可靠，不依赖于npx
-  const { spawn } = require('child_process');
-  const path = require('path');
-  
-  // 检查是否存在next可执行文件
+  // 使用spawn直接运行next命令，确保环境变量被正确传递
   const isWindows = process.platform === 'win32';
   const nextBinPath = path.join(__dirname, 'node_modules', '.bin', isWindows ? 'next.cmd' : 'next');
   
-  let nextProcess;
-  if (fs.existsSync(nextBinPath)) {
-    // 如果存在next可执行文件，直接使用它
-    console.log(`使用本地Next.js可执行文件: ${nextBinPath}`);
-    nextProcess = spawn(nextBinPath, ['dev'], { 
-      stdio: 'inherit',
-      env: process.env,
-      shell: isWindows // 在Windows上需要使用shell
-    });
-  } else {
-    // 回退到使用npm run dev
-    console.log('使用npm run dev启动应用...');
-    nextProcess = spawn('npm', ['run', 'dev'], { 
-      stdio: 'inherit',
-      env: process.env,
-      shell: isWindows // 在Windows上需要使用shell
-    });
+  if (!fs.existsSync(nextBinPath)) {
+    throw new Error(`Next.js executable not found at ${nextBinPath}`);
   }
-  
+
+  console.log(`使用本地Next.js可执行文件: ${nextBinPath}`);
+  const nextProcess = spawn(nextBinPath, ['dev'], { 
+    stdio: 'inherit',
+    env: { ...process.env, ...env }, // 合并所有环境变量
+    shell: isWindows
+  });
+
   // 处理进程事件
   nextProcess.on('error', (err) => {
     console.error('启动应用程序时出错:', err);
@@ -198,6 +182,9 @@ try {
   
   // 等待子进程退出
   nextProcess.on('exit', (code) => {
+    if (code !== 0) {
+      console.error(`应用程序异常退出，退出码: ${code}`);
+    }
     process.exit(code);
   });
 } catch (error) {

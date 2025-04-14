@@ -22,8 +22,6 @@ export class DatabaseService {
 
   private constructor() {
     // 使用工厂方法根据环境变量创建客户端
-    this.client = DatabaseFactory.createClientFromEnv();
-    
     // 不要在构造函数中初始化仓储
     // 推迟到 initialize 方法中或首次使用时
   }
@@ -45,7 +43,7 @@ export class DatabaseService {
         
         // 初始化数据库客户端
         console.log('初始化数据库客户端...');
-        await this.client.initialize();
+        this.client = await DatabaseFactory.createClientFromEnv();
         console.log('数据库客户端初始化完成');
         
         // 初始化仓储

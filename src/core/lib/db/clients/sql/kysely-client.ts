@@ -2,18 +2,21 @@ import { Kysely, PostgresDialect, ReferenceExpression, CompiledQuery, Compilable
 import { Database } from '@/core/lib/db/schema';
 import { IDatabaseClient, QueryResult, BatchOperation } from '@/core/lib/db/interfaces';
 import { User, Match, Message, Photo, BaseEntity } from '@/core/lib/db/types';
-import { Pool } from 'pg';
 import { Capacitor } from '@capacitor/core';
 import { IndexedDBClient } from '@/core/lib/db/clients/indexeddb';
 import { SQLiteClient } from '@/core/lib/db/clients/sqlite/sqlite-client';
 import { Database as BetterSQLiteDatabase } from 'better-sqlite3';
 import { SqliteDialect } from 'kysely';
 import { Logger } from '@/core/lib/utils/logger';
+import { MockDatabaseClient } from '@/core/lib/db/clients/mock/mock-client';
+import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 
 export class KyselyClient implements IDatabaseClient {
-  private db: Kysely<Database>;
+  private db: Kysely<Database> | null = null;
   private _isInitialized: boolean = false;
   private client: IDatabaseClient;
+  private logger: Logger;
+  private currentEnvironment: string;
 
   constructor(config: {
     host: string;
@@ -22,8 +25,24 @@ export class KyselyClient implements IDatabaseClient {
     password: string;
     database: string;
   }) {
+    this.logger = new Logger('KyselyClient');
+    this.currentEnvironment = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+
+    // 在 Mock 环境中使用 Mock 客户端
+    if (this.currentEnvironment === 'mock') {
+      this.logger.info('Mock environment detected, using mock client');
+      this.client = new MockDatabaseClient({
+        name: config.database,
+        version: 1,
+        engine: 'mock',
+        tables: {}
+      });
+      return;
+    }
+
     // 在浏览器环境中使用 IndexedDB
     if (typeof window !== 'undefined') {
+      this.logger.info('Browser environment detected, using IndexedDB client');
       this.client = new IndexedDBClient({
         name: config.database,
         version: 1,
@@ -33,6 +52,7 @@ export class KyselyClient implements IDatabaseClient {
     } 
     // 在移动端使用 SQLite
     else if (Capacitor.isNativePlatform()) {
+      this.logger.info('Mobile environment detected, using SQLite client');
       this.client = new SQLiteClient({
         name: config.database,
         version: 1,
@@ -42,19 +62,48 @@ export class KyselyClient implements IDatabaseClient {
     }
     // 在服务器端使用 PostgreSQL
     else {
-      const dialect = new PostgresDialect({
-        pool: new Pool({
-          host: config.host,
-          port: config.port,
-          user: config.user,
-          password: config.password,
-          database: config.database,
-        }),
+      this.logger.info('Server environment detected, initializing PostgreSQL client');
+      this.initializePostgres(config).catch(error => {
+        this.logger.error('Failed to initialize PostgreSQL client:', error);
+        throw new DatabaseError(
+          'Failed to initialize PostgreSQL client',
+          DatabaseErrorCode.INITIALIZATION_ERROR,
+          error
+        );
       });
+    }
+  }
 
-      this.db = new Kysely<Database>({
-        dialect,
-      });
+  private async initializePostgres(config: {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+    database: string;
+  }): Promise<void> {
+    try {
+      // Only import pg in server environment
+      if (typeof window === 'undefined' && this.currentEnvironment !== 'mock') {
+        const { Pool } = await import('pg');
+        const dialect = new PostgresDialect({
+          pool: new Pool({
+            host: config.host,
+            port: config.port,
+            user: config.user,
+            password: config.password,
+            database: config.database,
+          }),
+        });
+
+        this.db = new Kysely<Database>({
+          dialect,
+        });
+      } else {
+        throw new Error('PostgreSQL client can only be initialized in server environment');
+      }
+    } catch (error) {
+      this.logger.error('Failed to initialize PostgreSQL client:', error);
+      throw error;
     }
   }
 
@@ -62,12 +111,22 @@ export class KyselyClient implements IDatabaseClient {
     if (this._isInitialized) return;
 
     try {
+      // 如果是 Mock 环境或浏览器环境，使用相应的客户端
+      if (this.currentEnvironment === 'mock' || typeof window !== 'undefined') {
+        await this.client.initialize();
+        this._isInitialized = true;
+        this.logger.info('Client initialized successfully');
+        return;
+      }
+
       // 检查数据库连接
-      await this.db.selectFrom('users').select('id').limit(1).execute();
-      this._isInitialized = true;
-      console.log('KyselyClient initialized successfully');
+      if (this.db) {
+        await this.db.selectFrom('users').select('id').limit(1).execute();
+        this._isInitialized = true;
+        this.logger.info('KyselyClient initialized successfully');
+      }
     } catch (error) {
-      console.error('Error initializing KyselyClient:', error);
+      this.logger.error('Error initializing KyselyClient:', error);
       throw error;
     }
   }
@@ -77,21 +136,21 @@ export class KyselyClient implements IDatabaseClient {
   }
 
   async close(): Promise<void> {
-    await this.db.destroy();
+    await this.db?.destroy();
   }
 
   async clear(): Promise<void> {
     this.checkInitialized();
-    await this.db.deleteFrom('messages').execute();
-    await this.db.deleteFrom('matches').execute();
-    await this.db.deleteFrom('users').execute();
+    await this.db?.deleteFrom('messages').execute();
+    await this.db?.deleteFrom('matches').execute();
+    await this.db?.deleteFrom('users').execute();
   }
 
   // Generic operations
   async findById<T>(collection: string, id: string): Promise<T | null> {
     this.checkInitialized();
     const result = await this.db
-      .selectFrom(collection as keyof Database)
+      ?.selectFrom(collection as keyof Database)
       .selectAll()
       .where('id' as ReferenceExpression<Database, keyof Database>, '=', id)
       .executeTakeFirst();
@@ -101,23 +160,23 @@ export class KyselyClient implements IDatabaseClient {
   async findAll<T>(collection: string, filter?: Record<string, any>): Promise<T[]> {
     this.checkInitialized();
     let query = this.db
-      .selectFrom(collection as keyof Database)
+      ?.selectFrom(collection as keyof Database)
       .selectAll();
 
     if (filter) {
       Object.entries(filter).forEach(([key, value]) => {
-        query = query.where(key as ReferenceExpression<Database, keyof Database>, '=', value);
+        query = query?.where(key as ReferenceExpression<Database, keyof Database>, '=', value);
       });
     }
 
-    const results = await query.execute();
+    const results = await query?.execute();
     return results as T[];
   }
 
   async create<T>(collection: string, data: Partial<T>): Promise<T> {
     this.checkInitialized();
     const result = await this.db
-      .insertInto(collection as keyof Database)
+      ?.insertInto(collection as keyof Database)
       .values(data as any)
       .returningAll()
       .executeTakeFirst();
@@ -127,7 +186,7 @@ export class KyselyClient implements IDatabaseClient {
   async update<T>(collection: string, id: string, data: Partial<T>): Promise<T> {
     this.checkInitialized();
     const result = await this.db
-      .updateTable(collection as keyof Database)
+      ?.updateTable(collection as keyof Database)
       .set(data as any)
       .where('id' as ReferenceExpression<Database, keyof Database>, '=', id)
       .returningAll()
@@ -138,7 +197,7 @@ export class KyselyClient implements IDatabaseClient {
   async delete(collection: string, id: string): Promise<boolean> {
     this.checkInitialized();
     const result = await this.db
-      .deleteFrom(collection as keyof Database)
+      ?.deleteFrom(collection as keyof Database)
       .where('id' as ReferenceExpression<Database, keyof Database>, '=', id)
       .execute();
     return result.length > 0;
@@ -147,15 +206,16 @@ export class KyselyClient implements IDatabaseClient {
   // User specific operations
   async findUsers(query?: Partial<User>): Promise<User[]> {
     this.checkInitialized();
-    let qb = this.db.selectFrom('users').selectAll();
+    let qb = this.db
+      ?.selectFrom('users').selectAll();
     
     if (query) {
       Object.entries(query).forEach(([key, value]) => {
-        qb = qb.where(key as ReferenceExpression<Database, 'users'>, '=', value);
+        qb = qb?.where(key as ReferenceExpression<Database, 'users'>, '=', value);
       });
     }
     
-    const results = await qb.execute();
+    const results = await qb?.execute();
     return results.map(result => ({
       ...result,
       photos: result.photos.map((url, index) => ({
@@ -201,15 +261,16 @@ export class KyselyClient implements IDatabaseClient {
   // Match specific operations
   async findMatches(query?: Partial<Match>): Promise<Match[]> {
     this.checkInitialized();
-    let qb = this.db.selectFrom('matches').selectAll();
+    let qb = this.db
+      ?.selectFrom('matches').selectAll();
     
     if (query) {
       Object.entries(query).forEach(([key, value]) => {
-        qb = qb.where(key as ReferenceExpression<Database, 'matches'>, '=', value);
+        qb = qb?.where(key as ReferenceExpression<Database, 'matches'>, '=', value);
       });
     }
     
-    return qb.execute() as Promise<Match[]>;
+    return qb?.execute() as Promise<Match[]>;
   }
 
   async createMatch(match: Match): Promise<Match> {
@@ -225,15 +286,16 @@ export class KyselyClient implements IDatabaseClient {
   // Message specific operations
   async findMessages(query?: Partial<Message>): Promise<Message[]> {
     this.checkInitialized();
-    let qb = this.db.selectFrom('messages').selectAll();
+    let qb = this.db
+      ?.selectFrom('messages').selectAll();
     
     if (query) {
       Object.entries(query).forEach(([key, value]) => {
-        qb = qb.where(key as ReferenceExpression<Database, 'messages'>, '=', value);
+        qb = qb?.where(key as ReferenceExpression<Database, 'messages'>, '=', value);
       });
     }
     
-    return qb.execute() as Promise<Message[]>;
+    return qb?.execute() as Promise<Message[]>;
   }
 
   async createMessage(message: Message): Promise<Message> {
@@ -257,23 +319,23 @@ export class KyselyClient implements IDatabaseClient {
   async count(collection: string, filter?: Record<string, any>): Promise<number> {
     this.checkInitialized();
     let qb = this.db
-      .selectFrom(collection as keyof Database)
-      .select(this.db.fn.count('id' as ReferenceExpression<Database, keyof Database>).as('count'));
+      ?.selectFrom(collection as keyof Database)
+      .select(this.db?.fn.count('id' as ReferenceExpression<Database, keyof Database>).as('count'));
 
     if (filter) {
       Object.entries(filter).forEach(([key, value]) => {
-        qb = qb.where(key as ReferenceExpression<Database, keyof Database>, '=', value);
+        qb = qb?.where(key as ReferenceExpression<Database, keyof Database>, '=', value);
       });
     }
 
-    const result = await qb.executeTakeFirst();
+    const result = await qb?.executeTakeFirst();
     return Number(result?.count) || 0;
   }
 
   async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
     this.checkInitialized();
     const compiledQuery = sql`${query}`.compile(this.db);
-    const result = await this.db.executeQuery(compiledQuery);
+    const result = await this.db?.executeQuery(compiledQuery);
     return result.rows as R[];
   }
 
@@ -289,7 +351,7 @@ export class KyselyClient implements IDatabaseClient {
 
   async beginTransaction(): Promise<void> {
     this.checkInitialized();
-    await this.db.transaction().execute(async () => {});
+    await this.db?.transaction().execute(async () => {});
   }
 
   async commitTransaction(): Promise<void> {
@@ -304,7 +366,7 @@ export class KyselyClient implements IDatabaseClient {
 
   async batch(tableName: string, operations: BatchOperation<BaseEntity>[]): Promise<void> {
     this.checkInitialized();
-    await this.db.transaction().execute(async (trx) => {
+    await this.db?.transaction().execute(async (trx) => {
       for (const op of operations) {
         const data = {
           ...op.data,

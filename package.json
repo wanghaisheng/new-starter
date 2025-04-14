@@ -4,10 +4,10 @@
   "description": "Next.js 15 + Ionic + Tailwind + Capacitor 全栈启动项目",
   "scripts": {
     "dev": "bun run --bun next dev",
-    "dev:mock": "NODE_OPTIONS='--max-old-space-size=4096' bun run --bun --env-file=.env.mock next dev",
+    "dev:mock": "bun run --bun --env-file=.env.mock next dev",
     "dev:dev": "bun run --bun --env-file=.env.dev next dev",
     "dev:prod": "bun run --bun --env-file=.env.prod next dev",
-    "mock": "NODE_OPTIONS='--max-old-space-size=4096' bun run --bun --env-file=.env.mock ./run-mock-env.js",
+    "mock": "bun run --bun --env-file=.env.mock ./run-mock-env.js",
     "mock:debug": "NODE_OPTIONS='--max-old-space-size=4096' bun run --bun --env-file=.env.mock --env-file=.env.debug ./run-mock-env.js",
     "build": "bun run --bun next build",
     "build:mock": "NODE_OPTIONS='--max-old-space-size=4096' bun run --bun --env-file=.env.mock next build",

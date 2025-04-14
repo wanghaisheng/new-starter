@@ -8,12 +8,11 @@ import { FirebaseClient } from '@/core/lib/db/clients/firebase';
 import { SupabaseClient } from '@/core/lib/db/clients/supabase/supabase-client';
 import { TursoClient } from '@/core/lib/db/clients/turso/turso-client';
 import { TiDBClient } from '@/core/lib/db/clients/tidb/tidb-client';
-import { PostgresClient } from '@/core/lib/db/clients/postgres/postgres-client';
 import { HybridDatabaseClient } from '@/core/lib/db/clients/hybrid';
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 import { Capacitor } from '@capacitor/core';
 import { Logger } from '@/core/lib/utils/logger';
-import { KyselyClient } from '@/core/lib/db/clients/kysely-client';
+// import { KyselyClient } from '@/core/lib/db/clients/sql/kysely-client';
 
 /**
  * 数据库客户端类型
@@ -105,12 +104,18 @@ export class DatabaseFactory {
     }
   }
 
-  private registerEnvironmentSpecificClients(): void {
+  private async registerEnvironmentSpecificClients(): Promise<void> {
     this.logger.info(`Initializing database factory for environment: ${this.currentEnvironment}`);
 
     // Always register mock client for fallback
     this.registeredClients.set(DatabaseClientType.MOCK, MockDatabaseClient as any);
     this.logger.debug('Registered fallback mock client');
+
+    // In mock environment or browser, only register mock client
+    if (this.currentEnvironment === EnvironmentType.MOCK || typeof window !== 'undefined') {
+      this.logger.info('Mock environment or browser detected, only registering mock client');
+      return;
+    }
 
     const allowedClients = this.getAllowedClientsForEnvironment();
     this.logger.debug(`Allowed clients for ${this.currentEnvironment}: ${allowedClients.join(', ')}`);
@@ -137,14 +142,21 @@ export class DatabaseFactory {
     if (allowedClients.includes(DatabaseClientType.TIDB)) {
       this.registeredClients.set(DatabaseClientType.TIDB, TiDBClient as any);
     }
-    if (allowedClients.includes(DatabaseClientType.POSTGRES)) {
-      this.registeredClients.set(DatabaseClientType.POSTGRES, PostgresClient as any);
-    }
     if (allowedClients.includes(DatabaseClientType.HYBRID)) {
       this.registeredClients.set(DatabaseClientType.HYBRID, HybridDatabaseClient as any);
     }
-    if (allowedClients.includes(DatabaseClientType.KYSELY)) {
-      this.registeredClients.set(DatabaseClientType.KYSELY, KyselyClient as any);
+
+    // Only register PostgreSQL client in server environment and production
+    if (allowedClients.includes(DatabaseClientType.POSTGRES) && 
+        typeof window === 'undefined' && 
+        this.currentEnvironment === EnvironmentType.PROD) {
+      try {
+        const { PostgresClient } = await import('@/core/lib/db/clients/postgres/postgres-client');
+        this.registeredClients.set(DatabaseClientType.POSTGRES, PostgresClient as any);
+        this.logger.info('Registered PostgreSQL client for production environment');
+      } catch (error) {
+        this.logger.warn('Failed to import PostgreSQL client:', error);
+      }
     }
 
     this.logger.info(`Successfully registered ${this.registeredClients.size} database clients for ${this.currentEnvironment}`);
@@ -159,20 +171,25 @@ export class DatabaseFactory {
   public async createClient(config: typeof DatabaseConfig): Promise<IDatabaseClient> {
     try {
       const clientType = config.engine as DatabaseClientType;
-      this.validateClientType(clientType);
-
-      // Force mock client in mock environment
-      if (this.currentEnvironment === EnvironmentType.MOCK) {
-        this.logger.info('Mock environment detected, using mock client');
+      
+      // Force mock client in mock environment or browser
+      if (this.currentEnvironment === EnvironmentType.MOCK || typeof window !== 'undefined') {
+        this.logger.info('Mock environment or browser detected, using mock client');
         return this.createMockClient();
       }
 
+      // Prevent PostgreSQL client in non-production environments
+      if (clientType === DatabaseClientType.POSTGRES && this.currentEnvironment !== EnvironmentType.PROD) {
+        this.logger.warn('PostgreSQL client requested in non-production environment, falling back to mock client');
+        return this.createMockClient();
+      }
+
+      this.validateClientType(clientType);
       const ClientClass = this.registeredClients.get(clientType);
+      
       if (!ClientClass) {
-        throw new DatabaseError(
-          `Unregistered database client type: ${clientType}`,
-          DatabaseErrorCode.INVALID_CLIENT_TYPE
-        );
+        this.logger.warn(`Client type ${clientType} not found, falling back to mock client`);
+        return this.createMockClient();
       }
 
       this.logger.info(`Creating database client of type: ${clientType}`);
@@ -223,7 +240,9 @@ export class DatabaseFactory {
     }
 
     this.logger.info(`Creating client from environment: ${this.currentEnvironment}`);
-    return this.createClient(config);
+    const client = await this.createClient(config);
+    await client.initialize();
+    return client;
   }
 
   public async createHybridClient(config: {
@@ -269,18 +288,31 @@ export class DatabaseFactory {
   }
 
   private async createMockClient(): Promise<IDatabaseClient> {
-    this.logger.warn('Falling back to mock database client');
+    this.logger.info('Creating mock database client');
     const mockConfig: typeof DatabaseConfig = {
       name: 'mock-database',
       version: 1,
       engine: 'mock',
-      tables: {},
-      sync: {
-        enabled: true,
-        strategy: 'manual',
-        offlineOnly: true
-      }
+      tables: {}
     };
-    return this.createClient(mockConfig);
+    const client = new MockDatabaseClient(mockConfig);
+    await client.initialize();
+    return client;
+  }
+
+  public static async createClientFromEnv(): Promise<IDatabaseClient> {
+    return DatabaseFactory.getInstance().createClientFromEnv();
+  }
+
+  public static async createClient(config: typeof DatabaseConfig): Promise<IDatabaseClient> {
+    return DatabaseFactory.getInstance().createClient(config);
+  }
+
+  public static async createHybridClient(config: {
+    localConfig: typeof DatabaseConfig;
+    remoteConfig: typeof DatabaseConfig;
+    syncConfig?: Record<string, any>;
+  }): Promise<IDatabaseClient> {
+    return DatabaseFactory.getInstance().createHybridClient(config);
   }
 }

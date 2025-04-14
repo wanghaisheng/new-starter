@@ -1,6 +1,43 @@
 {
   "users": [
     {
+      "id": "demo-user-1",
+      "email": "demo@example.com",
+      "name": "Demo User",
+      "bio": "这是一个演示用户，用于测试登录功能。使用密码 'password' 登录。",
+      "birthDate": "1990-01-01T00:00:00.000Z",
+      "gender": "male",
+      "interests": ["编程", "旅行", "音乐"],
+      "photos": [
+        {
+          "id": "photo-demo-1",
+          "url": "https://example.com/photos/demo-1.jpg",
+          "isMain": true,
+          "uploadedAt": "2023-01-01T10:00:00.000Z"
+        }
+      ],
+      "location": {
+        "latitude": 39.9042,
+        "longitude": 116.4074,
+        "city": "北京",
+        "country": "中国"
+      },
+      "preferences": {
+        "ageRange": {
+          "min": 25,
+          "max": 40
+        },
+        "distance": 50,
+        "gender": ["female"],
+        "interests": ["旅行", "音乐", "美食"]
+      },
+      "isVerified": true,
+      "lastActive": "2023-06-18T14:20:00.000Z",
+      "status": "active",
+      "createdAt": "2023-01-01T10:00:00.000Z",
+      "updatedAt": "2023-06-18T14:20:00.000Z"
+    },
+    {
       "id": "user-1",
       "name": "张三",
       "bio": "热爱旅行和音乐的软件工程师",
@@ -82,11 +119,8 @@
   "matches": [
     {
       "id": "match-1",
-      "userId1": "user-1",
-      "userId2": "user-2",
-      "matched": true,
-      "status": "active",
-      "lastInteractionDate": "2023-06-15T18:45:00.000Z",
+      "users": ["user-1", "user-2"],
+      "status": "matched",
       "createdAt": "2023-06-10T14:20:00.000Z",
       "updatedAt": "2023-06-15T18:45:00.000Z"
     }

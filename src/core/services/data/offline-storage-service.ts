@@ -5,7 +5,19 @@ import { TableSchema } from '@/core/lib/db/schema/types';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 
 import { DatabaseService } from './database-service';
+import { DatabaseFactory } from '@/core/lib/db/factory';
+import { DatabaseConfig } from '@/core/lib/db/types/database.types';
+import { DatabaseError } from '@/core/lib/db/errors/database-error';
+import { logger } from '@/core/lib/logger';
 
+export interface OfflineStorageConfig {
+  type: 'sqlite';
+  options: {
+    name: string;
+    version: number;
+    tables: Record<string, any>;
+  };
+}
 
 /**
  * 离线存储服务
@@ -13,20 +25,23 @@ import { DatabaseService } from './database-service';
  * 提供创建、读取、更新和删除仅存储在本地设备上的数据的功能
  */
 export class OfflineStorageService {
-  private static instance: OfflineStorageService;
+  private static instance: OfflineStorageService | null = null;
+  private client: any;
+  private _isInitialized: boolean = false;
+  private config: OfflineStorageConfig;
   private databaseService: DatabaseService;
   private schemaRegistry: SchemaRegistry;
-  private _isInitialized = false;
   private offlineOnlyTables: string[] = [];
 
-  private constructor() {
+  private constructor(config: OfflineStorageConfig) {
+    this.config = config;
     this.databaseService = DatabaseService.getInstance();
     this.schemaRegistry = SchemaRegistry.getInstance();
   }
 
-  public static getInstance(): OfflineStorageService {
+  public static getInstance(config: OfflineStorageConfig): OfflineStorageService {
     if (!OfflineStorageService.instance) {
-      OfflineStorageService.instance = new OfflineStorageService();
+      OfflineStorageService.instance = new OfflineStorageService(config);
     }
     return OfflineStorageService.instance;
   }
@@ -38,16 +53,40 @@ export class OfflineStorageService {
     if (this._isInitialized) return;
 
     try {
-      // 确保数据库服务已初始化
-      await this.databaseService.initialize();
+      const dbConfig: DatabaseConfig = {
+        name: this.config.options.name,
+        version: this.config.options.version,
+        engine: this.config.type,
+        tables: this.config.options.tables,
+        sync: {
+          enabled: false,
+          strategy: 'manual',
+          offlineOnly: true,
+          conflictResolution: 'server-wins',
+          syncIntervalMs: 0
+        },
+        offline: {
+          maxStorageSize: 50 * 1024 * 1024, // 50MB
+          maxEntitiesPerTable: 10000,
+          compressionEnabled: true,
+          encryptionEnabled: true
+        }
+      };
+
+      this.client = await DatabaseFactory.createClient(dbConfig);
+      await this.client.initialize();
+      this._isInitialized = true;
+      logger.info('Offline storage service initialized', { type: this.config.type });
       
       // 获取所有离线专用表
       this.refreshOfflineTablesList();
-      
-      this._isInitialized = true;
     } catch (error) {
-      console.error('Error initializing offline storage service:', error);
-      throw error;
+      logger.error('Failed to initialize offline storage service', { error });
+      throw new DatabaseError(
+        'Failed to initialize offline storage service',
+        'INITIALIZATION_ERROR',
+        error
+      );
     }
   }
 
@@ -374,7 +413,10 @@ export class OfflineStorageService {
    */
   private checkInitialized(): void {
     if (!this._isInitialized) {
-      throw new Error('Offline storage service is not initialized');
+      throw new DatabaseError(
+        'Offline storage service not initialized',
+        'CLIENT_NOT_INITIALIZED'
+      );
     }
   }
   
@@ -395,5 +437,101 @@ export class OfflineStorageService {
    */
   private generateId(): string {
     return uuidv4();
+  }
+
+  async clear(): Promise<void> {
+    this.checkInitialized();
+    try {
+      await this.client.clear();
+      logger.info('Offline storage cleared');
+    } catch (error) {
+      logger.error('Failed to clear offline storage', { error });
+      throw new DatabaseError(
+        'Failed to clear offline storage',
+        'OPERATION_FAILED',
+        error
+      );
+    }
+  }
+
+  async set<T>(collection: string, id: string, data: T): Promise<void> {
+    this.checkInitialized();
+    try {
+      await this.client.create(collection, { id, ...data });
+      logger.debug('Item saved to offline storage', { collection, id });
+    } catch (error) {
+      logger.error('Failed to save item to offline storage', { collection, id, error });
+      throw new DatabaseError(
+        'Failed to save item to offline storage',
+        'OPERATION_FAILED',
+        error
+      );
+    }
+  }
+
+  async update<T>(collection: string, id: string, data: Partial<T>): Promise<void> {
+    this.checkInitialized();
+    try {
+      await this.client.update(collection, id, data);
+      logger.debug('Item updated in offline storage', { collection, id });
+    } catch (error) {
+      logger.error('Failed to update item in offline storage', { collection, id, error });
+      throw new DatabaseError(
+        'Failed to update item in offline storage',
+        'OPERATION_FAILED',
+        error
+      );
+    }
+  }
+
+  async delete(collection: string, id: string): Promise<void> {
+    this.checkInitialized();
+    try {
+      await this.client.delete(collection, id);
+      logger.debug('Item deleted from offline storage', { collection, id });
+    } catch (error) {
+      logger.error('Failed to delete item from offline storage', { collection, id, error });
+      throw new DatabaseError(
+        'Failed to delete item from offline storage',
+        'OPERATION_FAILED',
+        error
+      );
+    }
+  }
+
+  async batch<T>(collection: string, operations: Array<{
+    type: 'set' | 'update' | 'delete';
+    id: string;
+    data?: T;
+  }>): Promise<void> {
+    this.checkInitialized();
+    try {
+      await this.client.beginTransaction();
+      
+      for (const operation of operations) {
+        switch (operation.type) {
+          case 'set':
+            await this.set(collection, operation.id, operation.data as T);
+            break;
+          case 'update':
+            await this.update(collection, operation.id, operation.data as Partial<T>);
+            break;
+          case 'delete':
+            await this.delete(collection, operation.id);
+            break;
+        }
+      }
+      
+      await this.client.commitTransaction();
+      logger.debug('Batch operations completed in offline storage', { collection, count: operations.length });
+    } catch (error) {
+      await this.client.rollbackTransaction();
+      logger.error('Failed to execute batch operations in offline storage', { collection, error });
+      throw new DatabaseError(
+        'Failed to execute batch operations in offline storage',
+        'OPERATION_FAILED',
+        error
+      );
+    }
   }
 } 

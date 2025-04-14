@@ -52,12 +52,16 @@ export function useApi<T>(
       setNetworkStatus(networkService.getConnectionStatus());
     });
 
-    // 配置数据服务
-    if (useHybridClient) {
-      DataServiceFactory.setUseHybridClient(true);
-    }
-    if (offlineFirst) {
-      DataServiceFactory.getOfflineModeService();
+    // 配置数据服务 - 只在服务未初始化时设置
+    try {
+      if (useHybridClient) {
+        DataServiceFactory.setUseHybridClient(true);
+      }
+      if (offlineFirst) {
+        DataServiceFactory.getOfflineModeService();
+      }
+    } catch (err) {
+      console.warn('Could not configure data service:', err);
     }
 
     return () => {

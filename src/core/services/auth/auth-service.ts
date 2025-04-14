@@ -1,200 +1,137 @@
 import { User } from '@/core/lib/db/types/user';
-import { BetterAuthProvider } from './better-auth-provider';
-import { FirebaseAuthProvider } from './firebase-auth-provider';
-import { MockAuthProvider } from './mock-auth-provider';
-import { getAuthServiceType } from '@/core/services/auth/auth-config';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { 
-  AuthError, 
-  AuthProvider,
-  PhoneAuthCredentials,
-  SocialAuthCredentials,
-  AuthProviderType
-} from './auth-types';
-import { logger } from '@/core/lib/logger';
+import { AuthError } from './auth-error';
+import { AuthProvider, AuthProviderType, AuthSession } from './auth-types';
+import { AuthProviderFactory, Environment } from './auth-provider-factory';
+import { Logger } from '@/core/lib/utils/logger';
+
+const logger = new Logger('AuthService');
 
 /**
- * 认证状态接口
- */
-interface AuthState {
-  isAuthenticated: boolean;
-  user: User | null;
-  setUser: (user: User) => void;
-  logout: () => void;
-}
-
-/**
- * 认证状态存储
- */
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      isAuthenticated: false,
-      user: null,
-      setUser: (user) => set({ user, isAuthenticated: true }),
-      logout: () => set({ user: null, isAuthenticated: false }),
-    }),
-    {
-      name: 'auth-storage',
-    }
-  )
-);
-
-/**
- * 认证服务类
- * 提供统一的认证接口，委托具体实现给认证提供者
+ * Service for handling authentication
+ * This service uses the auth provider factory to get the appropriate auth provider
  */
 export class AuthService {
-  private static instance: AuthService;
-  private provider: AuthProvider;
-
-  private constructor() {
-    const serviceType = getAuthServiceType();
-    switch (serviceType) {
-      case 'better':
-        this.provider = BetterAuthProvider.getInstance();
-        break;
-      case 'firebase':
-        this.provider = FirebaseAuthProvider.getInstance();
-        break;
-      case 'mock':
-        this.provider = MockAuthProvider.getInstance();
-        break;
-      default:
-        throw new Error(`Unsupported auth service type: ${serviceType}`);
-    }
+  private authProvider: AuthProvider;
+  
+  constructor(env: Environment = 'mock') {
+    this.authProvider = AuthProviderFactory.getAuthProvider(env);
+    logger.info('AuthService initialized', { env });
   }
-
-  static getInstance(): AuthService {
-    if (!AuthService.instance) {
-      AuthService.instance = new AuthService();
-    }
-    return AuthService.instance;
+  
+  /**
+   * Sign in with email and password
+   * @param email User's email
+   * @param password User's password
+   * @returns Authentication session with user and token
+   * @throws AuthError if authentication fails
+   */
+  async signInWithEmail(email: string, password: string): Promise<AuthSession> {
+    logger.info('Signing in with email', { email });
+    return this.authProvider.signInWithEmail(email, password);
   }
-
-  async initialize(): Promise<void> {
-    try {
-      logger.info('初始化认证服务');
-      await this.provider.initialize();
-    } catch (error) {
-      logger.error('初始化认证服务失败', { error });
-      throw new AuthError('初始化认证服务失败', 'INIT_ERROR', error);
-    }
+  
+  /**
+   * Sign in with a third-party provider
+   * @param provider The provider to use for authentication
+   * @returns Authentication session with user and token
+   * @throws AuthError if authentication fails
+   */
+  async signInWithProvider(provider: AuthProviderType): Promise<AuthSession> {
+    logger.info('Signing in with provider', { provider });
+    return this.authProvider.signInWithProvider(provider);
   }
-
-  // 邮箱密码登录
-  async signInWithEmail(email: string, password: string): Promise<User> {
-    try {
-      logger.info('用户邮箱登录', { email });
-      return await this.provider.signInWithEmail(email, password);
-    } catch (error) {
-      logger.error('用户邮箱登录失败', { error, email });
-      throw new AuthError('邮箱登录失败', 'EMAIL_SIGN_IN_ERROR', error);
-    }
+  
+  /**
+   * Sign in with phone number and verification code
+   * @param phoneNumber User's phone number
+   * @param verificationCode Verification code sent to the phone
+   * @returns Authentication session with user and token
+   * @throws AuthError if authentication fails
+   */
+  async signInWithPhone(phoneNumber: string, verificationCode: string): Promise<AuthSession> {
+    logger.info('Signing in with phone', { phoneNumber });
+    return this.authProvider.signInWithPhone({ phoneNumber, verificationCode });
   }
-
-  // 手机验证码登录
-  async signInWithPhone(credentials: PhoneAuthCredentials): Promise<User> {
-    try {
-      logger.info('用户手机登录', { phoneNumber: credentials.phoneNumber });
-      return await this.provider.signInWithPhone(credentials);
-    } catch (error) {
-      logger.error('用户手机登录失败', { error, phoneNumber: credentials.phoneNumber });
-      throw new AuthError('手机登录失败', 'PHONE_SIGN_IN_ERROR', error);
-    }
+  
+  /**
+   * Create a new user with email and password
+   * @param email User's email
+   * @param password User's password
+   * @param name User's name
+   * @returns Newly created user
+   * @throws AuthError if registration fails
+   */
+  async createUserWithEmail(email: string, password: string, name: string): Promise<User> {
+    logger.info('Creating user with email', { email, name });
+    return this.authProvider.createUser({ email, name });
   }
-
-  // 发送手机验证码
-  async sendPhoneVerificationCode(phoneNumber: string): Promise<void> {
-    try {
-      logger.info('发送手机验证码', { phoneNumber });
-      await this.provider.sendPhoneVerificationCode(phoneNumber);
-    } catch (error) {
-      logger.error('发送手机验证码失败', { error, phoneNumber });
-      throw new AuthError('发送验证码失败', 'SEND_CODE_ERROR', error);
-    }
-  }
-
-  // 社交账号登录
-  async signInWithProvider(provider: AuthProviderType): Promise<User> {
-    try {
-      logger.info('用户社交账号登录', { provider });
-      return await this.provider.signInWithProvider(provider);
-    } catch (error) {
-      logger.error('用户社交账号登录失败', { error, provider });
-      throw new AuthError('社交账号登录失败', 'SOCIAL_SIGN_IN_ERROR', error);
-    }
-  }
-
-  // 登出
+  
+  /**
+   * Sign out the current user
+   * @returns Promise that resolves when sign out is complete
+   */
   async signOut(): Promise<void> {
-    try {
-      logger.info('用户登出');
-      await this.provider.signOut();
-    } catch (error) {
-      logger.error('用户登出失败', { error });
-      throw new AuthError('登出失败', 'SIGN_OUT_ERROR', error);
-    }
+    logger.info('Signing out user');
+    return this.authProvider.signOut();
   }
-
-  // 获取当前用户
+  
+  /**
+   * Get the current authenticated user
+   * @returns The current user or null if not authenticated
+   */
   async getCurrentUser(): Promise<User | null> {
-    try {
-      return await this.provider.getCurrentUser();
-    } catch (error) {
-      logger.error('获取当前用户失败', { error });
-      throw new AuthError('获取当前用户失败', 'GET_USER_ERROR', error);
-    }
+    return this.authProvider.getCurrentUser();
   }
-
-  // 刷新令牌
-  async refreshToken(): Promise<string> {
-    try {
-      return await this.provider.refreshToken();
-    } catch (error) {
-      logger.error('刷新令牌失败', { error });
-      throw new AuthError('刷新令牌失败', 'REFRESH_TOKEN_ERROR', error);
-    }
+  
+  /**
+   * Check if a user is authenticated
+   * @returns True if a user is authenticated, false otherwise
+   */
+  async isAuthenticated(): Promise<boolean> {
+    const user = await this.getCurrentUser();
+    return user !== null;
   }
-
-  // 重置密码
+  
+  /**
+   * Send a password reset email
+   * @param email The email address to send the reset link to
+   * @returns Promise that resolves when the email is sent
+   * @throws AuthError if the email doesn't exist or sending fails
+   */
   async resetPassword(email: string): Promise<void> {
-    try {
-      await this.provider.resetPassword(email);
-    } catch (error) {
-      logger.error('重置密码失败', { error, email });
-      throw new AuthError('重置密码失败', 'RESET_PASSWORD_ERROR', error);
-    }
+    logger.info('Sending password reset email', { email });
+    return this.authProvider.resetPassword(email);
   }
-
-  // 更新用户资料
-  async updateProfile(data: Partial<User>): Promise<User> {
-    try {
-      return await this.provider.updateProfile(data);
-    } catch (error) {
-      logger.error('更新用户资料失败', { error, data });
-      throw new AuthError('更新用户资料失败', 'UPDATE_PROFILE_ERROR', error);
-    }
+  
+  /**
+   * Update the current user's profile
+   * @param userData The user data to update
+   * @returns The updated user
+   * @throws AuthError if the update fails
+   */
+  async updateProfile(userData: Partial<User>): Promise<User> {
+    logger.info('Updating user profile');
+    return this.authProvider.updateProfile(userData);
   }
-
-  // 发送邮箱验证
-  async sendEmailVerification(): Promise<void> {
-    try {
-      await this.provider.sendEmailVerification();
-    } catch (error) {
-      logger.error('发送邮箱验证失败', { error });
-      throw new AuthError('发送邮箱验证失败', 'SEND_EMAIL_VERIFICATION_ERROR', error);
-    }
+  
+  /**
+   * Send a verification code to a phone number
+   * @param phoneNumber The phone number to send the code to
+   * @returns Promise that resolves when the code is sent
+   * @throws AuthError if sending fails
+   */
+  async sendPhoneVerificationCode(phoneNumber: string): Promise<void> {
+    logger.info('Sending phone verification code', { phoneNumber });
+    return this.authProvider.sendPhoneVerificationCode(phoneNumber);
   }
-
-  // 验证邮箱
-  async verifyEmail(code: string): Promise<void> {
-    try {
-      await this.provider.verifyEmail(code);
-    } catch (error) {
-      logger.error('验证邮箱失败', { error });
-      throw new AuthError('验证邮箱失败', 'VERIFY_EMAIL_ERROR', error);
-    }
+  
+  /**
+   * Reset the auth provider
+   * This is useful for testing or when you need to create a new instance
+   */
+  reset(): void {
+    AuthProviderFactory.reset();
+    this.authProvider = AuthProviderFactory.getAuthProvider();
+    logger.info('Auth provider reset');
   }
 } 

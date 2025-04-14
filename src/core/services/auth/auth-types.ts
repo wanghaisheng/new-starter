@@ -30,6 +30,11 @@ export interface AuthSession {
   expiresAt: Date;
 }
 
+// 添加一个辅助函数，从 AuthSession 中提取 User
+export function getUserFromSession(session: AuthSession): User {
+  return session.user;
+}
+
 export interface AuthConfig {
   emailAndPassword: {
     enabled: boolean;
@@ -85,9 +90,9 @@ export interface IAuthDataService {
 export interface AuthProvider {
   initialize(): Promise<void>;
   getCurrentUser(): Promise<User | null>;
-  signInWithEmail(email: string, password: string): Promise<User>;
-  signInWithPhone(credentials: PhoneAuthCredentials): Promise<User>;
-  signInWithProvider(provider: AuthProviderType): Promise<User>;
+  signInWithEmail(email: string, password: string): Promise<AuthSession>;
+  signInWithPhone(credentials: PhoneAuthCredentials): Promise<AuthSession>;
+  signInWithProvider(provider: AuthProviderType): Promise<AuthSession>;
   signOut(): Promise<void>;
   updateProfile(userData: Partial<User>): Promise<User>;
   sendPhoneVerificationCode(phoneNumber: string): Promise<void>;

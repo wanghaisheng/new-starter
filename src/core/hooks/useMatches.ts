@@ -26,7 +26,6 @@ export function useMatches(): UseMatchesResult {
 
   const matchApi = useApi(() => Promise.resolve(matches), {
     offlineFirst: true,
-    useHybridClient: true,
     requireAuth: true
   });
 

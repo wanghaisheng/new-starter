@@ -1,3 +1,5 @@
+'use client';
+
 import { createAuthClient } from "better-auth/client";
 import { useCallback, useEffect, useState } from "react";
 import { AuthError, AuthSession } from "@/core/services/auth/auth-types";

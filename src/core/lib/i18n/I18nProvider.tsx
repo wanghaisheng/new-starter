@@ -18,4 +18,5 @@ export const I18nProvider = ({ children, locale = detectLocale() }: I18nProvider
   )
 }
 
-export { useI18n, useCurrentLocale, useChangeLocale } from './config' 
+// Remove the re-exports that don't exist in config.ts
+// export { useI18n, useCurrentLocale, useChangeLocale } from './config' 

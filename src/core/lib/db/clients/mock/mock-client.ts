@@ -4,6 +4,7 @@ import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 import { Logger } from '@/core/lib/utils/logger';
 import { config } from '@/core/lib/db/config';
+import { logger } from '@/core/lib/logger';
 
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
@@ -22,12 +23,13 @@ if (!isBrowser) {
  */
 export interface MockDatabaseConfig extends DatabaseConfig {
   /**
-   * 数据源模式: 'memory' | 'json'
+   * 数据源模式: 'memory' | 'json' | 'indexeddb'
    * - memory: 使用内存中预定义的数据
    * - json: 从JSON文件加载数据
+   * - indexeddb: 使用IndexedDB
    * @default 'memory'
    */
-  mockMode?: 'memory' | 'json';
+  mockMode?: 'memory' | 'json' | 'indexeddb';
 
   /**
    * JSON文件路径（当mockMode为'json'时使用）
@@ -41,6 +43,27 @@ export interface MockDatabaseConfig extends DatabaseConfig {
    * @default false
    */
   autoSave?: boolean;
+
+  name: string;
+  version: number;
+  engine: 'mock';
+  tables: Record<string, TableConfig>;
+}
+
+export interface TableConfig {
+  columns: Record<string, ColumnConfig>;
+}
+
+export interface ColumnConfig {
+  type: string;
+  constraints?: string[];
+}
+
+export interface MockQueryOptions {
+  where?: Record<string, any>;
+  orderBy?: string;
+  limit?: number;
+  offset?: number;
 }
 
 /**
@@ -49,7 +72,7 @@ export interface MockDatabaseConfig extends DatabaseConfig {
  * 支持内存模式和JSON文件模式
  */
 export class MockDatabaseClient implements IDatabaseClient {
-  private data: { [key: string]: Map<string, any> } = {};
+  private data: Record<string, Map<string, any>> = {};
   private mockConfig: Required<Pick<MockDatabaseConfig, 'mockMode' | 'jsonFilePath' | 'autoSave'>>;
   private isInitialized: boolean = false;
   protected transactionActive: boolean = false;
@@ -68,12 +91,14 @@ export class MockDatabaseClient implements IDatabaseClient {
     if (!this.isInitialized) {
       await this.initialize();
     }
+    logger.info('Mock database connected');
   }
 
   async disconnect(): Promise<void> {
     if (this.isInitialized) {
       await this.close();
     }
+    logger.info('Mock database disconnected');
   }
 
   async initialize(): Promise<void> {
@@ -87,6 +112,15 @@ export class MockDatabaseClient implements IDatabaseClient {
     try {
       if (this.mockConfig.mockMode === 'json') {
         await this.loadFromJson();
+      } else {
+        // 加载示例数据
+        const exampleData = require('./example-data.json') as Record<string, any[]>;
+        for (const [collection, records] of Object.entries(exampleData)) {
+          const table = this.getTable(collection);
+          for (const record of records) {
+            table.set(record.id, record);
+          }
+        }
       }
       
       this.isInitialized = true;
@@ -137,26 +171,53 @@ export class MockDatabaseClient implements IDatabaseClient {
     const table = this.getTable(collection);
     const records = Array.from(table.values()) as T[];
     
-    // Apply basic filtering if where clause is provided in options
+    // 如果没有查询条件，返回所有记录
+    if (!query) {
+      return {
+        data: records,
+        total: records.length,
+        hasMore: false
+      };
+    }
+
+    // 处理简单的字段匹配
     let filtered = records;
-    if (query?.where) {
-      filtered = records.filter(record => {
-        if (query.where && '$and' in query.where) {
-          return (query.where.$and || []).every((condition: any) => 
-            this.matchesCondition(record, condition)
-          );
-        } else if (query.where && '$or' in query.where) {
-          return (query.where.$or || []).some((condition: any) => 
-            this.matchesCondition(record, condition)
-          );
-        } else if (query.where) {
-          return this.matchesCondition(record, query.where);
-        }
-        return true;
-      });
+    if (typeof query === 'object') {
+      if (query.filter && typeof query.filter === 'function') {
+        // 处理 filter 函数
+        filtered = records.filter(query.filter);
+      } else if (query.where) {
+        // 处理复杂的 where 条件
+        filtered = records.filter(record => {
+          if ('$and' in query.where) {
+            return (query.where.$and || []).every((condition: any) => 
+              this.matchesCondition(record, condition)
+            );
+          } else if ('$or' in query.where) {
+            return (query.where.$or || []).some((condition: any) => 
+              this.matchesCondition(record, condition)
+            );
+          } else {
+            return this.matchesCondition(record, query.where);
+          }
+        });
+      } else {
+        // 处理简单的字段匹配
+        filtered = records.filter(record => {
+          return Object.entries(query).every(([key, value]) => {
+            if (key === 'email') {
+              this.logger.debug('Checking email match', { 
+                recordEmail: (record as any)[key], 
+                queryEmail: value 
+              });
+            }
+            return (record as any)[key] === value;
+          });
+        });
+      }
     }
     
-    // Apply sorting if orderBy is provided
+    // 应用排序
     if (query.orderBy) {
       const { field, direction } = query.orderBy;
       filtered.sort((a, b) => {
@@ -168,11 +229,17 @@ export class MockDatabaseClient implements IDatabaseClient {
       });
     }
     
-    // Apply pagination
+    // 应用分页
     const offset = query.offset || 0;
-    const limit = query.limit || 10;
+    const limit = query.limit || filtered.length;
     const paginatedRecords = filtered.slice(offset, offset + limit);
     
+    this.logger.debug(`Query results for ${collection}`, {
+      total: filtered.length,
+      returned: paginatedRecords.length,
+      hasMore: offset + limit < filtered.length
+    });
+
     return {
       data: paginatedRecords,
       total: filtered.length,

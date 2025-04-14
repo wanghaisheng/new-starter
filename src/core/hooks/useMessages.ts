@@ -36,13 +36,11 @@ export function useMessages(): UseMessagesResult {
 
   const messageApi = useApi(() => Promise.resolve(messages), {
     offlineFirst: true,
-    useHybridClient: true,
     requireAuth: true
   });
 
   const matchApi = useApi(() => Promise.resolve(matches), {
     offlineFirst: true,
-    useHybridClient: true,
     requireAuth: true
   });
 

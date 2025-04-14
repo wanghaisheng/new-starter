@@ -4,7 +4,7 @@
       "id": "user-1",
       "name": "张三",
       "email": "zhangsan@example.com",
-      "phone": "13800000001",
+      "phoneNumber": "13800000001",
       "birthDate": "1995-01-15T00:00:00.000Z",
       "gender": "male",
       "bio": "喜欢旅行和摄影的程序员",
@@ -15,15 +15,46 @@
         "city": "北京",
         "country": "中国"
       },
+      "privacySettings": {
+        "showProfileToEveryone": true,
+        "showOnlineStatus": true,
+        "showLastActive": true,
+        "showInDiscovery": true,
+        "showDistance": true,
+        "allowDataCollection": true,
+        "allowPersonalizedAds": true,
+        "showEmailToMatches": false,
+        "showPhoneToMatches": false,
+        "allowProfileSharing": true
+      },
       "preferences": {
         "ageRange": { "min": 20, "max": 30 },
         "distance": 50,
         "gender": ["female"],
         "interests": ["音乐", "电影", "阅读"]
       },
+      "notificationSettings": {
+        "newMatches": true,
+        "matchMessages": true,
+        "profileViews": true,
+        "profileLikes": true,
+        "appUpdates": true,
+        "promotions": true
+      },
+      "matching": {
+        "completedTests": [],
+        "testWeights": {},
+        "testResults": {}
+      },
       "isVerified": true,
+      "emailVerified": true,
+      "phoneVerified": true,
       "lastActive": "2023-11-01T12:00:00.000Z",
+      "isOnline": true,
       "status": "active",
+      "provider": "email",
+      "displayName": "张三",
+      "photoURL": "https://randomuser.me/api/portraits/men/1.jpg",
       "photos": [
         {
           "id": "photo-1",
@@ -46,6 +77,108 @@
       ],
       "createdAt": "2023-11-01T10:00:00.000Z",
       "updatedAt": "2023-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "user-2",
+      "name": "李四",
+      "email": "lisi@example.com",
+      "phoneNumber": "13800000002",
+      "birthDate": "1993-03-20T00:00:00.000Z",
+      "gender": "female",
+      "bio": "喜欢音乐和电影的设计师",
+      "interests": ["设计", "音乐", "电影"],
+      "location": {
+        "latitude": 31.2304,
+        "longitude": 121.4737,
+        "city": "上海",
+        "country": "中国"
+      },
+      "privacySettings": {
+        "showProfileToEveryone": true,
+        "showOnlineStatus": true,
+        "showLastActive": true,
+        "showInDiscovery": true,
+        "showDistance": true,
+        "allowDataCollection": true,
+        "allowPersonalizedAds": true,
+        "showEmailToMatches": false,
+        "showPhoneToMatches": false,
+        "allowProfileSharing": true
+      },
+      "preferences": {
+        "ageRange": { "min": 25, "max": 35 },
+        "distance": 30,
+        "gender": ["male"],
+        "interests": ["编程", "摄影", "旅行"]
+      },
+      "notificationSettings": {
+        "newMatches": true,
+        "matchMessages": true,
+        "profileViews": true,
+        "profileLikes": true,
+        "appUpdates": true,
+        "promotions": true
+      },
+      "matching": {
+        "completedTests": [],
+        "testWeights": {},
+        "testResults": {}
+      },
+      "isVerified": true,
+      "emailVerified": true,
+      "phoneVerified": true,
+      "lastActive": "2023-11-01T11:30:00.000Z",
+      "isOnline": true,
+      "status": "active",
+      "provider": "email",
+      "displayName": "李四",
+      "photoURL": "https://randomuser.me/api/portraits/women/1.jpg",
+      "photos": [
+        {
+          "id": "photo-3",
+          "userId": "user-2",
+          "url": "https://randomuser.me/api/portraits/women/1.jpg",
+          "order": 0,
+          "isMain": true,
+          "createdAt": "2023-11-01T10:10:00.000Z",
+          "updatedAt": "2023-11-01T10:10:00.000Z"
+        }
+      ],
+      "createdAt": "2023-11-01T10:10:00.000Z",
+      "updatedAt": "2023-11-01T11:30:00.000Z"
+    }
+  ],
+  "matches": [
+    {
+      "id": "match-1",
+      "users": ["user-1", "user-2"],
+      "status": "matched",
+      "createdAt": "2023-11-01T11:00:00.000Z",
+      "updatedAt": "2023-11-01T11:15:00.000Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "message-1",
+      "matchId": "match-1",
+      "senderId": "user-1",
+      "receiverId": "user-2",
+      "content": "你好，很高兴认识你！",
+      "status": "read",
+      "readAt": "2023-11-01T11:05:00.000Z",
+      "createdAt": "2023-11-01T11:00:00.000Z",
+      "updatedAt": "2023-11-01T11:05:00.000Z"
+    },
+    {
+      "id": "message-2",
+      "matchId": "match-1",
+      "senderId": "user-2",
+      "receiverId": "user-1",
+      "content": "你好！我也很高兴认识你。你喜欢什么类型的音乐？",
+      "status": "read",
+      "readAt": "2023-11-01T11:10:00.000Z",
+      "createdAt": "2023-11-01T11:05:00.000Z",
+      "updatedAt": "2023-11-01T11:10:00.000Z"
     }
   ]
 }

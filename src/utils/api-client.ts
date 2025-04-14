@@ -30,11 +30,14 @@ class APIClient {
     endpoint: string, 
     options: RequestInit = {}
   ): Promise<T> {
+    const token = localStorage.getItem('auth_token');
     const url = `${this.baseUrl}${endpoint}`;
+    
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
       },
     });
@@ -50,7 +53,7 @@ class APIClient {
 
   // Auth API
   async login(credentials: { email: string; password: string }) {
-    return this.request<{ token: string }>('/auth/login', {
+    return this.request<{ user: User; token: string; refreshToken: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
@@ -64,7 +67,7 @@ class APIClient {
 
   // User API
   async getCurrentUser() {
-    return this.request<User>('/users');
+    return this.request<User>('/users/me');
   }
 
   async getUsers() {
@@ -72,7 +75,7 @@ class APIClient {
   }
 
   async updateUser(userId: string, data: Partial<User>) {
-    return this.request<User>(`/users`, {
+    return this.request<User>(`/users/${userId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });

@@ -20,24 +20,41 @@ export class AuthServiceFactory {
     return AuthServiceFactory.instance;
   }
 
-  private createProvider(): AuthProvider {
+  private async createProvider(): Promise<AuthProvider> {
     const env = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
     logger.info('创建认证提供者', { env });
 
+    let provider: AuthProvider;
     switch (env) {
       case 'production':
-        return FirebaseAuthProvider.getInstance();
+        provider = FirebaseAuthProvider.getInstance();
+        break;
       case 'local':
-        return BetterAuthProvider.getInstance();
+        provider = BetterAuthProvider.getInstance();
+        break;
       case 'mock':
       default:
-        return MockAuthProvider.getInstance();
+        provider = MockAuthProvider.getInstance();
+        break;
     }
+
+    try {
+      await provider.initialize();
+      logger.info('认证提供者初始化成功', { env });
+    } catch (error) {
+      logger.error('认证提供者初始化失败', { error });
+      throw error;
+    }
+
+    return provider;
   }
 
-  getProvider(): AuthProvider {
+  async getProvider(): Promise<AuthProvider> {
     if (this.forceProvider) {
       return this.forceProvider;
+    }
+    if (!this.currentProvider) {
+      this.currentProvider = await this.createProvider();
     }
     return this.currentProvider;
   }
@@ -47,9 +64,9 @@ export class AuthServiceFactory {
     this.forceProvider = provider;
   }
 
-  resetProvider(): void {
+  async resetProvider(): Promise<void> {
     logger.info('重置认证提供者');
     this.forceProvider = null;
-    this.currentProvider = this.createProvider();
+    this.currentProvider = await this.createProvider();
   }
 } 

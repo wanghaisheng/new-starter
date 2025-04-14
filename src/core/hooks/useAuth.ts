@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AuthServiceFactory } from '@/core/services/auth/auth-service-factory';
 import { AuthEventManager, AuthEventType, AuthEventData } from '@/core/services/auth/auth-events';
-import { PhoneAuthCredentials, AuthProviderType } from '@/core/services/auth/auth-types';
+import { PhoneAuthCredentials, AuthProviderType, AuthSession, getUserFromSession } from '@/core/services/auth/auth-types';
 import { User } from '@/core/lib/db/types/user';
 import { getAuthConfig, isAuthMethodEnabled, getEnabledAuthMethods } from '@/core/services/auth/auth-config';
+import { useAuthStore } from '@/core/services/auth/auth-store';
+import { AuthProvider } from '@/core/services/auth/auth-types';
 
 /**
  * 认证状态
@@ -21,68 +23,73 @@ export interface AuthState {
  * 提供认证状态和操作方法
  */
 export function useAuth() {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isLoading: true,
-    error: null,
-    enabledMethods: getEnabledAuthMethods()
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [authProvider, setAuthProvider] = useState<AuthProvider | null>(null);
+  const enabledMethods = getEnabledAuthMethods();
   
-  const authProvider = AuthServiceFactory.getInstance().getProvider();
+  // 使用 Zustand store
+  const { user, token, setUser, setToken, clearAuth } = useAuthStore();
+  
   const eventManager = AuthEventManager.getInstance();
   const authConfig = getAuthConfig();
   
+  // 初始化认证提供者
+  useEffect(() => {
+    const initProvider = async () => {
+      try {
+        const provider = await AuthServiceFactory.getInstance().getProvider();
+        setAuthProvider(provider);
+      } catch (error) {
+        setError(error as Error);
+        setIsLoading(false);
+      }
+    };
+    initProvider();
+  }, []);
+  
   // 更新认证状态
   const updateAuthState = useCallback(async () => {
+    if (!authProvider) return;
+    
     try {
-      const user = await authProvider.getCurrentUser();
-      setState(prev => ({
-        ...prev,
-        user,
-        isAuthenticated: !!user,
-        isLoading: false
-      }));
+      setIsLoading(true);
+      const currentUser = await authProvider.getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+      }
     } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error as Error,
-        isLoading: false
-      }));
+      setError(error as Error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [authProvider]);
+  }, [authProvider, setUser]);
   
   // 初始化认证状态
   useEffect(() => {
-    updateAuthState();
-  }, [updateAuthState]);
+    if (authProvider) {
+      updateAuthState();
+    }
+  }, [authProvider, updateAuthState]);
   
   // 监听认证事件
   useEffect(() => {
+    if (!authProvider) return;
+    
     const handleAuthEvent = (eventType: AuthEventType, data: AuthEventData) => {
       switch (eventType) {
         case AuthEventType.LOGIN:
         case AuthEventType.REGISTER:
         case AuthEventType.PROFILE_UPDATED:
-          setState(prev => ({
-            ...prev,
-            user: data.user,
-            isAuthenticated: true,
-            error: null
-          }));
+          if (data.user) {
+            setUser(data.user);
+          }
           break;
         case AuthEventType.LOGOUT:
-          setState(prev => ({
-            ...prev,
-            user: null,
-            isAuthenticated: false
-          }));
+          clearAuth();
           break;
         case AuthEventType.ERROR:
-          setState(prev => ({
-            ...prev,
-            error: data.error || new Error('Unknown error')
-          }));
+          setError(data.error || new Error('Unknown error'));
           break;
       }
     };
@@ -93,153 +100,138 @@ export function useAuth() {
     return () => {
       eventManager.removeEventListener(AuthEventType.AUTH_STATE_CHANGED, handleAuthEvent);
     };
-  }, [eventManager]);
+  }, [eventManager, setUser, clearAuth, authProvider]);
   
   // 邮箱密码登录
   const login = useCallback(async (email: string, password: string) => {
+    if (!authProvider) throw new Error('认证提供者未初始化');
     if (!isAuthMethodEnabled('emailAndPassword')) {
       throw new Error('邮箱登录方式未启用');
     }
     
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    setIsLoading(true);
+    setError(null);
     try {
-      const user = await authProvider.signInWithEmail(email, password);
-      setState(prev => ({
-        ...prev,
-        user,
-        isAuthenticated: true,
-        isLoading: false
-      }));
-      return user;
+      const session = await authProvider.signInWithEmail(email, password);
+      setUser(session.user);
+      setToken(session.token);
+      return session;
     } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error as Error,
-        isLoading: false
-      }));
+      setError(error as Error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
-  }, [authProvider]);
+  }, [authProvider, setUser, setToken]);
   
   // 手机号登录
   const loginWithPhone = useCallback(async (phoneNumber: string, verificationCode: string) => {
+    if (!authProvider) throw new Error('认证提供者未初始化');
     if (!isAuthMethodEnabled('phone')) {
       throw new Error('手机号登录方式未启用');
     }
     
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    setIsLoading(true);
+    setError(null);
     try {
-      const user = await authProvider.signInWithPhone({
+      const session = await authProvider.signInWithPhone({
         phoneNumber,
         verificationCode
       });
-      setState(prev => ({
-        ...prev,
-        user,
-        isAuthenticated: true,
-        isLoading: false
-      }));
-      return user;
+      setUser(session.user);
+      setToken(session.token);
+      return session;
     } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error as Error,
-        isLoading: false
-      }));
+      setError(error as Error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
-  }, [authProvider]);
+  }, [authProvider, setUser, setToken]);
   
   // 发送验证码
   const sendVerificationCode = useCallback(async (phoneNumber: string) => {
+    if (!authProvider) throw new Error('认证提供者未初始化');
     if (!isAuthMethodEnabled('phone')) {
       throw new Error('手机号登录方式未启用');
     }
     
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    setIsLoading(true);
+    setError(null);
     try {
       await authProvider.sendPhoneVerificationCode(phoneNumber);
-      setState(prev => ({ ...prev, isLoading: false }));
     } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error as Error,
-        isLoading: false
-      }));
+      setError(error as Error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   }, [authProvider]);
   
   // 社交账号登录
   const loginWithProvider = useCallback(async (provider: AuthProviderType) => {
+    if (!authProvider) throw new Error('认证提供者未初始化');
     if (!isAuthMethodEnabled(provider)) {
       throw new Error(`${provider}登录方式未启用`);
     }
     
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    setIsLoading(true);
+    setError(null);
     try {
-      const user = await authProvider.signInWithProvider(provider);
-      setState(prev => ({
-        ...prev,
-        user,
-        isAuthenticated: true,
-        isLoading: false
-      }));
-      return user;
+      const session = await authProvider.signInWithProvider(provider);
+      setUser(session.user);
+      setToken(session.token);
+      return session;
     } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error as Error,
-        isLoading: false
-      }));
+      setError(error as Error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
-  }, [authProvider]);
+  }, [authProvider, setUser, setToken]);
   
   // 登出
   const logout = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    if (!authProvider) throw new Error('认证提供者未初始化');
+    
+    setIsLoading(true);
+    setError(null);
     try {
       await authProvider.signOut();
-      setState(prev => ({
-        ...prev,
-        user: null,
-        isAuthenticated: false,
-        isLoading: false
-      }));
+      clearAuth();
     } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error as Error,
-        isLoading: false
-      }));
+      setError(error as Error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
-  }, [authProvider]);
+  }, [authProvider, clearAuth]);
   
   // 更新用户资料
   const updateProfile = useCallback(async (userData: Partial<User>) => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    if (!authProvider) throw new Error('认证提供者未初始化');
+    
+    setIsLoading(true);
+    setError(null);
     try {
       const updatedUser = await authProvider.updateProfile(userData);
-      setState(prev => ({
-        ...prev,
-        user: updatedUser,
-        isLoading: false
-      }));
+      setUser(updatedUser);
       return updatedUser;
     } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error as Error,
-        isLoading: false
-      }));
+      setError(error as Error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
-  }, [authProvider]);
+  }, [authProvider, setUser]);
   
   return {
-    ...state,
+    user,
+    token,
+    isAuthenticated: !!user,
+    isLoading,
+    error,
+    enabledMethods,
     login,
     loginWithPhone,
     sendVerificationCode,

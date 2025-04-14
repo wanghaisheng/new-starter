@@ -7,8 +7,8 @@
     "dev:mock": "bun run --bun --env-file=.env.mock next dev",
     "dev:dev": "bun run --bun --env-file=.env.dev next dev",
     "dev:prod": "bun run --bun --env-file=.env.prod next dev",
-    "mock": "bun run --bun --env-file=.env.mock ./run-mock-env.js",
-    "mock:debug": "NODE_OPTIONS='--max-old-space-size=4096' bun run --bun --env-file=.env.mock --env-file=.env.debug ./run-mock-env.js",
+    "mock": "bun run --bun scripts/load-demo-data.js && bun run --bun --env-file=.env.mock ./run-mock-env.js",
+    "mock:debug": "NODE_OPTIONS='--max-old-space-size=4096' bun run --bun scripts/load-demo-data.js && bun run --bun --env-file=.env.mock --env-file=.env.debug ./run-mock-env.js",
     "build": "bun run --bun next build",
     "build:mock": "NODE_OPTIONS='--max-old-space-size=4096' bun run --bun --env-file=.env.mock next build",
     "build:dev": "bun run --bun --env-file=.env.dev next build",
@@ -54,7 +54,10 @@
     "install:deps": "bun run --bun docs/tasks/tools/install-dependencies.sh",
     "commit:code": "bun run --bun docs/tasks/tools/commit-code.sh",
     "auth:generate": "bunx @better-auth/cli generate",
-    "auth:migrate": "bunx @better-auth/cli migrate"
+    "auth:migrate": "bunx @better-auth/cli migrate",
+    "demo:load": "bun run --bun src/core/lib/db/clients/mock/load-demo-data.ts",
+    "demo:load:example": "bun run --bun src/core/lib/db/clients/mock/load-demo-data.ts example",
+    "demo:load:dating": "bun run --bun src/core/lib/db/clients/mock/load-demo-data.ts dating"
   },
   "dependencies": {
     "@better-auth/client": "^0.0.2-alpha.3",

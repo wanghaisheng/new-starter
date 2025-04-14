@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
 import { User } from '@/core/lib/db/types/user';
-import { useServices } from '@/core/hooks/useServices';
+import { useAuth } from '@/core/hooks/useAuth';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
@@ -35,7 +35,7 @@ const calculateAge = (birthDate: Date): number => {
 
 export default function HomePage() {
   const router = useRouter();
-  const { userService, isLoading, error } = useServices();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showToast, setShowToast] = useState(false);
@@ -43,36 +43,48 @@ export default function HomePage() {
   const [showMatch, setShowMatch] = useState(false);
   const [matchedUser, setMatchedUser] = useState<User | null>(null);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
   
   useEffect(() => {
     loadUsers();
-  }, [userService]);
+  }, [currentUser]);
   
   const loadUsers = async () => {
-    if (!userService) return;
+    if (!currentUser) {
+      setToastMessage('Please login first');
+      setShowToast(true);
+      setIsLoading(false);
+      return;
+    }
     
     try {
-      const allUsers = await userService.getUsers();
-      const currentUser = await userService.getCurrentUser();
+      setIsLoading(true);
+      setError(null);
       
-      if (!currentUser) {
-        setToastMessage('Please login first');
-        setShowToast(true);
-        return;
+      // Fetch all users
+      const usersResponse = await fetch('/api/users');
+      if (!usersResponse.ok) {
+        throw new Error('Failed to fetch users');
       }
-
-      // Filter out current user and already matched users
+      const allUsers = await usersResponse.json();
+      
+      // Fetch matches for current user
       let matchedUserIds: string[] = [];
       try {
-        const matches: Match[] = await userService.getMatches(currentUser.id);
-        matchedUserIds = matches.flatMap(match => match.users);
+        const matchesResponse = await fetch(`/api/matches?userId=${currentUser.id}`);
+        if (matchesResponse.ok) {
+          const matches: Match[] = await matchesResponse.json();
+          matchedUserIds = matches.flatMap(match => match.users);
+        }
       } catch (err) {
-        console.log('getMatches is not available', err);
+        console.log('Failed to fetch matches', err);
       }
       
-      const filteredUsers = allUsers.filter(user => 
+      // Filter out current user and already matched users
+      const filteredUsers = allUsers.filter((user: User) => 
         user.id !== currentUser.id && 
         !matchedUserIds.includes(user.id)
       );
@@ -80,8 +92,11 @@ export default function HomePage() {
       setUsers(filteredUsers);
     } catch (err) {
       console.error('Error loading users:', err);
+      setError(err instanceof Error ? err : new Error('Failed to load users'));
       setToastMessage('Failed to load. Please try again.');
       setShowToast(true);
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -94,9 +109,6 @@ export default function HomePage() {
   };
   
   const handleSwipe = async (direction: 'left' | 'right') => {
-    if (!userService) return;
-    
-    const currentUser = await userService.getCurrentUser();
     if (!currentUser) {
       setToastMessage('Please login first');
       setShowToast(true);
@@ -108,7 +120,21 @@ export default function HomePage() {
 
     if (direction === 'right') {
       try {
-        const match = await userService.createMatch([currentUser.id, swipedUser.id]);
+        const response = await fetch('/api/matches', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            users: [currentUser.id, swipedUser.id]
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create match');
+        }
+        
+        const match = await response.json();
         if (match) {
           setMatchedUser(swipedUser);
           setShowMatch(true);
@@ -213,7 +239,7 @@ export default function HomePage() {
     );
   }
   
-  const currentUser = users[currentIndex];
+  const displayedUser = users[currentIndex];
   
   return (
     <IonPage>
@@ -266,7 +292,7 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-        ) : currentUser ? (
+        ) : displayedUser ? (
           // Profile card
           <div className="h-full flex flex-col">
             <div 
@@ -278,8 +304,8 @@ export default function HomePage() {
             >
               <div className="absolute inset-0">
                 <Image
-                  src={currentUser.photos?.[0]?.url || '/assets/images/profile-placeholder.jpg'}
-                  alt={currentUser.name}
+                  src={displayedUser.photos?.[0]?.url || '/assets/images/profile-placeholder.jpg'}
+                  alt={displayedUser.name}
                   fill
                   className="object-cover"
                 />
@@ -287,9 +313,9 @@ export default function HomePage() {
               
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6">
                 <h2 className="text-2xl font-bold text-white mb-1">
-                  {currentUser.name}, {calculateAge(new Date(currentUser.birthDate))}
+                  {displayedUser.name}, {calculateAge(new Date(displayedUser.birthDate))}
                 </h2>
-                <p className="text-gray-200">{currentUser.bio}</p>
+                <p className="text-gray-200">{displayedUser.bio}</p>
               </div>
               
               {swipeDirection && (

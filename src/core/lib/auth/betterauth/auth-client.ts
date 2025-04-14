@@ -5,7 +5,7 @@ import { User } from "@/core/lib/db/types/user";
 
 // Initialize the auth client
 export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_AUTH_API_URL || "/api/auth",
+  baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_API_URL || "/api/auth",
   debug: process.env.NODE_ENV === "development",
 });
 

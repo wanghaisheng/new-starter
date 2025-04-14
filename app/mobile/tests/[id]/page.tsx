@@ -1,128 +1,187 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import { IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonProgressBar } from '@ionic/react';
-import { arrowBack } from 'ionicons/icons';
-import { TestService } from '@/core/services/test-service';
-import type { TestQuestion, TestProgress, TestAnswer } from '@/core/lib/db/types';
-import { LoadingScreen } from '@/core/components/common/LoadingScreen';
-import { ErrorScreen } from '@/core/components/common/ErrorScreen';
-import { QuestionCard } from '@/core/components/tests/QuestionCard';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { IonContent, IonPage, IonToast } from '@ionic/react';
+import { TestQuestion } from '@/core/lib/db/types/test';
+import { useAuth } from '@/core/hooks/useAuth';
+import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
+import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
+import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 
 export default function TestPage() {
+  const router = useRouter();
   const params = useParams();
-  const t = useTranslations('test');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const { user: currentUser } = useAuth();
   const [questions, setQuestions] = useState<TestQuestion[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [testProgress, setTestProgress] = useState<TestProgress | null>(null);
-  const [answers, setAnswers] = useState<Record<string, number | number[]>>({});
-
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  
+  const testId = params.id as string;
+  
   useEffect(() => {
-    async function loadTest() {
-      try {
-        const service = TestService.getInstance();
-        const testId = params.id as string;
-        const [loadedQuestions, savedProgress] = await Promise.all([
-          service.getTestQuestions(testId),
-          service.getTestProgress('current-user', testId) // TODO: Replace with actual user ID
-        ]);
-        
-        setQuestions(loadedQuestions);
-        if (savedProgress) {
-          setTestProgress(savedProgress);
-          setCurrentIndex(savedProgress.currentQuestionIndex);
-          setAnswers(savedProgress.answers);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(t('errors.loadFailed')));
-      } finally {
-        setLoading(false);
-      }
+    if (testId) {
+      loadTest();
     }
-
-    loadTest();
-  }, [params.id, t]);
-
-  const handleAnswer = async (value: number | number[]) => {
-    const currentQuestion = questions[currentIndex];
-    const newAnswers = { ...answers, [currentQuestion.id]: value };
-    setAnswers(newAnswers);
-
+  }, [testId]);
+  
+  const loadTest = async () => {
     try {
-      const service = TestService.getInstance();
-      const testId = params.id as string;
+      setIsLoading(true);
+      setError(null);
       
-      await service.saveTestProgress({
-        id: testProgress?.id,
-        userId: 'current-user', // TODO: Replace with actual user ID
-        testId,
-        currentQuestionIndex: currentIndex,
-        answers: newAnswers,
-        startedAt: testProgress?.startedAt || new Date()
-      });
-
-      if (currentIndex < questions.length - 1) {
-        setCurrentIndex(prev => prev + 1);
-      } else {
-        const score = await service.calculateScore(questions, newAnswers);
-        const testAnswers: TestAnswer[] = Object.entries(newAnswers).map(([questionId, value]) => ({
-          questionId,
-          value,
-          timestamp: new Date().toISOString()
-        }));
-
-        await service.saveTestResult({
-          userId: 'current-user', // TODO: Replace with actual user ID
-          testId,
-          score,
-          answers: testAnswers,
-          traits: [], // TODO: Generate traits from score
-          completedAt: new Date().toISOString()
-        });
-        // TODO: Navigate to results page
+      // Load test questions using API
+      const response = await fetch(`/api/tests/${testId}/questions`);
+      if (!response.ok) {
+        throw new Error('Failed to load test questions');
+      }
+      
+      const data = await response.json();
+      setQuestions(data.questions);
+      
+      // Load test progress if exists
+      const progressResponse = await fetch(`/api/tests/${testId}/progress`);
+      if (progressResponse.ok) {
+        const progress = await progressResponse.json();
+        setCurrentQuestionIndex(progress.currentQuestionIndex);
+        setAnswers(progress.answers);
       }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error(t('errors.saveFailed')));
+      console.error('Error loading test:', err);
+      setError(err instanceof Error ? err : new Error('Failed to load test'));
+      setToastMessage('Failed to load test. Please try again.');
+      setShowToast(true);
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  if (loading) {
-    return <LoadingScreen message={t('loading')} />;
+  
+  const handleAnswer = async (answer: string) => {
+    if (!currentUser) return;
+    
+    const question = questions[currentQuestionIndex];
+    const newAnswers = { ...answers, [question.id]: answer };
+    setAnswers(newAnswers);
+    
+    try {
+      // Save answer using API
+      await fetch(`/api/tests/${testId}/answers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questionId: question.id,
+          answer,
+        }),
+      });
+      
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+      } else {
+        // Test completed, redirect to results
+        router.push(`/mobile/tests/${testId}/result`);
+      }
+    } catch (err) {
+      console.error('Error saving answer:', err);
+      setToastMessage('Failed to save answer. Please try again.');
+      setShowToast(true);
+    }
+  };
+  
+  const currentQuestion = questions[currentQuestionIndex];
+  
+  if (isLoading) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message="Loading test..." />
+        </IonContent>
+      </IonPage>
+    );
   }
-
+  
   if (error) {
-    return <ErrorScreen message={error.message} onRetry={() => window.location.reload()} />;
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={error.toString()} onRetry={loadTest} />
+        </IonContent>
+      </IonPage>
+    );
   }
-
-  const currentQuestion = questions[currentIndex];
-  const progressValue = (currentIndex + 1) / questions.length;
-
+  
+  if (!currentQuestion) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error="No questions found" onRetry={loadTest} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+  
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={() => window.history.back()}>
-              <IonIcon icon={arrowBack} />
-            </IonButton>
-          </IonButtons>
-          <IonTitle>{t('question', { current: currentIndex + 1, total: questions.length })}</IonTitle>
-        </IonToolbar>
-        <IonProgressBar value={progressValue} />
-      </IonHeader>
-      <IonContent className="ion-padding">
-        {currentQuestion && (
-          <QuestionCard
-            question={currentQuestion}
-            value={answers[currentQuestion.id]}
-            onAnswer={handleAnswer}
-          />
-        )}
+      <IonContent className="bg-[#0f172a]">
+        <div className="flex flex-col h-full p-4">
+          {/* Progress indicator */}
+          <div className="mb-4">
+            <div className="flex justify-between text-sm text-gray-400 mb-1">
+              <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
+              <span>{Math.round((currentQuestionIndex / questions.length) * 100)}%</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div
+                className="bg-pink-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(currentQuestionIndex / questions.length) * 100}%` }}
+              />
+            </div>
+          </div>
+          
+          {/* Question */}
+          <div className="flex-1 flex flex-col justify-center">
+            <h2 className="text-xl font-semibold text-white mb-6">
+              {currentQuestion.question}
+            </h2>
+            
+            {/* Answer options */}
+            <div className="space-y-4">
+              {currentQuestion.options?.map((option, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleAnswer(option)}
+                  className={`w-full p-4 rounded-lg text-left transition-colors ${
+                    answers[currentQuestion.id] === option
+                      ? 'bg-pink-500 text-white'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  {option}
+                </button>
+              )) ?? (
+                <div className="text-white text-center">
+                  No options available for this question
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </IonContent>
+      
+      <BottomNavBar />
+      
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={toastMessage}
+        duration={2000}
+        position="bottom"
+      />
     </IonPage>
   );
 } 

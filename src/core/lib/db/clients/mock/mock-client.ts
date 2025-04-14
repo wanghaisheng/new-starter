@@ -2,10 +2,20 @@ import { IDatabaseClient, DatabaseConfig } from '@/core/lib/db/interfaces';
 import { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database.types';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
-import * as fs from 'fs';
-import * as path from 'path';
 import { Logger } from '@/core/lib/utils/logger';
 import { config } from '@/core/lib/db/config';
+
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+// Only import Node.js modules in non-browser environments
+let fs: any;
+let path: any;
+
+if (!isBrowser) {
+  fs = require('fs');
+  path = require('path');
+}
 
 /**
  * Mock数据库客户端配置接口
@@ -68,17 +78,27 @@ export class MockDatabaseClient implements IDatabaseClient {
 
   async initialize(): Promise<void> {
     if (this.isInitialized) {
+      this.logger.debug('Mock database client already initialized, skipping initialization');
       return;
     }
 
     this.logger.debug('Initializing mock database client');
     
-    if (this.mockConfig.mockMode === 'json') {
-      await this.loadFromJson();
+    try {
+      if (this.mockConfig.mockMode === 'json') {
+        await this.loadFromJson();
+      }
+      
+      this.isInitialized = true;
+      this.logger.debug('Mock database client initialized successfully');
+    } catch (error) {
+      this.logger.error('Failed to initialize mock database client', { error });
+      throw new DatabaseError(
+        `Failed to initialize mock database client: ${error instanceof Error ? error.message : String(error)}`,
+        DatabaseErrorCode.INITIALIZATION_ERROR,
+        error
+      );
     }
-    
-    this.isInitialized = true;
-    this.logger.debug('Mock database client initialized');
   }
 
   async close(): Promise<void> {
@@ -110,35 +130,35 @@ export class MockDatabaseClient implements IDatabaseClient {
     this.logger.debug('All data cleared');
   }
 
-  async query<T extends BaseEntity>(collection: string, options: QueryOptions): Promise<QueryResult<T>> {
+  async query<T>(collection: string, query: any): Promise<QueryResult<T>> {
     this.validateInitialized();
-    this.logger.debug(`Querying ${collection}`, options);
+    this.logger.debug(`Querying ${collection}`, query);
     
     const table = this.getTable(collection);
     const records = Array.from(table.values()) as T[];
     
     // Apply basic filtering if where clause is provided in options
     let filtered = records;
-    if (options?.where) {
+    if (query?.where) {
       filtered = records.filter(record => {
-        if (options.where && '$and' in options.where) {
-          return (options.where.$and || []).every(condition => 
+        if (query.where && '$and' in query.where) {
+          return (query.where.$and || []).every((condition: any) => 
             this.matchesCondition(record, condition)
           );
-        } else if (options.where && '$or' in options.where) {
-          return (options.where.$or || []).some(condition => 
+        } else if (query.where && '$or' in query.where) {
+          return (query.where.$or || []).some((condition: any) => 
             this.matchesCondition(record, condition)
           );
-        } else if (options.where) {
-          return this.matchesCondition(record, options.where);
+        } else if (query.where) {
+          return this.matchesCondition(record, query.where);
         }
         return true;
       });
     }
     
     // Apply sorting if orderBy is provided
-    if (options.orderBy) {
-      const { field, direction } = options.orderBy;
+    if (query.orderBy) {
+      const { field, direction } = query.orderBy;
       filtered.sort((a, b) => {
         const aValue = (a as Record<string, any>)[field];
         const bValue = (b as Record<string, any>)[field];
@@ -149,8 +169,8 @@ export class MockDatabaseClient implements IDatabaseClient {
     }
     
     // Apply pagination
-    const offset = options.offset || 0;
-    const limit = options.limit || 10;
+    const offset = query.offset || 0;
+    const limit = query.limit || 10;
     const paginatedRecords = filtered.slice(offset, offset + limit);
     
     return {
@@ -194,7 +214,7 @@ export class MockDatabaseClient implements IDatabaseClient {
     );
   }
 
-  async findById<T extends BaseEntity>(collection: string, id: string): Promise<T | null> {
+  async findById<T>(collection: string, id: string): Promise<T | null> {
     this.validateInitialized();
     this.logger.debug(`Finding record by id in ${collection}`, { id });
     
@@ -222,7 +242,7 @@ export class MockDatabaseClient implements IDatabaseClient {
     return records;
   }
 
-  async create<T extends BaseEntity>(collection: string, data: Partial<T>): Promise<T> {
+  async create<T>(collection: string, data: Partial<T>): Promise<T> {
     this.validateInitialized();
     this.logger.debug(`Creating record in ${collection}`, data);
     
@@ -247,7 +267,7 @@ export class MockDatabaseClient implements IDatabaseClient {
     return record;
   }
 
-  async update<T extends BaseEntity>(collection: string, id: string, data: Partial<T>): Promise<T> {
+  async update<T>(collection: string, id: string, data: Partial<T>): Promise<T> {
     this.validateInitialized();
     this.logger.debug(`Updating record in ${collection}`, { id, data });
     
@@ -380,7 +400,7 @@ export class MockDatabaseClient implements IDatabaseClient {
       await this.commitTransaction();
     } catch (error) {
       await this.rollbackTransaction();
-      throw error;
+        throw error;
     }
   }
 
@@ -405,41 +425,74 @@ export class MockDatabaseClient implements IDatabaseClient {
   }
 
   private async loadFromJson(): Promise<void> {
+    if (isBrowser) {
+      // In browser environment, we can't load from files
+      // Just use memory mode instead
+      this.mockConfig.mockMode = 'memory';
+      return;
+    }
+
     try {
-      const exists = await fs.promises.access(this.mockConfig.jsonFilePath)
-        .then(() => true)
-        .catch(() => false);
-      
-      if (exists) {
-        const jsonData = await fs.promises.readFile(this.mockConfig.jsonFilePath, { encoding: 'utf8' });
-        const data = JSON.parse(jsonData);
-        Object.entries(data).forEach(([collection, records]) => {
-          this.data[collection] = new Map(Object.entries(records as Record<string, any>));
-        });
+      const filePath = this.mockConfig.jsonFilePath;
+      if (!filePath) {
+        throw new DatabaseError(
+          'JSON file path is required when mockMode is set to "json"',
+          DatabaseErrorCode.INITIALIZATION_ERROR
+        );
+      }
+
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        this.logger.warn(`JSON file not found: ${filePath}. Using empty data.`);
+        return;
+      }
+
+      // Read and parse JSON file
+      const jsonData = await fs.promises.readFile(filePath, 'utf8');
+      const data = JSON.parse(jsonData);
+
+      // Convert plain objects to Maps
+      for (const [collection, records] of Object.entries(data)) {
+        this.data[collection] = new Map(Object.entries(records as Record<string, any>));
       }
     } catch (error) {
-      this.logger.error('Failed to load mock data from JSON file', { error });
+      this.logger.error('Failed to load data from JSON file', { error });
       throw new DatabaseError(
-        'Failed to load mock data',
+        `Failed to load data from JSON file: ${error instanceof Error ? error.message : String(error)}`,
         DatabaseErrorCode.OPERATION_FAILED
       );
     }
   }
 
   private async saveToJson(): Promise<void> {
+    if (isBrowser) {
+      // In browser environment, we can't save to files
+      // Just log a warning
+      this.logger.warn('Saving to JSON file is not supported in browser environment');
+      return;
+    }
+
     try {
-      const data = Object.fromEntries(
-        Object.entries(this.data).map(([collection, records]) => [
-          collection,
-          Object.fromEntries(records as Map<string, any>)
-        ])
-      );
-      const jsonData = JSON.stringify(data, null, 2);
-      await fs.promises.writeFile(this.mockConfig.jsonFilePath, jsonData, { encoding: 'utf8' });
+      const filePath = this.mockConfig.jsonFilePath;
+      if (!filePath) {
+        throw new DatabaseError(
+          'JSON file path is required when mockMode is set to "json"',
+          DatabaseErrorCode.INITIALIZATION_ERROR
+        );
+      }
+
+      // Convert Maps to plain objects for JSON serialization
+      const jsonData: Record<string, Record<string, any>> = {};
+      for (const [collection, records] of Object.entries(this.data)) {
+        jsonData[collection] = Object.fromEntries(records as Map<string, any>);
+      }
+
+      // Write to JSON file
+      await fs.promises.writeFile(filePath, JSON.stringify(jsonData, null, 2), 'utf8');
     } catch (error) {
-      this.logger.error('Failed to save mock data to JSON file', { error });
+      this.logger.error('Failed to save data to JSON file', { error });
       throw new DatabaseError(
-        'Failed to save mock data',
+        `Failed to save data to JSON file: ${error instanceof Error ? error.message : String(error)}`,
         DatabaseErrorCode.OPERATION_FAILED
       );
     }

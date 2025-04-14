@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
 import { User } from '@/core/lib/db/types/user';
-import { useServices } from '@/core/hooks/useServices';
+import { useMatches } from '@/core/hooks/useMatches';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
@@ -17,41 +17,21 @@ interface Match {
 
 export default function MatchesPage() {
   const router = useRouter();
-  const { userService, isLoading, error } = useServices();
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [matchedUsers, setMatchedUsers] = useState<User[]>([]);
+  const { matches, matchedUsers, loading, error, getUserMatches, getMatchedUsers } = useMatches();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   
   useEffect(() => {
     loadMatches();
-  }, [userService]);
+  }, []);
   
   const loadMatches = async () => {
-    if (!userService) return;
-    
     try {
-      const currentUser = await userService.getCurrentUser();
-      if (!currentUser) {
-        setToastMessage('Please login first');
-        setShowToast(true);
-        return;
+      // The useMatches hook will automatically load matches for the current user
+      // We just need to ensure we have the matched users
+      if (matches.length > 0) {
+        await getMatchedUsers(matches[0].users[0]);
       }
-
-      const allMatches = await userService.getMatches(currentUser.id);
-      setMatches(allMatches);
-      
-      // Get matched users
-      const matchedUserIds = allMatches.flatMap(match => 
-        match.users.filter(id => id !== currentUser.id)
-      );
-      
-      const users = await userService.getUsers();
-      const matchedUsersList = users.filter(user => 
-        matchedUserIds.includes(user.id)
-      );
-      
-      setMatchedUsers(matchedUsersList);
     } catch (err) {
       console.error('Error loading matches:', err);
       setToastMessage('Failed to load matches. Please try again.');
@@ -63,7 +43,7 @@ export default function MatchesPage() {
     router.push(`/mobile/matches/chat?id=${userId}`);
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">

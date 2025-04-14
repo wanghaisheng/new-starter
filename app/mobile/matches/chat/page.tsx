@@ -23,11 +23,13 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [otherUserError, setOtherUserError] = useState<Error | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const userId = searchParams.get('id');
-  const isLoading = userLoading || messageLoading;
-  const error = userError || messageError;
+  const isLoading = userLoading || messageLoading || isLoadingUser;
+  const error = userError || messageError || otherUserError;
   
   useEffect(() => {
     if (userId) {
@@ -39,14 +41,16 @@ export default function ChatPage() {
     if (!userId) return;
     
     try {
-      // Load other user's profile
-      const users = await userService.getUsers();
-      const user = users.find(u => u.id === userId);
-      if (!user) {
-        setToastMessage('User not found');
-        setShowToast(true);
-        return;
+      // Load other user's profile using API
+      setIsLoadingUser(true);
+      setOtherUserError(null);
+      
+      const response = await fetch(`/api/users/${userId}`);
+      if (!response.ok) {
+        throw new Error('User not found');
       }
+      
+      const user = await response.json();
       setOtherUser(user);
       
       // Load messages
@@ -56,8 +60,11 @@ export default function ChatPage() {
       scrollToBottom();
     } catch (err) {
       console.error('Error loading chat:', err);
+      setOtherUserError(err instanceof Error ? err : new Error('Failed to load user'));
       setToastMessage('Failed to load chat. Please try again.');
       setShowToast(true);
+    } finally {
+      setIsLoadingUser(false);
     }
   };
   

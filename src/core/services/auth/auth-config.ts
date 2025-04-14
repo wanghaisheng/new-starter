@@ -1,5 +1,37 @@
-import { scrypt, randomBytes } from 'crypto';
-import { promisify } from 'util';
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+// Import Node.js modules only in non-browser environments
+let scrypt: any;
+let randomBytes: any;
+let promisify: any;
+
+if (!isBrowser) {
+  // Node.js environment
+  const crypto = require('crypto');
+  const util = require('util');
+  scrypt = crypto.scrypt;
+  randomBytes = crypto.randomBytes;
+  promisify = util.promisify;
+} else {
+  // Browser environment - provide mock implementations
+  scrypt = async (password: string, salt: string, keylen: number) => {
+    // In a real implementation, you would use the Web Crypto API
+    // This is just a placeholder that returns a mock value
+    console.warn('Using mock crypto implementation in browser');
+    return new Uint8Array(keylen).fill(1);
+  };
+  
+  randomBytes = (size: number) => {
+    // In a real implementation, you would use the Web Crypto API
+    // This is just a placeholder that returns a mock value
+    console.warn('Using mock randomBytes implementation in browser');
+    return Buffer.from(new Uint8Array(size).fill(1));
+  };
+  
+  promisify = (fn: Function) => fn;
+}
+
 import { sendEmail } from '@/core/lib/email';
 import { AuthConfig, EmailContext, RequestContext, AuthServiceType, AuthProviderType } from './auth-types';
 

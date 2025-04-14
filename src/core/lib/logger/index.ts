@@ -2,19 +2,22 @@ import { createLogger, format, transports } from 'winston';
 
 const { combine, timestamp, json, colorize, simple } = format;
 
-export const logger = createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: combine(
-    timestamp(),
-    json()
-  ),
-  transports: [
-    new transports.Console({
-      format: combine(
-        colorize(),
-        simple()
-      )
-    }),
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+// Create logger with appropriate transports based on environment
+const loggerTransports: any[] = [
+  new transports.Console({
+    format: combine(
+      colorize(),
+      simple()
+    )
+  })
+];
+
+// Only add file transports in Node.js environment
+if (!isBrowser) {
+  loggerTransports.push(
     new transports.File({ 
       filename: 'logs/error.log',
       level: 'error'
@@ -22,7 +25,16 @@ export const logger = createLogger({
     new transports.File({ 
       filename: 'logs/combined.log' 
     })
-  ]
+  );
+}
+
+export const logger = createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: combine(
+    timestamp(),
+    json()
+  ),
+  transports: loggerTransports
 });
 
 // 导出日志级别类型

@@ -13,6 +13,7 @@ export function DatabaseProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let isMounted = true;
+    let initializationTimeout: NodeJS.Timeout | null = null;
 
     async function initializeDatabase() {
       try {
@@ -145,11 +146,17 @@ export function DatabaseProvider({ children }: PropsWithChildren) {
 
     // 只在组件首次挂载或明确重试时初始化
     if ((!isInitialized && error === null) || initializationAttempts > 0) {
-      initializeDatabase();
+      // 使用setTimeout来防止在同一个渲染周期内多次初始化
+      initializationTimeout = setTimeout(() => {
+        initializeDatabase();
+      }, 0);
     }
 
     return () => {
       isMounted = false;
+      if (initializationTimeout) {
+        clearTimeout(initializationTimeout);
+      }
     };
   }, [isInitialized, error, initializationAttempts]);
 

@@ -5,23 +5,34 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonList, IonItem, IonLabel, IonBadge, IonIcon } from '@ionic/react';
 import { timeOutline, checkmarkCircle, hourglassOutline } from 'ionicons/icons';
-import { TestService } from '@/core/services/test-service';
 import type { TestType } from '@/core/lib/db/types';
 import { LoadingScreen } from '@/core/components/common/LoadingScreen';
 import { ErrorScreen } from '@/core/components/common/ErrorScreen';
+
+// Extended TestType with status field for UI purposes
+interface TestTypeWithStatus extends TestType {
+  status: 'completed' | 'inProgress' | 'notStarted';
+}
 
 export default function TestTypesPage() {
   const router = useRouter();
   const t = useTranslations('test');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [testTypes, setTestTypes] = useState<TestType[]>([]);
+  const [testTypes, setTestTypes] = useState<TestTypeWithStatus[]>([]);
 
   useEffect(() => {
     async function loadTestTypes() {
       try {
-        const service = TestService.getInstance();
-        const types = await service.getTestTypes();
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch('/api/tests/types');
+        if (!response.ok) {
+          throw new Error('Failed to fetch test types');
+        }
+        
+        const types = await response.json();
         setTestTypes(types);
       } catch (err) {
         setError(err instanceof Error ? err : new Error(t('errors.loadFailed')));
@@ -37,7 +48,7 @@ export default function TestTypesPage() {
     router.push(`/mobile/tests/${testId}`);
   };
 
-  const getStatusIcon = (status: TestType['status']) => {
+  const getStatusIcon = (status: TestTypeWithStatus['status']) => {
     switch (status) {
       case 'completed':
         return checkmarkCircle;
@@ -48,7 +59,7 @@ export default function TestTypesPage() {
     }
   };
 
-  const getStatusColor = (status: TestType['status']) => {
+  const getStatusColor = (status: TestTypeWithStatus['status']) => {
     switch (status) {
       case 'completed':
         return 'success';

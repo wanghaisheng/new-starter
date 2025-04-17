@@ -254,4 +254,19 @@ export class NetworkService implements INetworkService {
       options: {} // Base options
     };
   }
+
+  /**
+   * 添加网络状态监听器
+   * @param callback (online: boolean) => void
+   */
+  public addNetworkStatusListener(callback: (online: boolean) => void): void {
+    // 浏览器环境监听 online/offline 事件
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('online', () => callback(true));
+      window.addEventListener('offline', () => callback(false));
+      // 立即回调一次当前状态
+      callback(navigator.onLine);
+    }
+    // 可扩展为移动端/Node.js/自定义环境
+  }
 } 

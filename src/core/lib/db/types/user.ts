@@ -1,4 +1,4 @@
-import { BaseEntity } from './base';
+import { BaseEntity } from './base-entity';
 import { Location } from './location';
 import { Photo } from './photo';
 import { TestType } from './test';
@@ -129,6 +129,12 @@ export interface User extends BaseEntity {
 
   /** 未读通知数量 */
   unreadNotifications?: number;
+
+  /** 用户标签 */
+  tags?: string[];
+
+  /** 用户画像/AI报告 */
+  profile?: any;
 }
 
 /**
@@ -233,6 +239,29 @@ export interface SecuritySettings {
   emailNotifications: boolean;
   /** 是否启用登录提醒 */
   loginAlerts: boolean;
+}
+
+/**
+ * 匹配信息接口
+ */
+export interface Match {
+  id: string;
+  userIds: string[];
+  createdAt: string;
+}
+
+/**
+ * 消息接口
+ */
+export interface Message {
+  id: string;
+  matchId: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  type?: string;
+  createdAt: string;
+  read?: boolean;
 }
 
 /**

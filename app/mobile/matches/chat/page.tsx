@@ -2,25 +2,24 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { IonContent, IonPage, IonToast } from '@ionic/react';
+import { IonContent, IonPage, IonToast, IonFooter } from '@ionic/react';
 import Image from 'next/image';
 import { User } from '@/core/lib/db/types/user';
 import { Message } from '@/core/lib/db/types/message';
 import { useAuth } from '@/core/hooks/useAuth';
 import { useUser } from '@/core/hooks/useUser';
-import { useMessages } from '@/core/hooks/useMessages';
+import { MessageServiceFactory } from '@/core/services-update/business/messages/factory/message-service-factory';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import MessageInput from '@/mobile/components/MessageInput';
 
 export default function ChatPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user: currentUser } = useAuth();
   const { loading: userLoading, error: userError } = useUser();
-  const { messages, loading: messageLoading, error: messageError, getMatchMessages, sendMessage } = useMessages();
   const [otherUser, setOtherUser] = useState<User | null>(null);
-  const [newMessage, setNewMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isLoadingUser, setIsLoadingUser] = useState(false);
@@ -28,15 +27,76 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const userId = searchParams.get('id');
-  const isLoading = userLoading || messageLoading || isLoadingUser;
-  const error = userError || messageError || otherUserError;
+  const isLoading = userLoading || isLoadingUser;
+  const error = userError || otherUserError;
   
+  const msgService = MessageServiceFactory.createService('advanced-hybrid');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     if (userId) {
       loadChat();
     }
-  }, [userId, getMatchMessages]);
-  
+  }, [userId]);
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    setLoading(true);
+    msgService.getMessagesByPage(userId, 0, 50)
+      .then((msgs: Message[]) => {
+        setMessages(msgs);
+        setLoading(false);
+        scrollToBottom();
+      })
+      .catch(e => { setOtherUserError('加载消息失败'); setLoading(false); });
+    // 监听消息变更
+    if (msgService.onMessageChange) {
+      unsub = msgService.onMessageChange((msgs: Message[]) => {
+        setMessages(msgs.filter(m => m.matchId === userId));
+        scrollToBottom();
+      });
+    }
+    return () => { if (unsub) unsub(); };
+  }, [userId]);
+
+  // 自动滚动到底部
+  const scrollToBottom = () => {
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  };
+
+  // 发送消息（支持富媒体）
+  const handleSendMessage = async (content: string, type: 'text' | 'image' = 'text', mediaUrl?: string) => {
+    try {
+      await msgService.sendRichMessage({
+        matchId: userId,
+        senderId: currentUser.id,
+        receiverId: userId,
+        content,
+        type,
+        mediaUrl
+      });
+    } catch (e) {
+      setToastMessage('发送失败');
+      setShowToast(true);
+    }
+  };
+
+  // 渲染消息列表
+  const renderMessages = () => {
+    if (isLoading) return <div className="p-4 text-center">加载中...</div>;
+    if (error) return <div className="p-4 text-center text-red-500">{error.toString()}</div>;
+    if (messages.length === 0) return <div className="p-4 text-center text-gray-400">暂无消息</div>;
+    return (
+      <div className="flex flex-col gap-2">
+        {messages.map(msg => (
+          <div key={msg.id} className={`message-bubble ${msg.senderId === currentUser.id ? 'sent' : 'received'}`}>{msg.content}</div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+    );
+  };
+
   const loadChat = async () => {
     if (!userId) return;
     
@@ -52,12 +112,6 @@ export default function ChatPage() {
       
       const user = await response.json();
       setOtherUser(user);
-      
-      // Load messages
-      await getMatchMessages(userId);
-      
-      // Scroll to bottom
-      scrollToBottom();
     } catch (err) {
       console.error('Error loading chat:', err);
       setOtherUserError(err instanceof Error ? err : new Error('Failed to load user'));
@@ -65,37 +119,6 @@ export default function ChatPage() {
       setShowToast(true);
     } finally {
       setIsLoadingUser(false);
-    }
-  };
-  
-  const handleSendMessage = async () => {
-    if (!userId || !newMessage.trim() || !currentUser) return;
-    
-    try {
-      await sendMessage({
-        matchId: userId,
-        senderId: currentUser.id,
-        receiverId: userId,
-        content: newMessage.trim(),
-        type: 'text'
-      });
-      setNewMessage('');
-      scrollToBottom();
-    } catch (err) {
-      console.error('Error sending message:', err);
-      setToastMessage('Failed to send message. Please try again.');
-      setShowToast(true);
-    }
-  };
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
     }
   };
 
@@ -149,50 +172,14 @@ export default function ChatPage() {
           
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map(message => (
-              <div
-                key={message.id}
-                className={`flex ${message.senderId === userId ? 'justify-start' : 'justify-end'}`}
-              >
-                <div
-                  className={`max-w-[70%] rounded-lg p-3 ${
-                    message.senderId === userId
-                      ? 'bg-white text-gray-800'
-                      : 'bg-pink-500 text-white'
-                  }`}
-                >
-                  <p>{message.content}</p>
-                  <p className="text-xs mt-1 opacity-70">
-                    {new Date(message.createdAt).toLocaleTimeString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-          
-          {/* Message input */}
-          <div className="p-4 bg-white border-t">
-            <div className="flex space-x-2">
-              <textarea
-                value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type a message..."
-                className="flex-1 p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-pink-500"
-                rows={1}
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim()}
-                className="px-4 py-2 bg-pink-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pink-600 transition-colors"
-              >
-                Send
-              </button>
-            </div>
+            {renderMessages()}
           </div>
         </div>
       </IonContent>
+      
+      <IonFooter>
+        <MessageInput matchId={userId} senderId={currentUser.id} receiverId={userId} onSendMessage={handleSendMessage} />
+      </IonFooter>
       
       <BottomNavBar />
       

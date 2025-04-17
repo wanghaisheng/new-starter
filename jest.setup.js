@@ -1,3 +1,14 @@
+// Node 22+ 强制全局 mock fetch，覆盖原生 fetch，避免测试真实请求
+global.fetch = jest.fn(() => {
+  console.log('MOCK FETCH CALLED');
+  return Promise.resolve(
+    new Response(JSON.stringify({ data: 'mocked' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  );
+});
+
 import '@testing-library/jest-dom';
 
 // Mock Next.js router
@@ -36,7 +47,7 @@ jest.mock('@capacitor/core', () => ({
 }));
 
 // Mock Capacitor SQLite
-jest.mock('@capacitor/sqlite', () => ({
+jest.mock('@capacitor-community/sqlite', () => ({
   CapacitorSQLite: {
     createConnection: jest.fn(),
     closeConnection: jest.fn(),
@@ -508,4 +519,12 @@ jest.mock('@capacitor-community/sqlite', () => ({
     execute: jest.fn(),
     query: jest.fn()
   }))
-})); 
+}));
+
+// Polyfill crypto.randomUUID for test env if needed
+if (!global.crypto) {
+  global.crypto = {};
+}
+if (!global.crypto.randomUUID) {
+  global.crypto.randomUUID = () => Math.random().toString(36).substring(2, 10) + Date.now();
+}

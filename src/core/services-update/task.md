@@ -39,6 +39,21 @@
 - 支持服务懒加载、按需销毁，提升性能。
 - 结合实际业务需求，扩展更多高级特性（如缓存、事件通知、数据加密等）。
 
+### [P2] 8. 迁移 data-migration-service 到新架构
+- 目标：将 mock、本地、云端等多数据源间的数据迁移能力，重构为基于新版 IDataService/HybridDatabaseClient/多 adapter 的统一迁移服务。
+- 步骤：设计迁移接口，支持多 adapter、进度回调、错误处理，补充测试与文档。
+
+### [P2] 9. 迁移 data-preload-service 到新架构
+- 目标：将数据预加载、缓存、自动定时预加载、网络监听等能力，重构为基于新版 data 层的通用预加载服务。
+- 步骤：适配新版接口，支持多表、可配置、事件驱动，补充测试与文档。
+
+### [P2] 10. 迁移摄像头服务
+- 目标目录：src/core/services-update/business/phone/camera-service.ts
+- 目标：将原有 camera-service.ts 按新架构迁移，并与 phone 相关业务能力统一管理
+- 要求：接口规范、Mock/平台适配、多端兼容、单元测试
+- 负责人：AI迁移助手
+- 状态：进行中
+
 ---
 
 ## 三、注意事项（架构与实现规范）
@@ -84,12 +99,16 @@
 - [x] 工厂、注册表、Sqlite/IndexedDB 适配器、业务集成等测试全覆盖。
 - [x] 注册表支持懒加载工厂与 dispose，提升资源管理能力。
 - [x] 适配器支持 on/off/emit 事件订阅、findOne/query 查询缓存与自动失效。
+- [x] Hybrid/AdvancedHybrid 适配器已实现，支持多模式切换和同步。
+- [x] Supabase 适配器已实现。
+- [x] 基础数据校验服务（validation-service）已迁移至 infrastructure 层。
+- [x] examples 目录下示例代码已全面升级，覆盖事件、缓存、销毁等用法。
 
 ### 进行中
-- [ ] 高级特性扩展预研：如加密、统一日志、Mock/Hybrid/Drizzle 新适配器模板等。
+- [ ] 高级特性扩展预研：如加密、统一日志、Mock/Drizzle/Postgres 新适配器模板等。
 
 ### 待办
-- [ ] 离线/Hybrid/Drizzle/Postgres 等新适配器模板预留与迁移。
+- [ ] 离线/Mock/Drizzle/Postgres 等新适配器模板预留与迁移（目前尚未实现 offline-storage-service、mock、drizzle、postgres 适配器）。
 - [ ] 服务懒加载、按需销毁等高级优化（如需进一步细化）。
 - [ ] 缓存、事件通知、数据加密等高级特性更深入的扩展和测试。
 
@@ -104,19 +123,13 @@
 ### 2. offline-storage-service.ts
 - 面向“离线专用表”，支持表级 CRUD、schema 检查、实体操作。
 - 适合离线业务数据、断网场景。
+- （当前未迁移，待实现）
 
-### 3. lib/db/sync
-- 负责本地数据与远程服务器的同步、冲突解决、同步状态管理。
-- 依赖本地存储服务（如 offline-storage-service）作为本地数据源。
+### 3. advanced-hybrid-database-client.ts / hybrid-database-client.ts
+- 支持 hybrid（本地+云端）多模式切换、同步，适合复杂业务。
 
-### 4. lib/db/docs
-- 存放数据库文档、表结构说明、schema 设计文档。
-- 为 offline-storage-service、sync-manager 等提供元数据支撑。
-
-### 5. 差异与共同点
-- storage-service 关注 key-value 存储，offline-storage-service 关注表级业务数据。
-- sync-manager 侧重于同步流程和状态管理，需与 offline-storage-service 协作。
-- docs 提供 schema、同步规则等元数据，是 data/infrastructure 层的“说明书”。
+### 4. validation-service.ts
+- 基础数据校验，已迁移至 infrastructure 层，供业务和适配器复用。
 
 ---
 

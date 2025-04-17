@@ -2,9 +2,6 @@
 export * from './types';
 export * from './interfaces';
 export * from './schema';
-export * from './service';
-export * from './factory';
-export * from './config';
 
 // 导出模型
 export { User as UserModel } from './models/user';
@@ -21,6 +18,3 @@ export { MessageRepository } from './repositories/message-repository';
 export { schemaRegistry } from './schema/index';
 export { drizzleSchema, migrationSQL } from './schema/drizzle-schema';
 
-// 创建并导出默认数据库服务实例
-import { DatabaseService } from './service';
-export const db = DatabaseService.getInstance();

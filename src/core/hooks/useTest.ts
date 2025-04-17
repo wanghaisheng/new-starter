@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { TestService } from '@/core/services/test/test-type-service';
+import { TestService } from '@/core/services/data/quiz-service';
 import { useAuth } from '@/core/hooks/useAuth';
 import type { 
   TestType, 

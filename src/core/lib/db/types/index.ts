@@ -3,7 +3,6 @@ import { schemaRegistry } from '@/core/lib/db/schema';
 import { BaseEntity } from './base-entity';
 
 // 明确导入两个不同的BatchOperation接口，避免命名冲突
-import { BatchOperation as DBBatchOperation } from './database.types';
 import * as DatabaseTypes from './database.types';
 import { BatchOperation as SimBatchOperation } from './simulator';
 
@@ -27,7 +26,7 @@ export * from './match';
 export * from './message';
 export * from './interaction';
 export * from './repository';
-export * from './test';
+export * from './quiz';
 
 // 导出类型转换工具
 export * from './converters';
@@ -38,7 +37,6 @@ export * as SimulatorTypes from './simulator';
 
 // 明确导出重命名后的 BatchOperation 类型
 export type { BatchOperation as DatabaseBatchOperation } from './database.types';
-export type { BatchOperation as SimulatorBatchOperation } from './simulator';
 
 /**
  * 获取表结构对应的类型定义

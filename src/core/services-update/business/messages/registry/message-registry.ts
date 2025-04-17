@@ -1,12 +1,13 @@
 import { IMessageService } from '../types/message-service';
-import { MockMessageServiceAdapter } from '../adapters/mock-message-service-adapter';
+import { MessageServiceFactory } from '../factory/message-service-factory';
 
 export class MessageServiceRegistry {
   private static instance: MessageServiceRegistry;
-  private providers: Map<string, new (...args: any[]) => IMessageService> = new Map();
+  private providers: Map<string, () => IMessageService> = new Map();
 
   private constructor() {
-    this.registerProvider('mock', MockMessageServiceAdapter);
+    this.registerProvider('mock', () => MessageServiceFactory.createService('mock'));
+    this.registerProvider('remote', () => MessageServiceFactory.createService('remote'));
   }
 
   public static getInstance(): MessageServiceRegistry {
@@ -16,12 +17,12 @@ export class MessageServiceRegistry {
     return MessageServiceRegistry.instance;
   }
 
-  public getProvider(type: string): (new (...args: any[]) => IMessageService) | undefined {
+  public getProvider(type: string): (() => IMessageService) | undefined {
     return this.providers.get(type);
   }
 
-  public registerProvider(type: string, provider: new (...args: any[]) => IMessageService): void {
-    this.providers.set(type, provider);
+  public registerProvider(type: string, factory: () => IMessageService): void {
+    this.providers.set(type, factory);
   }
 
   public unregisterProvider(type: string): void {

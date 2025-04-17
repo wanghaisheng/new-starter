@@ -1,122 +1,145 @@
-import { IUserService } from '../types/user-service';
-import { IDataService } from '@/core/services-update/data/types';
-import { User } from '@/core/lib/db/models';
+import { User, Match, Message } from '@/core/lib/db/types/user';
+import { IDataService } from '@/core/services/data/data-service';
 import { NetworkService } from '@/core/services/data/network-service';
+import { IUserAdapter } from './adapters/user-adapter';
 
-/**
- * 领域聚合用户服务，负责离线同步、网络监听、批量等复合业务逻辑
- */
-export class UserDomainService {
-  private static instance: UserDomainService;
-  private offlineProfileUpdates: { userId: string; data: Partial<User>; timestamp: Date }[] = [];
-  private offlineStorageKey = 'offline_profile_updates';
-  private currentUser: User | null = null;
-  private initialized = false;
+export interface IUserService {
+  initialize(): Promise<void>;
+  getCurrentUser(): Promise<User | null>;
+  saveCurrentUser(user: User): Promise<void>;
+  getUsers(): Promise<User[]>;
+  saveUsers(users: User[]): Promise<void>;
+  createUser(user: Partial<User>): Promise<User>;
+  updateUser(userId: string, updates: Partial<User>): Promise<User>;
+  updateUserProfile(userId: string, updates: Partial<User>): Promise<{ success: boolean; errors?: string[] }>;
+  syncOfflineProfileUpdates(): Promise<number>;
+  deleteUser(userId: string): Promise<void>;
+  getUserById(userId: string): Promise<User | null>;
+  getUsersByIds(userIds: string[]): Promise<User[]>;
+  createMatch(userIds: string[]): Promise<Match>;
+  getMatches(userId: string, options?: any): Promise<Match[]>;
+  deleteMatch(matchId: string): Promise<void>;
+  getRecommendedUsers(options?: any): Promise<User[]>;
+  sendMessage(matchId: string, senderId: string, receiverId: string, content: string, type?: string): Promise<Message>;
+  markMessageAsRead(messageId: string): Promise<Message>;
+  updateUsersTags(userIds: string[], tags: string[]): Promise<void>;
+  updateUsersProfile(userIds: string[], profile: any): Promise<void>;
+  getUsersByTags(tags: string[]): Promise<User[]>;
+  getUserProfile(userId: string): Promise<any>;
+}
 
-  constructor(
-    private userService: IUserService,
-    private networkService: NetworkService = NetworkService.getInstance()
-  ) {
-    this.loadOfflineProfileUpdates();
-    this.networkService.addNetworkStatusListener((status) => {
-      if (status.connected && this.offlineProfileUpdates.length > 0) {
-        this.syncOfflineProfileUpdates();
-      }
-    });
+export class UserService implements IUserService {
+  private static instance: UserService;
+  private adapter: IUserAdapter;
+  private initialized: boolean = false;
+
+  constructor(adapter: IUserAdapter) {
+    this.adapter = adapter;
   }
 
-  public static getInstance(userService: IUserService): UserDomainService {
-    if (!UserDomainService.instance) {
-      UserDomainService.instance = new UserDomainService(userService);
-    }
-    return UserDomainService.instance;
-  }
-
-  async initialize() {
-    if (this.initialized) return;
+  async initialize(): Promise<void> {
     this.initialized = true;
-    // 可扩展初始化逻辑
   }
 
   async getCurrentUser(): Promise<User | null> {
-    return this.currentUser || this.userService.getCurrentUser();
+    return this.adapter.getCurrentUser();
   }
 
   async saveCurrentUser(user: User): Promise<void> {
-    this.currentUser = user;
-    await this.userService.saveCurrentUser(user);
+    return this.adapter.saveCurrentUser(user);
+  }
+
+  async getUsers(): Promise<User[]> {
+    return this.adapter.getUsers();
+  }
+
+  async saveUsers(users: User[]): Promise<void> {
+    return this.adapter.saveUsers(users);
+  }
+
+  async createUser(user: Partial<User>): Promise<User> {
+    return this.adapter.createUser(user);
+  }
+
+  async updateUser(userId: string, updates: Partial<User>): Promise<User> {
+    return this.adapter.updateUser(userId, updates);
   }
 
   async updateUserProfile(userId: string, updates: Partial<User>): Promise<{ success: boolean; errors?: string[] }> {
-    if (this.networkService.getConnectionStatus() === 'online') {
-      return this.userService.updateUserProfile(userId, updates);
-    } else {
-      this.offlineProfileUpdates.push({ userId, data: updates, timestamp: new Date() });
-      this.persistOfflineProfileUpdates();
-      return { success: true };
-    }
+    return this.adapter.updateUserProfile(userId, updates);
   }
 
   async syncOfflineProfileUpdates(): Promise<number> {
-    if (this.offlineProfileUpdates.length === 0) return 0;
-    let count = 0;
-    for (const update of this.offlineProfileUpdates) {
-      await this.userService.updateUserProfile(update.userId, update.data);
-      count++;
+    return this.adapter.syncOfflineProfileUpdates();
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    return this.adapter.deleteUser(userId);
+  }
+
+  async getUserById(userId: string): Promise<User | null> {
+    return this.adapter.getUserById(userId);
+  }
+
+  async getUsersByIds(userIds: string[]): Promise<User[]> {
+    return this.adapter.getUsersByIds(userIds);
+  }
+
+  async createMatch(userIds: string[]): Promise<Match> {
+    return this.adapter.createMatch(userIds);
+  }
+
+  async getMatches(userId: string, options?: any): Promise<Match[]> {
+    return this.adapter.getMatches(userId, options);
+  }
+
+  async deleteMatch(matchId: string): Promise<void> {
+    return this.adapter.deleteMatch(matchId);
+  }
+
+  async getRecommendedUsers(options?: any): Promise<User[]> {
+    return this.adapter.getRecommendedUsers(options);
+  }
+
+  async sendMessage(matchId: string, senderId: string, receiverId: string, content: string, type?: string): Promise<Message> {
+    return this.adapter.sendMessage(matchId, senderId, receiverId, content, type);
+  }
+
+  async markMessageAsRead(messageId: string): Promise<Message> {
+    return this.adapter.markMessageAsRead(messageId);
+  }
+
+  /**
+   * 扩展：批量更新用户标签
+   */
+  async updateUsersTags(userIds: string[], tags: string[]): Promise<void> {
+    for (const userId of userIds) {
+      await this.updateUserProfile(userId, { tags });
     }
-    this.offlineProfileUpdates = [];
-    this.persistOfflineProfileUpdates();
-    return count;
   }
 
-  // 兼容旧服务的可序列化持久化方法
-  private persistOfflineProfileUpdates(): void {
-    try {
-      const serializable = this.offlineProfileUpdates.map(update => ({
-        ...update,
-        timestamp: update.timestamp instanceof Date ? update.timestamp.toISOString() : update.timestamp
-      }));
-      localStorage.setItem('offlineProfileUpdates', JSON.stringify(serializable));
-    } catch (error) {
-      console.error('Failed to persist offline profile updates:', error);
+  /**
+   * 扩展：根据报告批量更新用户画像
+   */
+  async updateUsersProfile(userIds: string[], profile: any): Promise<void> {
+    for (const userId of userIds) {
+      await this.updateUserProfile(userId, { profile });
     }
   }
 
-  // 兼容旧服务的 ISO 字符串反序列化
-  private loadOfflineProfileUpdates(): void {
-    try {
-      const data = localStorage.getItem('offlineProfileUpdates');
-      if (data) {
-        this.offlineProfileUpdates = JSON.parse(data).map((update: any) => ({
-          ...update,
-          timestamp: typeof update.timestamp === 'string' ? new Date(update.timestamp) : update.timestamp
-        }));
-      } else {
-        this.offlineProfileUpdates = [];
-      }
-    } catch (error) {
-      console.error('Failed to load offline profile updates:', error);
-      this.offlineProfileUpdates = [];
-    }
+  /**
+   * 获取带标签筛选的用户列表
+   */
+  async getUsersByTags(tags: string[]): Promise<User[]> {
+    const users = await this.getUsers();
+    return users.filter(u => Array.isArray(u.tags) && tags.every(t => u.tags.includes(t)));
   }
 
-  // 添加离线资料更新到队列
-  private addOfflineProfileUpdate(userId: string, data: Partial<User>): void {
-    const update = { userId, data, timestamp: new Date() };
-    this.offlineProfileUpdates.push(update);
-    this.persistOfflineProfileUpdates();
+  /**
+   * 获取用户画像（示例：返回用户的 profile 字段）
+   */
+  async getUserProfile(userId: string): Promise<any> {
+    const user = await this.getUserById(userId);
+    return user?.profile;
   }
-
-  // 计算年龄
-  public calculateAge(birthDate: Date): number {
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  }
-
-  // 其它聚合方法可继续扩展，如批量、推荐等
 }

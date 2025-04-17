@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TestService } from '@/core/services/test/test-type-service';
+import { TestService } from '@/core/services/data/quiz-service';
 import { handleApiError } from '@/app/api/_lib/utils/response';
 
 /**

@@ -167,4 +167,60 @@ export class UserRepository extends BaseRepository<User> {
       );
     }
   }
+
+  /**
+   * 更新用户标签
+   * @param userId 用户ID
+   * @param tags 标签列表
+   * @throws {DatabaseError} 当更新失败时抛出
+   */
+  async updateTags(userId: string, tags: string[]): Promise<void> {
+    try {
+      await this.update(userId, { tags });
+    } catch (error) {
+      throw new DatabaseError(
+        `更新用户 ${userId} 的标签失败`,
+        'UPDATE_ERROR',
+        { userId, tags, error }
+      );
+    }
+  }
+
+  /**
+   * 更新用户画像
+   * @param userId 用户ID
+   * @param profile 画像数据
+   * @throws {DatabaseError} 当更新失败时抛出
+   */
+  async updateProfile(userId: string, profile: any): Promise<void> {
+    try {
+      await this.update(userId, { profile });
+    } catch (error) {
+      throw new DatabaseError(
+        `更新用户 ${userId} 的画像失败`,
+        'UPDATE_ERROR',
+        { userId, profile, error }
+      );
+    }
+  }
+
+  /**
+   * 根据标签查找用户
+   * @param tags 标签列表
+   * @returns 用户列表
+   * @throws {DatabaseError} 当查询失败时抛出
+   */
+  async findByTags(tags: string[]): Promise<User[]> {
+    try {
+      // 假设数据库支持数组包含查询
+      const result = await this.query({ where: { tags: { $all: tags } } });
+      return result.data;
+    } catch (error) {
+      throw new DatabaseError(
+        `查找标签为 ${tags.join(',')} 的用户失败`,
+        'QUERY_ERROR',
+        { tags, error }
+      );
+    }
+  }
 }

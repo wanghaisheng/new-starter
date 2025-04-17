@@ -68,6 +68,18 @@ const userSchema: TableSchema = {
       notNull: true
     },
     {
+      name: 'tags',
+      type: ColumnType.JSON,
+      notNull: true,
+      defValue: '[]'
+    },
+    {
+      name: 'profile',
+      type: ColumnType.JSON,
+      notNull: true,
+      defValue: '{}'
+    },
+    {
       name: 'isVerified',
       type: ColumnType.BOOLEAN,
       notNull: true,

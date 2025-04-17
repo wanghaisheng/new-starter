@@ -14,150 +14,74 @@ src/core/lib/db/
 │   └── base-client.ts    # 基础客户端抽象（定义统一连接/操作接口）
 ├── repositories/     # 数据访问层，聚合/复用 clients，实现业务数据访问
 ├── schema/          # 数据模型定义
-├── types/           # 类型定义
-└── service.ts       # 核心服务实现（对外暴露统一接口，组合 repositories）
+└── types/           # 类型定义，**唯一类型出口和入口**，统一导出所有数据库相关类型，避免命名冲突，便于全局一致引用
+
 ```
 
 > **架构原则：**
 > - 所有底层数据库连接与原生 API 封装均放在 `clients/` 目录，按平台/类型分子目录实现。
 > - `clients/` 只负责连接、基础 CRUD、事务、原生操作等，不涉及业务逻辑。
 > - `repositories/` 负责聚合/复用 clients，封装业务相关的数据访问逻辑。
-> - `service.ts` 作为统一入口，组合 repositories，对外暴露统一接口。
+> - `types/` 目录作为**类型统一出口和入口**，所有类型定义、导出、全局访问均通过 `types/index.ts` 实现，避免命名冲突与重复定义，保证类型一致性和可维护性。
+> - **注意：数据服务（如统一数据访问/业务聚合服务）已迁移至 db 目录外部，db 目录仅聚焦于底层存储与类型定义。**
 
-## 2. 存储策略
+## 2. 存储策略（最新实现说明）
 
-### 2.1 开发阶段（Mock）
-- 环境配置：`NEXT_PUBLIC_DATABASE_ENV=mock`
-- 存储类型：
-  - **远程数据模拟**：MockDatabaseClient (json/内存)
-  - **本地离线存储模拟**：MockIndexedDBClient (fake-indexeddb)
-- 特点：
-  - 快速原型验证
-  - 预设测试数据
-  - 分层存储架构模拟
-  - 可在 Node.js 环境中运行
+### 2.1 存储类型与动态支持
+- 所有支持的数据库类型通过 `types/database.types.ts` 中 `SUPPORTED_STORAGE_TYPES` 和 `SUPPORTED_OFFLINE_STORAGE_TYPES` 统一管理，避免硬编码。
+- 在线存储类型：`memory`、`indexeddb`、`sqlite`、`postgres`
+- 离线存储类型：`memory`、`indexeddb`、`sqlite`
+- 类型定义：
+  - `StorageType`、`OfflineStorageType`、`StorageConfig`、`OfflineStorageConfig` 详见 types 目录
 
-### 2.2 本地阶段（Local）
-- 环境配置：`NEXT_PUBLIC_DATABASE_ENV=local`
-- Web环境：
-  - **本地离线存储**：IndexedDB
-- 移动端：SQLite
-- 特点：支持离线操作，数据持久化
+### 2.2 配置与环境切换
+- 配置加载与校验全部由 `config-loader.ts` 统一实现，支持环境变量动态切换（如 ONLINE_STORAGE_TYPE、OFFLINE_STORAGE_TYPE、DB_HOST 等）
+- `DatabaseConfig` 类型结构已统一，所有配置均通过 `defaultConfig` 动态生成，避免类型冲突与冗余
+- 离线存储类型校验严格依赖 `SUPPORTED_OFFLINE_STORAGE_TYPES`，如需扩展仅需维护类型常量
 
-### 2.3 生产阶段（Production）
-- 环境配置：`NEXT_PUBLIC_DATABASE_ENV=production`
-- 存储类型：混合存储（本地+云端）
-- 云端选项：Firebase/Supabase
-- 特点：多设备支持，数据同步
-
-## 3. 数据同步策略
-
-### 3.1 在线优先（Online-First）
-- 适用场景：用户注册、个人资料更新
-- 特点：优先云端操作，网络不可用时回退本地
-
-### 3.2 离线优先（Offline-First）
-- 适用场景：消息、匹配操作
-- 特点：优先本地操作，后台同步云端
-
-### 3.3 手动同步（Manual）
-- 适用场景：批量数据同步、大文件传输
-- 特点：用户主动触发，可控同步过程
-
-### 3.4 离线存储（Offline-Only）
-- 适用场景：本地笔记、草稿、设备特定设置
-- 特点：数据仅存储在本地，永不同步到云端
-- 配置：在表结构中添加 `syncConfig.offlineOnly: true`
-
+### 2.3 配置示例
 ```typescript
-// 离线笔记表示例
-const offlineNotesSchema: TableSchema = {
-  name: 'offline_notes',
-  syncConfig: {
-    enabled: true,
-    offlineOnly: true, // 标记为仅离线存储
-    defaultPriority: SyncPriority.LOW,
-    defaultConflictResolution: ConflictResolution.CLIENT_WINS
-  },
-  columns: [
-    // 列定义...
-  ]
-};
+import { defaultConfig, SUPPORTED_STORAGE_TYPES, SUPPORTED_OFFLINE_STORAGE_TYPES } from './types/database.types';
+
+// 通过 config-loader 自动加载并校验
+const config = await ConfigLoader.loadConfig();
+
+console.log(config.storage.online.type); // 取值范围受 SUPPORTED_STORAGE_TYPES 控制
+console.log(config.storage.offline.type); // 取值范围受 SUPPORTED_OFFLINE_STORAGE_TYPES 控制
 ```
 
-## 4. 核心接口
+### 2.4 配置扩展与维护
+- 新增数据库类型仅需在 `SUPPORTED_STORAGE_TYPES`/`SUPPORTED_OFFLINE_STORAGE_TYPES` 添加，无需修改业务代码
+- 所有类型定义与校验逻辑集中于 types 层，业务逻辑与类型解耦，维护成本低
 
-### 4.1 基础客户端接口
-```typescript
-interface IBaseDatabaseClient {
-  // 生命周期方法
-  initialize(): Promise<void>;
-  close(): Promise<void>;
-  clear(): Promise<void>;
-  
-  // 通用数据访问接口
-  findById<T>(tableName: string, id: string): Promise<T | null>;
-  findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
-  create<T>(tableName: string, data: T): Promise<T>;
-  update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
-  delete(tableName: string, id: string): Promise<void>;
-}
-```
+### 类型统一出口和入口的作用
+- 所有数据库相关类型（如 StorageType、DatabaseConfig、实体类型等）都在 `types/` 目录集中定义与导出，**唯一入口为 `types/index.ts`**。
+- 这样可以：
+  - 保证全局类型一致性，避免不同模块引用不同版本的类型或命名冲突
+  - 便于 IDE 智能提示和类型跳转，提升开发体验
+  - 新增/修改类型时只需在 types 层维护，业务层零感知
+  - 解决大型项目中类型分散导致的维护困难和隐式 bug
+- 推荐所有类型引用都通过 `import { ... } from '@/core/lib/db/types'`，而非直接引用单个类型文件。
 
-### 4.2 基础仓库接口
-```typescript
-abstract class BaseRepository<T extends { id: string }> {
-  constructor(
-    protected client: IBaseDatabaseClient,
-    protected tableName: string
-  ) {}
-  
-  // 通用CRUD操作
-  async findById(id: string): Promise<T | null>;
-  async findAll(filter?: Record<string, any>): Promise<T[]>;
-  async create(data: T): Promise<T>;
-  async update(id: string, data: Partial<T>): Promise<void>;
-  async delete(id: string): Promise<void>;
-}
-```
+## 3. 数据同步与升级机制
 
-## 5. 数据库升级机制
+- 同步策略、冲突解决、离线优先等均通过类型安全的配置项实现，详见 `DatabaseConfig.sync` 字段
+- 数据库升级、表结构变更等通过 schema 目录集中管理
 
-### 5.1 版本管理
-```typescript
-interface DatabaseVersion {
-  version: number;
-  statements: string[];
-}
+## 4. 目录结构（补充说明）
 
-export const databaseVersions: DatabaseVersion[] = [
-  {
-    version: 1,
-    statements: [
-      `CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-      );`
-    ]
-  },
-  {
-    version: 2,
-    statements: [
-      `ALTER TABLE users ADD COLUMN photoUrl TEXT;`,
-      `ALTER TABLE users ADD COLUMN bio TEXT;`
-    ]
-  }
-];
-```
+- `clients/`：支持多种数据库后端（mock、indexeddb、sqlite、postgres、firebase、supabase 等），每种类型独立子目录实现，便于扩展
+- `repositories/`：所有数据访问逻辑通过仓库层聚合，支持多数据源切换
+- `types/`：所有类型定义、支持类型统一导出，便于全局引用
+- `config-loader.ts`：唯一配置加载入口，保证类型一致性和校验
 
-### 5.2 升级流程
-1. 检查当前数据库版本
-2. 执行升级语句
-3. 更新版本号
-4. 验证数据完整性
+## 5. 配置与类型变更注意事项
+- 任何数据库类型、配置项扩展，均需优先在 types 层维护，业务层无需关心类型细节
+- 推荐所有新表、字段、同步策略等均通过类型与 schema 机制声明，避免魔法字符串和硬编码
+
+---
+
+> 本文档已同步最新代码结构和类型实现，确保开发与维护一致性。
 
 ## 6. 平台特定实现
 

@@ -93,3 +93,65 @@ UI组件层 (Components)
 - [数据库配置指南](./guides/database-configuration.md) - 详细介绍项目的数据库配置系统，包括环境支持和配置选项
 - [SQLite数据库集成指南](./guides/database-sqlite-integration.md) - SQLite在移动应用中的配置、使用和最佳实践
 - [数据库仓储模式实现指南](./guides/database-repository-pattern.md) - 详细介绍仓储模式的实现、最佳实践和近期优化 
+
+# 项目知识体系导航
+
+本 index.md 旨在为开发团队提供完整的知识体系地图，涵盖架构、开发、服务、数据库、API、最佳实践等所有重要主题。
+
+## 文档目录结构
+```
+docs/
+├── README.md                # 文档总览与快速入口
+├── index.md                 # 项目知识体系导航（本文件）
+├── guides/
+│   ├── architecture/
+│   │   ├── database/        # 数据库架构与实现
+│   │   ├── services/        # 服务层设计与实现
+│   │   └── ...
+│   ├── best-practices/      # 各主题最佳实践
+│   ├── development/         # 开发流程、API、前后端等
+│   ├── deployment/          # 部署与运维
+│   ├── testing/             # 测试与质量保障
+│   └── tools/               # 工具与脚本
+├── assets/                  # 图片、图表等资源
+├── ...
+```
+
+## 主题导航
+- [架构设计（Architecture）](./guides/architecture/README.md)
+- [数据库架构与实现](./guides/architecture/database/README.md)
+- [服务层架构与规范](./guides/architecture/services/README.md)
+- [API开发与后端](./guides/development/backend/index.md)
+- [最佳实践](./guides/best-practices/README.md)
+- [部署与运维](./guides/deployment/README.md)
+- [测试与质量保障](./guides/testing/README.md)
+- [常用工具与脚本](./guides/tools/README.md)
+
+## 服务层与API分层架构（当前方案）
+
+服务层采用分层架构，API 路由只做分发和响应，全部业务逻辑集中于服务层，类型统一由 types 层导出，详见相关架构文档：
+
+```
+UI组件层 (Components)
+      ↓
+服务层 (UserService, MessageService, 等)
+      ↓
+数据访问层 (DataServiceFactory → DatabaseService/MockDataService)
+      ↓
+存储层 (Repositories, SyncManager)
+```
+
+- **IDataService**: 数据服务统一接口
+- **DatabaseService**: 主数据库服务实现
+- **MockDataService**: 模拟数据服务
+- **DataServiceFactory**: 数据服务工厂
+- **UserService/MessageService**: 领域服务实现
+- **OfflineStorageService**: 离线数据管理
+- **StorageService**: 本地与云端存储
+
+> 详细 API 路由与服务分层设计参见：[API开发与后端](./guides/development/backend/index.md)
+
+## 其他资源
+- [数据库API文档](./guides/api/database-api.md)
+- [常见问题与解决方案](./issues/)
+- [脚本与模板](./bash-scripts/)

@@ -241,28 +241,9 @@ export interface SecuritySettings {
   loginAlerts: boolean;
 }
 
-/**
- * 匹配信息接口
- */
-export interface Match {
-  id: string;
-  userIds: string[];
-  createdAt: string;
-}
-
-/**
- * 消息接口
- */
-export interface Message {
-  id: string;
-  matchId: string;
-  senderId: string;
-  receiverId: string;
-  content: string;
-  type?: string;
-  createdAt: string;
-  read?: boolean;
-}
+// --- 以下类型已独立为单文件定义 ---
+// Match 相关类型请见 ./match.ts
+// Message 相关类型请见 ./message.ts
 
 /**
  * 用户创建接口

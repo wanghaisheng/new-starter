@@ -1,225 +1,591 @@
-# 数据库架构与实现指南
+# 数据库最佳实践指南
 
-> **重要说明**：本项目要求使用 `@/` 前缀的绝对路径进行模块导入，而非相对路径。所有示例代码应遵循此规范。更多详情请参阅[导入路径规范](../../import-path-standards.md)。
+## 概述
 
-## 1. 架构概述
+本文档提供了数据库开发、测试和部署的最佳实践指南，帮助团队保持一致的开发标准和质量。本指南与架构文档（`docs/lessons/database/best-practise.md`）配合使用，为团队提供全面的数据库开发参考。
 
-- 工厂模式的应用 ：项目使用了DataServiceFactory工厂类来获取数据服务实例，而不是直接实例化具体的服务类。这符合依赖注入和控制反转的设计原则，使代码更易于测试和维护。
-- 接口分离原则 ：项目定义了IDataService接口，并由具体的实现类（如MockDataService）来实现。这使得系统可以轻松切换不同的数据源实现，而不影响上层业务逻辑。
-- 单例模式的使用 ：各服务类（如StorageService、UserService、MockDataService）都使用了单例模式，确保全应用共享同一个服务实例，避免资源浪费。
-- 组件中的数据访问 ：组件（如CardStack）通过DataServiceFactory获取数据服务实例，而不是直接访问数据源。页面组件（如MatchesPage、HomePage）则通过UserService访问数据，UserService内部再调用StorageService，形成了良好的分层结构。
-- 环境适配 ：StorageService的initialize方法根据不同的环境（mock、local、production）选择不同的存储策略，这是一个良好的环境适配实践。
-- 错误处理 ：各服务方法中都包含了适当的错误处理逻辑，确保系统在出现异常时能够优雅降级。
+项目采用分层架构设计，支持多环境数据存储和同步。主要特点包括：
 
+- **工厂模式的应用**：项目使用了DataServiceFactory工厂类来获取数据服务实例，而不是直接实例化具体的服务类。这符合依赖注入和控制反转的设计原则，使代码更易于测试和维护。
+- **接口分离原则**：项目定义了IDataService接口，并由具体的实现类（如MockDataService）来实现。这使得系统可以轻松切换不同的数据源实现，而不影响上层业务逻辑。
+- **单例模式的使用**：各服务类（如DatabaseService、UserService、MockDataService）都使用了单例模式，确保全应用共享同一个服务实例，避免资源浪费。
+- **环境适配**：根据不同的环境（mock、local、production）选择不同的存储策略，实现无缝切换。
 
-项目采用分层架构设计，支持多环境数据存储和同步。本文档与最佳实践指南（`docs/guides/best-practices.md`）配合使用，为团队提供全面的数据库开发参考。
+## 1. 存储策略与环境配置
 
-```
-src/core/lib/db/
-├── clients/          # 数据库客户端实现
-│   ├── capacitor-sqlite/  # 移动端SQLite客户端
-│   │   ├── sqlite-client.ts       # 主客户端实现
-│   │   ├── migration-manager.ts   # 迁移管理
-│   │   ├── backup-manager.ts      # 备份管理
-│   │   └── performance-manager.ts # 性能管理
-│   ├── indexeddb/        # Web端IndexedDB客户端
-│   │   ├── indexeddb-client.ts          # 基本实现
-│   │   └── optimized-indexeddb-client.ts # 优化实现
-│   ├── mock/            # Mock环境实现
-│   │   ├── mock-client.ts          # 通用Mock客户端
-│   │   └── indexeddb-client.ts     # Mock IndexedDB
-│   ├── firebase/        # Firebase客户端
-│   ├── hybrid/          # 混合存储客户端
-│   ├── sync/            # 同步客户端
-│   └── base-client.ts   # 基础客户端抽象
-├── repositories/     # 数据访问层
-│   ├── base-repository.ts  # 基础仓库
-│   ├── user-repository.ts  # 用户数据仓库
-│   ├── message-repository.ts # 消息仓库
-│   └── match-repository.ts # 匹配仓库
-├── schema/          # 数据模型定义
-│   ├── definitions/       # 表结构定义
-│   ├── adapters/          # ORM适配器
-│   ├── version-manager.ts # 版本管理
-│   └── versions.ts        # 版本定义
-├── types/           # 类型定义
-├── test/            # 测试文件
-├── interfaces.ts    # 接口定义
-├── factory.ts       # 工厂函数
-├── config.ts        # 配置管理
-└── service.ts       # 核心服务实现
-```
-
-## 2. 存储策略
-
-### 2.1 开发阶段（Mock）
+### 1.1 开发阶段（Mock）
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=mock`
-- 存储类型：
-  - Mock内存模式：数据存储在内存中，适用于单元测试和临时开发
-  - Mock JSON文件模式：数据存储在JSON文件中，适用于集成测试和持久化开发
+- 存储类型：Mock IndexedDB（使用 fake-indexeddb）
 - 特点：
   - 快速原型验证
   - 预设测试数据
-  - 支持完整的CRUD操作
-  - 支持事务和批处理
-  - 支持自动日期转换
-  - 统一错误处理和日志记录
+  - 支持完整的 IndexedDB API
+  - 可在 Node.js 环境中运行
 
-### 2.2 本地阶段（Local）
+### 1.2 本地阶段（Local）
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=local`
 - Web环境：IndexedDB
 - 移动端：SQLite
 - 特点：支持离线操作，数据持久化
 
-### 2.3 生产阶段（Production）
+### 1.3 生产阶段（Production）
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=production`
 - 存储类型：混合存储（本地+云端）
 - 云端选项：Firebase/Supabase
 - 特点：多设备支持，数据同步
 
-## 3. 数据同步策略
+### 1.4 数据同步策略
 
-### 3.1 在线优先（Online-First）
+#### 在线优先（Online-First）
 - 适用场景：用户注册、个人资料更新
 - 特点：优先云端操作，网络不可用时回退本地
 
-### 3.2 离线优先（Offline-First）
+#### 离线优先（Offline-First）
 - 适用场景：消息、匹配操作
 - 特点：优先本地操作，后台同步云端
 
-### 3.3 手动同步（Manual）
+#### 手动同步（Manual）
 - 适用场景：批量数据同步、大文件传输
 - 特点：用户主动触发，可控同步过程
 
-## 4. 核心接口
+## 2. 开发阶段最佳实践
 
-### 4.1 基础客户端接口
+### 2.1 代码组织
+
+#### 目录结构
+```
+src/core/lib/db/
+├── clients/           # 数据库客户端（含多端实现）
+│   ├── base-client.ts         # 客户端抽象基类
+│   ├── capacitor-sqlite/      # 移动端 SQLite 客户端
+│   ├── cloudflare/            # Cloudflare KV/DB 客户端
+│   ├── firebase/              # Firebase 客户端
+│   ├── hybrid/                # 混合存储客户端
+│   ├── indexeddb/             # Web IndexedDB 客户端
+│   ├── mock/                  # Mock 环境实现
+│   ├── postgres/              # Postgres 客户端
+│   ├── sql/                   # 通用 SQL 客户端
+│   ├── sqlite/                # SQLite 客户端
+│   ├── supabase/              # Supabase 客户端
+│   ├── sync/                  # 同步相关客户端
+│   ├── tidb/                  # TiDB 客户端
+│   └── turso/                 # Turso 客户端
+├── repositories/      # 数据访问仓库层
+│   ├── base-repository.ts     # 仓库基类
+│   ├── user-repository.ts     # 用户仓库
+│   ├── message-repository.ts  # 消息仓库
+│   ├── match-repository.ts    # 匹配仓库
+│   ├── quiz-repository.ts     # 测验仓库
+│   ├── report-repository.ts   # 举报仓库
+│   ├── block-repository.ts    # 屏蔽仓库
+│   ├── match-action-repository.ts # 匹配行为仓库
+│   ├── photo-repository.ts    # 照片仓库
+│   └── index.ts               # 仓库聚合入口
+├── schema/            # 数据模型与表结构
+│   ├── definitions/          # 表结构定义
+│   ├── adapters/             # ORM/表适配器
+│   ├── core-schemas.ts       # 核心表结构
+│   ├── drizzle-schema.ts     # Drizzle ORM 结构
+│   ├── entity-converter.ts   # 实体转换
+│   ├── offline-schemas.ts    # 离线表结构
+│   ├── schema-registry.ts    # 表注册中心
+│   ├── table-converter.ts    # 表转换
+│   ├── types.ts              # 类型定义
+│   ├── version-manager.ts    # 版本管理
+│   └── versions.ts           # 版本号
+├── types/              # 统一类型定义与导出
+│   ├── index.ts               # 类型唯一出口
+│   ├── database.types.ts      # 数据库类型定义
+│   ├── user.ts/message.ts/... # 具体实体类型
+│   └── ...
+├── config.ts           # 数据库配置
+├── config-loader.ts    # 配置加载与校验
+├── errors/             # 错误类型与处理
+├── sync/               # 同步机制相关
+├── tools/              # 工具函数
+├── test/               # 测试用例
+├── interfaces.ts       # 其他接口定义
+├── models/             # 兼容/迁移用模型
+├── README.md           # 说明文档
+```
+- 数据服务（Data Services）已迁出，详见 docs/guides/architecture/services/README.md
+
+#### 命名规范
+1. 类名：使用 PascalCase（如 `SQLiteClient`）
+2. 方法名：使用 camelCase（如 `findById`）
+3. 变量名：使用 camelCase（如 `queryResult`）
+4. 常量名：使用 UPPER_SNAKE_CASE（如 `MAX_CACHE_SIZE`）
+5. 接口名：使用 PascalCase，以 I 开头（如 `IDatabaseClient`）
+
+### 2.2 类型安全
+
+#### 使用 TypeScript 类型
 ```typescript
-interface IBaseDatabaseClient {
-  // 生命周期方法
-  initialize(): Promise<void>;
-  close(): Promise<void>;
-  clear(): Promise<void>;
-  
-  // 通用数据访问接口
-  findById<T>(tableName: string, id: string): Promise<T | null>;
-  findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
-  create<T>(tableName: string, data: T): Promise<T>;
-  update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
-  delete(tableName: string, id: string): Promise<void>;
+// 定义实体接口
+interface User extends BaseEntity {
+  name: string;
+  email: string;
+  photoUrl?: string;
+  bio?: string;
+  interests: string[];
+  birthDate: Date;
+}
+
+// 使用泛型方法
+async findById<T extends BaseEntity>(
+  tableName: string,
+  id: string
+): Promise<T | null>
+```
+
+#### 类型检查
+```typescript
+// 运行时类型检查
+function validateUser(user: unknown): user is User {
+  return (
+    typeof user === 'object' &&
+    user !== null &&
+    'name' in user &&
+    'email' in user
+  );
 }
 ```
 
-### 4.2 基础仓库接口
+### 2.3 错误处理
+
+#### 自定义错误类
 ```typescript
-abstract class BaseRepository<T extends BaseEntity> {
+class DatabaseError extends Error {
   constructor(
-    protected client: IBaseDatabaseClient,
-    protected tableName: string
-  ) {}
+    message: string,
+    public code: string,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'DatabaseError';
+  }
+}
+
+class ValidationError extends DatabaseError {
+  constructor(message: string, details?: any) {
+    super(message, 'VALIDATION_ERROR', details);
+  }
+}
+```
+
+#### 错误处理模式
+```typescript
+try {
+  await client.createUser(userData);
+} catch (error) {
+  if (error instanceof ValidationError) {
+    // 处理验证错误
+    console.error('Validation failed:', error.details);
+  } else if (error instanceof DatabaseError) {
+    // 处理数据库错误
+    console.error('Database error:', error.message);
+  } else {
+    // 处理其他错误
+    console.error('Unexpected error:', error);
+  }
+  throw error; // 重新抛出错误
+}
+```
+
+## 3. 测试阶段最佳实践
+
+### 3.1 单元测试
+
+#### 测试结构
+```typescript
+describe('SQLiteClient', () => {
+  let client: SQLiteClient;
   
-  /**
-   * 根据ID查找实体
-   * @param id 实体ID
-   * @returns 找到的实体或null
-   */
-  async findById(id: string): Promise<T | null> {
-    return this.client.findById<T>(this.tableName, id);
+  beforeEach(async () => {
+    client = new SQLiteClient(config);
+    await client.initialize();
+  });
+  
+  afterEach(async () => {
+    await client.close();
+  });
+  
+  describe('CRUD operations', () => {
+    it('should create and retrieve user', async () => {
+      // 测试代码
+    });
+  });
+});
+```
+
+#### 测试数据管理
+```typescript
+// 使用工厂函数创建测试数据
+function createTestUser(overrides: Partial<User> = {}): User {
+  return {
+    id: generateId(),
+    name: 'Test User',
+    email: 'test@example.com',
+    interests: ['test'],
+    birthDate: new Date(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides
+  };
+}
+```
+
+### 3.2 集成测试
+
+#### 测试环境设置
+```typescript
+describe('Database Integration', () => {
+  let db: SQLiteClient;
+  
+  beforeAll(async () => {
+    // 设置测试数据库
+    db = await setupTestDatabase();
+  });
+  
+  afterAll(async () => {
+    // 清理测试数据库
+    await cleanupTestDatabase();
+  });
+  
+  it('should handle complex transactions', async () => {
+    // 测试代码
+  });
+});
+```
+
+#### 事务测试
+```typescript
+it('should rollback on error', async () => {
+  const user = createTestUser();
+  
+  try {
+    await db.transaction(async () => {
+      await db.createUser(user);
+      throw new Error('Transaction failed');
+    });
+  } catch (error) {
+    // 验证事务已回滚
+    const created = await db.findById<User>('users', user.id);
+    expect(created).toBeNull();
+  }
+});
+```
+
+## 4. 工厂模式与服务层架构
+
+### 4.1 工厂模式实现
+
+在我们的项目中，工厂模式是实现依赖注入和解耦的关键机制。主要有两个工厂实现：
+
+#### 4.1.1 DatabaseFactory
+
+`DatabaseFactory` 位于 `src/core/lib/db/factory.ts`，负责创建和管理数据库客户端实例：
+
+```typescript
+export class DatabaseFactory {
+  private static clientRegistry: Map<string, any> = new Map();
+  
+  // 注册数据库客户端类型
+  static registerClientType(type: string, clientClass: any): void {
+    this.clientRegistry.set(type.toLowerCase(), clientClass);
   }
   
-  /**
-   * 查找所有实体
-   * @param filter 过滤条件
-   * @returns 实体列表
-   */
-  async findAll(filter?: Record<string, any>): Promise<T[]> {
-    return this.client.findAll<T>(this.tableName, filter);
+  // 创建数据库客户端
+  static createClient(type: string, config: DatabaseConfig): IDatabaseClient {
+    const clientClass = this.clientRegistry.get(type.toLowerCase());
+    if (!clientClass) {
+      throw new Error(`未知的数据库客户端类型: ${type}`);
+    }
+    return new clientClass(config);
   }
   
-  /**
-   * 创建实体
-   * @param data 实体数据
-   * @returns 创建的实体
-   */
-  async create(data: Omit<T, keyof BaseEntity>): Promise<T> {
-    return this.client.create<T>(this.tableName, data as T);
+  // 根据环境变量创建数据库客户端
+  static createClientFromEnv(): IDatabaseClient {
+    // 获取环境变量并创建相应的客户端
+    // ...
   }
-  
-  /**
-   * 更新实体
-   * @param id 实体ID
-   * @param data 要更新的数据
-   */
-  async update(id: string, data: Partial<T>): Promise<void> {
-    await this.client.update<T>(this.tableName, id, data);
+}
+```
+
+这种设计允许我们：
+- 动态注册不同类型的数据库客户端
+- 根据配置或环境变量创建适当的客户端实例
+- 在不修改现有代码的情况下添加新的客户端类型
+
+#### 4.1.2 DataServiceFactory
+
+`DataServiceFactory` 位于 `src/core/services/data-service-factory.ts`，负责创建和管理数据服务实例：
+
+```typescript
+export class DataServiceFactory {
+  private static instance: IDataService;
+
+  public static getInstance(): IDataService {
+    if (!DataServiceFactory.instance) {
+      const databaseEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+      
+      switch (databaseEnv) {
+        case 'mock':
+          DataServiceFactory.instance = MockDataService.getInstance();
+          break;
+        case 'local':
+          // 根据平台选择不同的实现
+          if (Capacitor.isNativePlatform()) {
+            DataServiceFactory.instance = DatabaseService.getInstance();
+          } else {
+            DataServiceFactory.instance = MockDataService.getInstance();
+          }
+          break;
+        // 其他环境...
+      }
+    }
+    return DataServiceFactory.instance;
   }
+}
+```
+
+这种设计允许我们：
+- 根据环境配置选择适当的服务实现
+- 在应用程序中使用统一的接口访问数据
+- 轻松切换不同的数据服务实现，而不影响业务逻辑
+
+### 4.2 服务层架构
+
+我们的服务层架构采用了分层设计，确保关注点分离和代码的可维护性。
+
+#### 4.2.1 服务层结构
+
+```
+src/core/services/
+├── data-service-factory.ts    # 数据服务工厂
+├── data-service.interface.ts  # 数据服务接口
+├── database-service.ts        # 数据库服务实现
+├── mock-data-service.ts       # 模拟数据服务实现
+├── user-service.ts            # 用户服务
+├── message-service.ts         # 消息服务
+└── ... 其他服务
+```
+
+#### 4.2.2 服务层职责
+
+1. **接口层**：`data-service.interface.ts` 定义了数据服务的统一接口，所有实现必须遵循这个接口。
+
+```typescript
+export interface IDataService {
+  // 用户操作
+  getUser(id: string): Promise<User | null>;
+  getUsers(): Promise<User[]>;
+  createUser(user: User): Promise<User>;
+  // ... 其他方法
+}
+```
+
+2. **实现层**：包括 `database-service.ts` 和 `mock-data-service.ts` 等，提供了接口的具体实现。
+
+3. **工厂层**：`data-service-factory.ts` 负责根据环境配置创建适当的服务实例。
+
+4. **业务服务层**：如 `user-service.ts` 和 `message-service.ts`，封装了特定领域的业务逻辑。
+
+#### 4.2.3 DatabaseService 实现
+
+`DatabaseService` 类是核心数据库服务的实现，它使用单例模式确保全局只有一个实例：
+
+```typescript
+export class DatabaseService {
+  private static instance: DatabaseService;
+  private client: IDatabaseClient;
+  private isInitialized = false;
   
-  /**
-   * 删除实体
-   * @param id 实体ID
-   */
-  async delete(id: string): Promise<void> {
-    await this.client.delete(this.tableName, id);
-  }
-  
-  /**
-   * 高级查询
-   * @param options 查询选项
-   * @returns 查询结果
-   */
-  async query(options: QueryOptions): Promise<QueryResult<T>> {
-    return this.client.query<T>(this.tableName, options);
+  // 仓储实例
+  private userRepository: UserRepository;
+  private matchRepository: MatchRepository;
+  private messageRepository: MessageRepository;
+
+  private constructor() {
+    // 使用工厂方法根据环境变量创建客户端
+    this.client = DatabaseFactory.createClientFromEnv();
+    
+    // 初始化仓储
+    this.userRepository = new UserRepository(this.client);
+    this.matchRepository = new MatchRepository(this.client);
+    this.messageRepository = new MessageRepository(this.client);
   }
 
-  /**
-   * 批量操作
-   * @param operations 批量操作列表
-   */
-  async batch(operations: BatchOperation<T>[]): Promise<void> {
-    await this.client.batch<T>(this.tableName, operations);
+  public static getInstance(): DatabaseService {
+    if (!DatabaseService.instance) {
+      DatabaseService.instance = new DatabaseService();
+    }
+    return DatabaseService.instance;
   }
+  
+  // ... 其他方法
+}
+```
 
-  /**
-   * 执行事务
-   * @param callback 事务回调函数
-   * @returns 事务执行结果
-   */
-  async transaction<R>(callback: (tx: IBaseDatabaseClient) => Promise<R>): Promise<R> {
-    await this.client.beginTransaction();
-    try {
-      const result = await callback(this.client);
-      await this.client.commitTransaction();
-      return result;
-    } catch (error) {
-      await this.client.rollbackTransaction();
-      throw error;
+### 4.3 服务使用最佳实践
+
+#### 4.3.1 在组件中使用服务
+
+**推荐做法**：
+
+```typescript
+import { DataServiceFactory } from '@/core/services/data-service-factory';
+
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+  
+  useEffect(() => {
+    async function loadUser() {
+      const dataService = DataServiceFactory.getInstance();
+      const userData = await dataService.getUser(userId);
+      setUser(userData);
+    }
+    loadUser();
+  }, [userId]);
+  
+  // 渲染用户资料
+}
+```
+
+**不推荐做法**：
+
+```typescript
+// 不要直接导入模型或数据库客户端
+import { User } from '@/core/lib/db/models';
+import { DatabaseService } from '@/core/lib/db/service';
+
+function UserProfile({ userId }) {
+  // 直接使用 DatabaseService 或访问底层实现
+  // ...
+}
+```
+
+#### 4.3.2 添加新服务
+
+当需要添加新的服务时，应遵循以下步骤：
+
+1. 在 `data-service.interface.ts` 中添加新的方法定义
+2. 在所有实现类（如 `database-service.ts` 和 `mock-data-service.ts`）中实现这些方法
+3. 如果需要，创建新的仓储类处理特定的数据访问逻辑
+4. 更新工厂类以支持新的服务类型（如果需要）
+
+#### 4.3.3 服务层与仓储层的关系
+
+- **服务层**：负责业务逻辑，可能组合多个仓储操作，处理事务和错误
+- **仓储层**：负责数据访问逻辑，提供 CRUD 操作和查询方法
+- **客户端层**：负责与具体数据存储的交互，如 IndexedDB 或 SQLite
+
+这种分层设计确保了：
+
+- 业务逻辑与数据访问逻辑分离
+- 可以轻松替换底层数据存储而不影响业务逻辑
+- 代码更易于测试和维护
+
+### 4.4 环境适配策略
+
+我们的服务层架构支持在不同环境中无缝切换：
+
+1. **开发环境**：使用 `MockDataService` 提供模拟数据，加速开发和测试
+2. **本地环境**：根据平台使用 `IndexedDBClient` 或 `CapacitorSQLiteClient`
+3. **生产环境**：使用混合存储策略，支持在线和离线操作
+
+通过环境变量 `NEXT_PUBLIC_DATABASE_ENV` 控制使用哪种服务实现，无需修改代码即可切换环境。
+
+```typescript
+// 根据环境变量自动切换数据源
+public static getInstance(): IDataService {
+  if (!DataServiceFactory.instance) {
+    const databaseEnv = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+    
+    switch (databaseEnv) {
+      case 'mock':
+        DataServiceFactory.instance = MockDataService.getInstance();
+        break;
+      case 'local':
+        // 在移动平台使用 SQLite
+        if (Capacitor.isNativePlatform()) {
+          DataServiceFactory.instance = DatabaseService.getInstance();
+        } else {
+          // 在 Web 平台使用 IndexedDB
+          DataServiceFactory.instance = MockDataService.getInstance();
+        }
+        break;
+      case 'production':
+        // 生产环境使用混合存储
+        DataServiceFactory.instance = HybridDataService.getInstance();
+        break;
+      default:
+        // 默认使用 Mock 数据服务
+        DataServiceFactory.instance = MockDataService.getInstance();
     }
   }
+  return DataServiceFactory.instance;
+}
 
-  /**
-   * 执行原始查询
-   * @param query SQL查询语句
-   * @param params 查询参数
-   * @returns 查询结果
-   */
-  async executeRawQuery<R>(query: string, params: any[] = []): Promise<R[]> {
-    return this.client.executeRawQuery<R>(query, params);
+## 5. 部署阶段最佳实践
+
+### 5.1 数据库迁移
+
+#### 迁移脚本
+```typescript
+// 迁移管理器
+class MigrationManager {
+  constructor(private db: IBaseDatabaseClient) {}
+
+  async migrate(): Promise<void> {
+    const currentVersion = await this.getCurrentVersion();
+    const migrations = await this.getPendingMigrations(currentVersion);
+    
+    for (const migration of migrations) {
+      await this.executeMigration(migration);
+      await this.recordMigration(migration);
+    }
+  }
+  
+  private async executeMigration(migration: Migration): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      for (const statement of migration.statements) {
+        await tx.executeRawQuery(statement);
+      }
+    });
+  }
+
+  private async getCurrentVersion(): Promise<number> {
+    try {
+      const result = await this.db.executeRawQuery<{version: number}>(
+        'SELECT version FROM schema_version LIMIT 1'
+      );
+      return result.length > 0 ? result[0].version : 0;
+    } catch (error) {
+      // 表不存在，创建版本表
+      await this.db.executeRawQuery(
+        'CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)'
+      );
+      await this.db.executeRawQuery('INSERT INTO schema_version (version) VALUES (0)');
+      return 0;
+    }
   }
 }
 ```
 
-## 5. 数据库升级机制
-
-### 5.1 版本管理
+#### 版本控制
 ```typescript
-interface DatabaseVersion {
+interface Migration {
   version: number;
+  name: string;
   statements: string[];
+  timestamp: Date;
 }
 
-export const databaseVersions: DatabaseVersion[] = [
+const migrations: Migration[] = [
   {
     version: 1,
+    name: 'create_users_table',
     statements: [
       `CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -228,392 +594,395 @@ export const databaseVersions: DatabaseVersion[] = [
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       );`
-    ]
+    ],
+    timestamp: new Date('2024-03-29')
   },
   {
     version: 2,
+    name: 'add_user_profile_fields',
     statements: [
       `ALTER TABLE users ADD COLUMN photoUrl TEXT;`,
       `ALTER TABLE users ADD COLUMN bio TEXT;`,
       `ALTER TABLE users ADD COLUMN interests TEXT;`
-    ]
-  },
-  {
-    version: 3,
-    statements: [
-      `CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        senderId TEXT NOT NULL,
-        receiverId TEXT NOT NULL,
-        content TEXT NOT NULL,
-        status TEXT DEFAULT 'sent',
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (senderId) REFERENCES users(id),
-        FOREIGN KEY (receiverId) REFERENCES users(id)
-      );`,
-      `CREATE INDEX idx_messages_sender ON messages(senderId);`,
-      `CREATE INDEX idx_messages_receiver ON messages(receiverId);`
-    ]
-  },
-  {
-    version: 4,
-    statements: [
-      `CREATE TABLE IF NOT EXISTS matches (
-        id TEXT PRIMARY KEY,
-        user1Id TEXT NOT NULL,
-        user2Id TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
-        matchedAt DATETIME,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user1Id) REFERENCES users(id),
-        FOREIGN KEY (user2Id) REFERENCES users(id)
-      );`,
-      `CREATE UNIQUE INDEX idx_matches_users ON matches(user1Id, user2Id);`
-    ]
+    ],
+    timestamp: new Date('2024-04-05')
   }
 ];
 ```
 
-### 5.2 升级流程
+### 4.2 数据备份
 
+#### 备份策略
 ```typescript
-class VersionManager {
-  constructor(private client: IBaseDatabaseClient) {}
-  
-  async upgradeIfNeeded(): Promise<void> {
-    // 1. 检查当前数据库版本
-    const currentVersion = await this.getCurrentVersion();
-    const targetVersion = databaseVersions.length;
+class BackupManager {
+  constructor(
+    private db: IBaseDatabaseClient,
+    private storageManager: StorageManager
+  ) {}
+
+  async createBackup(): Promise<string> {
+    const backupPath = this.getBackupPath();
+    const tables = await this.getTables();
+    const backupData: Record<string, any[]> = {};
     
-    if (currentVersion >= targetVersion) {
-      console.log(`数据库已是最新版本: ${currentVersion}`);
-      return;
+    // 导出所有表数据
+    for (const table of tables) {
+      const data = await this.db.findAll(table);
+      backupData[table] = data;
     }
     
-    console.log(`开始数据库升级: ${currentVersion} -> ${targetVersion}`);
+    // 保存备份文件
+    await this.storageManager.writeFile(
+      backupPath,
+      JSON.stringify(backupData, null, 2)
+    );
     
-    // 2. 执行升级语句
-    await this.client.transaction(async (tx) => {
-      for (let i = currentVersion; i < targetVersion; i++) {
-        const version = databaseVersions[i];
-        console.log(`应用版本 ${version.version} 的迁移...`);
-        
-        for (const statement of version.statements) {
-          await tx.executeRawQuery(statement);
+    return backupPath;
+  }
+  
+  async restoreFromBackup(backupPath: string): Promise<void> {
+    const backupContent = await this.storageManager.readFile(backupPath);
+    const backupData = JSON.parse(backupContent);
+    
+    await this.db.transaction(async (tx) => {
+      // 清空现有数据
+      const tables = Object.keys(backupData);
+      for (const table of tables) {
+        await tx.executeRawQuery(`DELETE FROM ${table}`);
+      }
+      
+      // 恢复备份数据
+      for (const [table, records] of Object.entries(backupData)) {
+        for (const record of records as any[]) {
+          await tx.create(table, record);
         }
-        
-        // 3. 更新版本号
-        await this.updateVersion(tx, version.version);
       }
     });
-    
-    // 4. 验证数据完整性
-    await this.verifyIntegrity();
-    
-    console.log(`数据库升级完成: 当前版本 ${targetVersion}`);
-  }
-  
-  private async getCurrentVersion(): Promise<number> {
-    try {
-      const result = await this.client.executeRawQuery<{version: number}>(
-        'SELECT version FROM schema_version LIMIT 1'
-      );
-      return result.length > 0 ? result[0].version : 0;
-    } catch (error) {
-      // 表不存在，创建版本表
-      await this.client.executeRawQuery(
-        'CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)'
-      );
-      await this.client.executeRawQuery('INSERT INTO schema_version (version) VALUES (0)');
-      return 0;
-    }
-  }
-  
-  private async updateVersion(tx: IBaseDatabaseClient, version: number): Promise<void> {
-    await tx.executeRawQuery(
-      'UPDATE schema_version SET version = ?',
-      [version]
-    );
-  }
-  
-  private async verifyIntegrity(): Promise<void> {
-    // 验证表结构
-    const tables = await this.getTables();
-    const requiredTables = ['users', 'schema_version'];
-    
-    for (const table of requiredTables) {
-      if (!tables.includes(table)) {
-        throw new Error(`数据完整性验证失败: 缺少表 ${table}`);
-      }
-    }
-    
-    // 可以添加更多验证逻辑
   }
   
   private async getTables(): Promise<string[]> {
-    const result = await this.client.executeRawQuery<{name: string}>(
+    const result = await this.db.executeRawQuery<{name: string}>(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
     );
     return result.map(row => row.name);
   }
+  
+  private getBackupPath(): string {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    return `backup_${timestamp}.json`;
+  }
 }
+```
 
-## 6. 平台特定实现
-
-### 6.1 Web 平台 (IndexedDB)
-- 使用 IndexedDB 作为主要存储
-- 支持事务和索引
-- 异步操作处理
-
-### 6.2 移动平台 (SQLite)
-- 使用 Capacitor SQLite 插件
-- 原生性能优化
-- 文件系统集成
-
-### 6.3 混合存储策略
-- 主存储选择
-- 备份存储机制
-- 数据同步协调
-
-## 7. 错误处理与日志
-
-### 7.1 错误处理策略
+#### 自动备份
 ```typescript
-/**
- * 数据库错误类
- * 用于标准化数据库操作中的错误处理
- */
-export class DatabaseError extends Error {
-  /**
-   * 错误代码
-   */
-  code: string;
+class AutoBackupManager {
+  private backupInterval: number;
+  private backupTimer: NodeJS.Timeout | null = null;
+  private maxBackups: number;
   
-  /**
-   * 错误详情
-   */
-  details?: any;
+  constructor(
+    private backupManager: BackupManager,
+    private storageManager: StorageManager,
+    options: {
+      interval?: number;
+      maxBackups?: number;
+    } = {}
+  ) {
+    this.backupInterval = options.interval || 24 * 60 * 60 * 1000; // 默认每天
+    this.maxBackups = options.maxBackups || 7; // 默认保留7个备份
+  }
   
-  /**
-   * 构造函数
-   * @param message 错误消息
-   * @param code 错误代码
-   * @param details 错误详情
-   */
-  constructor(message: string, code: string = 'UNKNOWN_ERROR', details?: any) {
-    super(message);
-    this.name = 'DatabaseError';
-    this.code = code;
-    this.details = details;
+  startAutoBackup(): void {
+    if (this.backupTimer) {
+      clearInterval(this.backupTimer);
+    }
     
-    // 确保正确的原型链
-    Object.setPrototypeOf(this, DatabaseError.prototype);
+    this.backupTimer = setInterval(async () => {
+      try {
+        await this.createBackup();
+        await this.cleanupOldBackups();
+      } catch (error) {
+        console.error('自动备份失败:', error);
+      }
+    }, this.backupInterval);
   }
   
-  /**
-   * 获取格式化的错误消息
-   * @returns 格式化的错误消息
-   */
-  getFormattedMessage(): string {
-    return `[${this.code}] ${this.message}`;
+  stopAutoBackup(): void {
+    if (this.backupTimer) {
+      clearInterval(this.backupTimer);
+      this.backupTimer = null;
+    }
   }
   
-  /**
-   * 获取详细的错误信息
-   * @returns 详细的错误信息，包括代码、消息和详情
-   */
-  getDetailedInfo(): Record<string, any> {
-    return {
-      name: this.name,
-      code: this.code,
-      message: this.message,
-      details: this.details,
-      stack: this.stack
+  private async createBackup(): Promise<string> {
+    return this.backupManager.createBackup();
+  }
+  
+  private async cleanupOldBackups(): Promise<void> {
+    const backups = await this.storageManager.listFiles('backup_*.json');
+    
+    // 按创建时间排序
+    backups.sort((a, b) => {
+      const timeA = this.getTimestampFromBackupName(a);
+      const timeB = this.getTimestampFromBackupName(b);
+      return timeB.getTime() - timeA.getTime(); // 降序
+    });
+    
+    // 删除超出保留数量的旧备份
+    if (backups.length > this.maxBackups) {
+      const toDelete = backups.slice(this.maxBackups);
+      for (const backup of toDelete) {
+        await this.storageManager.deleteFile(backup);
+      }
+    }
+  }
+  
+  private getTimestampFromBackupName(filename: string): Date {
+    const match = filename.match(/backup_(.*)\.json/);
+    if (match && match[1]) {
+      const timestamp = match[1].replace(/-/g, (m, i) => i % 3 === 2 ? ':' : m);
+      return new Date(timestamp);
+    }
+    return new Date(0); // 默认值
+  }
+}
+```
+
+### 4.3 监控和日志
+
+#### 性能监控
+```typescript
+class DatabaseMonitor {
+  private metrics: Map<string, number[]>;
+  private queryCount: Map<string, number>;
+  private slowQueryThreshold: number;
+  private logger: DatabaseLogger;
+  
+  constructor(options: {
+    slowQueryThreshold?: number;
+    logger?: DatabaseLogger;
+  } = {}) {
+    this.metrics = new Map<string, number[]>();
+    this.queryCount = new Map<string, number>();
+    this.slowQueryThreshold = options.slowQueryThreshold || 100; // 默认100ms
+    this.logger = options.logger || new DatabaseLogger();
+  }
+  
+  recordQueryTime(query: string, duration: number): void {
+    // 记录查询时间
+    if (!this.metrics.has(query)) {
+      this.metrics.set(query, []);
+    }
+    this.metrics.get(query)!.push(duration);
+    
+    // 记录查询次数
+    const count = this.queryCount.get(query) || 0;
+    this.queryCount.set(query, count + 1);
+    
+    // 记录慢查询
+    if (duration > this.slowQueryThreshold) {
+      this.logger.log('warn', `慢查询检测: ${duration}ms`, { query });
+    }
+  }
+  
+  getSlowQueries(threshold?: number): Array<{query: string, avgTime: number, count: number}> {
+    const actualThreshold = threshold || this.slowQueryThreshold;
+    
+    return Array.from(this.metrics.entries())
+      .map(([query, times]) => {
+        const avgTime = times.reduce((sum, time) => sum + time, 0) / times.length;
+        const count = this.queryCount.get(query) || 0;
+        return { query, avgTime, count };
+      })
+      .filter(item => item.avgTime > actualThreshold)
+      .sort((a, b) => b.avgTime - a.avgTime); // 按平均时间降序排序
+  }
+  
+  getQueryStats(): Array<{query: string, min: number, max: number, avg: number, count: number}> {
+    return Array.from(this.metrics.entries())
+      .map(([query, times]) => {
+        const min = Math.min(...times);
+        const max = Math.max(...times);
+        const avg = times.reduce((sum, time) => sum + time, 0) / times.length;
+        const count = this.queryCount.get(query) || 0;
+        return { query, min, max, avg, count };
+      })
+      .sort((a, b) => b.count - a.count); // 按查询次数降序排序
+  }
+  
+  resetMetrics(): void {
+    this.metrics.clear();
+    this.queryCount.clear();
+  }
+}
+```
+
+#### 日志记录
+```typescript
+class DatabaseLogger {
+  private logLevel: 'debug' | 'info' | 'warn' | 'error';
+  private logHandlers: Array<(entry: LogEntry) => void>;
+  
+  constructor(options: {
+    level?: 'debug' | 'info' | 'warn' | 'error';
+    handlers?: Array<(entry: LogEntry) => void>;
+  } = {}) {
+    this.logLevel = options.level || 'info';
+    this.logHandlers = options.handlers || [this.consoleLogHandler];
+  }
+  
+  log(level: 'debug' | 'info' | 'warn' | 'error', message: string, context?: any): void {
+    // 检查日志级别
+    if (!this.shouldLog(level)) {
+      return;
+    }
+    
+    const entry: LogEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      context
     };
+    
+    // 发送到所有处理器
+    for (const handler of this.logHandlers) {
+      try {
+        handler(entry);
+      } catch (error) {
+        console.error('日志处理器错误:', error);
+      }
+    }
   }
-}
-
-/**
- * 数据库错误代码枚举
- */
-export enum DatabaseErrorCode {
-  // 一般错误
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
-  INITIALIZATION_ERROR = 'INITIALIZATION_ERROR',
-  CONNECTION_ERROR = 'CONNECTION_ERROR',
   
-  // 数据访问错误
-  NOT_FOUND = 'NOT_FOUND',
-  ALREADY_EXISTS = 'ALREADY_EXISTS',
-  INVALID_DATA = 'INVALID_DATA',
+  private shouldLog(level: 'debug' | 'info' | 'warn' | 'error'): boolean {
+    const levels = { debug: 0, info: 1, warn: 2, error: 3 };
+    return levels[level] >= levels[this.logLevel];
+  }
   
-  // 事务错误
-  TRANSACTION_ERROR = 'TRANSACTION_ERROR',
-  NO_ACTIVE_TRANSACTION = 'NO_ACTIVE_TRANSACTION',
-  
-  // 客户端状态错误
-  CLIENT_NOT_INITIALIZED = 'CLIENT_NOT_INITIALIZED',
-  // ... 更多错误代码
-}
-
-// 错误处理示例
-try {
-  await database.operation();
-} catch (error) {
-  if (error instanceof DatabaseError) {
-    // 处理已知错误
-    console.error(error.getFormattedMessage());
-    // 根据错误代码执行不同的恢复策略
-    switch(error.code) {
-      case DatabaseErrorCode.CONNECTION_ERROR:
-        // 尝试重新连接
+  private consoleLogHandler(entry: LogEntry): void {
+    const { timestamp, level, message, context } = entry;
+    const formattedContext = context ? `\n${JSON.stringify(context, null, 2)}` : '';
+    
+    switch (level) {
+      case 'debug':
+        console.debug(`[${timestamp}] [DEBUG] ${message}${formattedContext}`);
         break;
-      case DatabaseErrorCode.NOT_FOUND:
-        // 处理记录不存在的情况
+      case 'info':
+        console.info(`[${timestamp}] [INFO] ${message}${formattedContext}`);
         break;
-      default:
-        // 通用错误处理
+      case 'warn':
+        console.warn(`[${timestamp}] [WARN] ${message}${formattedContext}`);
+        break;
+      case 'error':
+        console.error(`[${timestamp}] [ERROR] ${message}${formattedContext}`);
         break;
     }
-  } else {
-    // 处理未知错误
-    console.error('未知数据库错误:', error);
+  }
+  
+  addHandler(handler: (entry: LogEntry) => void): void {
+    this.logHandlers.push(handler);
+  }
+  
+  setLevel(level: 'debug' | 'info' | 'warn' | 'error'): void {
+    this.logLevel = level;
+  }
+}
+
+interface LogEntry {
+  timestamp: string;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  message: string;
+  context?: any;
+}
+```
+
+## 4. 安全最佳实践
+
+### 4.1 数据加密
+
+#### 敏感数据加密
+```typescript
+class EncryptionManager {
+  async encrypt(data: string): Promise<string> {
+    // 实现加密逻辑
+  }
+  
+  async decrypt(encrypted: string): Promise<string> {
+    // 实现解密逻辑
   }
 }
 ```
 
-### 7.2 日志记录
+#### 密钥管理
 ```typescript
-/**
- * 数据库日志级别枚举
- */
-export enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3,
-  NONE = 4
-}
-
-/**
- * 数据库日志类
- */
-export class DatabaseLogger {
-  constructor(
-    private moduleName: string, 
-    private config: LoggerConfig = {}
-  ) { /* ... */ }
+class KeyManager {
+  private static instance: KeyManager;
+  private key: string;
   
-  debug(message: string, data?: any): void { /* ... */ }
-  info(message: string, data?: any): void { /* ... */ }
-  warn(message: string, data?: any): void { /* ... */ }
-  error(message: string, error?: any): void { /* ... */ }
-  
-  /**
-   * 创建子日志记录器
-   * @param subModuleName 子模块名称
-   * @returns 新的日志记录器
-   */
-  createSubLogger(subModuleName: string): DatabaseLogger { 
-    return new DatabaseLogger(`${this.moduleName}.${subModuleName}`, this.config);
+  private constructor() {
+    this.key = process.env.DATABASE_ENCRYPTION_KEY || 'default-key';
   }
-}
-
-// 使用示例
-const dbLogger = new DatabaseLogger('Database');
-const userRepoLogger = dbLogger.createSubLogger('UserRepository');
-
-userRepoLogger.info('查找用户', { id: 'user-1' });
-userRepoLogger.debug('查询结果', { result });
-userRepoLogger.error('查询失败', error);
-```
-
-## 8. 最佳实践
-
-### 8.1 数据模型设计
-```typescript
-// 基础实体接口
-interface BaseEntity {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// 用户实体
-interface User extends BaseEntity {
-  name: string;
-  email: string;
-  photoUrl?: string;
-  bio?: string;
-  interests: string[];
-  birthDate?: Date;
-}
-
-// 消息实体
-interface Message extends BaseEntity {
-  senderId: string;
-  receiverId: string;
-  content: string;
-  status: 'sent' | 'delivered' | 'read';
-}
-
-// 匹配实体
-interface Match extends BaseEntity {
-  user1Id: string;
-  user2Id: string;
-  status: 'pending' | 'matched' | 'rejected';
-  matchedAt?: Date;
+  
+  static getInstance(): KeyManager {
+    if (!KeyManager.instance) {
+      KeyManager.instance = new KeyManager();
+    }
+    return KeyManager.instance;
+  }
 }
 ```
 
-### 8.2 性能优化
+### 4.2 访问控制
 
-#### 批量操作支持
+#### 权限管理
 ```typescript
-// 批量操作接口
-interface BatchOperation<T> {
-  type: 'create' | 'update' | 'delete';
-  data: T | Partial<T> | string; // 完整数据、部分数据或ID
-  id?: string; // 用于更新和删除操作
+interface DatabasePermission {
+  table: string;
+  operation: 'read' | 'write' | 'delete';
+  roles: string[];
 }
 
-// 批量操作示例
-async function batchUpdateUsers(users: User[]): Promise<void> {
-  const operations: BatchOperation<User>[] = users.map(user => ({
-    type: 'update',
-    id: user.id,
-    data: { name: user.name, email: user.email }
-  }));
+class PermissionManager {
+  private permissions: DatabasePermission[];
   
-  await userRepository.batch(operations);
+  async checkPermission(
+    user: User,
+    table: string,
+    operation: 'read' | 'write' | 'delete'
+  ): Promise<boolean> {
+    // 实现权限检查逻辑
+  }
 }
 ```
 
-#### 缓存策略
+## 5. 性能最佳实践
+
+### 5.1 查询优化
+
+#### 索引使用
 ```typescript
-class QueryCache<T> {
-  private cache: Map<string, { data: T; timestamp: number }>;
-  private ttl: number; // 缓存生存时间（毫秒）
+// 创建索引
+await client.executeRawQuery(
+  'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)'
+);
+
+// 使用索引
+const user = await client.executeRawQuery(
+  'SELECT * FROM users WHERE email = ?',
+  [email]
+);
+```
+
+#### 查询缓存
+```typescript
+class QueryCache {
+  private cache: Map<string, { data: any; timestamp: number }>;
   
-  constructor(ttl: number = 60000) { // 默认1分钟
-    this.cache = new Map();
-    this.ttl = ttl;
-  }
-  
-  set(key: string, data: T): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now()
-    });
-  }
-  
-  get(key: string): T | null {
+  get(key: string): any | null {
     const cached = this.cache.get(key);
     if (!cached) return null;
     
-    // 检查是否过期
     if (Date.now() - cached.timestamp > this.ttl) {
       this.cache.delete(key);
       return null;
@@ -621,667 +990,600 @@ class QueryCache<T> {
     
     return cached.data;
   }
-  
-  invalidate(key: string): void {
-    this.cache.delete(key);
-  }
-  
-  invalidateAll(): void {
-    this.cache.clear();
-  }
-}
-
-// 使用缓存的仓库示例
-class CachedUserRepository extends BaseRepository<User> {
-  private cache: QueryCache<User>;
-  
-  constructor(client: IBaseDatabaseClient) {
-    super(client, 'users');
-    this.cache = new QueryCache<User>(5 * 60 * 1000); // 5分钟缓存
-  }
-  
-  async findById(id: string): Promise<User | null> {
-    // 尝试从缓存获取
-    const cacheKey = `user:${id}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached) return cached;
-    
-    // 缓存未命中，从数据库获取
-    const user = await super.findById(id);
-    if (user) {
-      this.cache.set(cacheKey, user);
-    }
-    
-    return user;
-  }
-  
-  async update(id: string, data: Partial<User>): Promise<void> {
-    await super.update(id, data);
-    // 更新后失效相关缓存
-    this.cache.invalidate(`user:${id}`);
-  }
-  
-  async delete(id: string): Promise<void> {
-    await super.delete(id);
-    // 删除后失效相关缓存
-    this.cache.invalidate(`user:${id}`);
-  }
 }
 ```
 
-#### 延迟加载
+### 5.2 批量操作
+
+#### 事务使用
 ```typescript
-class UserRepository extends BaseRepository<User> {
-  // 基本用户信息查询（不包含大字段）
-  async findBasicInfo(id: string): Promise<Omit<User, 'bio' | 'interests'> | null> {
-    const query = `
-      SELECT id, name, email, photoUrl, birthDate, createdAt, updatedAt 
-      FROM users 
-      WHERE id = ?
-    `;
-    
-    const results = await this.executeRawQuery<Partial<User>>(query, [id]);
-    return results.length > 0 ? results[0] as any : null;
+// 批量插入
+await client.transaction(async () => {
+  for (const user of users) {
+    await client.createUser(user);
   }
-  
-  // 按需加载用户详细信息
-  async loadUserDetails(id: string): Promise<{ bio?: string; interests?: string[] } | null> {
-    const query = `
-      SELECT bio, interests 
-      FROM users 
-      WHERE id = ?
-    `;
-    
-    const results = await this.executeRawQuery<{ bio?: string; interests?: string }>(query, [id]);
-    if (results.length === 0) return null;
-    
-    const result = results[0];
-    return {
-      bio: result.bio,
-      interests: result.interests ? JSON.parse(result.interests) : []
-    };
-  }
-}
-
-// 使用示例
-async function renderUserProfile(userId: string) {
-  // 先加载基本信息（快速显示）
-  const basicInfo = await userRepository.findBasicInfo(userId);
-  if (!basicInfo) return null;
-  
-  // 渲染基本信息
-  renderBasicProfile(basicInfo);
-  
-  // 异步加载详细信息
-  userRepository.loadUserDetails(userId).then(details => {
-    if (details) {
-      // 渲染详细信息
-      renderUserDetails(details);
-    }
-  });
-}
-```
-
-### 8.6 MockDatabaseClient 最佳实践
-
-#### 8.6.1 选择合适的模式
-
-```typescript
-// 针对不同场景选择合适的模式
-const testConfig: MockDatabaseConfig = {
-  name: 'test-db',
-  version: 1,
-  // 单元测试使用内存模式（默认）
-  mockMode: 'memory'
-};
-
-const developmentConfig: MockDatabaseConfig = {
-  name: 'development-db',
-  version: 1,
-  // 开发环境使用JSON文件模式
-  mockMode: 'json',
-  jsonFilePath: './data/dev-data.json',
-  autoSave: true // 自动保存数据变更
-};
-
-// 针对集成测试使用特定的JSON文件
-const integrationTestConfig: MockDatabaseConfig = {
-  name: 'integration-test-db',
-  version: 1,
-  mockMode: 'json',
-  jsonFilePath: './data/integration-test-data.json',
-  autoSave: false // 手动控制数据保存，避免测试间相互影响
-};
-```
-
-#### 8.6.2 事务处理
-
-```typescript
-// 在JSON模式下使用事务
-async function safeOperation(db: MockDatabaseClient): Promise<void> {
-  try {
-    await db.transaction(async (tx) => {
-      // 创建用户
-      const user = await tx.create('users', {
-        name: 'Test User',
-        email: 'test@example.com'
-      });
-      
-      // 创建消息
-      await tx.create('messages', {
-        userId: user.id,
-        content: 'Hello World'
-      });
-      
-      // 如果出现错误，整个事务将回滚
-      if (shouldFail) {
-        throw new Error('Simulated failure');
-      }
-    });
-    
-    console.log('事务成功完成');
-  } catch (error) {
-    console.error('事务失败，所有更改已回滚:', error);
-    // 在JSON模式下，事务回滚通过重新加载JSON文件实现
-  }
-}
-```
-
-#### 8.6.3 批量操作
-
-```typescript
-// 批量操作示例
-async function batchProcess(db: MockDatabaseClient): Promise<void> {
-  // 准备批量操作
-  const operations = [
-    {
-      type: 'create',
-      data: { name: 'User 1', email: 'user1@example.com' }
-    },
-    {
-      type: 'update',
-      id: 'existing-id',
-      data: { name: 'Updated Name' }
-    },
-    {
-      type: 'delete',
-      id: 'to-delete-id'
-    }
-  ];
-  
-  // 执行批量操作
-  await db.batch('users', operations);
-}
-```
-
-#### 8.6.4 处理日期字段
-
-```typescript
-// JSON模式自动处理日期字段转换
-const user = await db.create('users', {
-  name: 'Date Test User',
-  birthDate: new Date(1990, 0, 1), // 写入Date对象
-  lastActive: new Date()
 });
 
-// 查询时自动将JSON字符串转回Date对象
-const retrievedUser = await db.findById('users', user.id);
-console.log(retrievedUser.birthDate instanceof Date); // true
-console.log(retrievedUser.lastActive instanceof Date); // true
+// 批量更新
+await client.executeRawQuery(
+  'UPDATE users SET status = ? WHERE id IN (?)',
+  ['active', userIds]
+);
 ```
 
-#### 8.6.5 性能考虑
+## 6. 维护最佳实践
 
+### 6.1 数据库维护
+
+#### 定期优化
 ```typescript
-// 对于性能敏感的场景，禁用自动保存并手动控制保存时机
-const db = new MockDatabaseClient({
-  name: 'performance-db',
-  version: 1,
-  mockMode: 'json',
-  jsonFilePath: './data/perf-data.json',
-  autoSave: false // 禁用自动保存
-});
-
-// 执行多个操作
-await db.create('users', { /* 数据 */ });
-await db.update('users', 'id1', { /* 数据 */ });
-await db.delete('users', 'id2');
-
-// 手动保存所有更改
-await db.saveToJson();
+class DatabaseMaintenance {
+  async optimize(): Promise<void> {
+    // 执行 VACUUM
+    await this.client.executeRawQuery('VACUUM');
+    
+    // 重建索引
+    await this.client.executeRawQuery('REINDEX');
+    
+    // 清理过期数据
+    await this.cleanupExpiredData();
+  }
+}
 ```
 
-## 9. 开发流程
-
-1. **环境设置**
-   ```bash
-   # 开发环境（Mock数据）
-   bun run dev
-   
-   # 本地数据库环境
-   bun run dev --env-file=.env.local
-   
-   # 生产环境
-   bun run build
-   bun run start
-   ```
-
-2. **添加新表**
-   - 定义表结构
-   - 创建仓库类
-   - 实现同步逻辑
-
-3. **测试验证**
-   - 单元测试
-   - 同步测试
-   - 性能测试
-
-## 10. 注意事项
-
-1. **数据一致性**
-   - 使用事务
-   - 冲突解决
-   - 数据备份
-
-2. **性能考虑**
-   - 合理索引
-   - 数据分页
-   - 查询优化
-
-3. **安全性**
-   - 数据加密
-   - 访问控制
-   - 安全审计
-
-## 11. 测试策略与最佳实践
-
-### 11.1 测试环境配置
-
+#### 监控告警
 ```typescript
-// 配置测试环境
-const testConfig: DatabaseConfig = {
-  name: 'test-db',
-  version: 1,
-  engine: 'indexeddb',
-  offline: {
-    maxStorageSize: 50 * 1024 * 1024, // 50MB
-    maxEntitiesPerTable: 10000,
-    compressionEnabled: true,
-    encryptionEnabled: true
-  },
-  schema: [
-    {
-      name: 'test_entities',
-      columns: [
-        { name: 'id', type: 'string', primaryKey: true },
-        { name: 'userId', type: 'string' },
-        { name: 'content', type: 'string' },
-        { name: 'createdAt', type: 'date' },
-        { name: 'updatedAt', type: 'date' }
-      ],
-      indexes: [
-        { name: 'userId_idx', columns: ['userId'] }
-      ]
+class DatabaseMonitor {
+  async checkHealth(): Promise<void> {
+    const stats = await this.getStorageStats();
+    
+    if (stats.totalSize > this.threshold) {
+      await this.sendAlert('Storage space running low');
     }
-  ]
-};
+    
+    const slowQueries = await this.getSlowQueries();
+    if (slowQueries.length > 0) {
+      await this.sendAlert('Slow queries detected');
+    }
+  }
+}
 ```
 
-### 11.2 边界条件测试
+### 6.2 版本管理
 
+#### 版本控制
 ```typescript
-describe('IndexedDBClient Boundary Tests', () => {
-  // 测试极限数据量
-  it('should handle maximum storage limit', async () => {
-    const largeData = Array.from({ length: 1000 }, (_, i) => ({
-      id: `item-${i}`,
-      largeContent: 'x'.repeat(1024 * 10) // 10KB 数据
-    }));
-    
-    // 批量写入接近限制的数据
-    await client.batchCreate('test_table', largeData);
-    
-    // 验证数据完整性
-    const results = await client.findAll('test_table');
-    expect(results.length).toBe(1000);
-  });
-  
-  // 测试异常输入
-  it('should handle invalid input gracefully', async () => {
-    // 测试空值
-    await expect(client.create('test_table', null))
-      .rejects.toThrow(ValidationError);
-      
-    // 测试无效ID
-    await expect(client.findById('test_table', ''))
-      .rejects.toThrow(ValidationError);
-      
-    // 测试超长字符串
-    const veryLongString = 'x'.repeat(1024 * 1024 * 5); // 5MB 字符串
-    await expect(client.create('test_table', { id: '1', data: veryLongString }))
-      .rejects.toThrow(DatabaseError);
-  });
-});
-```
+interface DatabaseVersion {
+  version: number;
+  appliedAt: Date;
+  description: string;
+}
 
-### 11.3 性能测试
-
-```typescript
-describe('Performance Tests', () => {
-  // 批量操作性能测试
-  it('should perform batch operations efficiently', async () => {
-    const startTime = performance.now();
-    
-    const items = Array.from({ length: 1000 }, (_, i) => ({
-      id: `perf-${i}`,
-      value: i,
-      data: `data-${i}`
-    }));
-    
-    await client.batchCreate('perf_table', items);
-    
-    const endTime = performance.now();
-    console.log(`批量创建1000条记录耗时: ${endTime - startTime}ms`);
-    
-    // 性能断言
-    expect(endTime - startTime).toBeLessThan(1000); // 应小于1秒
-  });
-  
-  // 并发查询测试
-  it('should handle concurrent queries', async () => {
-    const queries = Array.from({ length: 100 }, (_, i) => 
-      client.findById('perf_table', `perf-${i % 10}`)
+class VersionManager {
+  async getCurrentVersion(): Promise<number> {
+    const version = await this.client.executeRawQuery(
+      'SELECT version FROM schema_version'
     );
-    
-    const startTime = performance.now();
-    await Promise.all(queries);
-    const endTime = performance.now();
-    
-    console.log(`100个并发查询耗时: ${endTime - startTime}ms`);
-    expect(endTime - startTime).toBeLessThan(500); // 应小于500ms
-  });
-  
-  // 内存使用监控
-  it('should monitor memory usage', async () => {
-    const initialMemory = process.memoryUsage().heapUsed;
-    
-    // 执行内存密集型操作
-    const largeArray = Array.from({ length: 10000 }, (_, i) => ({
-      id: i.toString(),
-      data: `data-${i}`.repeat(100)
-    }));
-    
-    await client.batchCreate('memory_test', largeArray);
-    
-    const finalMemory = process.memoryUsage().heapUsed;
-    const memoryDiff = (finalMemory - initialMemory) / (1024 * 1024);
-    
-    console.log(`内存增长: ${memoryDiff.toFixed(2)}MB`);
-    // 确保内存增长在合理范围内
-    expect(memoryDiff).toBeLessThan(100); // 应小于100MB
-  });
-});
-```
-
-### 11.4 用户行为模拟
-
-```typescript
-class UserBehaviorSimulator {
-  // 模拟用户会话
-  async simulateUserSession(session: UserSession): Promise<void> {
-    // 随机执行用户操作
-    const actions = [
-      this.simulateDataRead,
-      this.simulateDataWrite,
-      this.simulateDataUpdate,
-      this.simulateDataDelete
-    ];
-    
-    // 模拟随机操作序列
-    for (let i = 0; i < 10; i++) {
-      const randomAction = actions[Math.floor(Math.random() * actions.length)];
-      await randomAction.call(this, session);
-      
-      // 模拟用户思考时间
-      await this.wait(Math.random() * 1000);
-    }
+    return version[0].version;
   }
   
-  // 模拟网络条件变化
-  async simulateNetworkConditions(): Promise<void> {
-    // 模拟网络延迟
-    this.setNetworkConditions({
-      latency: Math.random() * 200, // 0-200ms延迟
-      jitter: Math.random() * 50,  // 0-50ms抖动
-      bandwidth: 1000 * (1 + Math.random()), // 1-2Mbps带宽
-      packetLoss: Math.random() * 0.05 // 0-5%丢包率
-    });
-    
-    // 模拟网络中断
-    if (Math.random() < 0.1) { // 10%概率发生网络中断
-      await this.simulateNetworkFailure();
-    }
-  }
-  
-  // 模拟设备切换
-  async simulateDeviceSwitch(userId: string): Promise<void> {
-    const oldDeviceId = faker.string.uuid();
-    const newDeviceId = faker.string.uuid();
-    
-    // 在旧设备上执行操作
-    await this.simulateUserOperations(userId, oldDeviceId);
-    
-    // 模拟切换到新设备
-    await this.simulateSessionTransfer(userId, oldDeviceId, newDeviceId);
-    
-    // 在新设备上执行操作
-    await this.simulateUserOperations(userId, newDeviceId);
-    
-    // 验证数据同步
-    await this.verifyDataConsistency(userId);
+  async updateVersion(newVersion: number): Promise<void> {
+    await this.client.executeRawQuery(
+      'UPDATE schema_version SET version = ?',
+      [newVersion]
+    );
   }
 }
 ```
 
-### 11.5 压力测试
+## 7. 数据访问最佳实践
+
+### 7.1 组件与页面数据访问模式
+
+在应用开发中，组件和页面应该通过统一的数据服务接口访问数据，而不是直接导入模型或mock数据。这种模式有以下优势：
+
+1. **环境适应性**：根据环境变量自动切换数据源（mock、local、production）
+2. **关注点分离**：UI组件专注于展示逻辑，数据访问逻辑封装在服务中
+3. **可测试性**：便于模拟数据服务进行单元测试
+4. **一致性**：确保所有组件使用相同的数据访问方式
+5. **可维护性**：当数据访问逻辑变更时，只需修改服务实现，而不影响UI组件
+
+#### 7.1.1 错误示例
+
+以下是不推荐的数据访问方式：
 
 ```typescript
-describe('Stress Tests', () => {
-  it('should handle high concurrency', async () => {
-    const userCount = 100;
-    const operationsPerUser = 50;
+// 错误示例：直接导入mock数据
+import { getRecommendedUsers } from '@/core/lib/db/models/mock-data';
+
+function DiscoverPage() {
+  const [users, setUsers] = useState([]);
+  
+  useEffect(() => {
+    // 直接使用mock数据，无法根据环境切换数据源
+    const recommendedUsers = getRecommendedUsers();
+    setUsers(recommendedUsers);
+  }, []);
+  
+  return (
+    // ... 组件内容
+  );
+}
+```
+
+#### 7.1.2 正确示例
+
+以下是推荐的数据访问方式：
+
+```typescript
+// 正确示例：使用数据服务工厂
+import { DataServiceFactory } from '@/core/services/data-service-factory';
+import { useEffect, useState } from 'react';
+import { User } from '@/core/types';
+
+function DiscoverPage() {
+  const [users, setUsers] = useState<User[]>([]);
+  
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        // 通过工厂获取服务实例，自动根据环境变量选择合适的实现
+        const userService = await DataServiceFactory.getInstance().getUserService();
+        const recommendedUsers = await userService.getRecommendedUsers();
+        setUsers(recommendedUsers);
+      } catch (error) {
+        console.error('Failed to load users:', error);
+      }
+    };
     
-    // 模拟多用户并发操作
-    const userPromises = Array.from({ length: userCount }, async (_, i) => {
-      const userId = `user-${i}`;
-      
-      // 每个用户执行多次操作
-      for (let j = 0; j < operationsPerUser; j++) {
-        // 随机选择操作类型
-        const opType = Math.floor(Math.random() * 4); // 0:读, 1:写, 2:更新, 3:删除
-        
-        switch (opType) {
-          case 0: // 读操作
-            await client.findById('stress_test', `${userId}-${j % 10}`);
-            break;
-          case 1: // 写操作
-            await client.create('stress_test', {
-              id: `${userId}-${j}`,
-              data: `Data for ${userId} operation ${j}`
-            });
-            break;
-          case 2: // 更新操作
-            await client.update('stress_test', `${userId}-${j % 10}`, {
-              data: `Updated data for ${userId} operation ${j}`
-            });
-            break;
-          case 3: // 删除操作
-            await client.delete('stress_test', `${userId}-${j % 10}`);
-            break;
+    loadUsers();
+  }, []);
+  
+  return (
+    // ... 组件内容
+  );
+}
+```
+
+### 7.2 数据服务接口设计
+
+为确保数据访问的一致性，应为每种实体类型定义明确的服务接口：
+
+```typescript
+// 用户服务接口
+export interface IUserService {
+  // 基本CRUD操作
+  getUserById(id: string): Promise<User | null>;
+  createUser(user: Omit<User, keyof BaseEntity>): Promise<User>;
+  updateUser(id: string, data: Partial<User>): Promise<void>;
+  deleteUser(id: string): Promise<void>;
+  
+  // 业务特定操作
+  getRecommendedUsers(preferences?: UserPreferences): Promise<User[]>;
+  getUsersByLocation(location: Location, radius: number): Promise<User[]>;
+  updateUserPreferences(userId: string, preferences: UserPreferences): Promise<void>;
+}
+
+// 匹配服务接口
+export interface IMatchService {
+  getMatchById(id: string): Promise<Match | null>;
+  createMatch(match: Omit<Match, keyof BaseEntity>): Promise<Match>;
+  updateMatchStatus(id: string, status: Match['status']): Promise<void>;
+  getUserMatches(userId: string): Promise<Match[]>;
+  performMatchAction(action: MatchAction): Promise<Match | null>;
+}
+
+// 消息服务接口
+export interface IMessageService {
+  getMessagesByMatchId(matchId: string): Promise<Message[]>;
+  sendMessage(message: Omit<Message, keyof BaseEntity>): Promise<Message>;
+  markMessagesAsRead(matchId: string, userId: string): Promise<void>;
+  getUnreadMessageCount(userId: string): Promise<number>;
+}
+```
+
+### 7.3 服务实现与环境切换
+
+服务实现应根据环境变量自动切换：
+
+```typescript
+// 用户服务工厂方法
+async getUserService(): Promise<IUserService> {
+  if (!this.services.has('user')) {
+    switch (this.databaseEnv) {
+      case 'production':
+        // 生产环境：使用真实数据库
+        const client = await this.getCloudDatabaseClient();
+        const repository = new UserRepository(client);
+        this.services.set('user', new UserService(repository));
+        break;
+      case 'local':
+        // 本地环境：使用本地数据库
+        const localClient = await this.getLocalDatabaseClient();
+        const localRepository = new UserRepository(localClient);
+        this.services.set('user', new UserService(localRepository));
+        break;
+      default:
+        // 开发环境：使用模拟数据
+        this.services.set('user', new MockUserService());
+    }
+  }
+  return this.services.get('user');
+}
+```
+
+### 7.4 模拟服务实现
+
+模拟服务应实现与真实服务相同的接口，但使用内存数据：
+
+```typescript
+// 模拟用户服务
+export class MockUserService implements IUserService {
+  private users: User[] = [];
+  
+  constructor() {
+    // 初始化模拟数据
+    this.users = require('@/core/lib/db/clients/mock/data/user-data.json');
+  }
+  
+  async getUserById(id: string): Promise<User | null> {
+    return this.users.find(user => user.id === id) || null;
+  }
+  
+  async getRecommendedUsers(preferences?: UserPreferences): Promise<User[]> {
+    // 模拟推荐算法
+    return this.users.slice(0, 10);
+  }
+  
+  // 实现其他接口方法...
+}
+```
+
+## 8. 总结
+
+1. **开发阶段**
+   - 遵循代码组织规范
+   - 确保类型安全
+   - 实现错误处理
+
+2. **测试阶段**
+   - 编写单元测试
+   - 实现集成测试
+   - 管理测试数据
+
+3. **部署阶段**
+   - 实现数据库迁移
+   - 配置数据备份
+   - 设置监控和日志
+
+4. **安全**
+   - 实现数据加密
+   - 管理访问权限
+   - 保护敏感数据
+
+5. **性能**
+   - 优化查询
+   - 使用缓存
+   - 批量操作
+
+6. **维护**
+   - 定期优化
+   - 监控告警
+   - 版本管理
+   
+7. **数据访问**
+   - 使用服务接口访问数据
+   - 通过工厂模式获取服务实例
+   - 根据环境变量自动切换数据源
+   - 避免直接导入模型或mock数据
+
+## 5. Ionic 与 React Hooks 集成
+
+### 5.1 概述
+
+Ionic 完全支持 React 和 React Hooks，我们可以充分利用 Hooks 的特性来管理 Ionic 应用中的状态和副作用。本节将详细介绍如何在 Ionic 应用中最佳地使用 React Hooks。
+
+### 5.2 Ionic 生命周期与 Hooks
+
+#### 5.2.1 生命周期映射
+
+Ionic 的生命周期方法可以通过 Hooks 实现：
+
+```typescript
+// 传统 Ionic 生命周期
+class MyPage extends React.Component {
+  ionViewDidEnter() {
+    // 页面进入时的逻辑
+  }
+  
+  ionViewWillLeave() {
+    // 页面离开时的逻辑
+  }
+}
+
+// 使用 Hooks 实现
+const MyPage: React.FC = () => {
+  // 使用 Ionic 提供的 Hooks
+  useIonViewDidEnter(() => {
+    // 页面进入时的逻辑
+  });
+
+  useIonViewWillLeave(() => {
+    // 页面离开时的逻辑
+  });
+
+  return (
+    // ... 组件内容
+  );
+};
+```
+
+#### 5.2.2 常用生命周期 Hooks
+
+```typescript
+import {
+  useIonViewDidEnter,
+  useIonViewWillEnter,
+  useIonViewDidLeave,
+  useIonViewWillLeave,
+  useIonViewCanEnter,
+  useIonViewCanLeave
+} from '@ionic/react';
+
+const MyPage: React.FC = () => {
+  // 页面即将进入
+  useIonViewWillEnter(() => {
+    console.log('页面即将进入');
+  });
+
+  // 页面已进入
+  useIonViewDidEnter(() => {
+    console.log('页面已进入');
+  });
+
+  // 页面即将离开
+  useIonViewWillLeave(() => {
+    console.log('页面即将离开');
+  });
+
+  // 页面已离开
+  useIonViewDidLeave(() => {
+    console.log('页面已离开');
+  });
+
+  // 控制页面是否可以进入
+  useIonViewCanEnter(() => {
+    return true; // 返回 false 将阻止页面进入
+  });
+
+  // 控制页面是否可以离开
+  useIonViewCanLeave(() => {
+    return true; // 返回 false 将阻止页面离开
+  });
+
+  return (
+    // ... 组件内容
+  );
+};
+```
+
+### 5.3 Ionic 特定功能与 Hooks
+
+#### 5.3.1 创建 Ionic 服务 Hook
+
+```typescript
+// src/core/hooks/useIonService.ts
+import { IonLoading, IonToast, IonAlert } from '@ionic/react';
+import { useServices } from './useServices';
+
+export function useIonService() {
+  const { userService, messageService } = useServices();
+  const [loading, setLoading] = useState<HTMLIonLoadingElement | null>(null);
+  const [toast, setToast] = useState<HTMLIonToastElement | null>(null);
+  const [alert, setAlert] = useState<HTMLIonAlertElement | null>(null);
+
+  const showLoading = async (message: string) => {
+    const loading = await IonLoading.create({
+      message,
+      duration: 2000
+    });
+    setLoading(loading);
+    await loading.present();
+  };
+
+  const hideLoading = async () => {
+    if (loading) {
+      await loading.dismiss();
+      setLoading(null);
+    }
+  };
+
+  const showToast = async (message: string, duration = 2000) => {
+    const toast = await IonToast.create({
+      message,
+      duration,
+      position: 'bottom'
+    });
+    setToast(toast);
+    await toast.present();
+  };
+
+  const showAlert = async (options: AlertOptions) => {
+    const alert = await IonAlert.create(options);
+    setAlert(alert);
+    await alert.present();
+  };
+
+  return {
+    userService,
+    messageService,
+    showLoading,
+    hideLoading,
+    showToast,
+    showAlert
+  };
+}
+```
+
+#### 5.3.2 在页面中使用 Ionic 服务 Hook
+
+```typescript
+// src/mobile/pages/ProfilePage.tsx
+import { IonPage, IonContent, IonButton } from '@ionic/react';
+import { useIonService } from '@/core/hooks/useIonService';
+
+export const ProfilePage: React.FC = () => {
+  const { userService, showLoading, showToast, showAlert } = useIonService();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  const loadProfile = async () => {
+    try {
+      await showLoading('Loading profile...');
+      const userProfile = await userService?.getCurrentUser();
+      setProfile(userProfile);
+    } catch (error) {
+      await showToast('Failed to load profile');
+    } finally {
+      await hideLoading();
+    }
+  };
+
+  const handleDelete = async () => {
+    await showAlert({
+      header: 'Confirm Delete',
+      message: 'Are you sure you want to delete your profile?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Delete',
+          handler: async () => {
+            try {
+              await showLoading('Deleting profile...');
+              await userService?.deleteProfile();
+              await showToast('Profile deleted successfully');
+            } catch (error) {
+              await showToast('Failed to delete profile');
+            } finally {
+              await hideLoading();
+            }
+          }
         }
-      }
+      ]
     });
-    
-    // 等待所有用户操作完成
-    await Promise.all(userPromises);
-    
-    // 验证数据库状态
-    const finalCount = await client.count('stress_test');
-    console.log(`压力测试后记录数: ${finalCount}`);
-  });
-});
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, [userService]);
+
+  return (
+    <IonPage>
+      <IonContent>
+        {/* 使用 Ionic 组件显示数据 */}
+      </IonContent>
+    </IonPage>
+  );
+};
 ```
 
-### 11.6 Mock数据库客户端测试
+### 5.4 性能优化
+
+#### 5.4.1 使用 useMemo 优化渲染
 
 ```typescript
-describe('MockDatabaseClient Tests', () => {
-  let client: MockDatabaseClient;
-  
-  describe('Memory Mode', () => {
-    beforeEach(() => {
-      // 每个测试创建新的内存模式客户端
-      client = new MockDatabaseClient({
-        name: 'test-db',
-        version: 1,
-        mockMode: 'memory'
-      });
-      return client.initialize();
-    });
-    
-    afterEach(() => client.close());
-    
-    it('should create and retrieve entities', async () => {
-      // 创建实体
-      const user = await client.create('users', {
-        id: 'test-id',
-        name: 'Test User',
-        email: 'test@example.com'
-      });
-      
-      // 检索并验证
-      const retrieved = await client.findById('users', 'test-id');
-      expect(retrieved).toEqual(user);
-    });
-    
-    it('should support transactions', async () => {
-      // 测试事务
-      await client.transaction(async (tx) => {
-        await tx.create('users', { id: 'tx-user', name: 'Transaction User' });
-      });
-      
-      const txUser = await client.findById('users', 'tx-user');
-      expect(txUser).not.toBeNull();
-    });
-    
-    it('should rollback failed transactions', async () => {
-      // 初始状态
-      await client.create('users', { id: 'initial-user', name: 'Initial' });
-      
-      // 执行失败的事务
-      try {
-        await client.transaction(async (tx) => {
-          await tx.update('users', 'initial-user', { name: 'Updated' });
-          // 抛出错误导致事务失败
-          throw new Error('Simulated error');
-        });
-      } catch (error) {
-        // 预期出错
-      }
-      
-      // 验证回滚
-      const user = await client.findById('users', 'initial-user');
-      expect(user.name).toBe('Initial');
-    });
-  });
-  
-  describe('JSON Mode', () => {
-    const jsonPath = './test-data.json';
-    
-    beforeEach(async () => {
-      // 每个测试创建新的JSON模式客户端
-      client = new MockDatabaseClient({
-        name: 'json-test-db',
-        version: 1,
-        mockMode: 'json',
-        jsonFilePath: jsonPath,
-        autoSave: true
-      });
-      await client.initialize();
-      await client.clear(); // 清空数据
-    });
-    
-    afterEach(async () => {
-      await client.close();
-      // 清理测试JSON文件
-      try {
-        fs.unlinkSync(jsonPath);
-      } catch (error) {
-        // 忽略文件不存在的错误
-      }
-    });
-    
-    it('should persist data between instances', async () => {
-      // 第一个实例
-      await client.create('users', { id: 'persist-test', name: 'Persistence Test' });
-      await client.close();
-      
-      // 创建新实例
-      const newClient = new MockDatabaseClient({
-        name: 'json-test-db',
-        version: 1,
-        mockMode: 'json',
-        jsonFilePath: jsonPath
-      });
-      await newClient.initialize();
-      
-      // 验证数据持久化
-      const user = await newClient.findById('users', 'persist-test');
-      expect(user).not.toBeNull();
-      expect(user.name).toBe('Persistence Test');
-      
-      await newClient.close();
-    });
-  });
-});
+const UserListPage: React.FC = () => {
+  const { userService } = useServices();
+  const [users, setUsers] = useState<User[]>([]);
+
+  // 缓存用户列表渲染函数
+  const renderUserItem = useMemo(() => (user: User) => (
+    <IonItem key={user.id}>
+      <IonLabel>{user.name}</IonLabel>
+      <IonButton slot="end" onClick={() => handleUserAction(user)}>
+        Action
+      </IonButton>
+    </IonItem>
+  ), []);
+
+  // 缓存用户操作处理函数
+  const handleUserAction = useCallback(async (user: User) => {
+    // 处理用户操作
+  }, []);
+
+  return (
+    <IonPage>
+      <IonContent>
+        <IonList>
+          {users.map(renderUserItem)}
+        </IonList>
+      </IonContent>
+    </IonPage>
+  );
+};
 ```
 
-## 12. 常见问题
+#### 5.4.2 使用 useCallback 优化事件处理
 
-1. **离线数据同步**
-   - 同步队列
-   - 断点续传
-   - 网络异常处理
+```typescript
+const ChatPage: React.FC = () => {
+  const { messageService } = useServices();
+  const [messages, setMessages] = useState<Message[]>([]);
 
-2. **数据迁移**
-   - 版本控制
-   - 向后兼容
-   - 数据验证
+  const handleSendMessage = useCallback(async (text: string) => {
+    if (!messageService) return;
+    
+    try {
+      await messageService.sendMessage(text);
+      // 更新消息列表
+    } catch (error) {
+      // 错误处理
+    }
+  }, [messageService]);
+
+  return (
+    <IonPage>
+      <IonContent>
+        <IonList>
+          {messages.map(message => (
+            <IonItem key={message.id}>
+              {message.text}
+            </IonItem>
+          ))}
+        </IonList>
+        <IonButton onClick={() => handleSendMessage('Hello')}>
+          Send
+        </IonButton>
+      </IonContent>
+    </IonPage>
+  );
+};
+```
+
+### 5.5 最佳实践
+
+1. **生命周期管理**
+   - 使用 Ionic 提供的生命周期 Hooks 替代类组件的生命周期方法
+   - 在适当的生命周期 Hook 中初始化和清理资源
+
+2. **状态管理**
+   - 使用 `useState` 管理本地状态
+   - 使用 `useReducer` 管理复杂状态
+   - 使用 Context API 管理全局状态
 
 3. **性能优化**
-   - 缓存策略
-   - 批量操作
-   - 延迟加载
+   - 使用 `useMemo` 缓存计算结果
+   - 使用 `useCallback` 缓存函数
+   - 使用 `React.memo` 优化组件重渲染
 
-## 12. 构建与部署
+4. **错误处理**
+   - 使用 Ionic 的 Toast 和 Alert 组件显示错误信息
+   - 实现统一的错误处理机制
+   - 提供清晰的错误恢复策略
 
-### 12.1 构建脚本
-```json
-{
-  "scripts": {
-    "build:web": "next build",
-    "build:ios": "next build && npx cap sync ios",
-    "build:android": "next build && npx cap sync android",
-    "ios:start": "npm run build:ios && npx cap open ios",
-    "android:start": "npm run build:android && npx cap open android"
-  }
-}
-```
-
-### 12.2 平台特定配置
-- iOS 安全区域适配
-- Android 权限管理
-- Web 缓存策略
-
-
-
+5. **代码组织**
+   - 创建可复用的自定义 Hooks
+   - 将业务逻辑从组件中抽离
+   - 保持组件的单一职责

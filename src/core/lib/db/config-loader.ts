@@ -1,11 +1,13 @@
-import { DatabaseConfig, defaultConfig } from './config';
+import type { DatabaseConfig, StorageType } from '@/core/lib/db/types/database.types';
 import { logger } from '@/core/lib/logger';
 import fs from 'fs';
 import path from 'path';
+import { SUPPORTED_STORAGE_TYPES, SUPPORTED_OFFLINE_STORAGE_TYPES, defaultConfig } from '@/core/lib/db/types/database.types';
 
 export class ConfigLoader {
   static async loadConfig(): Promise<DatabaseConfig> {
-    const config = { ...defaultConfig };
+    // 使用统一 defaultConfig 作为配置基础
+    const config: DatabaseConfig = { ...defaultConfig };
 
     try {
       // 从环境变量加载配置
@@ -44,7 +46,7 @@ export class ConfigLoader {
 
     // 在线存储配置
     if (process.env.ONLINE_STORAGE_TYPE) {
-      config.storage.online.type = process.env.ONLINE_STORAGE_TYPE as 'mock' | 'sqlite' | 'postgres';
+      config.storage.online.type = process.env.ONLINE_STORAGE_TYPE as StorageType;
     }
     if (process.env.DB_HOST) config.storage.online.connection.host = process.env.DB_HOST;
     if (process.env.DB_PORT) config.storage.online.connection.port = parseInt(process.env.DB_PORT);
@@ -54,25 +56,25 @@ export class ConfigLoader {
 
     // 离线存储配置
     if (process.env.OFFLINE_STORAGE_TYPE) {
-      config.storage.offline.type = process.env.OFFLINE_STORAGE_TYPE as 'memory' | 'indexeddb' | 'sqlite';
-    }
-    if (process.env.OFFLINE_DB_NAME) config.storage.offline.options.name = process.env.OFFLINE_DB_NAME;
-    if (process.env.OFFLINE_DB_VERSION) {
-      config.storage.offline.options.version = parseInt(process.env.OFFLINE_DB_VERSION);
-    }
-    if (process.env.OFFLINE_AUTO_SAVE) {
-      config.storage.offline.options.autoSave = process.env.OFFLINE_AUTO_SAVE === 'true';
+      const offlineType = process.env.OFFLINE_STORAGE_TYPE as StorageType;
+      if (offlineType !== 'postgres') {
+        config.storage.offline.type = offlineType;
+      }
     }
 
     // 同步配置
     if (process.env.AUTO_SYNC) {
-      config.sync.autoSync = process.env.AUTO_SYNC === 'true';
+      config.sync.enabled = process.env.AUTO_SYNC === 'true';
     }
     if (process.env.SYNC_INTERVAL) {
-      config.sync.syncInterval = parseInt(process.env.SYNC_INTERVAL);
+      config.sync.syncIntervalMs = parseInt(process.env.SYNC_INTERVAL);
     }
     if (process.env.CONFLICT_RESOLUTION) {
-      config.sync.conflictResolution = process.env.CONFLICT_RESOLUTION as 'server' | 'client' | 'manual';
+      // 只允许 'client-wins' | 'server-wins' | 'last-write-wins'
+      const allowed = ['client-wins', 'server-wins', 'last-write-wins'];
+      if (allowed.includes(process.env.CONFLICT_RESOLUTION)) {
+        config.sync.conflictResolution = process.env.CONFLICT_RESOLUTION as typeof config.sync.conflictResolution;
+      }
     }
 
     // 测试数据配置
@@ -80,10 +82,7 @@ export class ConfigLoader {
       config.testData.loadOnStartup = process.env.LOAD_TEST_DATA === 'true';
     }
     if (process.env.TEST_DATA_SOURCE) {
-      config.testData.source = process.env.TEST_DATA_SOURCE as 'example' | 'dating' | 'custom';
-    }
-    if (process.env.TEST_DATA_PATH) {
-      config.testData.customPath = process.env.TEST_DATA_PATH;
+      config.testData.source = process.env.TEST_DATA_SOURCE as 'example' | 'dating';
     }
   }
 
@@ -107,29 +106,25 @@ export class ConfigLoader {
     }
 
     // 验证在线存储配置
-    if (!['mock', 'sqlite', 'postgres'].includes(config.storage.online.type)) {
+    if (!SUPPORTED_STORAGE_TYPES.includes(config.storage.online.type)) {
       throw new Error('Invalid online storage type');
     }
 
     // 验证离线存储配置
-    if (config.env.enableOffline) {
-      if (!['memory', 'indexeddb', 'sqlite'].includes(config.storage.offline.type)) {
-        throw new Error('Invalid offline storage type');
-      }
+    const supportedOfflineTypes = SUPPORTED_OFFLINE_STORAGE_TYPES;
+    if (config.env.enableOffline && !supportedOfflineTypes.includes(config.storage.offline.type)) {
+      throw new Error('Invalid offline storage type');
     }
 
     // 验证同步配置
-    if (config.sync.autoSync && config.sync.syncInterval < 1000) {
+    if (config.sync.enabled && config.sync.syncIntervalMs !== undefined && config.sync.syncIntervalMs < 1000) {
       throw new Error('Sync interval must be at least 1000ms');
     }
 
     // 验证测试数据配置
     if (config.testData.loadOnStartup) {
-      if (!['example', 'dating', 'custom'].includes(config.testData.source)) {
+      if (!['example', 'dating'].includes(config.testData.source)) {
         throw new Error('Invalid test data source');
-      }
-      if (config.testData.source === 'custom' && !config.testData.customPath) {
-        throw new Error('Custom test data path is required when using custom source');
       }
     }
   }

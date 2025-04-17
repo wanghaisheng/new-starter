@@ -49,6 +49,37 @@
 
 查看[项目初始化指南](./guides/project-initialization-guide.md)获取更详细的设置步骤。
 
+## 文档结构总览
+
+本项目文档分为多层级，涵盖架构、开发、最佳实践、部署、测试等主题。建议查阅下方结构和 index.md 以快速定位内容。
+
+```
+docs/
+├── README.md                # 文档总览（本文件）
+├── index.md                 # 项目知识体系导航
+├── guides/                  # 主题分区文档
+│   ├── architecture/        # 架构设计（含 database、services 等）
+│   │   ├── database/        # 数据库架构与实现
+│   │   ├── services/        # 服务层架构与规范
+│   │   └── ...
+│   ├── best-practices/      # 各主题最佳实践
+│   ├── development/         # 开发流程、API、前后端等
+│   ├── deployment/          # 部署与运维
+│   ├── testing/             # 测试与质量保障
+│   └── tools/               # 工具与脚本
+├── assets/                  # 图片、图表等资源
+├── prompts/                 # AI/对话模板
+├── issues/                  # 典型问题与解决方案
+├── bash-scripts/            # 常用脚本
+├── templates/               # 模板
+└── ...
+```
+
+- 详细知识体系请查阅 [index.md](./index.md)
+- 各主题入口请优先查阅 guides/README.md
+- 架构、服务、数据库等详细规范见 guides/architecture/
+- 数据服务、API 路由等请参考最新架构文档与服务分层说明
+
 ## 技术栈
 
 ### 前端

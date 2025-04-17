@@ -128,9 +128,54 @@ export class TestService {
 }
 ```
 
-## 3. 数据开发最佳实践
+## 3. 服务化与 API 路由设计（当前架构说明）
 
-### 3.1 数据服务工厂
+### 3.1 服务与 API 路由分层
+
+当前项目采用“服务层 + API Router”架构，所有 API 路由（如 `app/api/v1/users/route.ts`）仅负责参数校验、权限判断、响应封装，业务逻辑全部通过核心服务（如 `UserService`、`TestService`）调用完成。这样可实现：
+- 路由与业务解耦，便于复用和维护
+- 统一错误处理、中间件和响应格式
+- 服务层可被前后端、脚本等多场景直接复用
+
+### 3.2 推荐代码结构
+```
+app/api/v1/users/route.ts      # API 路由，仅处理请求分发和响应
+src/core/services/user-service.ts # 业务服务，封装全部业务逻辑
+src/core/lib/db/               # 数据库访问与类型定义
+```
+
+### 3.3 API 路由实现范式
+```typescript
+// app/api/v1/users/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/app/api/_lib/middleware/auth';
+import { validateRequest } from '@/app/api/_lib/utils/validation';
+import { UserService } from '@/core/services/user-service';
+
+export const GET = withAuth(async (req: NextRequest) => {
+  const { page, size } = validateRequest(req, ['page', 'size']);
+  const users = await UserService.getInstance().getUsers({ page, size });
+  return NextResponse.json({ data: users });
+});
+```
+
+### 3.4 服务层实现规范
+- 服务类（如 `UserService`）必须为单例
+- 所有类型、接口统一从 `@/core/lib/db/types` 引入
+- 严禁在路由中写业务逻辑或访问数据库，所有数据操作必须通过服务层
+- 服务层可组合调用仓库、第三方 API、缓存等
+
+### 3.5 统一类型与依赖注入
+- 所有服务、仓库、API 路由均通过 types 层唯一出口导入类型，避免重复声明和命名冲突
+- 推荐通过工厂类（如 `DataServiceFactory`）或依赖注入容器管理服务实例，便于测试和环境切换
+
+---
+
+> **总结：当前 API Router 方案下，推荐所有 API 路由只做请求分发和响应封装，全部业务逻辑集中于服务层，类型统一由 types 层导出，避免重复实现和逻辑分散。**
+
+## 4. 数据开发最佳实践
+
+### 4.1 数据服务工厂
 ```typescript
 // src/core/services/data-service-factory.ts
 export class DataServiceFactory {
@@ -155,7 +200,7 @@ export class DataServiceFactory {
 }
 ```
 
-### 3.2 组件中使用
+### 4.2 组件中使用
 ```typescript
 // src/components/TestList.tsx
 import { useApi } from '@/core/hooks/useApi';
@@ -178,9 +223,9 @@ export function TestList() {
 }
 ```
 
-## 4. 环境适配
+## 5. 环境适配
 
-### 4.1 环境配置
+### 5.1 环境配置
 ```typescript
 // .env.development
 NEXT_PUBLIC_DATABASE_ENV=mock
@@ -192,7 +237,7 @@ NEXT_PUBLIC_DATABASE_ENV=local
 NEXT_PUBLIC_DATABASE_ENV=production
 ```
 
-### 4.2 环境检测
+### 5.2 环境检测
 ```typescript
 // src/core/lib/env.ts
 export function isDevelopment(): boolean {
@@ -208,9 +253,9 @@ export function getDatabaseEnv(): string {
 }
 ```
 
-## 5. 错误处理
+## 6. 错误处理
 
-### 5.1 API 错误处理
+### 6.1 API 错误处理
 ```typescript
 // app/api/_lib/middleware/error.ts
 import { NextRequest, NextResponse } from 'next/server';
@@ -229,7 +274,7 @@ export async function withErrorHandler(
 }
 ```
 
-### 5.2 前端错误处理
+### 6.2 前端错误处理
 ```typescript
 // src/core/hooks/useErrorHandler.ts
 import { useCallback } from 'react';
@@ -243,9 +288,9 @@ export function useErrorHandler() {
 }
 ```
 
-## 6. 性能优化
+## 7. 性能优化
 
-### 6.1 数据缓存
+### 7.1 数据缓存
 ```typescript
 // src/core/hooks/useCache.ts
 import { useCallback } from 'react';
@@ -271,7 +316,7 @@ export function useCache() {
 }
 ```
 
-### 6.2 批量操作
+### 7.2 批量操作
 ```typescript
 // src/core/services/base-service.ts
 export abstract class BaseService {
@@ -288,9 +333,9 @@ export abstract class BaseService {
 }
 ```
 
-## 7. 测试策略
+## 8. 测试策略
 
-### 7.1 API 测试
+### 8.1 API 测试
 ```typescript
 // tests/api/test.test.ts
 import { TestService } from '@/core/services/test-service';
@@ -309,7 +354,7 @@ describe('Test API', () => {
 });
 ```
 
-### 7.2 Hook 测试
+### 8.2 Hook 测试
 ```typescript
 // tests/hooks/useApi.test.ts
 import { renderHook } from '@testing-library/react-hooks';
@@ -336,9 +381,9 @@ describe('useApi', () => {
 });
 ```
 
-## 8. 文档规范
+## 9. 文档规范
 
-### 8.1 API 文档
+### 9.1 API 文档
 - 每个API端点都需要包含：
   - 请求方法和路径
   - 请求参数说明
@@ -346,7 +391,7 @@ describe('useApi', () => {
   - 错误码说明
   - 权限要求
 
-### 8.2 代码注释
+### 9.2 代码注释
 - 使用JSDoc格式
 - 包含参数类型说明
 - 说明可能的错误情况

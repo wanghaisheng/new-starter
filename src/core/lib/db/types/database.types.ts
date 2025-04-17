@@ -6,7 +6,7 @@ import { TableSchema } from '../schema/index';
 export type DatabaseEngine = 'mock' | 'mock-indexeddb' | 'indexeddb' | 'sqlite' | 'capacitor-sqlite' | 'cloudflare-d1' | 'firebase' | 'supabase' | 'turso' | 'tidb' | 'postgres' | 'hybrid';
 
 // 同步策略类型
-export type SyncStrategy = 'immediate' | 'periodic' | 'manual';
+export type SyncStrategy = 'auto'|'immediate' | 'periodic' | 'manual';
 
 // 同步状态类型
 export type SyncStatus = 'pending' | 'syncing' | 'completed' | 'failed';
@@ -318,7 +318,26 @@ export interface CursorOptions {
 }
 
 export type DatabaseEnvironment = 'development' | 'production';
-export type StorageType = 'memory' | 'indexeddb' | 'sqlite' | 'postgres';
+
+// 动态获取所有支持的存储类型，避免硬编码
+export const SUPPORTED_STORAGE_TYPES = [
+  'memory',
+  'indexeddb',
+  'sqlite',
+  'postgres',
+] as const;
+
+export const SUPPORTED_OFFLINE_STORAGE_TYPES = [
+
+  'memory',
+  'indexeddb',  'sqlite',
+
+] as const;
+
+
+export type StorageType = typeof SUPPORTED_STORAGE_TYPES[number];
+export type OfflineStorageType = typeof SUPPORTED_OFFLINE_STORAGE_TYPES[number];
+
 export type DemoDataSource = 'example' | 'dating';
 
 export interface DatabaseConnection {
@@ -332,6 +351,11 @@ export interface DatabaseConnection {
 
 export interface StorageConfig {
   type: StorageType;
+  connection: DatabaseConnection;
+}
+
+export interface OfflineStorageConfig {
+  type: OfflineStorageType;
   connection: DatabaseConnection;
 }
 
@@ -354,7 +378,7 @@ export interface DatabaseConfig {
   env: EnvironmentConfig;
   storage: {
     online: StorageConfig;
-    offline: StorageConfig;
+    offline: OfflineStorageConfig;
   };
   sync: SyncConfig;
   testData: TestDataConfig;
@@ -411,3 +435,9 @@ export const defaultConfig: DatabaseConfig = {
 }; 
 
 export type { BaseEntity } from './base-entity';
+
+// 批量操作接口
+export interface BatchOperation<T = any> {
+  type: 'add' | 'put' | 'delete';
+  data: T;
+}

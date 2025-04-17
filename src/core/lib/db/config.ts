@@ -1,11 +1,11 @@
-import { DatabaseConfig, DatabaseEngine } from '@/core/lib/db/types/database.types';
+import type { DatabaseConfig as DatabaseConfigType, DatabaseEngine } from '@/core/lib/db/types/database.types';
 
 /**
  * 数据库配置构建器
  * 使用构建器模式创建和管理数据库配置
  */
 class DatabaseConfigBuilder {
-  private config: DatabaseConfig = {
+  private config: DatabaseConfigType = {
     name: 'app_database',
     version: 1,
     engine: 'sqlite',
@@ -15,6 +15,31 @@ class DatabaseConfigBuilder {
       maxEntitiesPerTable: 10000,
       compressionEnabled: true,
       encryptionEnabled: true
+    },
+    env: {
+      environment: 'development',
+      enableOffline: false,
+      enableHybrid: false
+    },
+    storage: {
+      online: {
+        type: 'sqlite',
+        connection: {}
+      },
+      offline: {
+        type: 'indexeddb',
+        connection: {}
+      }
+    },
+    sync: {
+      enabled: false,
+      strategy: 'manual',
+      conflictResolution: 'server-wins',
+      syncIntervalMs: 0
+    },
+    testData: {
+      loadOnStartup: false,
+      source: 'example'
     }
   };
 
@@ -45,7 +70,7 @@ class DatabaseConfigBuilder {
   /**
    * 设置同步配置
    */
-  withSync(syncConfig: NonNullable<DatabaseConfig['sync']>): this {
+  withSync(syncConfig: NonNullable<DatabaseConfigType['sync']>): this {
     this.config.sync = { ...syncConfig };
     return this;
   }
@@ -53,7 +78,7 @@ class DatabaseConfigBuilder {
   /**
    * 设置离线存储配置
    */
-  withOfflineStorage(offlineConfig: NonNullable<DatabaseConfig['offline']>): this {
+  withOfflineStorage(offlineConfig: NonNullable<DatabaseConfigType['offline']>): this {
     this.config.offline = { ...offlineConfig };
     return this;
   }
@@ -61,7 +86,7 @@ class DatabaseConfigBuilder {
   /**
    * 设置表结构
    */
-  withTables(tables: DatabaseConfig['tables']): this {
+  withTables(tables: DatabaseConfigType['tables']): this {
     this.config.tables = { ...tables };
     return this;
   }
@@ -77,13 +102,13 @@ class DatabaseConfigBuilder {
   /**
    * 构建最终配置
    */
-  build(): DatabaseConfig {
+  build(): DatabaseConfigType {
     return { ...this.config };
   }
 }
 
 // 基础配置
-const baseConfig: Partial<DatabaseConfig> = {
+const baseConfig: Partial<DatabaseConfigType> = {
   engine: 'mock',
   name: 'app_database',
   version: 1,
@@ -131,9 +156,9 @@ const baseConfig: Partial<DatabaseConfig> = {
 };
 
 // 环境特定配置
-const environments: Record<string, DatabaseConfig> = {
+const environments: Record<string, DatabaseConfigType> = {
   development: {
-    ...baseConfig as DatabaseConfig,
+    ...baseConfig as DatabaseConfigType,
     engine: 'mock',
     name: 'app_database_dev',
     version: 1,
@@ -145,7 +170,7 @@ const environments: Record<string, DatabaseConfig> = {
     }
   },
   production: {
-    ...baseConfig as DatabaseConfig,
+    ...baseConfig as DatabaseConfigType,
     engine: 'postgres',
     name: 'app_database_prod',
     version: 1,
@@ -164,10 +189,10 @@ const getEnvironment = (): string => {
 };
 
 // 导出默认配置
-export const defaultConfig: DatabaseConfig = environments[getEnvironment()];
+export const defaultConfig: DatabaseConfigType = environments[getEnvironment()];
 
 // 创建配置
-export function createConfig(options: Partial<DatabaseConfig> = {}): DatabaseConfig {
+export function createConfig(options: Partial<DatabaseConfigType> = {}): DatabaseConfigType {
   return {
     ...defaultConfig,
     ...options
@@ -176,64 +201,3 @@ export function createConfig(options: Partial<DatabaseConfig> = {}): DatabaseCon
 
 // 导出配置构建器供自定义配置使用
 export const configBuilder = new DatabaseConfigBuilder();
-
-export interface DatabaseConfig {
-  // 环境配置
-  env: {
-    // 当前环境：development | production
-    environment: 'development' | 'production';
-    // 是否启用离线功能
-    enableOffline: boolean;
-    // 是否启用混合模式
-    enableHybrid: boolean;
-  };
-
-  // 存储配置
-  storage: {
-    // 在线存储方案
-    online: {
-      // 存储类型：mock | sqlite | postgres
-      type: 'mock' | 'sqlite' | 'postgres';
-      // 连接配置
-      connection: {
-        host?: string;
-        port?: number;
-        database?: string;
-        username?: string;
-        password?: string;
-      };
-    };
-    
-    // 离线存储方案
-    offline: {
-      // 存储类型：memory | indexeddb | sqlite
-      type: 'memory' | 'indexeddb' | 'sqlite';
-      // 存储配置
-      options: {
-        name?: string;
-        version?: number;
-        autoSave?: boolean;
-      };
-    };
-  };
-
-  // 数据同步配置
-  sync: {
-    // 是否启用自动同步
-    autoSync: boolean;
-    // 同步间隔（毫秒）
-    syncInterval: number;
-    // 冲突解决策略
-    conflictResolution: 'server-wins' | 'client' | 'manual';
-  };
-
-  // 测试数据配置
-  testData: {
-    // 是否加载测试数据
-    loadOnStartup: boolean;
-    // 测试数据源
-    source: 'example' | 'dating' | 'custom';
-    // 自定义数据路径
-    customPath?: string;
-  };
-} 

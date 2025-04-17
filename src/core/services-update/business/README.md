@@ -105,6 +105,58 @@ Adapter 通过实现统一的业务服务接口（如 IMatchService），屏蔽�
 
 ---
 
+## 新业务服务目录组织规范（2025版）
+
+为提升可维护性、横向扩展能力和团队协作，所有新建业务服务建议采用如下分层目录结构：
+
+```
+<service-name>/
+├── adapters/         # 具体实现（如 web/remote/capacitor/mock/品牌定制等）
+│   ├── web-xxx-adapter.ts
+│   ├── capacitor-xxx-adapter.ts
+│   ├── mock-xxx-adapter.ts
+│   └── ...
+├── factory/          # 工厂，负责实例创建与环境分发
+│   └── <service-name>-service-factory.ts
+├── service/          # 业务层聚合与唯一对外出口
+│   └── <service-name>-service.ts
+├── types/            # 统一接口与类型定义
+│   └── <service-name>-service.ts
+├── registry/         # （如有）多实现注册表
+├── utils/            # （如有）通用工具函数
+└── ...
+```
+
+### 适用场景举例
+- 蓝牙服务 bluetooth/
+- 摄像头服务 camera/
+- 支付服务 payment/
+- 传感器服务 sensor/
+- 定位服务 location/
+
+### 设计要点
+- **adapters/** 只负责具体平台/环境实现，业务层不直接依赖
+- **factory/** 统一分发，业务层只需通过工厂获取实例
+- **service/** 聚合所有能力，对外暴露唯一服务类，内部自动选择合适 adapter
+- **types/** 统一接口与类型出口，便于团队协作
+- 结构与 payment、camera、bluetooth 等保持一致，便于横向扩展
+
+### 业务调用方式
+```typescript
+import { BluetoothService } from './bluetooth/service/bluetooth-service';
+const bluetooth = new BluetoothService();
+await bluetooth.initialize();
+if (await bluetooth.requestPermissions()) {
+  // ...
+}
+```
+
+---
+
+> 所有新服务均建议严格按上述分层组织，便于后续维护、Mock/插件扩展、单元测试和多端适配。
+
+---
+
 ## 用法示例
 
 ### 1. 统一初始化（入口）

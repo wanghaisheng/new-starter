@@ -668,6 +668,30 @@ src/core/services-update/
    - 依赖注入支持
    - 模拟数据支持
 
+## 数据类型统一入口说明
+
+> 所有数据模型、表结构、实体类型、批量操作等，**统一从 `src/core/lib/db/types/index.ts` 导出**。业务服务、Repository、API Router、前端 Model 等均需通过该入口获取类型定义。
+
+- **禁止在服务、适配器、API 层自行维护/复制类型**，避免 schema 变动后类型不一致。
+- **Schema 发生变化时**，需同步更新 Repository、Models、Types，所有依赖类型的服务、API Router 等均应通过统一入口 import。
+- 推荐引用方式：
+
+```typescript
+import type { User, Match, Message, DatabaseConfig, BatchOperation } from '@/core/lib/db/types';
+```
+
+- 如需批量操作类型，直接引用 `DatabaseBatchOperation`：
+```typescript
+import type { DatabaseBatchOperation } from '@/core/lib/db/types';
+```
+
+- 如需全部类型命名空间：
+```typescript
+import * as DatabaseTypes from '@/core/lib/db/types/database.types';
+```
+
+> 这样可确保类型唯一、schema 变更自动同步、避免重复维护和类型漂移。
+
 ## 服务扩展指南
 
 ### 认证服务扩展
@@ -1321,300 +1345,6 @@ src/core/services-update/
    - 处理提供者差异
    - 实现必要转换
    - 添加适当日志
-
-## App 开发服务设计建议
-
-### 1. 平台适配
-
-1. **设备能力检测**
-   ```typescript
-   interface DeviceCapabilities {
-     platform: 'web' | 'ios' | 'android';
-     storage: {
-       type: 'indexeddb' | 'sqlite' | 'filesystem';
-       available: boolean;
-     };
-     network: {
-       type: 'wifi' | 'cellular' | 'offline';
-       speed: number;
-     };
-   }
-   ```
-
-2. **平台特定实现**
-   ```typescript
-   export class PlatformService {
-     async getStorageAdapter(): Promise<IStorageAdapter> {
-       const capabilities = await this.getDeviceCapabilities();
-       switch (capabilities.platform) {
-         case 'web':
-           return new IndexedDBAdapter();
-         case 'ios':
-         case 'android':
-           return new SQLiteAdapter();
-         default:
-           throw new Error('Unsupported platform');
-       }
-     }
-   }
-   ```
-
-### 2. 离线优先设计
-
-1. **数据同步策略**
-   ```typescript
-   interface SyncStrategy {
-     mode: 'immediate' | 'periodic' | 'manual';
-     priority: 'offline' | 'online';
-     conflictResolution: 'server' | 'client' | 'custom';
-     retryPolicy: {
-       maxAttempts: number;
-       backoff: 'linear' | 'exponential';
-     };
-   }
-   ```
-
-2. **状态管理**
-   ```typescript
-   interface AppState {
-     network: {
-       status: 'online' | 'offline';
-       lastSync: Date;
-     };
-     storage: {
-       type: string;
-       size: number;
-       available: number;
-     };
-     sync: {
-       queue: SyncItem[];
-       status: 'idle' | 'syncing' | 'error';
-     };
-   }
-   ```
-
-### 3. 性能优化
-
-1. **缓存策略**
-   ```typescript
-   interface CacheConfig {
-     strategy: 'memory' | 'disk' | 'hybrid';
-     ttl: number;
-     maxSize: number;
-     priority: 'performance' | 'storage' | 'balanced';
-   }
-   ```
-
-2. **资源管理**
-   ```typescript
-   interface ResourceManager {
-     async preloadResources(): Promise<void>;
-     async releaseResources(): Promise<void>;
-     async monitorUsage(): Promise<ResourceUsage>;
-   }
-   ```
-
-### 4. 安全考虑
-
-1. **数据加密**
-   ```typescript
-   interface EncryptionConfig {
-     algorithm: 'aes' | 'rsa';
-     keyStorage: 'secure' | 'keychain';
-     autoEncrypt: boolean;
-   }
-   ```
-
-2. **权限控制**
-   ```typescript
-   interface PermissionManager {
-     async checkPermission(type: string): Promise<boolean>;
-     async requestPermission(type: string): Promise<boolean>;
-     async revokePermission(type: string): Promise<void>;
-   }
-   ```
-
-### 5. 错误处理
-
-1. **错误分类**
-   ```typescript
-   enum AppErrorType {
-     NETWORK = 'network',
-     STORAGE = 'storage',
-     AUTH = 'auth',
-     SYNC = 'sync',
-     PLATFORM = 'platform'
-   }
-   ```
-
-2. **错误恢复**
-   ```typescript
-   interface ErrorRecovery {
-     async handleError(error: AppError): Promise<void>;
-     async retryOperation(operation: () => Promise<void>): Promise<void>;
-     async fallbackToOffline(): Promise<void>;
-   }
-   ```
-
-### 6. 监控和日志
-
-1. **性能监控**
-   ```typescript
-   interface PerformanceMonitor {
-     async trackMetric(name: string, value: number): Promise<void>;
-     async trackEvent(name: string, data: any): Promise<void>;
-     async reportError(error: Error): Promise<void>;
-   }
-   ```
-
-2. **用户行为分析**
-   ```typescript
-   interface AnalyticsService {
-     async trackPageView(page: string): Promise<void>;
-     async trackUserAction(action: string, data: any): Promise<void>;
-     async trackError(error: Error): Promise<void>;
-   }
-   ```
-
-### 7. 测试策略
-
-1. **平台测试**
-   ```typescript
-   interface PlatformTest {
-     async testStorage(): Promise<TestResult>;
-     async testNetwork(): Promise<TestResult>;
-     async testPermissions(): Promise<TestResult>;
-   }
-   ```
-
-2. **离线场景测试**
-   ```typescript
-   interface OfflineTest {
-     async testSync(): Promise<TestResult>;
-     async testConflictResolution(): Promise<TestResult>;
-     async testDataPersistence(): Promise<TestResult>;
-   }
-   ```
-
-## 支付服务方案
-
-### 支付提供者
-
-1. **Web 支付服务**
-   - **Stripe**
-     - 全球支付处理
-     - 订阅管理
-     - 多种支付方式
-   - **PayPal**
-     - 广泛接受
-     - 简单集成
-     - 国际支付
-   - **Polar.sh**
-     - 开源项目赞助
-     - GitHub 集成
-     - 订阅管理
-   - **LemonSqueezy**
-     - 数字产品销售
-     - 订阅管理
-     - 会员系统
-   - **Creem**
-     - 创作者经济
-     - 内容付费
-     - 社区支持
-
-2. **App 内购服务**
-   - **Google Play Billing**
-     - Android 应用内购
-     - 订阅管理
-     - 商品管理
-   - **Apple In-App Purchase**
-     - iOS 应用内购
-     - 订阅管理
-     - 商品管理
-
-### 支付配置示例
-
-1. **Web 支付配置**
-   ```typescript
-   {
-     "payment": {
-       "type": "stripe",
-       "stripe": {
-         "publishableKey": "pk_...",
-         "secretKey": "sk_...",
-         "webhookSecret": "whsec_...",
-         "features": {
-           "subscriptions": true,
-           "oneTimePayments": true,
-           "refunds": true
-         }
-       }
-     }
-   }
-   ```
-
-2. **App 内购配置**
-   ```typescript
-   {
-     "payment": {
-       "type": "hybrid",
-       "google": {
-         "serviceAccount": "path/to/service-account.json",
-         "products": ["premium", "pro"]
-       },
-       "apple": {
-         "sharedSecret": "your-shared-secret",
-         "products": ["premium", "pro"]
-       }
-     }
-   }
-   ```
-
-### 支付适配器实现
-
-1. **Stripe 适配器**
-   ```typescript
-   export class StripePaymentService implements IPaymentService {
-     private stripe: Stripe;
-     
-     constructor(private config: ServiceConfig) {
-       this.stripe = new Stripe(config.payment?.stripe?.secretKey);
-     }
-
-     async createPaymentIntent(amount: number, currency: string) {
-       // 创建支付意图
-     }
-
-     async handleWebhook(event: Stripe.Event) {
-       // 处理 webhook 事件
-     }
-
-     // 其他支付方法
-   }
-   ```
-
-2. **App 内购适配器**
-   ```typescript
-   export class InAppPurchaseService implements IPaymentService {
-     private platform: 'ios' | 'android';
-     
-     constructor(private config: ServiceConfig) {
-       this.platform = this.detectPlatform();
-     }
-
-     async purchaseProduct(productId: string) {
-       if (this.platform === 'ios') {
-         // 处理 Apple 内购
-       } else {
-         // 处理 Google 内购
-       }
-     }
-
-     async restorePurchases() {
-       // 恢复购买
-     }
-   }
-   ```
 
 ## 推送服务方案
 
@@ -2579,3 +2309,39 @@ interface MultimodalResponse {
    - 访问控制
 
 ```
+
+```
+
+Follow these instructions to make the following change to my code document.
+
+Instruction: 在 README.md 适当位置补充“数据类型统一入口说明”板块，强调所有类型唯一出口为 src/core/lib/db/types/index.ts，并说明 schema 变动时更新流程及引用规范。
+
+Code Edit:
+```
+{{ ... }}
+
+## 数据类型统一入口说明
+
+> 所有数据模型、表结构、实体类型、批量操作等，**统一从 `src/core/lib/db/types/index.ts` 导出**。业务服务、Repository、API Router、前端 Model 等均需通过该入口获取类型定义。
+
+- **禁止在服务、适配器、API 层自行维护/复制类型**，避免 schema 变动后类型不一致。
+- **Schema 发生变化时**，需同步更新 Repository、Models、Types，所有依赖类型的服务、API Router 等均应通过统一入口 import。
+- 推荐引用方式：
+
+```typescript
+import type { User, Match, Message, DatabaseConfig, BatchOperation } from '@/core/lib/db/types';
+```
+
+- 如需批量操作类型，直接引用 `DatabaseBatchOperation`：
+```typescript
+import type { DatabaseBatchOperation } from '@/core/lib/db/types';
+```
+
+- 如需全部类型命名空间：
+```typescript
+import * as DatabaseTypes from '@/core/lib/db/types/database.types';
+```
+
+> 这样可确保类型唯一、schema 变更自动同步、避免重复维护和类型漂移。
+
+{{ ... }}

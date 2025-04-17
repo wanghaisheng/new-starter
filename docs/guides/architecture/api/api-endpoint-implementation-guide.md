@@ -1,311 +1,217 @@
-# API 实现指南
+# API Endpoint Implementation Guide
 
-## 1. API 路由实现
+## Overview
 
-### 1.1 基本路由结构
+This guide outlines the implementation standards for API endpoints in the HeyTCM architecture. The API layer serves as the interface between the client applications and the service layer, following RESTful principles and implementing consistent patterns for request handling, response formatting, and error management.
+
+## Architecture
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│     Client      │────▶│      API        │────▶│    Service      │
+│                 │     │    Layer        │     │    Layer        │
+│                 │◀────│                 │◀────│                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+## Implementation Standards
+
+### 1. Endpoint Structure
+
 ```typescript
-// app/api/v1/tests/route.ts
-import { NextRequest } from 'next/server';
-import { withAuth } from '@/app/api/_lib/middleware/auth';
-import { validateRequest } from '@/app/api/_lib/utils/validation';
-import { APIResponseBuilder } from '@/app/api/_lib/utils/response';
-import { TestService } from '@/core/services/test-service';
-import { testSchema } from '@/core/schemas/test';
+// app/api/[service]/[resource]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getService } from '@/core/services-update/factory';
+import { validateRequest } from '@/core/utils/validation';
+import { handleError } from '@/core/utils/error';
 
 export async function GET(req: NextRequest) {
-  return withAuth(req, async () => {
-    const testService = TestService.getInstance();
-    const result = await testService.getTests();
-    return APIResponseBuilder.success(result);
-  });
-}
-
-export async function POST(req: NextRequest) {
-  return withAuth(req, async () => {
-    const validation = await validateRequest(req, testSchema);
-    if (!validation.success) {
-      return validation.response;
-    }
-
-    const testService = TestService.getInstance();
-    const result = await testService.createTest(validation.data);
-    return APIResponseBuilder.success(result, { status: 201 });
-  });
+  try {
+    // 1. 获取服务实例
+    const service = await getService('serviceName');
+    
+    // 2. 验证请求
+    const validatedData = await validateRequest(req);
+    
+    // 3. 调用服务方法
+    const result = await service.method(validatedData);
+    
+    // 4. 返回响应
+    return NextResponse.json(result);
+  } catch (error) {
+    // 5. 错误处理
+    return handleError(error);
+  }
 }
 ```
 
-### 1.2 动态路由实现
+### 2. Request Validation
+
 ```typescript
-// app/api/v1/tests/[id]/route.ts
-import { NextRequest } from 'next/server';
-import { withAuth } from '@/app/api/_lib/middleware/auth';
-import { APIResponseBuilder } from '@/app/api/_lib/utils/response';
-import { TestService } from '@/core/services/test-service';
+// core/utils/validation.ts
+import { z } from 'zod';
+
+export const validateRequest = async (req: NextRequest) => {
+  // 1. 解析请求体
+  const body = await req.json();
+  
+  // 2. 定义验证模式
+  const schema = z.object({
+    // 字段定义
+  });
+  
+  // 3. 验证数据
+  return schema.parse(body);
+};
+```
+
+### 3. Error Handling
+
+```typescript
+// core/utils/error.ts
+export const handleError = (error: unknown) => {
+  if (error instanceof ServiceError) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: error.statusCode }
+    );
+    }
+  
+  // 处理其他类型的错误
+  return NextResponse.json(
+    { error: 'Internal Server Error' },
+    { status: 500 }
+  );
+};
+```
+
+### 4. Response Format
+
+```typescript
+// 成功响应
+{
+  "data": {
+    // 响应数据
+  },
+  "metadata": {
+    "timestamp": "2024-04-14T12:00:00Z",
+    "requestId": "req_123"
+  }
+}
+
+// 错误响应
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Error message",
+    "details": {
+      // 错误详情
+    }
+  },
+  "metadata": {
+    "timestamp": "2024-04-14T12:00:00Z",
+    "requestId": "req_123"
+  }
+}
+```
+
+## Best Practices
+
+### 1. Endpoint Design
+- Use RESTful conventions for URL structure
+- Implement proper HTTP methods (GET, POST, PUT, DELETE)
+- Version APIs appropriately
+- Document endpoints using OpenAPI/Swagger
+
+### 2. Security
+- Implement authentication middleware
+- Validate all input data
+- Sanitize output data
+- Use HTTPS
+- Implement rate limiting
+
+### 3. Performance
+- Implement caching where appropriate
+- Use pagination for large datasets
+- Optimize database queries
+- Monitor API performance
+
+### 4. Error Handling
+- Use consistent error formats
+- Provide meaningful error messages
+- Log errors appropriately
+- Implement retry mechanisms
+
+### 5. Testing
+- Write unit tests for endpoints
+- Test error scenarios
+- Validate response formats
+- Test performance under load
+
+## Example Implementation
+
+### 1. User Endpoint
+
+```typescript
+// app/api/users/[id]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getService } from '@/core/services-update/factory';
+import { validateRequest } from '@/core/utils/validation';
+import { handleError } from '@/core/utils/error';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  return withAuth(req, async () => {
-    const testService = TestService.getInstance();
-    const test = await testService.getTestById(params.id);
-    
-    if (!test) {
-      return APIResponseBuilder.error({
-        code: 'NOT_FOUND',
-        message: '测试不存在',
-        status: 404
-      });
-    }
-
-    return APIResponseBuilder.success(test);
-  });
-}
-```
-
-## 2. 服务层集成
-
-### 2.1 服务实现
-```typescript
-// src/core/services/test-service.ts
-import { DataServiceFactory } from './data-service-factory';
-import { IDataService } from './data-service-interface';
-import { Test, CreateTestDTO } from '@/core/types';
-
-export class TestService {
-  private static instance: TestService;
-  private dataService: IDataService;
-
-  private constructor() {
-    this.dataService = DataServiceFactory.getInstance();
-  }
-
-  static getInstance(): TestService {
-    if (!TestService.instance) {
-      TestService.instance = new TestService();
-    }
-    return TestService.instance;
-  }
-
-  async getTests(): Promise<Test[]> {
     try {
-      return await this.dataService.getTests();
-    } catch (error) {
-      console.error('获取测试列表失败:', error);
-      throw new Error('获取测试列表失败');
-    }
-  }
-
-  async getTestById(id: string): Promise<Test | null> {
-    try {
-      return await this.dataService.getTestById(id);
-    } catch (error) {
-      console.error(`获取测试(${id})失败:`, error);
-      throw new Error('获取测试详情失败');
-    }
-  }
-
-  async createTest(data: CreateTestDTO): Promise<Test> {
-    try {
-      return await this.dataService.createTest(data);
-    } catch (error) {
-      console.error('创建测试失败:', error);
-      throw new Error('创建测试失败');
-    }
+    const userService = await getService('user');
+    const user = await userService.getUser(params.id);
+    return NextResponse.json({ data: user });
+  } catch (error) {
+    return handleError(error);
   }
 }
-```
 
-### 2.2 数据服务接口
-```typescript
-// src/core/services/data-service-interface.ts
-import { Test, CreateTestDTO } from '@/core/types';
-
-export interface IDataService {
-  getTests(): Promise<Test[]>;
-  getTestById(id: string): Promise<Test | null>;
-  createTest(data: CreateTestDTO): Promise<Test>;
-  updateTest(id: string, data: Partial<Test>): Promise<Test>;
-  deleteTest(id: string): Promise<void>;
-}
-```
-
-## 3. React Hooks 集成
-
-### 3.1 API Hook
-```typescript
-// src/core/hooks/useApi.ts
-import { useState, useCallback } from 'react';
-import { APIResponse } from '@/app/api/_lib/utils/response';
-
-export function useApi<T, P = any>(
-  apiFunc: (params?: P) => Promise<APIResponse<T>>
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
 ) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const execute = useCallback(async (params?: P) => {
-    try {
-      setLoading(true);
-      const response = await apiFunc(params);
-      if (response.success) {
-        setData(response.data);
-      } else {
-        throw new Error(response.error?.message);
-      }
-    } catch (err) {
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  }, [apiFunc]);
-
-  return { data, loading, error, execute };
-}
-```
-
-### 3.2 测试相关 Hook
-```typescript
-// src/core/hooks/useTest.ts
-import { useCallback } from 'react';
-import { useApi } from './useApi';
-import { TestService } from '@/core/services/test-service';
-import type { Test, CreateTestDTO } from '@/core/types';
-
-export function useTest() {
-  const testService = TestService.getInstance();
-
-  const {
-    data: tests,
-    loading: loadingTests,
-    error: testsError,
-    execute: fetchTests
-  } = useApi(() => testService.getTests());
-
-  const {
-    data: test,
-    loading: loadingTest,
-    error: testError,
-    execute: fetchTest
-  } = useApi((id: string) => testService.getTestById(id));
-
-  const createTest = useCallback(async (data: CreateTestDTO) => {
-    try {
-      const result = await testService.createTest(data);
-      await fetchTests();
-      return result;
+  try {
+    const userService = await getService('user');
+    const data = await validateRequest(req);
+    const user = await userService.updateUser(params.id, data);
+    return NextResponse.json({ data: user });
     } catch (error) {
-      console.error('创建测试失败:', error);
-      throw error;
-    }
-  }, [fetchTests]);
-
-  return {
-    tests,
-    loadingTests,
-    testsError,
-    fetchTests,
-    test,
-    loadingTest,
-    testError,
-    fetchTest,
-    createTest
-  };
+    return handleError(error);
+  }
 }
 ```
 
-## 4. 组件实现示例
+### 2. Authentication Endpoint
 
-### 4.1 测试列表组件
 ```typescript
-// src/components/TestList.tsx
-import { useEffect } from 'react';
-import { useTest } from '@/core/hooks/useTest';
+// app/api/auth/login/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getService } from '@/core/services-update/factory';
+import { validateRequest } from '@/core/utils/validation';
+import { handleError } from '@/core/utils/error';
 
-export function TestList() {
-  const {
-    tests,
-    loadingTests,
-    testsError,
-    fetchTests
-  } = useTest();
-
-  useEffect(() => {
-    fetchTests();
-  }, [fetchTests]);
-
-  if (loadingTests) return <div>加载中...</div>;
-  if (testsError) return <div>错误: {testsError.message}</div>;
-
-  return (
-    <ul>
-      {tests?.map(test => (
-        <li key={test.id}>{test.name}</li>
-      ))}
-    </ul>
-  );
+export async function POST(req: NextRequest) {
+  try {
+    const authService = await getService('auth');
+    const credentials = await validateRequest(req);
+    const token = await authService.login(credentials);
+    return NextResponse.json({ data: token });
+  } catch (error) {
+    return handleError(error);
+  }
 }
 ```
 
-### 4.2 测试创建组件
-```typescript
-// src/components/CreateTest.tsx
-import { useState } from 'react';
-import { useTest } from '@/core/hooks/useTest';
-import type { CreateTestDTO } from '@/core/types';
+## Related Documentation
 
-export function CreateTest() {
-  const { createTest } = useTest();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const handleSubmit = async (data: CreateTestDTO) => {
-    try {
-      setLoading(true);
-      await createTest(data);
-      // 重置表单或显示成功消息
-    } catch (err) {
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={/* 处理表单提交 */}>
-      {/* 表单内容 */}
-      {error && <div>错误: {error.message}</div>}
-      <button type="submit" disabled={loading}>
-        {loading ? '创建中...' : '创建测试'}
-      </button>
-    </form>
-  );
-}
-```
-
-## 5. 最佳实践
-
-### 5.1 错误处理
-- 在服务层捕获具体错误并转换为业务错误
-- 在API层统一处理错误响应格式
-- 在UI层优雅地展示错误信息
-- 使用专门的错误类型区分不同错误
-
-### 5.2 数据加载状态
-- 使用loading状态控制UI展示
-- 实现骨架屏或加载指示器
-- 避免重复请求
-- 实现数据缓存策略
-
-### 5.3 类型安全
-- 使用TypeScript定义完整的类型
-- 确保API请求和响应类型一致
-- 使用Zod进行运行时类型验证
-- 在服务层保持类型安全
-
-### 5.4 代码组织
-- 遵循单一职责原则
-- 使用依赖注入模式
-- 保持代码模块化
-- 编写完整的测试用例 
+- [Service Layer Architecture](../services/overview.md)
+- [Authentication Services](../services/auth-services.md)
+- [Error Handling](../services/error-handling.md)
+- [Testing](../testing/README.md) 

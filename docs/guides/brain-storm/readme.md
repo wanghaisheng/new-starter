@@ -1,0 +1,4 @@
+ 一般而言我们开发的app有2种情况，一种是不支持用户本地存储，一种是支持用户本地离线存储，对于支持离线存储的情况，离线存储方案略有不同，一种是浏览器内置的fakeindexedb、indexedb，一种是capcacitor sqlite 还有一些其他类型的离线存储方案，对于在线云端存储，则比较丰富 像drizzle等框架支持哪些就会有哪些
+
+
+ 开发框架的使用上，我们可能使用nextjs+第三方ui来实现完整的，也可能使用nextjs+ionic负责UI来实现，也可能使用nextjs+react native来实现

@@ -1,271 +1,210 @@
-# Core Services Documentation
+# Core Services
 
 ## Overview
 
-Core services provide fundamental functionality required across the HeyTCM application. These services are essential building blocks that other services and components depend on.
+Core services are the fundamental building blocks of the HeyTCM architecture, providing essential functionality that other services and components depend on. These services are designed to be highly reliable, performant, and maintainable.
 
-## Service Catalog
+## Authentication Service
 
-### 1. User Service
+### Overview
+The authentication service manages user authentication and authorization, supporting multiple authentication providers and methods.
 
-The User Service manages user-related operations and data.
+### Core Features
+- User authentication (email/password, social login, OAuth)
+- Token management (JWT, refresh tokens)
+- Session management
+- Role-based access control
+- Multi-factor authentication
 
-```typescript
-interface IUserService {
-  // User Management
-  createUser(userData: UserDTO): Promise<User>;
-  getUser(id: string): Promise<User>;
-  updateUser(id: string, userData: UserDTO): Promise<User>;
-  deleteUser(id: string): Promise<void>;
-  
-  // Profile Management
-  updateProfile(id: string, profile: ProfileDTO): Promise<Profile>;
-  getProfile(id: string): Promise<Profile>;
-  
-  // Preferences
-  updatePreferences(id: string, preferences: PreferencesDTO): Promise<Preferences>;
-  getPreferences(id: string): Promise<Preferences>;
-}
-```
-
-### 2. Authentication Service
-
-Handles user authentication and session management.
-
+### Implementation
 ```typescript
 interface IAuthService {
-  // Authentication
   login(credentials: Credentials): Promise<AuthToken>;
   logout(token: string): Promise<void>;
   refreshToken(token: string): Promise<AuthToken>;
-  
-  // Session Management
-  validateSession(token: string): Promise<boolean>;
-  getSessionUser(token: string): Promise<User>;
-  
-  // Security
-  resetPassword(email: string): Promise<void>;
-  changePassword(token: string, newPassword: string): Promise<void>;
+  verifyToken(token: string): Promise<boolean>;
+  getCurrentUser(): Promise<User>;
 }
-```
 
-### 3. Authorization Service
+class AuthService implements IAuthService {
+  private adapter: AuthServiceAdapter;
 
-Manages access control and permissions.
+  constructor(adapter: AuthServiceAdapter) {
+    this.adapter = adapter;
+  }
 
-```typescript
-interface IAuthorizationService {
-  // Permission Management
-  checkPermission(userId: string, permission: string): Promise<boolean>;
-  grantPermission(userId: string, permission: string): Promise<void>;
-  revokePermission(userId: string, permission: string): Promise<void>;
-  
-  // Role Management
-  assignRole(userId: string, role: string): Promise<void>;
-  removeRole(userId: string, role: string): Promise<void>;
-  getRoles(userId: string): Promise<string[]>;
-}
-```
-
-### 4. Notification Service
-
-Handles system notifications and user alerts.
-
-```typescript
-interface INotificationService {
-  // Notification Management
-  sendNotification(userId: string, notification: NotificationDTO): Promise<void>;
-  getNotifications(userId: string): Promise<Notification[]>;
-  markAsRead(notificationId: string): Promise<void>;
-  
-  // Push Notifications
-  sendPushNotification(deviceToken: string, message: PushMessage): Promise<void>;
-  registerDevice(userId: string, deviceInfo: DeviceInfo): Promise<void>;
-}
-```
-
-## Implementation Details
-
-### 1. Service Dependencies
-
-```typescript
-class UserService implements IUserService {
-  constructor(
-    private userRepository: IUserRepository,
-    private authService: IAuthService,
-    private notificationService: INotificationService,
-    private logger: ILogger
-  ) {}
-}
-```
-
-### 2. Error Handling
-
-```typescript
-class UserServiceError extends ServiceError {
-  static USER_NOT_FOUND = new UserServiceError(
-    'USER_NOT_FOUND',
-    'User not found',
-    404
-  );
-  
-  static INVALID_USER_DATA = new UserServiceError(
-    'INVALID_USER_DATA',
-    'Invalid user data provided',
-    400
-  );
-}
-```
-
-### 3. Data Validation
-
-```typescript
-class UserValidator {
-  static validateUserData(userData: UserDTO): void {
-    if (!userData.email || !userData.password) {
-      throw UserServiceError.INVALID_USER_DATA;
-    }
-    
-    if (!this.isValidEmail(userData.email)) {
-      throw UserServiceError.INVALID_USER_DATA;
+  async login(credentials: Credentials): Promise<AuthToken> {
+    try {
+      return await this.adapter.login(credentials);
+    } catch (error) {
+      throw new ServiceError('AUTH_FAILED', 'Authentication failed', 401);
     }
   }
+
+  // ... other methods
+}
+```
+
+## User Management Service
+
+### Overview
+The user management service handles user-related operations, including creation, retrieval, updates, and deletion of user accounts.
+
+### Core Features
+- User CRUD operations
+- Profile management
+- Account settings
+- User preferences
+- Account recovery
+
+### Implementation
+```typescript
+interface IUserService {
+  createUser(user: UserDTO): Promise<User>;
+  getUser(id: string): Promise<User>;
+  updateUser(id: string, user: UserDTO): Promise<User>;
+  deleteUser(id: string): Promise<void>;
+  searchUsers(query: string): Promise<User[]>;
+}
+
+class UserService implements IUserService {
+  private adapter: UserServiceAdapter;
+
+  constructor(adapter: UserServiceAdapter) {
+    this.adapter = adapter;
+  }
+
+  async createUser(user: UserDTO): Promise<User> {
+    try {
+      return await this.adapter.createUser(user);
+    } catch (error) {
+      throw new ServiceError('USER_CREATION_FAILED', 'Failed to create user', 500);
+    }
+  }
+
+  // ... other methods
+}
+```
+
+## Data Service
+
+### Overview
+The data service provides a unified interface for data access and manipulation, abstracting the underlying data storage implementation.
+
+### Core Features
+- Data CRUD operations
+- Query optimization
+- Data validation
+- Transaction management
+- Data caching
+
+### Implementation
+```typescript
+interface IDataService {
+  create<T>(collection: string, data: T): Promise<T>;
+  read<T>(collection: string, id: string): Promise<T>;
+  update<T>(collection: string, id: string, data: Partial<T>): Promise<T>;
+  delete(collection: string, id: string): Promise<void>;
+  query<T>(collection: string, query: Query): Promise<T[]>;
+}
+
+class DataService implements IDataService {
+  private adapter: DataServiceAdapter;
+
+  constructor(adapter: DataServiceAdapter) {
+    this.adapter = adapter;
+  }
+
+  async create<T>(collection: string, data: T): Promise<T> {
+    try {
+      return await this.adapter.create(collection, data);
+    } catch (error) {
+      throw new ServiceError('DATA_CREATION_FAILED', 'Failed to create data', 500);
+    }
+  }
+
+  // ... other methods
+}
+```
+
+## Storage Service
+
+### Overview
+The storage service manages file and object storage, supporting multiple storage providers and configurations.
+
+### Core Features
+- File upload/download
+- Object storage
+- File metadata management
+- Storage optimization
+- Backup and recovery
+
+### Implementation
+```typescript
+interface IStorageService {
+  upload(file: File, options: UploadOptions): Promise<StorageResult>;
+  download(path: string): Promise<File>;
+  delete(path: string): Promise<void>;
+  getMetadata(path: string): Promise<FileMetadata>;
+  listFiles(prefix: string): Promise<FileList>;
+}
+
+class StorageService implements IStorageService {
+  private adapter: StorageServiceAdapter;
+
+  constructor(adapter: StorageServiceAdapter) {
+    this.adapter = adapter;
+    }
+    
+  async upload(file: File, options: UploadOptions): Promise<StorageResult> {
+    try {
+      return await this.adapter.upload(file, options);
+    } catch (error) {
+      throw new ServiceError('UPLOAD_FAILED', 'Failed to upload file', 500);
+    }
+  }
+
+  // ... other methods
 }
 ```
 
 ## Best Practices
 
-### 1. Service Implementation
+### 1. Service Design
+- Keep services focused and single-responsibility
+- Use interfaces for service contracts
+- Implement proper error handling
+- Document service behavior
 
-1. **Interface First**
-   - Define clear interfaces
-   - Document all methods
-   - Include error cases
-   - Specify return types
-
-2. **Error Handling**
-   - Use custom error types
-   - Include error codes
-   - Provide meaningful messages
-   - Log errors appropriately
-
-3. **Data Validation**
-   - Validate all input
-   - Sanitize data
-   - Use type checking
-   - Implement business rules
-
-### 2. Performance Optimization
-
-1. **Caching**
-   - Cache frequently accessed data
-   - Implement cache invalidation
-   - Use appropriate cache strategies
-   - Monitor cache hit rates
-
-2. **Database Optimization**
-   - Use indexes appropriately
-   - Optimize queries
-   - Implement pagination
-   - Use connection pooling
+### 2. Performance
+- Implement caching where appropriate
+- Use asynchronous operations
+- Optimize database queries
+- Monitor service metrics
 
 ### 3. Security
+- Validate all input
+- Sanitize all output
+- Implement proper authentication
+- Follow security best practices
 
-1. **Authentication**
-   - Use secure password hashing
-   - Implement rate limiting
-   - Use secure tokens
-   - Validate sessions
+### 4. Testing
+- Unit test service logic
+- Test adapter implementations
+- Integration test service interactions
+- Test environment switching
 
-2. **Authorization**
-   - Implement role-based access
-   - Use permission checks
-   - Validate user context
-   - Audit access
-
-## Testing
-
-### 1. Unit Tests
-
-```typescript
-describe('UserService', () => {
-  let userService: IUserService;
-  let mockUserRepository: jest.Mocked<IUserRepository>;
-  
-  beforeEach(() => {
-    mockUserRepository = {
-      create: jest.fn(),
-      findById: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn()
-    };
-    
-    userService = new UserService(
-      mockUserRepository,
-      mockAuthService,
-      mockNotificationService,
-      mockLogger
-    );
-  });
-  
-  test('createUser should create a new user', async () => {
-    const userData: UserDTO = {
-      email: 'test@example.com',
-      password: 'password123'
-    };
-    
-    await userService.createUser(userData);
-    
-    expect(mockUserRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        email: userData.email
-      })
-    );
-  });
-});
-```
-
-### 2. Integration Tests
-
-```typescript
-describe('UserService Integration', () => {
-  let userService: IUserService;
-  let authService: IAuthService;
-  
-  beforeEach(async () => {
-    // Setup test database
-    await setupTestDatabase();
-    
-    userService = new UserService(
-      new UserRepository(),
-      new AuthService(),
-      new NotificationService(),
-      new Logger()
-    );
-  });
-  
-  test('should create user and authenticate', async () => {
-    const userData: UserDTO = {
-      email: 'test@example.com',
-      password: 'password123'
-    };
-    
-    const user = await userService.createUser(userData);
-    const token = await authService.login({
-      email: userData.email,
-      password: userData.password
-    });
-    
-    expect(token).toBeDefined();
-    expect(await authService.validateSession(token)).toBe(true);
-  });
-});
-```
+### 5. Error Handling
+- Use consistent error types
+- Provide meaningful error messages
+- Log errors appropriately
+- Handle errors gracefully
 
 ## Related Documentation
 
-- [Service Layer Overview](overview.md)
-- [Data Services](data-services.md)
+- [Service Layer Architecture](overview.md)
 - [Authentication Services](auth-services.md)
+- [Data Services](data-services.md)
+- [Storage Services](storage-services.md)
 - [Error Handling](error-handling.md)
 - [Testing](testing.md) 

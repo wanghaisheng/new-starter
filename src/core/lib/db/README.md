@@ -6,17 +6,23 @@
 
 ```
 src/core/lib/db/
-├── clients/          # 数据库客户端实现
-│   ├── capacitor-sqlite/  # 移动端SQLite
-│   ├── indexeddb/        # Web端IndexedDB
+├── clients/          # 数据库客户端实现（底层连接与原生 API 封装）
+│   ├── capacitor-sqlite/  # 移动端SQLite，封装 Capacitor SQLite 原生 API
+│   ├── indexeddb/        # Web端IndexedDB，封装 IndexedDB 原生 API
 │   ├── mock/            # Mock环境实现
 │   │   └── indexeddb-client.ts  # Mock IndexedDB
-│   └── base-client.ts    # 基础客户端抽象
-├── repositories/     # 数据访问层
+│   └── base-client.ts    # 基础客户端抽象（定义统一连接/操作接口）
+├── repositories/     # 数据访问层，聚合/复用 clients，实现业务数据访问
 ├── schema/          # 数据模型定义
 ├── types/           # 类型定义
-└── service.ts       # 核心服务实现
+└── service.ts       # 核心服务实现（对外暴露统一接口，组合 repositories）
 ```
+
+> **架构原则：**
+> - 所有底层数据库连接与原生 API 封装均放在 `clients/` 目录，按平台/类型分子目录实现。
+> - `clients/` 只负责连接、基础 CRUD、事务、原生操作等，不涉及业务逻辑。
+> - `repositories/` 负责聚合/复用 clients，封装业务相关的数据访问逻辑。
+> - `service.ts` 作为统一入口，组合 repositories，对外暴露统一接口。
 
 ## 2. 存储策略
 
@@ -35,7 +41,6 @@ src/core/lib/db/
 - 环境配置：`NEXT_PUBLIC_DATABASE_ENV=local`
 - Web环境：
   - **本地离线存储**：IndexedDB
-  - **测试环境**：使用 fake-indexeddb 模拟客户端离线存储
 - 移动端：SQLite
 - 特点：支持离线操作，数据持久化
 
@@ -306,6 +311,3 @@ interface User extends BaseEntity {
 - iOS 安全区域适配
 - Android 权限管理
 - Web 缓存策略
-
-
-

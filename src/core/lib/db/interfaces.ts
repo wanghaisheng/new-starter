@@ -115,7 +115,7 @@ export interface IDataService {
 
 // 数据库客户端接口
 export interface IDatabaseClient extends IBaseDatabaseClient {
-  connect(): Promise<void>;
+  connect(config?: DatabaseConfig): Promise<void>;
   disconnect(): Promise<void>;
   clear(): Promise<void>;
   query<T>(collection: string, query: any): Promise<QueryResult<T>>;

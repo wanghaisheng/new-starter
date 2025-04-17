@@ -1,6 +1,6 @@
 # Architecture Documentation
 
-This directory contains documentation related to the system architecture of the HeyTCM project.
+This directory contains comprehensive documentation related to the system architecture of the HeyTCM project.
 
 ## Directory Structure
 
@@ -27,30 +27,108 @@ architecture/
 - Client implementations for different environments
 - Data synchronization patterns and strategies
 - Migration and versioning approaches
+- Performance optimization techniques
+- Security considerations
 
 ### Service Layer
 - Core service implementations and patterns
 - API service architecture and design
 - Authentication service implementations
 - Service communication patterns
+- Environment-aware service design
+- Error handling strategies
+- Testing methodologies
 
 ### API Architecture
 - API design principles and best practices
 - Endpoint documentation and specifications
 - Security considerations and implementations
 - Versioning and backward compatibility
+- Rate limiting and throttling
+- Documentation standards
 
-## Usage
+## Key Features
 
-1. Start with the database architecture to understand the data layer
-2. Review service layer documentation for business logic implementation
-3. Consult API documentation for integration points
-4. Follow security guidelines for secure implementations
+### 1. Environment-Aware Design
+- Automatic environment detection
+- Seamless environment switching
+- Consistent interfaces across environments
+- Mock data support for development
+
+### 2. Service Layer Architecture
+- Adapter pattern implementation
+- Service factory design
+- Configuration management
+- Error handling framework
+- Testing infrastructure
+
+### 3. Database Integration
+- Multi-database support
+- Offline-first capabilities
+- Data synchronization
+- Migration management
+- Performance optimization
+
+### 4. Security Implementation
+- Authentication mechanisms
+- Authorization controls
+- Data encryption
+- Input validation
+- Output sanitization
+
+## Usage Guidelines
+
+1. **Getting Started**
+   - Review the architecture overview
+   - Understand the service layer design
+   - Familiarize with database architecture
+   - Study API design principles
+
+2. **Development Process**
+   - Follow service implementation guidelines
+   - Adhere to API design standards
+   - Implement proper error handling
+   - Write comprehensive tests
+
+3. **Best Practices**
+   - Keep services focused and modular
+   - Use consistent error handling
+   - Implement proper logging
+   - Follow security guidelines
+   - Write maintainable code
+
+4. **Testing Strategy**
+   - Unit testing services
+   - Integration testing
+   - Environment-specific testing
+   - Performance testing
+   - Security testing
 
 ## Contributing
 
 When adding new architecture documentation:
-1. Place it in the appropriate subdirectory
-2. Follow the existing documentation style
-3. Include diagrams where necessary
-4. Update cross-references to related documents 
+
+1. **Documentation Structure**
+   - Place in appropriate subdirectory
+   - Follow existing style guide
+   - Include necessary diagrams
+   - Update cross-references
+
+2. **Content Guidelines**
+   - Be clear and concise
+   - Include code examples
+   - Provide implementation details
+   - Document best practices
+
+3. **Review Process**
+   - Technical review required
+   - Architecture team approval
+   - Update related documents
+   - Version control updates
+
+## Related Resources
+
+- [Development Guidelines](../development/README.md)
+- [Testing Documentation](../testing/README.md)
+- [Security Guidelines](../security/README.md)
+- [Deployment Documentation](../deployment/README.md) 

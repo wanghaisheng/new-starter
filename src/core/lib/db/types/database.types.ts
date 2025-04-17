@@ -159,12 +159,6 @@ export type DatabaseEvent =
 // 数据库事件处理器类型
 export type DatabaseEventHandler = (event: DatabaseEvent, data?: any) => void;
 
-// 批量操作接口
-export interface BatchOperation<T> {
-  type: 'add' | 'put' | 'delete';
-  data: T;
-}
-
 // 查询结果接口
 export interface QueryResult<T> {
   data: T[];
@@ -198,7 +192,6 @@ export interface DatabaseClient {
   clear(): Promise<void>;
   initialize(): Promise<void>;
   query<T extends BaseEntity>(table: string, options: QueryOptions): Promise<QueryResult<T>>;
-  batch<T extends BaseEntity>(table: string, operations: BatchOperation<T>[]): Promise<void>;
   executeRawQuery<T>(query: string, params?: any[]): Promise<T[]>;
   count(table: string, filter?: Record<string, any>): Promise<number>;
   beginTransaction(): Promise<void>;
@@ -322,4 +315,99 @@ export interface CursorOptions {
    * 跳过的记录数
    */
   offset?: number;
-} 
+}
+
+export type DatabaseEnvironment = 'development' | 'production';
+export type StorageType = 'memory' | 'indexeddb' | 'sqlite' | 'postgres';
+export type DemoDataSource = 'example' | 'dating';
+
+export interface DatabaseConnection {
+  host?: string;
+  port?: number;
+  database?: string;
+  username?: string;
+  password?: string;
+  path?: string;
+}
+
+export interface StorageConfig {
+  type: StorageType;
+  connection: DatabaseConnection;
+}
+
+export interface TestDataConfig {
+  loadOnStartup: boolean;
+  source: DemoDataSource;
+}
+
+export interface EnvironmentConfig {
+  environment: DatabaseEnvironment;
+  enableOffline: boolean;
+  enableHybrid: boolean;
+}
+
+export interface DatabaseConfig {
+  name: string;
+  version: number;
+  engine: DatabaseEngine;
+  tables: Record<string, TableConfig>;
+  env: EnvironmentConfig;
+  storage: {
+    online: StorageConfig;
+    offline: StorageConfig;
+  };
+  sync: SyncConfig;
+  testData: TestDataConfig;
+}
+
+export interface TableConfig {
+  columns: Record<string, ColumnConfig>;
+  indexes: IndexConfig[];
+}
+
+export interface ColumnConfig {
+  type: string;
+  nullable?: boolean;
+  unique?: boolean;
+  primaryKey?: boolean;
+  defaultValue?: any;
+}
+
+export interface IndexConfig {
+  columns: string[];
+  unique?: boolean;
+}
+
+export const defaultConfig: DatabaseConfig = {
+  name: 'app_database',
+  version: 1,
+  engine: 'mock',
+  tables: {},
+  env: {
+    environment: 'development',
+    enableOffline: false,
+    enableHybrid: false
+  },
+  storage: {
+    online: {
+      type: 'memory',
+      connection: {}
+    },
+    offline: {
+      type: 'indexeddb',
+      connection: {}
+    }
+  },
+  sync: {
+    enabled: false,
+    strategy: 'auto',
+    conflictResolution: 'server-wins',
+    syncIntervalMs: 0
+  },
+  testData: {
+    loadOnStartup: false,
+    source: 'example'
+  }
+}; 
+
+export type { BaseEntity } from './base-entity';

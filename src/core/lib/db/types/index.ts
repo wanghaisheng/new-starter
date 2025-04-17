@@ -32,15 +32,13 @@ export * from './test';
 // 导出类型转换工具
 export * from './converters';
 
-// 使用命名空间导出方式，避免命名冲突
-import * as SimulatorTypes from './simulator';
+// 命名空间导出，避免命名冲突
+export * as DatabaseTypes from './database.types';
+export * as SimulatorTypes from './simulator';
 
-// 重新导出命名空间，但排除BatchOperation
-export { DatabaseTypes };
-export { SimulatorTypes };
-
-// 明确导出重命名后的BatchOperation接口
-export type { DBBatchOperation as DatabaseBatchOperation, SimBatchOperation as SimulatorBatchOperation };
+// 明确导出重命名后的 BatchOperation 类型
+export type { BatchOperation as DatabaseBatchOperation } from './database.types';
+export type { BatchOperation as SimulatorBatchOperation } from './simulator';
 
 /**
  * 获取表结构对应的类型定义

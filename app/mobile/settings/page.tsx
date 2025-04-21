@@ -48,8 +48,10 @@ import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useApi } from '@/core/hooks/useApi';
 import { apiClient } from '@/utils/api-client';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
 export default function SettingsPage() {
+  useRequireAuth();
   const router = useRouter();
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -102,7 +104,7 @@ export default function SettingsPage() {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading settings..." />
+          <LoadingSpinner message={t('auto.page.Loading')} />
         </IonContent>
       </IonPage>
     );
@@ -123,7 +125,7 @@ export default function SettingsPage() {
       <IonPage>
         <IonContent className="bg-[#0f172a]">
           <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4">No profile found</p>
+            <p className="text-gray-400 mb-4"{t('auto.page.Noprofi')}/p>
             <button
               onClick={() => router.push('/mobile/auth/login')}
               className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
@@ -140,7 +142,7 @@ export default function SettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Settings</IonTitle>
+          <IonTitle{t('auto.page.Settings')}/IonTitle>
         </IonToolbar>
       </IonHeader>
 
@@ -152,7 +154,7 @@ export default function SettingsPage() {
               {user.photos?.[0]?.url ? (
                 <Image
                   src={user.photos[0].url}
-                  alt="Profile"
+                  alt={t('auto.page.Profile')}
                   width={60}
                   height={60}
                   className="rounded-full"
@@ -180,12 +182,12 @@ export default function SettingsPage() {
         <IonList>
           <IonItem button detail onClick={handleAccountPress}>
             <IonIcon icon={personCircleOutline} slot="start" color="medium" />
-            <IonLabel>Account</IonLabel>
+            <IonLabel{t('auto.page.Account')}/IonLabel>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/notifications">
             <IonIcon icon={notificationsOutline} slot="start" color="medium" />
-            <IonLabel>Notifications</IonLabel>
+            <IonLabel{t('auto.page.Notifica')}/IonLabel>
             {user.unreadNotifications && user.unreadNotifications > 0 && (
               <IonBadge slot="end" color="danger">
                 {user.unreadNotifications}
@@ -195,12 +197,12 @@ export default function SettingsPage() {
           
           <IonItem button detail routerLink="/mobile/settings/privacy">
             <IonIcon icon={lockClosedOutline} slot="start" color="medium" />
-            <IonLabel>Privacy</IonLabel>
+            <IonLabel{t('auto.page.Privacy')}/IonLabel>
           </IonItem>
           
           <IonItem>
             <IonIcon icon={moonOutline} slot="start" color="medium" />
-            <IonLabel>Dark Mode</IonLabel>
+            <IonLabel{t('auto.page.DarkMod')}/IonLabel>
             <IonToggle 
               checked={darkMode}
               onIonChange={e => setDarkMode(e.detail.checked)}
@@ -211,28 +213,28 @@ export default function SettingsPage() {
         <IonList>
           <IonItem button detail routerLink="/mobile/settings/help">
             <IonIcon icon={helpCircleOutline} slot="start" color="medium" />
-            <IonLabel>Get Help</IonLabel>
+            <IonLabel{t('auto.page.GetHelp')}/IonLabel>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/contact">
             <IonIcon icon={mailOutline} slot="start" color="medium" />
-            <IonLabel>Contact Us</IonLabel>
+            <IonLabel{t('auto.page.Contact')}/IonLabel>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/about">
             <IonIcon icon={informationCircleOutline} slot="start" color="medium" />
-            <IonLabel>About</IonLabel>
-            <IonNote slot="end" color="medium">v1.0.0</IonNote>
+            <IonLabel{t('auto.page.About')}/IonLabel>
+            <IonNote slot="end" color="medium"{t('auto.page.v100')}/IonNote>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/terms">
             <IonIcon icon={documentTextOutline} slot="start" color="medium" />
-            <IonLabel>Terms of Service</IonLabel>
+            <IonLabel{t('auto.page.Termsof')}/IonLabel>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/privacy-policy">
             <IonIcon icon={shieldOutline} slot="start" color="medium" />
-            <IonLabel>Privacy Policy</IonLabel>
+            <IonLabel{t('auto.page.Privacy')}/IonLabel>
           </IonItem>
         </IonList>
         
@@ -246,7 +248,7 @@ export default function SettingsPage() {
             onClick={handleLogout}
           >
             <IonIcon icon={logOutOutline} slot="start" />
-            <IonLabel>Log Out</IonLabel>
+            <IonLabel{t('auto.page.LogOut')}/IonLabel>
           </IonItem>
         </div>
 
@@ -254,8 +256,8 @@ export default function SettingsPage() {
         <IonAlert
           isOpen={showLogoutAlert}
           onDidDismiss={() => setShowLogoutAlert(false)}
-          header="Confirm Logout"
-          message="Are you sure you want to log out?"
+          header={t('auto.page.Confirm')}
+          message={t('auto.page.Areyou')}
           buttons={[
             {
               text: 'Cancel',

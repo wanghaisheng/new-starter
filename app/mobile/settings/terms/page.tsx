@@ -28,7 +28,7 @@ export default function TermsSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Terms of Service</IonTitle>
+          <IonTitle{t('auto.page.Termsof')}/IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -43,7 +43,7 @@ export default function TermsSettingsPage() {
           
           <div className="space-y-6 text-gray-300">
             <section>
-              <h2 className="text-xl font-bold text-white mb-2">1. Acceptance of Terms</h2>
+              <h2 className="text-xl font-bold text-white mb-2"{t('auto.page.1Accep')}/h2>
               <p>
                 By accessing and using HeyTCM, you agree to be bound by these Terms of Service
                 and all applicable laws and regulations. If you do not agree with any of these terms,
@@ -52,23 +52,23 @@ export default function TermsSettingsPage() {
             </section>
             
             <section>
-              <h2 className="text-xl font-bold text-white mb-2">2. Use License</h2>
+              <h2 className="text-xl font-bold text-white mb-2"{t('auto.page.2UseL')}/h2>
               <p>
                 Permission is granted to temporarily download one copy of the app for personal,
                 non-commercial transitory viewing only. This is the grant of a license, not a transfer
                 of title, and under this license you may not:
               </p>
               <ul className="list-disc pl-4 mt-2 space-y-1">
-                <li>Modify or copy the materials</li>
-                <li>Use the materials for any commercial purpose</li>
-                <li>Attempt to decompile or reverse engineer any software contained in the app</li>
-                <li>Remove any copyright or other proprietary notations from the materials</li>
-                <li>Transfer the materials to another person or "mirror" the materials on any other server</li>
+                <li{t('auto.page.Modifyo')}/li>
+                <li{t('auto.page.Usethe')}/li>
+                <li{t('auto.page.Attempt')}/li>
+                <li{t('auto.page.Removea')}/li>
+                <li{t('auto.page.Transfer')}/li>
               </ul>
             </section>
             
             <section>
-              <h2 className="text-xl font-bold text-white mb-2">3. User Account</h2>
+              <h2 className="text-xl font-bold text-white mb-2"{t('auto.page.3User')}/h2>
               <p>
                 To access certain features of the app, you may be required to create an account.
                 You are responsible for maintaining the confidentiality of your account information
@@ -77,7 +77,7 @@ export default function TermsSettingsPage() {
             </section>
             
             <section>
-              <h2 className="text-xl font-bold text-white mb-2">4. Privacy Policy</h2>
+              <h2 className="text-xl font-bold text-white mb-2"{t('auto.page.4Priva')}/h2>
               <p>
                 Your use of HeyTCM is also governed by our Privacy Policy. Please review our
                 Privacy Policy, which also governs the app and informs users of our data collection
@@ -86,7 +86,7 @@ export default function TermsSettingsPage() {
             </section>
             
             <section>
-              <h2 className="text-xl font-bold text-white mb-2">5. Disclaimer</h2>
+              <h2 className="text-xl font-bold text-white mb-2"{t('auto.page.5Discl')}/h2>
               <p>
                 The materials on HeyTCM are provided on an 'as is' basis. HeyTCM makes no
                 warranties, expressed or implied, and hereby disclaims and negates all other
@@ -97,7 +97,7 @@ export default function TermsSettingsPage() {
             </section>
             
             <section>
-              <h2 className="text-xl font-bold text-white mb-2">6. Limitations</h2>
+              <h2 className="text-xl font-bold text-white mb-2"{t('auto.page.6Limit')}/h2>
               <p>
                 In no event shall HeyTCM or its suppliers be liable for any damages (including,
                 without limitation, damages for loss of data or profit, or due to business
@@ -106,7 +106,7 @@ export default function TermsSettingsPage() {
             </section>
             
             <section>
-              <h2 className="text-xl font-bold text-white mb-2">7. Revisions</h2>
+              <h2 className="text-xl font-bold text-white mb-2"{t('auto.page.7Revis')}/h2>
               <p>
                 HeyTCM may revise these terms of service at any time without notice. By using
                 this app, you are agreeing to be bound by the then current version of these
@@ -115,7 +115,7 @@ export default function TermsSettingsPage() {
             </section>
             
             <section>
-              <h2 className="text-xl font-bold text-white mb-2">8. Governing Law</h2>
+              <h2 className="text-xl font-bold text-white mb-2"{t('auto.page.8Gover')}/h2>
               <p>
                 These terms and conditions are governed by and construed in accordance with the
                 laws of your country and you irrevocably submit to the exclusive jurisdiction

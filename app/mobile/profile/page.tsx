@@ -14,32 +14,35 @@ import {
   IonToast
 } from '@ionic/react';
 import { settingsOutline, pencilOutline } from 'ionicons/icons';
-import { User } from '@/core/lib/db/types/user';
+import { useUser } from '@/core/hooks/useUser';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
-import { useApi } from '@/core/hooks/useApi';
-import { apiClient } from '@/utils/api-client';
 
 export default function ProfilePage() {
   const router = useRouter();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const { 
-    data: user,
-    loading: isLoading,
-    error,
-    execute: fetchProfile,
-    networkStatus
-  } = useApi<User>(
-    () => apiClient.getCurrentUser(),
-    {
-      immediate: true,
-      offlineFirst: true,
-      requireAuth: true
+  const {
+    user,
+    loading,
+    fetchError,
+    updateError,
+    deleteError,
+    isAuthenticated,
+    empty,
+    updateUser,
+    deleteUser,
+    reloadUser,
+  } = useUser();
+
+  // 新增：未登录时自动跳转登录页
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/mobile/auth/login');
     }
-  );
+  }, [loading, user, router]);
 
   const handleEditProfile = () => {
     router.push('/mobile/profile/edit');
@@ -50,45 +53,32 @@ export default function ProfilePage() {
   };
 
   const handleRetry = () => {
-    fetchProfile(() => apiClient.getCurrentUser());
+    reloadUser();
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading profile..." />
+          <LoadingSpinner message={t('auto.page.Loading')} />
         </IonContent>
       </IonPage>
     );
   }
 
-  if (error) {
+  if (fetchError) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={handleRetry} />
+          <ErrorDisplay error={fetchError.message} onRetry={handleRetry} />
         </IonContent>
       </IonPage>
     );
   }
 
+  // 已登录但 user 为空时不再渲染空数据提示，而是自动跳转
   if (!user) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4">No profile found</p>
-            <button
-              onClick={() => router.push('/mobile/auth/login')}
-              className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
-            >
-              Sign In
-            </button>
-          </div>
-        </IonContent>
-      </IonPage>
-    );
+    return null;
   }
 
   // Calculate age from birthDate
@@ -100,8 +90,8 @@ export default function ProfilePage() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonTitle>Profile</IonTitle>
+        <IonToolbar color="primary">
+          <IonTitle{t('auto.page.')}/IonTitle>
           <IonButtons slot="end">
             <IonButton onClick={handleSettings}>
               <IonIcon icon={settingsOutline} />
@@ -112,15 +102,15 @@ export default function ProfilePage() {
           </IonButtons>
         </IonToolbar>
       </IonHeader>
-      
       <IonContent className="bg-[#0f172a]">
+        {/* 用户信息展示 */}
         <div className="max-w-md mx-auto p-4">
           <div className="relative">
             <div className="aspect-w-16 aspect-h-9 bg-gray-700 rounded-lg overflow-hidden">
               {user.photos && user.photos.length > 0 ? (
                 <img 
                   src={user.photos[0].url} 
-                  alt="Cover" 
+                  alt={t('auto.page.Cover')} 
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -155,26 +145,26 @@ export default function ProfilePage() {
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <h2 className="text-sm font-medium text-gray-400">Age</h2>
+                <h2 className="text-sm font-medium text-gray-400"{t('auto.page.Age')}/h2>
                 <p>{age || 'Not specified'}</p>
               </div>
               <div>
-                <h2 className="text-sm font-medium text-gray-400">Location</h2>
+                <h2 className="text-sm font-medium text-gray-400"{t('auto.page.Location')}/h2>
                 <p>{locationText}</p>
               </div>
               <div>
-                <h2 className="text-sm font-medium text-gray-400">Gender</h2>
+                <h2 className="text-sm font-medium text-gray-400"{t('auto.page.Gender')}/h2>
                 <p>{user.gender || 'Not specified'}</p>
               </div>
               <div>
-                <h2 className="text-sm font-medium text-gray-400">Looking for</h2>
+                <h2 className="text-sm font-medium text-gray-400"{t('auto.page.Looking')}/h2>
                 <p>{user.preferences?.gender?.join(', ') || 'Not specified'}</p>
               </div>
             </div>
             
             {user.interests && user.interests.length > 0 && (
               <div>
-                <h2 className="text-sm font-medium text-gray-400 mb-2">Interests</h2>
+                <h2 className="text-sm font-medium text-gray-400 mb-2"{t('auto.page.Interest')}/h2>
                 <div className="flex flex-wrap gap-2">
                   {user.interests.map((interest: string, index: number) => (
                     <span 
@@ -190,22 +180,17 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {networkStatus === 'offline' && (
-          <div className="fixed bottom-16 left-0 right-0 bg-yellow-500 text-black py-2 px-4 text-center">
-            You're offline. Some features may be limited.
-          </div>
-        )}
+        {updateError && <div className="text-red-500 text-center text-xs mb-2">{updateError.message}</div>}
+        {deleteError && <div className="text-red-500 text-center text-xs mb-2">{deleteError.message}</div>}
+        {/* 底部导航栏 */}
+        <BottomNavBar />
       </IonContent>
-      
-      <BottomNavBar />
-      
       <IonToast
         isOpen={showToast}
-        onDidDismiss={() => setShowToast(false)}
         message={toastMessage}
         duration={2000}
-        position="bottom"
+        onDidDismiss={() => setShowToast(false)}
       />
     </IonPage>
   );
-} 
+}

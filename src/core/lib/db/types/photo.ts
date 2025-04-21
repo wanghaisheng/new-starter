@@ -20,6 +20,12 @@ export interface Photo extends BaseEntity {
   
   /** 照片归属的用户ID */
   userId: string;
+  
+  /** 照片标题/描述（可选） */
+  caption?: string;
+  
+  /** 照片标签（可选） */
+  tags?: string[];
 }
 
 /**

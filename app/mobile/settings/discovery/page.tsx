@@ -20,7 +20,8 @@ import {
   IonItemDivider,
   IonList
 } from '@ionic/react';
-import { useServices } from '@/core/hooks/useServices';
+import { useUser } from '@/core/hooks/useUser';
+import { useDiscoverySetting } from '@/core/hooks/useSetting';
 import { User, UserPreferences } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
@@ -28,44 +29,56 @@ import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 
 export default function DiscoverySettingsPage() {
   const router = useRouter();
-  const { userService, isLoading, error } = useServices();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading: userLoading, updateError } = useUser();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const { preferences, loading, error, updateDiscovery, loadDiscovery } = useDiscoverySetting(user?.id || '');
 
   useEffect(() => {
-    loadUserData();
-  }, [userService]);
-
-  const loadUserData = async () => {
-    if (!userService) return;
-
-    try {
-      const currentUser = await userService.getCurrentUser();
-      if (!currentUser) {
-        setToastMessage('Please login first');
-        setShowToast(true);
-        return;
-      }
-      setUser(currentUser);
-    } catch (err) {
-      console.error('Error loading user data:', err);
-      setToastMessage('Failed to load settings. Please try again.');
-      setShowToast(true);
+    if (user) {
+      loadDiscovery(user);
     }
-  };
+  }, [user, loadDiscovery]);
+
+  if (userLoading || loading) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message={t('auto.page.Loading')} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (updateError || error) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={updateError?.message || error?.message || ''} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (!user || !preferences) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message={t('auto.page.Loading')} />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   const handleSave = async () => {
-    if (!user || !userService) return;
-
+    if (!user) return;
+    setIsSaving(true);
     try {
-      setIsSaving(true);
-      await userService.updateUser(user.id, user);
+      await updateDiscovery({}, user);
       setToastMessage('Settings saved successfully');
       setShowToast(true);
     } catch (err) {
-      console.error('Error saving settings:', err);
       setToastMessage('Failed to save settings. Please try again.');
       setShowToast(true);
     } finally {
@@ -75,58 +88,14 @@ export default function DiscoverySettingsPage() {
 
   const updatePreferences = (updates: Partial<UserPreferences>) => {
     if (!user) return;
-    setUser({
-      ...user,
-      preferences: {
-        ...user.preferences,
-        ...updates
-      }
-    });
+    updateDiscovery(updates, user);
   };
-
-  if (isLoading) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading settings..." />
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  if (error) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={loadUserData} />
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  if (!user) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4">Please login to access settings</p>
-            <button
-              onClick={() => router.push('/mobile/auth/login')}
-              className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
-            >
-              Sign In
-            </button>
-          </div>
-        </IonContent>
-      </IonPage>
-    );
-  }
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Discovery Settings</IonTitle>
+          <IonTitle{t('auto.page.Discover')}/IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -137,89 +106,89 @@ export default function DiscoverySettingsPage() {
         <IonList lines="full">
           {/* Distance Settings */}
           <IonItemDivider>
-            <IonLabel>DISTANCE</IonLabel>
+            <IonLabel{t('auto.page.DISTANCE')}/IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel>Maximum Distance</IonLabel>
+            <IonLabel{t('auto.page.Maximum')}/IonLabel>
             <IonRange
-              value={user.preferences.distance || 50}
+              value={preferences.distance || 50}
               min={1}
               max={100}
               step={1}
               onIonChange={e => updatePreferences({ distance: Number(e.detail.value) })}
             />
-            <IonLabel slot="end">{user.preferences.distance || 50} km</IonLabel>
+            <IonLabel slot="end">{preferences.distance || 50} km</IonLabel>
           </IonItem>
           
           {/* Age Range Settings */}
           <IonItemDivider>
-            <IonLabel>AGE RANGE</IonLabel>
+            <IonLabel{t('auto.page.AGERANG')}/IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel>Minimum Age</IonLabel>
+            <IonLabel{t('auto.page.Minimum')}/IonLabel>
             <IonRange
-              value={user.preferences.ageRange.min || 18}
+              value={preferences.ageRange.min || 18}
               min={18}
               max={100}
               step={1}
               onIonChange={e => updatePreferences({ 
                 ageRange: { 
-                  ...user.preferences.ageRange,
+                  ...preferences.ageRange,
                   min: Number(e.detail.value)
                 }
               })}
             />
-            <IonLabel slot="end">{user.preferences.ageRange.min || 18} years</IonLabel>
+            <IonLabel slot="end">{preferences.ageRange.min || 18} years</IonLabel>
           </IonItem>
           
           <IonItem>
-            <IonLabel>Maximum Age</IonLabel>
+            <IonLabel{t('auto.page.Maximum')}/IonLabel>
             <IonRange
-              value={user.preferences.ageRange.max || 99}
+              value={preferences.ageRange.max || 99}
               min={18}
               max={100}
               step={1}
               onIonChange={e => updatePreferences({ 
                 ageRange: { 
-                  ...user.preferences.ageRange,
+                  ...preferences.ageRange,
                   max: Number(e.detail.value)
                 }
               })}
             />
-            <IonLabel slot="end">{user.preferences.ageRange.max || 99} years</IonLabel>
+            <IonLabel slot="end">{preferences.ageRange.max || 99} years</IonLabel>
           </IonItem>
           
           {/* Gender Preferences */}
           <IonItemDivider>
-            <IonLabel>GENDER PREFERENCES</IonLabel>
+            <IonLabel{t('auto.page.GENDERP')}/IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel>Show Me</IonLabel>
+            <IonLabel{t('auto.page.ShowMe')}/IonLabel>
             <IonSelect
-              value={user.preferences.gender || ['male', 'female', 'other']}
+              value={preferences.gender || ['male', 'female', 'other']}
               multiple={true}
               onIonChange={e => updatePreferences({ gender: e.detail.value })}
             >
-              <IonSelectOption value="male">Men</IonSelectOption>
-              <IonSelectOption value="female">Women</IonSelectOption>
-              <IonSelectOption value="other">Others</IonSelectOption>
+              <IonSelectOption value="male"{t('auto.page.Men')}/IonSelectOption>
+              <IonSelectOption value="female"{t('auto.page.Women')}/IonSelectOption>
+              <IonSelectOption value="other"{t('auto.page.Others')}/IonSelectOption>
             </IonSelect>
           </IonItem>
           
           {/* Additional Settings */}
           <IonItemDivider>
-            <IonLabel>ADDITIONAL SETTINGS</IonLabel>
+            <IonLabel{t('auto.page.ADDITION')}/IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel>Show Verified Users Only</IonLabel>
+            <IonLabel{t('auto.page.ShowVer')}/IonLabel>
             <IonToggle
-              checked={user.preferences.dealBreakers?.includes('unverified') || false}
+              checked={preferences.dealBreakers?.includes('unverified') || false}
               onIonChange={e => {
-                const dealBreakers = user.preferences.dealBreakers || [];
+                const dealBreakers = preferences.dealBreakers || [];
                 if (e.detail.checked) {
                   updatePreferences({ 
                     dealBreakers: [...dealBreakers, 'unverified']

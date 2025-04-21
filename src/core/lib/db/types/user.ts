@@ -36,6 +36,11 @@ export interface User extends BaseEntity {
   /** 出生时辰（用于八字） */
   birthTime?: string;
   
+  /**
+   * 八字命理标签与分析结果（用于智能匹配）
+   */
+  bazi?: Record<string, any>;
+  
   /** 
    * 性别
    * - male: 男性
@@ -62,11 +67,11 @@ export interface User extends BaseEntity {
   /** 用户位置信息 */
   location: Location;
   
+  /** 偏好设置 */
+  preferences: UserPreferences;
+  
   /** 隐私设置 */
   privacySettings: PrivacySettings;
-  
-  /** 用户匹配偏好设置 */
-  preferences: UserPreferences;
   
   /** 通知设置 */
   notificationSettings: NotificationSettings;
@@ -169,6 +174,10 @@ export interface UserPreferences {
     /** 主题色 */
     accentColor: string;
   };
+
+  // 兼容旧字段
+  darkMode?: boolean;
+  accentColor?: string;
 }
 
 /**

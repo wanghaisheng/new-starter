@@ -1,75 +1,68 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import {
-  IonContent,
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
-  IonIcon,
-  IonList,
-  IonItem,
-  IonLabel,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
-  IonLoading,
-} from '@ionic/react';
-import { chevronBackOutline } from 'ionicons/icons';
-import { PaymentService } from '@/core/services-update/business/payment/service/payment-service';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonSpinner } from '@ionic/react';
+import { useMemberCenter } from '@/core/hooks/useMemberCenter';
+import { useRestorePurchases } from '@/core/hooks/useRestorePurchases';
+import { usePaymentHistory } from '@/core/hooks/usePaymentHistory';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
-export default function MemberCenter() {
-  const [subs, setSubs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    const paymentService = new PaymentService('revenuecat');
-    paymentService.getActiveSubscriptions().then(setSubs).finally(() => setLoading(false));
-  }, []);
+export default function MemberCenterPage() {
+  useRequireAuth();
+  const { subscriptions, loading, error, empty, fetchSubscriptions } = useMemberCenter();
+  const { restored, loading: restoring, error: restoreError, restore } = useRestorePurchases();
+  const { history, loading: historyLoading, error: historyError, fetchHistory } = usePaymentHistory();
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonButtons slot="start">
-            <IonButton onClick={() => router.back()}>
-              <IonIcon icon={chevronBackOutline} />
-            </IonButton>
-          </IonButtons>
-          <IonTitle>我的会员</IonTitle>
+          <IonTitle{t('auto.member_center.')}/IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding bg-[#0f172a]">
-        <IonLoading isOpen={loading} message="加载中..." />
-        {!loading && (
-          subs.length === 0 ? (
-            <IonCard color="warning">
+      <IonContent className="ion-padding">
+        <h2 className="text-lg font-bold mb-4"{t('auto.member_center.')}/h2>
+        {loading ? (
+          <div className="flex justify-center my-6"><IonSpinner name="crescent" /></div>
+        ) : error ? (
+          <div className="text-red-500 text-center my-4">{error.message}</div>
+        ) : empty ? (
+          <div className="text-gray-400 text-center my-4"{t('auto.member_center.')}/div>
+        ) : (
+          subscriptions.map(sub => (
+            <IonCard key={sub.id} className="mb-4">
               <IonCardHeader>
-                <IonCardTitle>您还不是会员</IonCardTitle>
+                <IonCardTitle>{sub.productId}（{sub.status === 'active' ? '有效' : '已过期'}）</IonCardTitle>
               </IonCardHeader>
-              <IonCardContent>快去开通享受特权吧！</IonCardContent>
+              <IonCardContent>
+                到期时间：{sub.expiresAt ? new Date(sub.expiresAt).toLocaleString() : '无限期'}
+              </IonCardContent>
             </IonCard>
-          ) : (
-            <IonList>
-              {subs.map(sub => (
-                <IonItem key={sub.id} color="light">
-                  <IonLabel>
-                    <h2>{sub.productId}</h2>
-                    <p>状态：{sub.status === 'active' ? '已开通' : '已过期'}</p>
-                    {sub.expiresAt && <p>到期时间：{sub.expiresAt}</p>}
-                  </IonLabel>
-                </IonItem>
-              ))}
-            </IonList>
-          )
+          ))
         )}
-        <IonButton expand="block" color="warning" onClick={() => router.push('/mobile/subscribe')} className="mt-6">
-          前往续费/升级
+        <IonButton expand="block" color="secondary" onClick={restore} disabled={restoring} className="my-4">
+          {restoring ? '恢复中...' : '恢复购买'}
         </IonButton>
+        {restoreError && <div className="text-red-500 text-center text-xs mb-2">{restoreError.message}</div>}
+        <h2 className="text-lg font-bold mt-8 mb-4"{t('auto.member_center.')}/h2>
+        <IonButton expand="block" fill="outline" onClick={fetchHistory} disabled={historyLoading} className="mb-2">
+          {historyLoading ? '加载中...' : '刷新支付历史'}
+        </IonButton>
+        {historyError && <div className="text-red-500 text-center text-xs mb-2">{historyError.message}</div>}
+        {historyLoading ? (
+          <div className="flex justify-center my-6"><IonSpinner name="crescent" /></div>
+        ) : history && history.length > 0 ? (
+          history.map(item => (
+            <IonCard key={item.transactionId} className="mb-2">
+              <IonCardHeader>
+                <IonCardTitle>{item.productId}（{item.status === 'success' ? '成功' : item.status === 'pending' ? '待处理' : '失败'}）</IonCardTitle>
+              </IonCardHeader>
+              <IonCardContent>
+                交易号：{item.transactionId}<br/>
+                {item.error && <span className="text-red-400">错误：{item.error}</span>}
+              </IonCardContent>
+            </IonCard>
+          ))
+        ) : (
+          <div className="text-gray-400 text-center my-4"{t('auto.member_center.')}/div>
+        )}
       </IonContent>
     </IonPage>
   );

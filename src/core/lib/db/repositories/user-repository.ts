@@ -150,6 +150,19 @@ export class UserRepository extends BaseRepository<User> {
   }
 
   /**
+   * 根据八字标签查找用户
+   * @param baziKey 八字标签 key
+   * @param value 匹配值
+   */
+  async findByBaziTag(baziKey: string, value: any): Promise<User[]> {
+    return this.query({
+      where: {
+        [`bazi.${baziKey}`]: value
+      }
+    }).then(res => res.data as User[]);
+  }
+
+  /**
    * 更新用户最后活跃时间
    * @param userId 用户ID
    * @throws {DatabaseError} 当更新失败时抛出

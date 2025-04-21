@@ -55,7 +55,7 @@
 ### 目录结构
 
 ```
-src/core/services-update/auth/
+src/core/services/auth/
 ├── types/
 │   └── auth-service.ts      # 认证服务接口定义
 ├── factory/

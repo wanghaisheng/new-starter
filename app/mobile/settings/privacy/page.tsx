@@ -16,115 +16,86 @@ import {
   IonButton,
   IonToast,
   IonItemDivider,
-  IonList
+  IonList,
+  IonSpinner
 } from '@ionic/react';
+import { usePrivacySetting } from '@/core/hooks/useSetting';
+import { useToast } from '@/core/hooks/useToast';
 import { useUser } from '@/core/hooks/useUser';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 import { User } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { PrivacySettings } from '@/core/types/settings';
 
 export default function PrivacySettingsPage() {
+  useRequireAuth();
   const router = useRouter();
-  const { user, loading: isLoading, error, updateUser } = useUser();
-  const [user, setUser] = useState<User | null>(null);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const { user, loading: userLoading, updateError } = useUser();
+  const { triggerToast, showToast, toastMessage, setShowToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const { privacy, loading, error, updatePrivacy, loadPrivacy } = usePrivacySetting(user?.id || '');
 
   useEffect(() => {
-    loadUserData();
-  }, [userService]);
-
-  const loadUserData = async () => {
-    if (!userService) return;
-
-    try {
-      const currentUser = await userService.getCurrentUser();
-      if (!currentUser) {
-        setToastMessage('Please login first');
-        setShowToast(true);
-        return;
-      }
-      setUser(currentUser);
-    } catch (err) {
-      console.error('Error loading user data:', err);
-      setToastMessage('Failed to load privacy settings. Please try again.');
-      setShowToast(true);
+    if (user) {
+      loadPrivacy(user);
     }
-  };
+  }, [user, loadPrivacy]);
+
+  if (userLoading || loading) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message={t('auto.page.Loading')} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (updateError || error) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={updateError?.message || error?.message || ''} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (!user || !privacy) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message={t('auto.page.Loading')} />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   const handleSave = async () => {
-    if (!user || !userService) return;
-
+    if (!user) return;
+    setIsSaving(true);
     try {
-      setIsSaving(true);
-      await userService.updateUser(user.id, user);
-      setToastMessage('Privacy settings saved successfully');
-      setShowToast(true);
+      await updatePrivacy({}, user);
+      triggerToast('隐私设置已保存');
     } catch (err) {
-      console.error('Error saving privacy settings:', err);
-      setToastMessage('Failed to save privacy settings. Please try again.');
-      setShowToast(true);
+      triggerToast('保存隐私设置失败，请重试');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const updatePrivacySettings = (updates: Partial<User['privacySettings']>) => {
+  const updatePrivacyForm = (updates: Partial<PrivacySettings>) => {
     if (!user) return;
-    setUser({
-      ...user,
-      privacySettings: {
-        ...user.privacySettings,
-        ...updates
-      }
-    });
+    updatePrivacy(updates, user);
   };
-
-  if (isLoading) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading privacy settings..." />
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  if (error) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={loadUserData} />
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  if (!user) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4">Please login to access privacy settings</p>
-            <button
-              onClick={() => router.push('/mobile/auth/login')}
-              className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
-            >
-              Sign In
-            </button>
-          </div>
-        </IonContent>
-      </IonPage>
-    );
-  }
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Privacy Settings</IonTitle>
+          <IonTitle{t('auto.page.Privacy')}/IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -134,80 +105,76 @@ export default function PrivacySettingsPage() {
       <IonContent className="bg-[#0f172a]">
         <IonList lines="full">
           <IonItemDivider>
-            <IonLabel>PROFILE VISIBILITY</IonLabel>
+            <IonLabel{t('auto.page.PROFILE')}/IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel>Show Profile to Everyone</IonLabel>
+            <IonLabel{t('auto.page.ShowPro')}/IonLabel>
             <IonToggle
-              checked={user.privacySettings?.showProfileToEveryone}
-              onIonChange={e => updatePrivacySettings({ showProfileToEveryone: e.detail.checked })}
+              checked={privacy.showProfileToEveryone}
+              onIonChange={e => updatePrivacyForm({ showProfileToEveryone: e.detail.checked })}
             />
           </IonItem>
           
           <IonItem>
-            <IonLabel>Show Online Status</IonLabel>
+            <IonLabel{t('auto.page.ShowOnl')}/IonLabel>
             <IonToggle
-              checked={user.privacySettings?.showOnlineStatus}
-              onIonChange={e => updatePrivacySettings({ showOnlineStatus: e.detail.checked })}
+              checked={privacy.showOnlineStatus}
+              onIonChange={e => updatePrivacyForm({ showOnlineStatus: e.detail.checked })}
             />
           </IonItem>
           
           <IonItem>
-            <IonLabel>Show Last Active</IonLabel>
+            <IonLabel{t('auto.page.ShowLas')}/IonLabel>
             <IonToggle
-              checked={user.privacySettings?.showLastActive}
-              onIonChange={e => updatePrivacySettings({ showLastActive: e.detail.checked })}
+              checked={privacy.showLastActive}
+              onIonChange={e => updatePrivacyForm({ showLastActive: e.detail.checked })}
             />
           </IonItem>
           
           <IonItemDivider>
-            <IonLabel>MATCHING</IonLabel>
+            <IonLabel{t('auto.page.MATCHING')}/IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel>Show Me in Discovery</IonLabel>
+            <IonLabel{t('auto.page.ShowMe')}/IonLabel>
             <IonToggle
-              checked={user.privacySettings?.showInDiscovery}
-              onIonChange={e => updatePrivacySettings({ showInDiscovery: e.detail.checked })}
+              checked={privacy.showInDiscovery}
+              onIonChange={e => updatePrivacyForm({ showInDiscovery: e.detail.checked })}
             />
           </IonItem>
           
           <IonItem>
-            <IonLabel>Show Distance</IonLabel>
+            <IonLabel{t('auto.page.ShowDis')}/IonLabel>
             <IonToggle
-              checked={user.privacySettings?.showDistance}
-              onIonChange={e => updatePrivacySettings({ showDistance: e.detail.checked })}
+              checked={privacy.showDistance}
+              onIonChange={e => updatePrivacyForm({ showDistance: e.detail.checked })}
             />
           </IonItem>
           
           <IonItemDivider>
-            <IonLabel>DATA & PRIVACY</IonLabel>
+            <IonLabel{t('auto.page.DATAP')}/IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel>Allow Data Collection</IonLabel>
+            <IonLabel{t('auto.page.AllowDa')}/IonLabel>
             <IonToggle
-              checked={user.privacySettings?.allowDataCollection}
-              onIonChange={e => updatePrivacySettings({ allowDataCollection: e.detail.checked })}
+              checked={privacy.allowDataCollection}
+              onIonChange={e => updatePrivacyForm({ allowDataCollection: e.detail.checked })}
             />
           </IonItem>
           
           <IonItem>
-            <IonLabel>Allow Personalized Ads</IonLabel>
+            <IonLabel{t('auto.page.AllowPe')}/IonLabel>
             <IonToggle
-              checked={user.privacySettings?.allowPersonalizedAds}
-              onIonChange={e => updatePrivacySettings({ allowPersonalizedAds: e.detail.checked })}
+              checked={privacy.allowPersonalizedAds}
+              onIonChange={e => updatePrivacyForm({ allowPersonalizedAds: e.detail.checked })}
             />
           </IonItem>
         </IonList>
         
         <div className="p-4">
-          <IonButton
-            expand="block"
-            onClick={handleSave}
-            disabled={isSaving}
-          >
+          <IonButton loading={isSaving} onClick={handleSave}>
             {isSaving ? 'Saving...' : 'Save Changes'}
           </IonButton>
         </div>

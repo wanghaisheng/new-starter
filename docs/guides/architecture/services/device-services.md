@@ -54,7 +54,7 @@
 ### 目录结构
 
 ```
-src/core/services-update/device/
+src/core/services/device/
 ├── types/               # 设备服务类型
 │   ├── device-service.ts  # 设备服务接口
 │   ├── sensor.ts         # 传感器类型

@@ -54,7 +54,7 @@ AI 服务是 HeyTCM 的核心组件之一，采用适配器模式设计，实现
 ### 目录结构
 
 ```
-src/core/services-update/ai/
+src/core/services/ai/
 ├── types/               # AI 服务类型
 │   ├── ai-service.ts    # AI 服务接口
 │   ├── text.ts          # 文本处理类型

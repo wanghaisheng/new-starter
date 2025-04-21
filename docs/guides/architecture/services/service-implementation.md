@@ -303,6 +303,107 @@
    - 测试覆盖
    - 版本控制
 
+## 核心业务服务架构最佳实践（2025修订）
+
+### 统一工厂-适配器-接口-自动降级模式
+
+#### 1. 工厂（Factory）职责
+- 所有业务服务均应通过工厂类（如 `MatchServiceFactory`、`UserServiceFactory` 等）暴露静态 `createService` 方法创建实例。
+- 工厂方法签名统一：
+
+```typescript
+static createService(
+  type?: 'mock' | 'remote' | 'hybrid',
+  dataService?: IDataService
+): IServiceInterface
+```
+- `type` 支持 mock/remote/hybrid，自动根据 `NODE_ENV` 降级（test/dev 默认 mock，prod 默认 remote/hybrid）。
+- `dataService` 支持依赖注入，便于测试、mock、hybrid等场景灵活切换。
+
+#### 2. 适配器（Adapter）职责
+- 每种类型（mock/remote/hybrid）均有独立适配器，全部实现统一的 Service Interface（如 `IMatchService`）。
+- 适配器构造函数参数风格统一，依赖均为可选（如 `dataService?: IDataService`），内部方法需校验依赖是否注入。
+- 适配器只关心自身数据来源和业务逻辑，不暴露外部依赖细节。
+
+#### 3. Service Interface 规范
+- 所有业务服务均定义统一接口（如 `IMatchService`），上层调用只依赖接口，不关心具体实现。
+- 典型接口示例：
+
+```typescript
+export interface IMatchService {
+  getUserMatches(userId: string): Promise<Match[]>;
+  // ... 其他业务方法
+}
+```
+
+#### 4. hooks 层实践
+- hooks 层（如 `useMatches`）通过工厂获取服务实例，严禁直接 new Adapter/Service。
+- hooks 只依赖 Service Interface，自动适配 mock/remote/hybrid，支持 loading/error/empty 状态和用户提示。
+- 典型用法：
+
+```typescript
+const type = process.env.NEXT_PUBLIC_MATCH_SERVICE_TYPE || undefined;
+const matchService = useRef(
+  MatchServiceFactory.createService(type)
+);
+const data = await matchService.current.getUserMatches(userId);
+```
+
+#### 5. 自动降级与依赖注入
+- 工厂内部自动判断环境变量，test/dev 环境自动降级为 mock，生产默认 remote/hybrid。
+- 支持通过参数注入自定义 dataService，便于单元测试和 mock 场景。
+
+#### 6. 目录结构与命名规范
+- 每个业务模块分为 factory、adapters、types、service、api、worker 等子目录，保持分层清晰。
+- 所有类型定义统一放在 types 子目录。
+
+---
+
+## 服务注册表与实例获取规范（2025 修订）
+
+### 1. 统一服务实例获取方式
+- 所有业务 hooks/页面/模块**禁止直接调用 ServiceFactory.createService 或 Registry.getService**。
+- 必须通过 Registry 的 `getProvider(type, apiBaseUrl, name)` 静态方法获取 provider，再由 provider() 实例化服务。
+- 推荐写法：
+  ```typescript
+  // hooks 内部示例
+  const provider = UserServiceRegistry.getProvider(type, apiBaseUrl, 'default');
+  const service = provider();
+  ```
+- 这样可确保参数注入、实例唯一性、自动降级和类型安全。
+
+### 2. 禁止 getService 用法
+- Registry.getService 仅为早期遗留方案，**已全局移除**，不得在任何新代码/重构代码中使用。
+- 违例示例（禁止）：
+  ```typescript
+  // 错误用法
+  const service = UserServiceRegistry.getService('remote');
+  ```
+- 如发现遗留 getService 用法，需全部替换为 provider 方案。
+
+### 3. 典型 hooks 场景
+- 推荐 hooks 统一以 provider 方式管理服务实例：
+  ```typescript
+  import { UserServiceRegistry } from '@/core/services/business/user/registry/user-service-registry';
+  import { useRef } from 'react';
+  // ...
+  const provider = UserServiceRegistry.getProvider('remote', apiBaseUrl, 'default');
+  const serviceRef = useRef(provider());
+  ```
+- 便于参数注入、mock 自动降级、测试与扩展。
+
+### 4. 设计原则与扩展
+- 所有 Registry 须实现 getProvider 静态方法，禁止暴露 getService。
+- 支持 registerProvider 插件式扩展，便于业务自定义。
+
+### 5. 代码审查要求
+- PR 审查时必须检查 hooks/页面/服务层是否有 getService 直接调用，发现即驳回。
+- 必须有 provider 方式的单元测试覆盖。
+
+---
+
+> ⚠️ 重要：如需兼容早期代码，需优先 refactor 移除 getService，避免团队成员误用。
+
 ## 混合实现策略
 
 ### 场景分析

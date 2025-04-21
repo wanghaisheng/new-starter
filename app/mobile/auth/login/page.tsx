@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/core/services/auth/auth-store';
+import { useAuth } from '@/core/hooks/useAuth';
 import { Button } from '@/core/components/ui/button';
 import { Input } from '@/core/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/core/components/ui/card';
@@ -10,44 +10,17 @@ import { CustomLink } from '@/core/components/ui/link';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setUser, setToken } = useAuthStore();
+  const { login, loading, error, isAuthenticated } = useAuth();
   const [email, setEmail] = useState('demo@example.com');
   const [password, setPassword] = useState('password');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
     try {
-      // 使用统一的API端点登录
-      const response = await fetch('/api/mobile/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || '登录失败');
-      }
-
-      // 设置用户信息和认证令牌
-      const { user, token } = data.data;
-      setUser(user);
-      setToken(token);
-      
-      router.push('/mobile/discover');
+      await login('email', { email, password });
+      window.location.replace('/mobile/discover');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '登录失败，请检查您的邮箱和密码');
-      console.error('Login error:', err);
-    } finally {
-      setIsLoading(false);
+      // error 由 hook 统一处理
     }
   };
 
@@ -55,7 +28,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>登录</CardTitle>
+          <CardTitle{t('auto.page.')}/CardTitle>
           <CardDescription>
             输入您的账号信息以登录
           </CardDescription>
@@ -70,45 +43,45 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">邮箱</label>
+              <label htmlFor="email" className="text-sm font-medium"{t('auto.page.')}/label>
               <Input
                 id="email"
                 type="email"
-                placeholder="请输入邮箱"
+                placeholder={t('auto.page.')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={loading}
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">密码</label>
+              <label htmlFor="password" className="text-sm font-medium"{t('auto.page.')}/label>
               <Input
                 id="password"
                 type="password"
-                placeholder="请输入密码"
+                placeholder={t('auto.page.')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={loading}
               />
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && <p className="text-red-500 text-sm">{error.message || String(error)}</p>}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? '登录中...' : '登录'}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? '登录中...' : '登录'}
             </Button>
             <div className="text-sm text-center">
-              <span className="text-gray-500">还没有账号？</span>
-              <CustomLink href="/mobile/auth/register">注册</CustomLink>
+              <span className="text-gray-500"{t('auto.page.')}/span>
+              <CustomLink href="/mobile/auth/register"{t('auto.page.')}/CustomLink>
             </div>
             <div className="text-sm text-center">
-              <CustomLink href="/mobile/auth/forgot-password">忘记密码？</CustomLink>
+              <CustomLink href="/mobile/auth/forgot-password"{t('auto.page.')}/CustomLink>
             </div>
           </CardFooter>
         </form>
       </Card>
     </div>
   );
-} 
+}

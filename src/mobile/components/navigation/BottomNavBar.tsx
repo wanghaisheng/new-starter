@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { cn } from '@/utils/cn';
+import { cn } from '@/core/utils/cn';
 
 const navItems = [
   {

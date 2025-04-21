@@ -61,7 +61,7 @@
 ### 目录结构
 
 ```
-src/core/services-update/communication/
+src/core/services/communication/
 ├── types/                 # 通信类型定义
 │   ├── communication.ts   # 通信接口
 │   ├── message.ts        # 消息类型

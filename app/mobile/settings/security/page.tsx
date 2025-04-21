@@ -14,7 +14,6 @@ import {
   IonItem,
   IonLabel,
   IonToggle,
-  IonButton,
   IonToast,
   IonItemDivider,
   IonItemGroup,
@@ -39,19 +38,74 @@ import { User } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { useToast } from '@/core/hooks/useToast';
+import { useSecuritySetting } from '@/core/hooks/useSetting';
+import { SecuritySettings } from '@/core/types/settings';
+import { FormSaveButton } from '@/core/components/form/FormSaveButton';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
 export default function SecuritySettingsPage() {
+  useRequireAuth();
   const router = useRouter();
-  const { updateProfile } = useAuth();
-  const { user, loading: isLoading, error, updateUser } = useUser();
-  const [user, setUser] = useState<User | null>(null);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const { user, loading: userLoading, updateError } = useUser();
+  const { triggerToast, showToast, toastMessage, setShowToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
-  const [showPasswordAlert, setShowPasswordAlert] = useState(false);
-  const [showTwoFactorAlert, setShowTwoFactorAlert] = useState(false);
-  const [showLogoutAllAlert, setShowLogoutAllAlert] = useState(false);
-  
+  const { security, loading, error, updateSecurity, loadSecurity } = useSecuritySetting(user?.id || '');
+
+  useEffect(() => {
+    if (user) {
+      loadSecurity(user);
+    }
+  }, [user, loadSecurity]);
+
+  if (userLoading || loading) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message={t('auto.page.Loading')} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (updateError || error) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={updateError?.message || error?.message || ''} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (!user || !security) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message={t('auto.page.Loading')} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  const handleSave = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      await updateSecurity({}, user);
+      triggerToast('安全设置已保存');
+    } catch (err) {
+      triggerToast('保存安全设置失败，请重试');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateSecurityForm = (updates: Partial<SecuritySettings>) => {
+    if (!user) return;
+    updateSecurity(updates, user);
+  };
+
   // Mock login history data
   const [loginHistory, setLoginHistory] = useState([
     { id: 1, device: 'iPhone 13', location: 'New York, USA', date: '2023-04-05 14:30', current: true },
@@ -60,129 +114,33 @@ export default function SecuritySettingsPage() {
     { id: 4, device: 'iPad Pro', location: 'Chicago, USA', date: '2023-03-15 11:20', current: false }
   ]);
 
-  useEffect(() => {
-    loadUserData();
-  }, [userService]);
-
-  const loadUserData = async () => {
-    if (!userService) return;
-
-    try {
-      const currentUser = await userService.getCurrentUser();
-      if (!currentUser) {
-        setToastMessage('Please login first');
-        setShowToast(true);
-        return;
-      }
-      setUser(currentUser);
-    } catch (err) {
-      console.error('Error loading user data:', err);
-      setToastMessage('Failed to load security settings. Please try again.');
-      setShowToast(true);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!user || !userService) return;
-
-    try {
-      setIsSaving(true);
-      
-      // Update user security settings
-      const updatedUser = {
-        ...user,
-        securitySettings: {
-          ...user.securitySettings,
-          twoFactorEnabled: user.securitySettings?.twoFactorEnabled || false,
-          emailNotifications: user.securitySettings?.emailNotifications || false,
-          loginAlerts: user.securitySettings?.loginAlerts || false
-        }
-      };
-      
-      await userService.updateUser(user.id, updatedUser);
-      setToastMessage('Security settings saved successfully');
-      setShowToast(true);
-    } catch (err) {
-      console.error('Error saving security settings:', err);
-      setToastMessage('Failed to save security settings. Please try again.');
-      setShowToast(true);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleChangePassword = () => {
-    setShowPasswordAlert(true);
+    router.push('/mobile/settings/account');
   };
 
   const handleEnableTwoFactor = () => {
-    setShowTwoFactorAlert(true);
+    updateSecurityForm({ twoFactorEnabled: true });
+    triggerToast('Two-factor authentication enabled');
   };
 
-  const handleLogoutAllDevices = () => {
-    setShowLogoutAllAlert(true);
-  };
-
-  const confirmLogoutAllDevices = async () => {
-    if (!authService) return;
-
+  const handleLogoutAllDevices = async () => {
     try {
       // In a real app, this would call an API to invalidate all sessions
-      setToastMessage('Logged out from all devices');
-      setShowToast(true);
+      triggerToast('Logged out from all devices');
       
       // Refresh login history to show only current device
       setLoginHistory(loginHistory.map(item => ({ ...item, current: item.id === 1 })));
     } catch (err) {
       console.error('Error logging out from all devices:', err);
-      setToastMessage('Failed to logout from all devices. Please try again.');
-      setShowToast(true);
+      triggerToast('Failed to logout from all devices. Please try again.');
     }
   };
-
-  if (isLoading) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading security settings..." />
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  if (error) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={loadUserData} />
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  if (!user) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4">Please login to access security settings</p>
-            <button
-              onClick={() => router.push('/mobile/auth/login')}
-              className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
-            >
-              Sign In
-            </button>
-          </div>
-        </IonContent>
-      </IonPage>
-    );
-  }
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Security Settings</IonTitle>
+          <IonTitle{t('auto.page.Security')}/IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -199,73 +157,54 @@ export default function SecuritySettingsPage() {
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>ACCOUNT SECURITY</IonLabel>
+              <IonLabel{t('auto.page.ACCOUNT')}/IonLabel>
             </IonItemDivider>
             
             <IonItem button onClick={handleChangePassword}>
               <IonIcon icon={keyOutline} slot="start" />
-              <IonLabel>Change Password</IonLabel>
-              <IonNote slot="end" color="medium">Last changed 3 months ago</IonNote>
+              <IonLabel{t('auto.page.ChangeP')}/IonLabel>
+              <IonNote slot="end" color="medium"{t('auto.page.Lastcha')}/IonNote>
             </IonItem>
             
             <IonItem button onClick={handleEnableTwoFactor}>
               <IonIcon icon={phonePortraitOutline} slot="start" />
-              <IonLabel>Two-Factor Authentication</IonLabel>
+              <IonLabel{t('auto.page.TwoFact')}/IonLabel>
               <IonToggle 
                 slot="end" 
-                checked={user.securitySettings?.twoFactorEnabled || false} 
-                onIonChange={() => handleEnableTwoFactor()} 
+                checked={security.twoFactorEnabled} 
               />
             </IonItem>
           </IonItemGroup>
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>SECURITY NOTIFICATIONS</IonLabel>
+              <IonLabel{t('auto.page.SECURITY')}/IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={mailOutline} slot="start" />
-              <IonLabel>Email Notifications</IonLabel>
+              <IonLabel{t('auto.page.EmailNo')}/IonLabel>
               <IonToggle 
                 slot="end" 
-                checked={user.securitySettings?.emailNotifications || false} 
-                onIonChange={(e) => {
-                  if (!user) return;
-                  setUser({
-                    ...user,
-                    securitySettings: {
-                      ...user.securitySettings,
-                      emailNotifications: e.detail.checked
-                    }
-                  });
-                }} 
+                checked={security.emailNotifications} 
+                onIonChange={(e) => updateSecurityForm({ emailNotifications: e.detail.checked })}
               />
             </IonItem>
             
             <IonItem>
               <IonIcon icon={warningOutline} slot="start" />
-              <IonLabel>Login Alerts</IonLabel>
+              <IonLabel{t('auto.page.LoginAl')}/IonLabel>
               <IonToggle 
                 slot="end" 
-                checked={user.securitySettings?.loginAlerts || false} 
-                onIonChange={(e) => {
-                  if (!user) return;
-                  setUser({
-                    ...user,
-                    securitySettings: {
-                      ...user.securitySettings,
-                      loginAlerts: e.detail.checked
-                    }
-                  });
-                }} 
+                checked={security.loginAlerts} 
+                onIonChange={(e) => updateSecurityForm({ loginAlerts: e.detail.checked })}
               />
             </IonItem>
           </IonItemGroup>
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>LOGIN HISTORY</IonLabel>
+              <IonLabel{t('auto.page.LOGINHI')}/IonLabel>
             </IonItemDivider>
             
             {loginHistory.map(item => (
@@ -277,26 +216,22 @@ export default function SecuritySettingsPage() {
                   <p className="text-xs text-gray-400">{item.date}</p>
                 </IonLabel>
                 {item.current && (
-                  <IonBadge color="success" slot="end">Current</IonBadge>
+                  <IonBadge color="success" slot="end"{t('auto.page.Current')}/IonBadge>
                 )}
               </IonItem>
             ))}
             
             <IonItem button onClick={handleLogoutAllDevices}>
               <IonIcon icon={lockClosedOutline} slot="start" color="danger" />
-              <IonLabel color="danger">Logout All Devices</IonLabel>
+              <IonLabel color="danger"{t('auto.page.LogoutA')}/IonLabel>
             </IonItem>
           </IonItemGroup>
         </IonList>
         
         <div className="p-4">
-          <IonButton
-            expand="block"
-            onClick={handleSave}
-            disabled={isSaving}
-          >
+          <FormSaveButton loading={isSaving} onClick={handleSave}>
             {isSaving ? 'Saving...' : 'Save Changes'}
-          </IonButton>
+          </FormSaveButton>
         </div>
       </IonContent>
       
@@ -308,78 +243,6 @@ export default function SecuritySettingsPage() {
         message={toastMessage}
         duration={2000}
         position="bottom"
-      />
-      
-      <IonAlert
-        isOpen={showPasswordAlert}
-        onDidDismiss={() => setShowPasswordAlert(false)}
-        header="Change Password"
-        message="You will be redirected to the password change page."
-        buttons={[
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            cssClass: 'alert-button-cancel'
-          },
-          {
-            text: 'Continue',
-            cssClass: 'alert-button-confirm',
-            handler: () => {
-              router.push('/mobile/settings/account');
-            }
-          }
-        ]}
-      />
-      
-      <IonAlert
-        isOpen={showTwoFactorAlert}
-        onDidDismiss={() => setShowTwoFactorAlert(false)}
-        header="Two-Factor Authentication"
-        message="Would you like to enable two-factor authentication? This will require a verification code sent to your phone or email when you log in."
-        buttons={[
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            cssClass: 'alert-button-cancel'
-          },
-          {
-            text: 'Enable',
-            cssClass: 'alert-button-confirm',
-            handler: () => {
-              if (!user) return;
-              setUser({
-                ...user,
-                securitySettings: {
-                  ...user.securitySettings,
-                  twoFactorEnabled: true
-                }
-              });
-              setToastMessage('Two-factor authentication enabled');
-              setShowToast(true);
-            }
-          }
-        ]}
-      />
-      
-      <IonAlert
-        isOpen={showLogoutAllAlert}
-        onDidDismiss={() => setShowLogoutAllAlert(false)}
-        header="Logout All Devices"
-        message="This will log you out from all devices except the current one. Are you sure you want to continue?"
-        buttons={[
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            cssClass: 'alert-button-cancel'
-          },
-          {
-            text: 'Logout All',
-            cssClass: 'alert-button-confirm',
-            handler: () => {
-              confirmLogoutAllDevices();
-            }
-          }
-        ]}
       />
     </IonPage>
   );

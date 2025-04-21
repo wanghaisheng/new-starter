@@ -2,9 +2,7 @@ import { IDatabaseClient, DatabaseConfig } from '@/core/lib/db/interfaces';
 import { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database.types';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
-import { Logger } from '@/core/lib/utils/logger';
-import { config } from '@/core/lib/db/config';
-import { logger } from '@/core/lib/logger';
+import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
 
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
@@ -76,7 +74,7 @@ export class MockDatabaseClient implements IDatabaseClient {
   private mockConfig: Required<Pick<MockDatabaseConfig, 'mockMode' | 'jsonFilePath' | 'autoSave'>>;
   private isInitialized: boolean = false;
   protected transactionActive: boolean = false;
-  private logger: Logger;
+  private logger;
 
   constructor(private config: MockDatabaseConfig) {
     this.mockConfig = {
@@ -84,21 +82,21 @@ export class MockDatabaseClient implements IDatabaseClient {
       jsonFilePath: config.jsonFilePath || './mock-data.json',
       autoSave: config.autoSave ?? true
     };
-    this.logger = new Logger('MockDatabaseClient');
+    this.logger = getLoggerService();
   }
 
   async connect(): Promise<void> {
     if (!this.isInitialized) {
       await this.initialize();
     }
-    logger.info('Mock database connected');
+    this.logger.info('Mock database connected');
   }
 
   async disconnect(): Promise<void> {
     if (this.isInitialized) {
       await this.close();
     }
-    logger.info('Mock database disconnected');
+    this.logger.info('Mock database disconnected');
   }
 
   async initialize(): Promise<void> {

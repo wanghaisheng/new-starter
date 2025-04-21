@@ -1,9 +1,8 @@
 import { EventEmitter } from 'events';
-import { NetworkStatus } from '@capacitor/network';
-
-import { NetworkService } from '@/core/services/data/network-service';
 import { IDatabaseClient, SyncConfig, SyncStrategy, SyncStatus } from '@/core/lib/db/interfaces';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { getNetworkManager } from '@/core/services/infrastructure/network/registry/network-registry';
+import type { NetworkStatus as AppNetworkStatus } from '@/core/services/infrastructure/network/network-manager';
 
 /**
  * 基础同步客户端
@@ -84,23 +83,25 @@ export abstract class BaseSyncClient {
    * 设置网络监听器
    */
   protected setupNetworkListener() {
-    // 使用网络服务监听网络状态变化
-    const networkService = NetworkService.getInstance();
-    networkService.addNetworkStatusListener((status: NetworkStatus) => {
-      const wasOffline = !this.isOnline;
-      this.isOnline = status.connected;
-      
-      // 如果从离线变为在线，尝试同步待处理的操作
-      if (wasOffline && this.isOnline) {
-        // 重置重试计数
+    // 统一使用 NetworkManager 监听多状态
+    const networkManager = getNetworkManager();
+    networkManager.onStatusChange((status: AppNetworkStatus) => {
+      const wasOnline = this.isOnline;
+      this.isOnline = status === 'online' || status === 'limited' || status === 'slow';
+      // 离线->在线/弱网/慢速，尝试同步
+      if (!wasOnline && this.isOnline) {
         this.syncRetryCount = 0;
         this.syncPendingOperations();
-        
-        // 通知状态变化
         this.emitSyncStatusChange();
       } else if (!this.isOnline) {
-        // 离线状态下也通知状态变化
+        // 非可用网络下也通知状态变化
         this.emitSyncStatusChange();
+      }
+      // 可扩展更多状态下的降级/提示逻辑
+      if (status === 'proxy') {
+        // 代理下可提示或降级
+      } else if (status === 'slow') {
+        // 慢速下可降级同步批次、延迟等
       }
     });
   }

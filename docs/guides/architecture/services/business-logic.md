@@ -61,7 +61,7 @@
 ### 目录结构
 
 ```
-src/core/services-update/business/
+src/core/services/business/
 ├── domain/              # 领域层
 │   ├── models/         # 领域模型
 │   ├── services/       # 领域服务

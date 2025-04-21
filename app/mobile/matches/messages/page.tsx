@@ -6,31 +6,37 @@ import { IonContent, IonHeader, IonIcon, IonPage, IonSearchbar, IonToolbar, IonL
 import { pencilOutline } from 'ionicons/icons';
 import Image from 'next/image';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
-import { MessageServiceFactory } from '@/core/services-update/business/messages/factory/message-service-factory';
+import { useMessages } from '@/core/hooks/useMessages';
 import { Message } from '@/core/lib/db/types/message';
+import ErrorDisplay from '@/mobile/components/ErrorDisplay';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
 export default function MessagesPage() {
+  useRequireAuth();
   const router = useRouter();
-  const [chats, setChats] = useState<Message[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const msgService = MessageServiceFactory.createService('advanced-hybrid');
+  const [chats, setChats] = useState<Message[]>([]);
   const userId = 'current-user-id'; // TODO: Replace with actual user ID from auth context
 
+  const { messages, fetchMessages, sendMessage, updateMessage, deleteMessage, reloadMessages, loading, fetchError, sendError, updateError, deleteError, empty } = useMessages(userId);
+
   useEffect(() => {
-    let unsub: (() => void) | undefined;
-    setLoading(true);
-    msgService.getUserMessages(userId)
-      .then((msgs: Message[]) => { setChats(msgs); setLoading(false); })
-      .catch(e => { setError('加载消息失败'); setLoading(false); });
-    if (msgService.onMessageChange) {
-      unsub = msgService.onMessageChange((msgs: Message[]) => {
-        setChats(msgs.filter(m => m.senderId === userId || m.receiverId === userId));
-      });
-    }
-    return () => { if (unsub) unsub(); };
+    fetchMessages();
   }, [userId]);
+
+  useEffect(() => {
+    setChats(messages.filter(m => m.senderId === userId || m.receiverId === userId));
+  }, [messages]);
+
+  if (fetchError || sendError || updateError || deleteError) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={(fetchError || sendError || updateError || deleteError)?.toString()} />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   const filteredChats = chats.filter(chat =>
     chat.content.toLowerCase().includes(searchText.toLowerCase())
@@ -45,9 +51,8 @@ export default function MessagesPage() {
   };
 
   const renderChats = () => {
-    if (loading) return <div className="p-4 text-center">加载中...</div>;
-    if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
-    if (filteredChats.length === 0) return <div className="p-4 text-center text-gray-400">暂无会话</div>;
+    if (loading) return <div className="p-4 text-center"{t('auto.page.')}/div>;
+    if (filteredChats.length === 0) return <div className="p-4 text-center text-gray-400"{t('auto.page.')}/div>;
     return (
       <IonList>
         {filteredChats.map(chat => (
@@ -73,7 +78,7 @@ export default function MessagesPage() {
       <IonHeader>
         <IonToolbar>
           <div className="px-4 py-3 flex items-center justify-between">
-            <h1 className="text-xl font-bold">Messages</h1>
+            <h1 className="text-xl font-bold"{t('auto.page.Messages')}/h1>
             <button 
               onClick={handleNewMessage}
               className="text-primary-500"
@@ -89,7 +94,7 @@ export default function MessagesPage() {
           <IonSearchbar
             value={searchText}
             onIonInput={e => setSearchText(e.detail.value!)}
-            placeholder="Search chats"
+            placeholder={t('auto.page.Searchc')}
           />
           {renderChats()}
         </div>

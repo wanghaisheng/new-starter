@@ -40,6 +40,21 @@ testing/
 - Offline functionality testing
 - User journey testing
 
+## Testing Subdomains
+
+### Integration Testing
+详见 integration/database-testing.md，包含数据库集成测试方案与进度。
+
+### Unit Testing
+详见 unit/README.md，包含单元测试规范与用例。
+
+### End-to-End (E2E) Testing
+详见 e2e/README.md，包含端到端测试场景与移动端测试进度。
+
+---
+
+> integration/unit/e2e 子目录 README.md 内容已合并至本文件，原文件可精简或删除。
+
 ## Usage
 
 1. Start with unit testing documentation for component-level testing

@@ -40,6 +40,18 @@ development/
 - Testing standards and practices
 - Documentation standards
 
+## Development Subdomains
+
+### Frontend Development
+详见 frontend/README.md，包含前端开发结构与组件规范。
+
+### Backend Development
+详见 backend/README.md，包含后端开发结构与接口规范。
+
+---
+
+> frontend/backend 子目录 README.md 内容已合并至本文件，原文件可精简或删除。
+
 ## Usage
 
 1. Start with setup documentation for environment configuration

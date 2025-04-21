@@ -1,0 +1,46 @@
+# robots.txt for heytcm 项目
+
+User-Agent: *
+Allow: /
+
+# 禁止抓取 API、内部接口、系统目录等
+Disallow: /api/
+Disallow: /_next/
+Disallow: /.well-known/
+Disallow: /cdn-cgi/
+Disallow: /static/
+Disallow: /assets/
+
+# 禁止抓取用户隐私、个人中心等敏感页面
+Disallow: /profile/
+Disallow: /user/
+Disallow: /settings/
+Disallow: /account/
+
+# 禁止抓取测试、未公开、动态内容页面
+Disallow: /test/
+Disallow: /dev/
+Disallow: /mock/
+
+# 禁止抓取多语言下的重复内容（如有多语言支持，可按需扩展）
+Disallow: /zh/
+Disallow: /en/
+Disallow: /fr/
+Disallow: /es/
+Disallow: /ja/
+Disallow: /ko/
+Disallow: /de/
+Disallow: /ru/
+Disallow: /ar/
+Disallow: /pt/
+Disallow: /it/
+Disallow: /pl/
+Disallow: /tr/
+
+# 禁止抓取视频、AI 效果等动态或重复内容路径（可按需调整）
+Disallow: /video/
+Disallow: /ai-effects/
+Disallow: /explore/
+
+# 如有 sitemap，建议声明
+Sitemap: https://yourdomain.com/sitemap.xml

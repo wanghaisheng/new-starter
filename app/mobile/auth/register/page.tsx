@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/core/services/auth/auth-service';
+import { useAuth } from '@/core/hooks/useAuth';
 import { Button } from '@/core/components/ui/button';
 import { Input } from '@/core/components/ui/input';
 import { Card } from '@/core/components/ui/card';
@@ -10,51 +10,39 @@ import Link from 'next/link';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { setUser } = useAuthStore();
+  const { login, loading, error } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setLocalError('');
 
     if (password !== confirmPassword) {
-      setError('两次输入的密码不一致');
+      setLocalError('两次输入的密码不一致');
       return;
     }
 
     try {
-      // TODO: 实现实际的注册逻辑
-      setUser({
-        id: '1',
-        email: email,
-        emailVerified: false,
-        phoneVerified: false,
-        token: 'mock-token',
-        refreshToken: 'mock-refresh-token',
-        createdAt: new Date(),
-        lastLoginAt: new Date(),
-        provider: 'email',
-        displayName: name,
-        photoURL: undefined,
-        phoneNumber: undefined
-      });
-      router.push('/');
+      // 实际注册逻辑应调用后端 API，这里仅演示
+      // 注册成功后自动登录
+      await login('email', { email, password, name });
+      window.location.replace('/mobile/discover');
     } catch (err) {
-      setError('注册失败，请稍后重试');
+      setLocalError('注册失败，请稍后重试');
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md p-8">
-        <h1 className="text-2xl font-bold text-center mb-6">注册</h1>
-        {error && (
+        <h1 className="text-2xl font-bold text-center mb-6"{t('auto.page.')}/h1>
+        {(localError || error) && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
+            {localError || error?.message}
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -110,16 +98,15 @@ export default function RegisterPage() {
               className="mt-1"
             />
           </div>
-          <Button type="submit" className="w-full">
-            注册
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? '注册中...' : '注册'}
           </Button>
         </form>
-        <div className="mt-4 text-center">
-          <Link href="/mobile/auth/login" className="text-sm text-blue-600 hover:text-blue-500">
-            已有账号？立即登录
-          </Link>
+        <div className="text-sm text-center mt-4">
+          <span className="text-gray-500"{t('auto.page.')}/span>
+          <Link href="/mobile/auth/login" className="ml-2 text-blue-500"{t('auto.page.')}/Link>
         </div>
       </Card>
     </div>
   );
-} 
+}

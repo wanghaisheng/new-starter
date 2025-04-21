@@ -10,6 +10,7 @@ import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useApi } from '@/core/hooks/useApi';
 import { apiClient } from '@/utils/api-client';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
 // Add type definition for Photo
 interface Photo {
@@ -36,6 +37,7 @@ const calculateAge = (birthDate: Date): number => {
 };
 
 export default function DiscoverPage() {
+  useRequireAuth();
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showToast, setShowToast] = useState(false);
@@ -46,7 +48,8 @@ export default function DiscoverPage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
 
-  const { 
+  // 统一通过 useApi + apiClient 获取推荐用户
+  const {
     data: users,
     loading: isLoading,
     error,
@@ -54,20 +57,22 @@ export default function DiscoverPage() {
     networkStatus
   } = useApi<User[]>(
     async () => {
-      const currentUser = await apiClient.getCurrentUser();
-      if (!currentUser) {
-        throw new Error('Please login first');
+      try {
+        const currentUser = await apiClient.getCurrentUser();
+        if (!currentUser) {
+          throw new Error('请先登录');
+        }
+        const allUsers = await apiClient.getUsers();
+        const matches = await apiClient.getUserMatches();
+        const matchedUserIds = matches.flatMap((match: Match) => match.users);
+        // 过滤掉自己和已匹配用户
+        return allUsers.filter((user: User) => 
+          user.id !== currentUser.id && 
+          !matchedUserIds.includes(user.id)
+        );
+      } catch (err: any) {
+        throw new Error(err.message || '获取推荐用户失败');
       }
-
-      const allUsers = await apiClient.getUsers();
-      const matches = await apiClient.getUserMatches();
-      const matchedUserIds = matches.flatMap((match: Match) => match.users);
-
-      // Filter users based on preferences and matches
-      return allUsers.filter((user: User) => 
-        user.id !== currentUser.id && 
-        !matchedUserIds.includes(user.id)
-      );
     },
     {
       immediate: true,
@@ -89,7 +94,7 @@ export default function DiscoverPage() {
     
     const currentUser = await apiClient.getCurrentUser();
     if (!currentUser) {
-      setToastMessage('Please login first');
+      setToastMessage('请先登录');
       setShowToast(true);
       return;
     }
@@ -107,7 +112,7 @@ export default function DiscoverPage() {
         }
       } catch (err) {
         console.error('Error creating match:', err);
-        setToastMessage('Failed to create match');
+        setToastMessage('匹配失败');
         setShowToast(true);
       }
     }
@@ -192,7 +197,7 @@ export default function DiscoverPage() {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading recommendations..." />
+          <LoadingSpinner message={t('auto.page.')} />
         </IonContent>
       </IonPage>
     );
@@ -213,12 +218,12 @@ export default function DiscoverPage() {
       <IonPage>
         <IonContent className="bg-[#0f172a]">
           <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4">No recommendations available</p>
+            <p className="text-gray-400 mb-4"{t('auto.page.')}/p>
             <button
               onClick={handleRetry}
               className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
             >
-              Try Again
+              重新加载
             </button>
           </div>
         </IonContent>
@@ -234,15 +239,15 @@ export default function DiscoverPage() {
         {showMatch ? (
           <div className="fixed inset-0 bg-opacity-90 bg-gray-900 z-50 flex items-center justify-center">
             <div className="text-center p-6 max-w-sm mx-auto">
-              <h1 className="text-3xl font-bold text-pink-500 mb-4">It&apos;s a Match!</h1>
-              <p className="text-white mb-6">You and {matchedUser?.name} have liked each other</p>
+              <h1 className="text-3xl font-bold text-pink-500 mb-4"{t('auto.page.')}/h1>
+              <p className="text-white mb-6">您和 {matchedUser?.name} 都喜欢对方</p>
               
               <div className="flex justify-center space-x-4 mb-8">
                 <div className="w-20 h-20 relative">
                   <div className="absolute inset-0 rounded-full overflow-hidden border-2 border-white">
                     <Image 
                       src="/assets/images/avatar-placeholder.jpg"
-                      alt="Your profile"
+                      alt={t('auto.page.')}
                       fill
                       className="object-cover"
                     />
@@ -253,7 +258,7 @@ export default function DiscoverPage() {
                   <div className="absolute inset-0 rounded-full overflow-hidden border-2 border-white">
                     <Image 
                       src={matchedUser?.photos?.[0]?.url || '/assets/images/profile-placeholder.jpg'}
-                      alt={matchedUser?.name || 'Match'}
+                      alt={matchedUser?.name || '匹配用户'}
                       fill
                       className="object-cover"
                     />
@@ -266,13 +271,13 @@ export default function DiscoverPage() {
                   onClick={handleKeepSwiping}
                   className="px-6 py-2 bg-gray-600 text-white rounded-full hover:bg-gray-700 transition-colors"
                 >
-                  Keep Swiping
+                  继续滑动
                 </button>
                 <button
                   onClick={handleSendMessage}
                   className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
                 >
-                  Send Message
+                  发送消息
                 </button>
               </div>
             </div>
@@ -320,7 +325,7 @@ export default function DiscoverPage() {
 
         {networkStatus === 'offline' && (
           <div className="fixed bottom-16 left-0 right-0 bg-yellow-500 text-black py-2 px-4 text-center">
-            You're offline. Some features may be limited.
+            您当前处于离线状态，部分功能可能不可用。
           </div>
         )}
       </IonContent>

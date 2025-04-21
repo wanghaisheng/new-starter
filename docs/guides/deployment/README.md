@@ -20,25 +20,20 @@ deployment/
     └── kubernetes/    # Kubernetes deployment
 ```
 
-## Documentation Purpose
+## Deployment Subdomains
 
 ### Web Deployment
-- Staging environment setup and management
-- Production deployment procedures
-- Deployment monitoring and rollback
-- Performance optimization for production
+详见 web/README.md，涵盖 Web 应用部署流程与规范。
 
 ### Mobile Deployment
-- iOS app deployment and distribution
-- Android app deployment and distribution
-- App store submission guidelines
-- Version management and updates
+详见 mobile/README.md，涵盖移动端部署与打包流程。
 
-### CI/CD Pipelines
-- GitHub Actions workflow configuration
-- Docker containerization and deployment
-- Kubernetes orchestration
-- Automated testing and deployment
+### CI/CD Deployment
+详见 ci-cd/README.md，涵盖持续集成与自动化部署流程。
+
+---
+
+> web/mobile/ci-cd 子目录 README.md 内容已归档至本文件，子目录 README.md 可保留简要说明。
 
 ## Usage
 

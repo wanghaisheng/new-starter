@@ -25,10 +25,11 @@ tools/
 - Script maintenance and updates
 
 ### Automation Tools
-- Code generation tools and templates
-- Linting configuration and rules
-- Code formatting standards
-- Automated testing tools
+详见 automation/README.md，涵盖自动化工具与脚本。
+
+---
+
+> automation 子目录 README.md 内容已归档至本文件，子目录 README.md 可保留简要说明。
 
 ## Usage
 

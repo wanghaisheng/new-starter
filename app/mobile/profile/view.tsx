@@ -1,4 +1,5 @@
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonAvatar, IonCard, IonCardHeader, IonCardTitle, IonCardContent
 } from '@ionic/react';
@@ -18,13 +19,14 @@ const mockProfile = {
 export default function ProfileView() {
   const router = useRouter();
   const params = useSearchParams();
+  useRequireAuth();
   // TODO: 根据 params.get('id') 拉取对应用户数据
   const user = mockProfile;
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle>个人资料</IonTitle>
+          <IonTitle{t('auto.view.')}/IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding bg-gradient-to-br from-purple-600 to-pink-600 min-h-screen">
@@ -41,12 +43,12 @@ export default function ProfileView() {
           </div>
           <IonCard className="w-full max-w-md mx-auto mt-4 glass-card">
             <IonCardHeader>
-              <IonCardTitle>照片墙</IonCardTitle>
+              <IonCardTitle{t('auto.view.')}/IonCardTitle>
             </IonCardHeader>
             <IonCardContent>
               <div className="flex gap-2 flex-wrap">
                 {user.photos.map((url, i) => (
-                  <img key={i} src={url} alt="照片" className="w-20 h-20 object-cover rounded-lg shadow-md" />
+                  <img key={i} src={url} alt={t('auto.view.')} className="w-20 h-20 object-cover rounded-lg shadow-md" />
                 ))}
               </div>
             </IonCardContent>

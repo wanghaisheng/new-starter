@@ -27,17 +27,17 @@ import { User } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { useLanguageSetting } from '@/core/hooks/useSetting';
 
 export default function LanguageSettingsPage() {
   const router = useRouter();
-  const { user, loading: isLoading, error, updateUser } = useUser();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading, updateError } = useUser();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const { language, loading: langLoading, error: langError, updateLanguage, loadLanguage } = useLanguageSetting(user?.id || '');
   const [selectedLanguage, setSelectedLanguage] = useState('en');
 
-  // Available languages
   const languages = [
     { code: 'en', name: 'English' },
     { code: 'zh', name: '中文 (Chinese)' },
@@ -52,55 +52,26 @@ export default function LanguageSettingsPage() {
   ];
 
   useEffect(() => {
-    loadUserData();
-  }, [userService]);
-
-  const loadUserData = async () => {
-    if (!userService) return;
-
-    try {
-      const currentUser = await userService.getCurrentUser();
-      if (!currentUser) {
-        setToastMessage('Please login first');
-        setShowToast(true);
-        return;
-      }
-      setUser(currentUser);
-      
-      // Load language preference from user data
-      if (currentUser.preferences?.language) {
-        setSelectedLanguage(currentUser.preferences.language);
-      }
-    } catch (err) {
-      console.error('Error loading user data:', err);
-      setToastMessage('Failed to load language settings. Please try again.');
-      setShowToast(true);
+    if (user) {
+      loadLanguage(user);
     }
-  };
+  }, [user, loadLanguage]);
+
+  useEffect(() => {
+    if (language) {
+      setSelectedLanguage(language);
+    }
+  }, [language]);
 
   const handleSave = async () => {
-    if (!user || !userService) return;
-
+    if (!user) return;
+    setIsSaving(true);
     try {
-      setIsSaving(true);
-      
-      // Update user preferences with the language setting
-      const updatedUser = {
-        ...user,
-        preferences: {
-          ...user.preferences,
-          language: selectedLanguage
-        }
-      };
-      
-      await userService.updateUser(user.id, updatedUser);
+      await updateLanguage(selectedLanguage, user);
       setToastMessage('Language settings saved successfully');
       setShowToast(true);
-      
-      // Apply language changes
       applyLanguageChange();
     } catch (err) {
-      console.error('Error saving language settings:', err);
       setToastMessage('Failed to save language settings. Please try again.');
       setShowToast(true);
     } finally {
@@ -109,30 +80,25 @@ export default function LanguageSettingsPage() {
   };
 
   const applyLanguageChange = () => {
-    // Store the selected language in localStorage for persistence
     localStorage.setItem('locale', selectedLanguage);
-    
-    // Reload the page to apply the new language
-    // In a real app, you would use a more sophisticated i18n solution
-    // that doesn't require a page reload
     window.location.reload();
   };
 
-  if (isLoading) {
+  if (loading || langLoading) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading language settings..." />
+          <LoadingSpinner message={t('auto.page.Loading')} />
         </IonContent>
       </IonPage>
     );
   }
 
-  if (error) {
+  if (updateError || langError) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={loadUserData} />
+          <ErrorDisplay error={updateError?.message || langError?.message || ''} />
         </IonContent>
       </IonPage>
     );
@@ -143,7 +109,7 @@ export default function LanguageSettingsPage() {
       <IonPage>
         <IonContent className="bg-[#0f172a]">
           <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4">Please login to access language settings</p>
+            <p className="text-gray-400 mb-4"{t('auto.page.Pleasel')}/p>
             <button
               onClick={() => router.push('/mobile/auth/login')}
               className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
@@ -160,7 +126,7 @@ export default function LanguageSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Language Settings</IonTitle>
+          <IonTitle{t('auto.page.Language')}/IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -177,7 +143,7 @@ export default function LanguageSettingsPage() {
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>AVAILABLE LANGUAGES</IonLabel>
+              <IonLabel{t('auto.page.AVAILABL')}/IonLabel>
             </IonItemDivider>
             
             <IonRadioGroup value={selectedLanguage} onIonChange={e => setSelectedLanguage(e.detail.value)}>

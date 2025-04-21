@@ -2,6 +2,12 @@
 
 本文档详细说明了如何使用 HeyTCM vibe coding starter 来开发新的应用程序，从原型到首次实现的全过程。
 
+## 贡献者须知
+
+- 本项目采用分层文档结构，所有贡献流程、开发规范与最佳实践以 [CONTRIBUTION.md](./CONTRIBUTION.md) 和 [guides/README.md](./docs/guides/README.md) 为权威。
+- 贡献前请仔细阅读本指南与 CONTRIBUTION.md，确保开发、文档、分支、命名等均符合团队标准。
+- 所有开发建议优先采用 AI 辅助范式，具体流程见下文。
+
 ## 1. 开发流程概述
 
 Vibe Coding 是一种基于文档和提示词的 AI 辅助开发方法，主要包含以下阶段：
@@ -25,6 +31,8 @@ Vibe Coding 是一种基于文档和提示词的 AI 辅助开发方法，主要�
    - 环境配置
    - 构建和打包
    - 发布准备
+
+> 详细贡献流程、分支策略、PR 模板、代码风格等请参见 [CONTRIBUTION.md](./CONTRIBUTION.md)。
 
 ## 2. 原型分析阶段
 
@@ -292,4 +300,4 @@ Vibe Coding 是一种基于文档和提示词的 AI 辅助开发方法，主要�
 - `scripts/generate-task-plan.sh`: 任务计划生成脚本
 - `scripts/check-environment.sh`: 环境检查脚本
 - `scripts/init-project.sh`: 项目初始化脚本
-- `scripts/validate-config.sh`: 配置验证脚本 
+- `scripts/validate-config.sh`: 配置验证脚本

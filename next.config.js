@@ -7,15 +7,6 @@ const nextConfig = {
       allowedOrigins: ['localhost:3000'],
     },
   },
-  // 配置国际化支持
-  i18n: {
-    // 支持的语言列表
-    locales: ['en', 'zh'],
-    // 默认语言
-    defaultLocale: 'en',
-    // 自动检测用户语言
-    localeDetection: true,
-  },
   // 配置图像优化
   images: {
     domains: ['localhost'],

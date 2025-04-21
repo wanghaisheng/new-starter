@@ -53,7 +53,7 @@
 ### 目录结构
 
 ```
-src/core/services-update/payment/
+src/core/services/payment/
 ├── types/               # 支付服务类型
 │   ├── payment-service.ts  # 支付服务接口
 │   ├── web-payment.ts     # Web支付类型

@@ -27,52 +27,55 @@ import {
   globeOutline,
   shareSocialOutline
 } from 'ionicons/icons';
-import { useServices } from '@/core/hooks/useServices';
+import { useUser } from '@/core/hooks/useUser';
 import { User } from '@/core/lib/db/types/user';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { useContactSetting } from '@/core/hooks/useSetting';
 
 export default function ContactSettingsPage() {
   const router = useRouter();
-  const { userService, isLoading, error } = useServices();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading: userLoading, updateError } = useUser();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const { contact, loading, error, updateContact, loadContact } = useContactSetting(user?.id || '');
 
   useEffect(() => {
-    loadUserData();
-  }, [userService]);
-
-  const loadUserData = async () => {
-    if (!userService) return;
-
-    try {
-      const currentUser = await userService.getCurrentUser();
-      if (!currentUser) {
-        setToastMessage('Please login first');
-        setShowToast(true);
-        return;
-      }
-      setUser(currentUser);
-    } catch (err) {
-      console.error('Error loading user data:', err);
-      setToastMessage('Failed to load contact settings. Please try again.');
-      setShowToast(true);
+    if (user) {
+      loadContact(user);
     }
-  };
+  }, [user, loadContact]);
+
+  if (userLoading || loading) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <LoadingSpinner message={t('auto.page.Loading')} />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (updateError || error) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <ErrorDisplay error={updateError?.message || error?.message || ''} />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   const handleSave = async () => {
-    if (!user || !userService) return;
-
+    if (!user) return;
+    setIsSaving(true);
     try {
-      setIsSaving(true);
-      await userService.updateUser(user.id, user);
+      await updateContact({}, user);
       setToastMessage('Contact settings saved successfully');
       setShowToast(true);
     } catch (err) {
-      console.error('Error saving contact settings:', err);
       setToastMessage('Failed to save contact settings. Please try again.');
       setShowToast(true);
     } finally {
@@ -82,45 +85,14 @@ export default function ContactSettingsPage() {
 
   const updateContactSettings = (updates: Partial<User>) => {
     if (!user) return;
-    setUser({
-      ...user,
-      ...updates
-    });
+    updateContact(updates, user);
   };
 
-  if (isLoading) {
+  if (!user || !contact) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading contact settings..." />
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  if (error) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={loadUserData} />
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  if (!user) {
-    return (
-      <IonPage>
-        <IonContent className="bg-[#0f172a]">
-          <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4">Please login to access contact settings</p>
-            <button
-              onClick={() => router.push('/mobile/auth/login')}
-              className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
-            >
-              Sign In
-            </button>
-          </div>
+          <LoadingSpinner message={t('auto.page.Loading')} />
         </IonContent>
       </IonPage>
     );
@@ -130,7 +102,7 @@ export default function ContactSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Contact Settings</IonTitle>
+          <IonTitle{t('auto.page.Contact')}/IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -141,45 +113,45 @@ export default function ContactSettingsPage() {
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>CONTACT INFORMATION</IonLabel>
+              <IonLabel{t('auto.page.CONTACT')}/IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={mailOutline} slot="start" />
-              <IonLabel position="stacked">Email Address</IonLabel>
+              <IonLabel position="stacked"{t('auto.page.EmailAd')}/IonLabel>
               <IonInput
                 type="email"
-                value={user.email}
+                value={contact.email}
                 onIonInput={e => updateContactSettings({ email: e.detail.value! })}
-                placeholder="Enter your email"
+                placeholder={t('auto.page.Enteryo')}
               />
             </IonItem>
             
             <IonItem>
               <IonIcon icon={callOutline} slot="start" />
-              <IonLabel position="stacked">Phone Number</IonLabel>
+              <IonLabel position="stacked"{t('auto.page.PhoneNu')}/IonLabel>
               <IonInput
                 type="tel"
-                value={user.phone}
+                value={contact.phone}
                 onIonInput={e => updateContactSettings({ phone: e.detail.value! })}
-                placeholder="Enter your phone number"
+                placeholder={t('auto.page.Enteryo')}
               />
             </IonItem>
           </IonItemGroup>
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>VISIBILITY</IonLabel>
+              <IonLabel{t('auto.page.VISIBILI')}/IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={globeOutline} slot="start" />
-              <IonLabel>Show Email to Matches</IonLabel>
+              <IonLabel{t('auto.page.ShowEma')}/IonLabel>
               <IonToggle
-                checked={user.privacySettings?.showEmailToMatches}
+                checked={contact.privacySettings?.showEmailToMatches}
                 onIonChange={e => updateContactSettings({
                   privacySettings: {
-                    ...user.privacySettings,
+                    ...contact.privacySettings,
                     showEmailToMatches: e.detail.checked
                   }
                 })}
@@ -188,12 +160,12 @@ export default function ContactSettingsPage() {
             
             <IonItem>
               <IonIcon icon={callOutline} slot="start" />
-              <IonLabel>Show Phone to Matches</IonLabel>
+              <IonLabel{t('auto.page.ShowPho')}/IonLabel>
               <IonToggle
-                checked={user.privacySettings?.showPhoneToMatches}
+                checked={contact.privacySettings?.showPhoneToMatches}
                 onIonChange={e => updateContactSettings({
                   privacySettings: {
-                    ...user.privacySettings,
+                    ...contact.privacySettings,
                     showPhoneToMatches: e.detail.checked
                   }
                 })}
@@ -203,17 +175,17 @@ export default function ContactSettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>SHARING</IonLabel>
+              <IonLabel{t('auto.page.SHARING')}/IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={shareSocialOutline} slot="start" />
-              <IonLabel>Allow Profile Sharing</IonLabel>
+              <IonLabel{t('auto.page.AllowPr')}/IonLabel>
               <IonToggle
-                checked={user.privacySettings?.allowProfileSharing}
+                checked={contact.privacySettings?.allowProfileSharing}
                 onIonChange={e => updateContactSettings({
                   privacySettings: {
-                    ...user.privacySettings,
+                    ...contact.privacySettings,
                     allowProfileSharing: e.detail.checked
                   }
                 })}

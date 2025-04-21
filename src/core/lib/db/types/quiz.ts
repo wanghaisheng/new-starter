@@ -1,6 +1,8 @@
 // Quiz 数据模型和类型定义，原 test 类型迁移
 
 // 测评类型
+  // type: 'mbti' | 'bazi' | 'wuxing' | 'tcm' | 'soulmate';
+
 export interface QuizType {
   id: string;
   name: string;

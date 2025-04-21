@@ -1,4 +1,5 @@
 import { BaseEntity } from './base-entity';
+import { User } from './user';
 
 /**
  * 匹配实体接口
@@ -22,6 +23,12 @@ export interface Match extends BaseEntity {
    * - rejected: 已拒绝
    */
   status: 'pending' | 'matched' | 'rejected';
+  
+  /**
+   * 匹配用户详情（可选）
+   * 页面展示时可用，便于前端直接渲染
+   */
+  userDetails?: User[];
 }
 
 /**

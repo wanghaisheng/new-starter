@@ -50,9 +50,10 @@ export const versionManager = VersionManager.getInstance();
 // 这样可以确保schema registry已初始化
 
 // 导入所有表结构定义（但不立即注册）
-// 其他模式定义导入
-// import './definitions/user-schema';
-// import './definitions/message-schema';
+import './definitions/user-schema';
+import './definitions/match-schema';
+import './definitions/message-schema';
+import './definitions/translation-schema';
 
 /**
  * 初始化所有模式

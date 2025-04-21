@@ -54,7 +54,7 @@
 ### 目录结构
 
 ```
-src/core/services-update/messaging/
+src/core/services/messaging/
 ├── types/               # 消息服务类型
 │   ├── messaging-service.ts  # 消息服务接口
 │   ├── realtime.ts      # 实时消息类型

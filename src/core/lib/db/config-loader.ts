@@ -1,5 +1,5 @@
 import type { DatabaseConfig, StorageType } from '@/core/lib/db/types/database.types';
-import { logger } from '@/core/lib/logger';
+import { logger } from '@/core/services/infrastructure/logger/logger-service';
 import fs from 'fs';
 import path from 'path';
 import { SUPPORTED_STORAGE_TYPES, SUPPORTED_OFFLINE_STORAGE_TYPES, defaultConfig } from '@/core/lib/db/types/database.types';

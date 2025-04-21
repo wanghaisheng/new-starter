@@ -37,7 +37,7 @@ export default function AboutSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>About</IonTitle>
+          <IonTitle{t('auto.page.About')}/IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -48,10 +48,10 @@ export default function AboutSettingsPage() {
         <div className="flex flex-col items-center justify-center py-8">
           <img
             src="/assets/images/logo.png"
-            alt="HeyTCM Logo"
+            alt={t('auto.page.HeyTCML')}
             className="w-24 h-24 mb-4"
           />
-          <h1 className="text-2xl font-bold text-white mb-2">HeyTCM</h1>
+          <h1 className="text-2xl font-bold text-white mb-2"{t('auto.page.HeyTCM')}/h1>
           <p className="text-gray-400 text-center px-4">
             Connecting people through meaningful relationships
           </p>
@@ -60,65 +60,65 @@ export default function AboutSettingsPage() {
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>APP INFORMATION</IonLabel>
+              <IonLabel{t('auto.page.APPINFO')}/IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={informationCircleOutline} slot="start" />
-              <IonLabel>Version</IonLabel>
+              <IonLabel{t('auto.page.Version')}/IonLabel>
               <IonNote slot="end">{appVersion} ({buildNumber})</IonNote>
             </IonItem>
             
             <IonItem>
               <IonIcon icon={codeOutline} slot="start" />
-              <IonLabel>Build Date</IonLabel>
+              <IonLabel{t('auto.page.BuildDa')}/IonLabel>
               <IonNote slot="end">{process.env.NEXT_PUBLIC_BUILD_DATE || 'Development'}</IonNote>
             </IonItem>
           </IonItemGroup>
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>LINKS</IonLabel>
+              <IonLabel{t('auto.page.LINKS')}/IonLabel>
             </IonItemDivider>
             
             <IonItem button onClick={() => window.open('https://github.com/your-org/heytcm', '_blank')}>
               <IonIcon icon={logoGithub} slot="start" />
-              <IonLabel>GitHub</IonLabel>
+              <IonLabel{t('auto.page.GitHub')}/IonLabel>
             </IonItem>
             
             <IonItem button onClick={() => window.open('https://twitter.com/heytcm', '_blank')}>
               <IonIcon icon={logoTwitter} slot="start" />
-              <IonLabel>Twitter</IonLabel>
+              <IonLabel{t('auto.page.Twitter')}/IonLabel>
             </IonItem>
             
             <IonItem button onClick={() => window.open('https://heytcm.com', '_blank')}>
               <IonIcon icon={globeOutline} slot="start" />
-              <IonLabel>Website</IonLabel>
+              <IonLabel{t('auto.page.Website')}/IonLabel>
             </IonItem>
           </IonItemGroup>
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>LEGAL</IonLabel>
+              <IonLabel{t('auto.page.LEGAL')}/IonLabel>
             </IonItemDivider>
             
             <IonItem button onClick={() => router.push('/mobile/settings/terms')}>
               <IonIcon icon={informationCircleOutline} slot="start" />
-              <IonLabel>Terms of Service</IonLabel>
+              <IonLabel{t('auto.page.Termsof')}/IonLabel>
             </IonItem>
             
             <IonItem button onClick={() => router.push('/mobile/settings/privacy-policy')}>
               <IonIcon icon={informationCircleOutline} slot="start" />
-              <IonLabel>Privacy Policy</IonLabel>
+              <IonLabel{t('auto.page.Privacy')}/IonLabel>
             </IonItem>
           </IonItemGroup>
         </IonList>
         
         <div className="p-4 text-center text-gray-400">
-          <p className="mb-2">Made with</p>
+          <p className="mb-2"{t('auto.page.Madewit')}/p>
           <IonIcon icon={heartOutline} className="text-pink-500 text-xl" />
           <p className="mt-4 text-sm">
-            © {new Date().getFullYear()} HeyTCM. All rights reserved.
+            {new Date().getFullYear()} HeyTCM. All rights reserved.
           </p>
         </div>
       </IonContent>

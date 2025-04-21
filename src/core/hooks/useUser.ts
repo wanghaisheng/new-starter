@@ -1,112 +1,64 @@
-import { useState, useEffect, useCallback } from 'react';
-import { UserService } from '@/core/services/data/user-service';
-import type { User } from '@/core/lib/db/types';
-import { useAuth } from './useAuth';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { UserServiceRegistry } from '@/core/services/business/user/registry/user-service-registry';
+import type { User } from '@/core/lib/db/types/user';
+import { useToast } from './useToast';
+import type { IUserService } from '@/core/services/business/user/types/user-service';
 
-export interface UserState {
-  user: User | null;
-  loading: boolean;
-  error: Error | null;
-  isAuthenticated: boolean;
-}
+export function useUser(userId: string) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<null | { type: string; message: string }>(null);
+  const [empty, setEmpty] = useState(false);
+  const { triggerToast } = useToast();
+  const serviceRef = useRef<IUserService | null>(null);
 
-export function useUser() {
-  const { user: authUser, isAuthenticated } = useAuth();
-  const [state, setState] = useState<UserState>({
-    user: null,
-    loading: true,
-    error: null,
-    isAuthenticated: false
-  });
-
-  const userService = UserService.getInstance();
-
-  // 加载用户数据
-  const loadUser = useCallback(async () => {
-    if (!authUser) {
-      setState(prev => ({ ...prev, loading: false, isAuthenticated: false }));
-      return;
-    }
-
-    try {
-      const user = await userService.getUserById(authUser.id);
-      setState(prev => ({
-        ...prev,
-        user,
-        loading: false,
-        error: null,
-        isAuthenticated: true
-      }));
-    } catch (err) {
-      setState(prev => ({
-        ...prev,
-        error: err instanceof Error ? err : new Error('Failed to load user'),
-        loading: false
-      }));
-    }
-  }, [authUser, userService]);
-
-  // 初始化加载用户数据
   useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+    // 统一通过 Registry 获取服务实例，参数类型安全
+    const allowedTypes = ['mock', 'remote', 'hybrid'] as const;
+    type UserServiceType = typeof allowedTypes[number];
+    const envType = process.env.NEXT_PUBLIC_USER_SERVICE_TYPE;
+    const type: UserServiceType = allowedTypes.includes(envType as UserServiceType)
+      ? (envType as UserServiceType)
+      : (process.env.NODE_ENV === 'development' ? 'mock' : 'remote');
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
+    const provider = UserServiceRegistry.getProvider(type, apiBaseUrl, 'default');
+    serviceRef.current = provider ? provider() : null;
+    if (userId) fetchUser(userId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
-  // 更新用户数据
-  const updateUser = useCallback(async (updates: Partial<User>) => {
-    if (!state.user) {
-      throw new Error('No user to update');
-    }
-
-    setState(prev => ({ ...prev, loading: true, error: null }));
+  const fetchUser = useCallback(async (uid: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      const updatedUser = await userService.updateUser(state.user.id, updates);
-      setState(prev => ({
-        ...prev,
-        user: updatedUser,
-        loading: false
-      }));
-      return updatedUser;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to update user');
-      setState(prev => ({
-        ...prev,
-        error,
-        loading: false
-      }));
-      throw error;
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      const data = await serviceRef.current.getUserById(uid);
+      setUser(data);
+      setEmpty(!data);
+    } catch (err: any) {
+      setError({ type: 'fetch', message: err?.message || '获取用户信息失败' });
+      setEmpty(true);
+      triggerToast(err?.message || '获取用户信息失败');
+    } finally {
+      setLoading(false);
     }
-  }, [state.user, userService]);
+  }, [triggerToast]);
 
-  // 删除用户
-  const deleteUser = useCallback(async () => {
-    if (!state.user) {
-      throw new Error('No user to delete');
-    }
-
-    setState(prev => ({ ...prev, loading: true, error: null }));
+  // 用户信息更新
+  const updateUser = useCallback(async (uid: string, updateData: Partial<User>) => {
+    setLoading(true);
+    setError(null);
     try {
-      await userService.deleteUser(state.user.id);
-      setState(prev => ({
-        ...prev,
-        user: null,
-        loading: false,
-        isAuthenticated: false
-      }));
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to delete user');
-      setState(prev => ({
-        ...prev,
-        error,
-        loading: false
-      }));
-      throw error;
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      await serviceRef.current.updateUser(uid, updateData);
+      await fetchUser(uid);
+    } catch (err: any) {
+      setError({ type: 'update', message: err?.message || '更新用户信息失败' });
+      triggerToast(err?.message || '更新用户信息失败');
+    } finally {
+      setLoading(false);
     }
-  }, [state.user, userService]);
+  }, [fetchUser, triggerToast]);
 
-  return {
-    ...state,
-    updateUser,
-    deleteUser,
-    refresh: loadUser
-  };
-} 
+  return { user, loading, error, empty, fetchUser, updateUser };
+}

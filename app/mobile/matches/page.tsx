@@ -9,6 +9,7 @@ import { useMatches } from '@/core/hooks/useMatches';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
 interface Match {
   users: string[];
@@ -16,6 +17,7 @@ interface Match {
 }
 
 export default function MatchesPage() {
+  useRequireAuth();
   const router = useRouter();
   const { matches, matchedUsers, loading, error, getUserMatches, getMatchedUsers } = useMatches();
   const [showToast, setShowToast] = useState(false);
@@ -32,10 +34,11 @@ export default function MatchesPage() {
       if (matches.length > 0) {
         await getMatchedUsers(matches[0].users[0]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading matches:', err);
-      setToastMessage('Failed to load matches. Please try again.');
+      setToastMessage(err.message || 'Failed to load matches. Please try again.');
       setShowToast(true);
+      // 可在此处添加埋点 logEvent('matches_load_failed', { error: err.message })
     }
   };
   
@@ -47,7 +50,7 @@ export default function MatchesPage() {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading matches..." />
+          <LoadingSpinner message={t('auto.page.Loading')} />
         </IonContent>
       </IonPage>
     );
@@ -67,11 +70,11 @@ export default function MatchesPage() {
     <IonPage>
       <IonContent className="bg-[#0f172a]">
         <div className="p-4">
-          <h1 className="text-2xl font-bold text-white mb-6">Your Matches</h1>
+          <h1 className="text-2xl font-bold text-white mb-6"{t('auto.page.YourMat')}/h1>
           
           {matchedUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-[60vh]">
-              <p className="text-gray-400 mb-4">No matches yet</p>
+              <p className="text-gray-400 mb-4"{t('auto.page.Nomatch')}/p>
               <button
                 onClick={() => router.push('/mobile/discover')}
                 className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"

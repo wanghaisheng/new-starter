@@ -119,7 +119,7 @@ IndexedDBClient 集成了同步框架，可以在离线环境下工作，并在�
 
 ### 配置离线同步
 
-在 `.env.development` 文件中添加以下配置:
+在 `.env.development` 文件中添加以下配置：
 
 ```
 # 启用离线存储和同步
@@ -139,7 +139,7 @@ INDEXEDDB_VERSION=1
 ```typescript
 import { IndexedDBClient, IndexedDBConfig } from '@/core/lib/db/clients/indexeddb';
 import { SyncManager } from '@/core/lib/db/sync/sync-manager';
-import { createNetworkManager } from '@/core/lib/network/network-manager';
+import { createNetworkManager } from '@/core/services/infrastructure/network/network-manager';
 
 // 1. 创建网络管理器
 const networkManager = createNetworkManager();

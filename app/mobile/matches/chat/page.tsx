@@ -8,57 +8,32 @@ import { User } from '@/core/lib/db/types/user';
 import { Message } from '@/core/lib/db/types/message';
 import { useAuth } from '@/core/hooks/useAuth';
 import { useUser } from '@/core/hooks/useUser';
-import { MessageServiceFactory } from '@/core/services-update/business/messages/factory/message-service-factory';
+import { useMessages } from '@/core/hooks/useMessages';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
-import MessageInput from '@/mobile/components/MessageInput';
+import MessageInput from '@/core/components/messages/MessageInput';
 
 export default function ChatPage() {
+  useRequireAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user: currentUser } = useAuth();
   const { loading: userLoading, error: userError } = useUser();
-  const [otherUser, setOtherUser] = useState<User | null>(null);
+  const userId = searchParams.get('id');
+  const { messages, fetchMessages, sendMessage, updateMessage, deleteMessage, reloadMessages, loading, fetchError, sendError, updateError, deleteError, empty } = useMessages(userId);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [isLoadingUser, setIsLoadingUser] = useState(false);
-  const [otherUserError, setOtherUserError] = useState<Error | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const userId = searchParams.get('id');
-  const isLoading = userLoading || isLoadingUser;
-  const error = userError || otherUserError;
-  
-  const msgService = MessageServiceFactory.createService('advanced-hybrid');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const isLoading = userLoading || loading;
+  const combinedError = userError || fetchError || sendError || updateError || deleteError;
 
   useEffect(() => {
     if (userId) {
-      loadChat();
+      fetchMessages();
     }
-  }, [userId]);
-
-  useEffect(() => {
-    let unsub: (() => void) | undefined;
-    setLoading(true);
-    msgService.getMessagesByPage(userId, 0, 50)
-      .then((msgs: Message[]) => {
-        setMessages(msgs);
-        setLoading(false);
-        scrollToBottom();
-      })
-      .catch(e => { setOtherUserError('加载消息失败'); setLoading(false); });
-    // 监听消息变更
-    if (msgService.onMessageChange) {
-      unsub = msgService.onMessageChange((msgs: Message[]) => {
-        setMessages(msgs.filter(m => m.matchId === userId));
-        scrollToBottom();
-      });
-    }
-    return () => { if (unsub) unsub(); };
-  }, [userId]);
+  }, [userId, fetchMessages]);
 
   // 自动滚动到底部
   const scrollToBottom = () => {
@@ -68,25 +43,26 @@ export default function ChatPage() {
   // 发送消息（支持富媒体）
   const handleSendMessage = async (content: string, type: 'text' | 'image' = 'text', mediaUrl?: string) => {
     try {
-      await msgService.sendRichMessage({
+      await sendMessage({
         matchId: userId,
         senderId: currentUser.id,
         receiverId: userId,
         content,
         type,
-        mediaUrl
+        mediaUrl,
       });
+      scrollToBottom();
     } catch (e) {
-      setToastMessage('发送失败');
+      setToastMessage('发送失败，请重试');
       setShowToast(true);
     }
   };
 
   // 渲染消息列表
   const renderMessages = () => {
-    if (isLoading) return <div className="p-4 text-center">加载中...</div>;
-    if (error) return <div className="p-4 text-center text-red-500">{error.toString()}</div>;
-    if (messages.length === 0) return <div className="p-4 text-center text-gray-400">暂无消息</div>;
+    if (isLoading) return <div className="p-4 text-center"{t('auto.page.')}/div>;
+    if (combinedError) return <div className="p-4 text-center text-red-500">{combinedError.toString()}</div>;
+    if (messages.length === 0) return <div className="p-4 text-center text-gray-400"{t('auto.page.')}/div>;
     return (
       <div className="flex flex-col gap-2">
         {messages.map(msg => (
@@ -97,46 +73,21 @@ export default function ChatPage() {
     );
   };
 
-  const loadChat = async () => {
-    if (!userId) return;
-    
-    try {
-      // Load other user's profile using API
-      setIsLoadingUser(true);
-      setOtherUserError(null);
-      
-      const response = await fetch(`/api/users/${userId}`);
-      if (!response.ok) {
-        throw new Error('User not found');
-      }
-      
-      const user = await response.json();
-      setOtherUser(user);
-    } catch (err) {
-      console.error('Error loading chat:', err);
-      setOtherUserError(err instanceof Error ? err : new Error('Failed to load user'));
-      setToastMessage('Failed to load chat. Please try again.');
-      setShowToast(true);
-    } finally {
-      setIsLoadingUser(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading chat..." />
+          <LoadingSpinner message={t('auto.page.Loading')} />
         </IonContent>
       </IonPage>
     );
   }
 
-  if (error) {
+  if (fetchError || sendError || updateError || deleteError) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={loadChat} />
+          <ErrorDisplay error={(fetchError || sendError || updateError || deleteError)?.toString()} />
         </IonContent>
       </IonPage>
     );
@@ -157,16 +108,16 @@ export default function ChatPage() {
             
             <div className="relative w-10 h-10 mr-3">
               <Image
-                src={otherUser?.photos?.[0]?.url || '/assets/images/profile-placeholder.jpg'}
-                alt={otherUser?.name || 'User'}
+                src={'/assets/images/profile-placeholder.jpg'}
+                alt={'User'}
                 fill
                 className="object-cover rounded-full"
               />
             </div>
             
             <div>
-              <h2 className="font-semibold">{otherUser?.name}</h2>
-              <p className="text-sm text-gray-500">Online</p>
+              <h2 className="font-semibold"{t('auto.page.User')}/h2>
+              <p className="text-sm text-gray-500"{t('auto.page.Online')}/p>
             </div>
           </div>
           

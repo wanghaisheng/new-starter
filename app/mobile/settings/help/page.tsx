@@ -73,7 +73,7 @@ export default function HelpSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Help & Support</IonTitle>
+          <IonTitle{t('auto.page.HelpS')}/IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -84,32 +84,32 @@ export default function HelpSettingsPage() {
         <IonSearchbar
           value={searchText}
           onIonInput={e => setSearchText(e.detail.value!)}
-          placeholder="Search help topics"
+          placeholder={t('auto.page.Searchh')}
           className="px-4 py-2"
         />
         
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>CONTACT SUPPORT</IonLabel>
+              <IonLabel{t('auto.page.CONTACT')}/IonLabel>
             </IonItemDivider>
             
             <IonItem button onClick={() => router.push('/mobile/settings/help/chat')}>
               <IonIcon icon={chatbubbleOutline} slot="start" />
-              <IonLabel>Live Chat</IonLabel>
-              <IonNote slot="end">24/7 Support</IonNote>
+              <IonLabel{t('auto.page.LiveCha')}/IonLabel>
+              <IonNote slot="end"{t('auto.page.247Sup')}/IonNote>
             </IonItem>
             
             <IonItem button onClick={() => router.push('/mobile/settings/help/email')}>
               <IonIcon icon={mailOutline} slot="start" />
-              <IonLabel>Email Support</IonLabel>
-              <IonNote slot="end">support@heytcm.com</IonNote>
+              <IonLabel{t('auto.page.EmailSu')}/IonLabel>
+              <IonNote slot="end"{t('auto.page.support')}/IonNote>
             </IonItem>
           </IonItemGroup>
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>FREQUENTLY ASKED QUESTIONS</IonLabel>
+              <IonLabel{t('auto.page.FREQUENT')}/IonLabel>
             </IonItemDivider>
             
             <IonAccordionGroup
@@ -136,17 +136,17 @@ export default function HelpSettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel>LEGAL</IonLabel>
+              <IonLabel{t('auto.page.LEGAL')}/IonLabel>
             </IonItemDivider>
             
             <IonItem button onClick={() => router.push('/mobile/settings/terms')}>
               <IonIcon icon={documentTextOutline} slot="start" />
-              <IonLabel>Terms of Service</IonLabel>
+              <IonLabel{t('auto.page.Termsof')}/IonLabel>
             </IonItem>
             
             <IonItem button onClick={() => router.push('/mobile/settings/privacy-policy')}>
               <IonIcon icon={documentTextOutline} slot="start" />
-              <IonLabel>Privacy Policy</IonLabel>
+              <IonLabel{t('auto.page.Privacy')}/IonLabel>
             </IonItem>
           </IonItemGroup>
         </IonList>

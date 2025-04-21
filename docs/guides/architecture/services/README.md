@@ -144,6 +144,39 @@ const testData = {
    - 确保数据一致性
    - 处理类型映射
 
+## 基础服务（如 Logger）使用规范
+
+### 统一获取方式
+
+所有基础服务（如 Logger、配置、全局状态等）必须通过服务注册表（Registry Pattern）统一获取，禁止直接实例化或绕过注册表调用工厂方法。
+
+#### Logger 使用示例
+
+```typescript
+// 推荐方式：通过 getLoggerService() 获取实例
+import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
+
+const logger = getLoggerService();
+logger.info('日志内容');
+```
+
+- **禁止** 直接调用 `LoggerService.getInstance()` 或 `new LoggerService()`。
+- **禁止** 直接 import 具体 Logger 实现（如 `MockLoggerAdapter`、`WinstonLoggerAdapter`）。
+- 仅在 logger 注册表、工厂内部允许引用具体实现。
+
+### 适用范围
+- 所有业务代码、hooks、服务层、API 路由等均须通过注册表获取基础服务。
+- 新增基础服务时，需先注册到服务注册表，并在文档中补充用法说明。
+
+### 设计原则
+- 保证服务实例唯一性与可配置性。
+- 支持环境切换与自动降级（如 mock/test 环境自动切换 Logger 实现）。
+- 便于后续扩展与维护。
+
+### 相关文件
+- `src/core/services/infrastructure/logger/registry/logger-registry.ts`
+- `src/core/services/infrastructure/logger/service/logger-service.ts`
+
 ## 环境切换
 
 ### 环境配置
@@ -306,7 +339,7 @@ export async function POST(req: Request) {
 ## 文件夹结构
 
 ```
-src/core/services-update/
+src/core/services/
 ├── README.md                 # 服务层设计文档
 ├── types/                    # 类型定义
 │   ├── base.ts              # 基础服务接口
@@ -598,7 +631,7 @@ src/core/services-update/
 
 1. **创建适配器**
    ```typescript
-   // src/core/services-update/auth/adapters/nextauth/nextauth-auth-service.ts
+   // src/core/services/auth/adapters/nextauth/nextauth-auth-service.ts
    import { IAuthService } from '../../types/auth-service';
    import { ServiceConfig } from '../../../types/config';
    import { User } from '@/core/lib/db/types/user';
@@ -624,7 +657,7 @@ src/core/services-update/
 
 2. **注册提供者**
    ```typescript
-   // src/core/services-update/auth/registry/auth-registry.ts
+   // src/core/services/auth/registry/auth-registry.ts
    import { NextAuthAuthService } from '../adapters/nextauth/nextauth-auth-service';
 
    export class AuthServiceRegistry extends BaseServiceRegistry<IAuthService> {
@@ -638,7 +671,7 @@ src/core/services-update/
 
 3. **更新配置类型**
    ```typescript
-   // src/core/services-update/types/config.ts
+   // src/core/services/types/config.ts
    export interface AuthConfig {
      type: 'mock' | 'firebase' | 'better' | 'nextauth' | 'clerk';
      // NextAuth 特定配置
@@ -660,7 +693,7 @@ src/core/services-update/
 
 1. **创建适配器**
    ```typescript
-   // src/core/services-update/auth/adapters/clerk/clerk-auth-service.ts
+   // src/core/services/auth/adapters/clerk/clerk-auth-service.ts
    import { Clerk } from '@clerk/backend';
 
    export class ClerkAuthService implements IAuthService {
@@ -683,7 +716,7 @@ src/core/services-update/
 
 1. **创建混合存储适配器**
    ```typescript
-   // src/core/services-update/data/adapters/hybrid/hybrid-data-service.ts
+   // src/core/services/data/adapters/hybrid/hybrid-data-service.ts
    export class HybridDataService implements IDataService {
      private onlineDb: any;
      private offlineDb: any;
@@ -710,7 +743,7 @@ src/core/services-update/
 
 2. **同步策略配置**
    ```typescript
-   // src/core/services-update/types/config.ts
+   // src/core/services/types/config.ts
    export interface DataConfig {
      type: 'mock' | 'firebase' | 'better' | 'hybrid';
      // 混合存储配置
@@ -734,7 +767,7 @@ src/core/services-update/
 
 3. **同步管理器实现**
    ```typescript
-   // src/core/services-update/data/sync/sync-manager.ts
+   // src/core/services/data/sync/sync-manager.ts
    export class SyncManager {
      constructor(private config: SyncConfig) {}
 
@@ -1062,8 +1095,8 @@ src/core/services-update/
 
 3. **跨平台应用**
    - 统一接口
-   - 环境感知
-   - 自动适配
+   - 平台特定实现
+   - 混合策略
 
 ## 认证服务方案
 
@@ -1100,20 +1133,6 @@ src/core/services-update/
      - 实时游戏服务
      - 多人游戏支持
      - 游戏分析
-
-3. **企业认证**
-   - **Auth0**
-     - 企业级安全
-     - 单点登录
-     - 合规认证
-   - **Okta**
-     - 身份管理
-     - 访问控制
-     - 安全策略
-   - **Keycloak**
-     - 开源解决方案
-     - 自定义主题
-     - 多租户支持
 
 ### 认证配置示例
 
@@ -1864,7 +1883,7 @@ src/core/services-update/
    - 统一接口设计
    - 模块化实现
    - 错误处理
-   - 性能优化
+   - 性能监控
 
 3. **监控和维护**
    - 服务健康检查

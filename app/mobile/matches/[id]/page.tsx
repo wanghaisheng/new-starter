@@ -16,145 +16,118 @@ import {
 import { useParams } from 'next/navigation';
 import { User } from '@/core/lib/db/types/user';
 import { Match } from '@/core/lib/db/types/match';
-import { UserService } from '@/core/services/user-service';
-import { MessageService } from '@/core/services/message-service';
-import RealTimeChat from '@/mobile/components/messages/RealTimeChat';
-import MessageInput from '@/mobile/components/messages/MessageInput';
+import { useUser } from '@/core/hooks/useUser';
+import { useMatches } from '@/core/hooks/useMatches';
+import { useMessages } from '@/core/hooks/useMessages';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
+import RealTimeChat from '@/core/components/messages/RealTimeChat';
+import MessageInput from '@/core/components/messages/MessageInput';
+
+// 修复与规范：
+// 1. 统一 service/hook 获取用户、配对、消息数据
+// 2. 所有异常、加载、无数据状态均有兜底提示
+// 3. 变量命名、注释、toast 反馈优化
 
 export default function ChatPage() {
+  useRequireAuth();
   const params = useParams();
   const matchId = params.id as string;
-  
+  // 用户信息
+  const { user, loading: userLoading, error: userError } = useUser();
+  // 匹配列表与操作
+  const { matches, loading: matchesLoading, error: matchesError } = useMatches();
+  // 消息 hooks
+  const { 
+    messages, 
+    fetchMessages, 
+    sendMessage, 
+    updateMessage, 
+    deleteMessage, 
+    reloadMessages, 
+    loading, 
+    fetchError, 
+    sendError, 
+    updateError, 
+    deleteError, 
+    empty 
+  } = useMessages(matchId);
   const [match, setMatch] = useState<Match | null>(null);
   const [matchedUser, setMatchedUser] = useState<User | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  
-  const userService = UserService.getInstance();
-  const messageService = MessageService.getInstance();
-  
+
   useEffect(() => {
-    loadChatData();
-  }, [matchId]);
-  
+    if (!userLoading && !matchesLoading) {
+      loadChatData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userLoading, matchesLoading, user, matches, matchId]);
+
   const loadChatData = async () => {
     try {
-      setIsLoading(true);
-      const currentUser = await userService.getCurrentUser();
-      if (!currentUser) {
-        setError('无法加载用户数据');
+      if (!user) {
+        setToastMessage('请先登录');
+        setShowToast(true);
         return;
       }
-      
-      setCurrentUserId(currentUser.id);
-
-      // 获取匹配信息
-      const userMatches = await userService.getMatches(currentUser.id);
-      const currentMatch = userMatches.find(m => m.id === matchId);
+      // 查找当前 match
+      const currentMatch = matches.find(m => m.id === matchId);
       if (!currentMatch) {
-        setError('找不到匹配信息');
+        setToastMessage('找不到匹配信息');
+        setShowToast(true);
         return;
       }
       setMatch(currentMatch);
-
       // 获取匹配用户信息
-      const otherUserId = currentMatch.users[0] === currentUser.id ? currentMatch.users[1] : currentMatch.users[0];
-      const user = await userService.getUserById(otherUserId);
-      if (!user) {
-        setError('找不到用户信息');
+      const otherUserId = currentMatch.users.find(id => id !== user.id);
+      if (!otherUserId) {
+        setToastMessage('找不到用户信息');
+        setShowToast(true);
         return;
       }
-      setMatchedUser(user);
-    } catch (err) {
-      console.error('Error loading chat data:', err);
-      setError('加载聊天数据时出错');
-      setToastMessage('加载失败，请重试');
+      const matched = currentMatch.userDetails?.find(u => u.id === otherUserId) || null;
+      setMatchedUser(matched);
+      // 加载消息
+      await fetchMessages();
+    } catch (err: any) {
+      setToastMessage('加载聊天数据时出错');
       setShowToast(true);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleSendMessage = async (content: string): Promise<void> => {
-    if (!content.trim() || !match || !matchedUser || !currentUserId) {
-      setToastMessage('发送失败：消息为空或用户未登录');
-      setShowToast(true);
-      return Promise.reject(new Error('消息为空或用户未登录'));
-    }
-
     try {
-      // 获取匹配用户ID
-      const receiverId = match.users.find(id => id !== currentUserId);
-      if (!receiverId) {
-        setToastMessage('发送失败：找不到接收者');
-        setShowToast(true);
-        return Promise.reject(new Error('找不到接收者'));
-      }
-
-      // 使用MessageService发送消息
-      const result = await messageService.sendMessage(
+      if (!user || !matchedUser) throw new Error('用户信息缺失');
+      await sendMessage({
         matchId,
-        currentUserId,
-        receiverId,
-        content.trim()
-      );
-      
-      if (!result.success) {
-        const errorMsg = result.errors?.join(', ') || '发送失败';
-        setToastMessage(errorMsg);
-        setShowToast(true);
-        return Promise.reject(new Error(errorMsg));
-      }
-      
-      return Promise.resolve();
-    } catch (err) {
-      console.error('Error sending message:', err);
-      setToastMessage('发送失败，请重试');
+        senderId: user.id,
+        receiverId: matchedUser.id,
+        content,
+      });
+    } catch (err: any) {
+      setToastMessage(err.message || '发送消息失败');
       setShowToast(true);
-      return Promise.reject(err);
     }
   };
 
-  if (isLoading) {
+  if (userLoading || matchesLoading || loading) {
     return (
       <IonPage>
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle>聊天</IonTitle>
-            <IonButtons slot="start">
-              <IonBackButton defaultHref="/matches" />
-            </IonButtons>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent className="ion-padding">
-          <div className="flex items-center justify-center h-full">
-            <IonLoading isOpen={true} message="加载中..." />
-          </div>
+        <IonContent className="bg-[#0f172a]">
+          <IonLoading isOpen={true} message={t('auto.page.')} />
         </IonContent>
       </IonPage>
     );
   }
-
-  if (error || !match || !matchedUser) {
+  if (userError || matchesError || fetchError || sendError || updateError || deleteError) {
     return (
       <IonPage>
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle>聊天</IonTitle>
-            <IonButtons slot="start">
-              <IonBackButton defaultHref="/matches" />
-            </IonButtons>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent className="ion-padding">
+        <IonContent className="bg-[#0f172a]">
           <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-red-500 mb-4">{error || '无法加载聊天数据'}</p>
-            <button 
+            <p className="text-gray-400 mb-4">{(userError?.message || matchesError?.message || fetchError?.toString() || sendError?.toString() || updateError?.toString() || deleteError?.toString())}</p>
+            <button
               onClick={loadChatData}
-              className="px-4 py-2 bg-primary-500 text-white rounded-lg"
+              className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
             >
               重试
             </button>
@@ -163,35 +136,57 @@ export default function ChatPage() {
       </IonPage>
     );
   }
-  
+  if (!match || !matchedUser) {
+    return (
+      <IonPage>
+        <IonContent className="bg-[#0f172a]">
+          <div className="flex flex-col items-center justify-center h-full">
+            <p className="text-gray-400 mb-4"{t('auto.page.')}/p>
+            <button
+              onClick={loadChatData}
+              className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
+            >
+              重新加载
+            </button>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>{matchedUser.name}</IonTitle>
           <IonButtons slot="start">
-            <IonBackButton defaultHref="/matches" />
+            <IonBackButton defaultHref="/mobile/matches/messages" />
           </IonButtons>
+          <IonTitle>{matchedUser.name || '聊天'}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      
-      {/* 使用RealTimeChat组件显示消息 */}
-      <RealTimeChat
-        matchId={matchId}
-        currentUserId={currentUserId}
-        matchedUser={matchedUser}
-      />
-      
-      {/* 使用MessageInput组件发送消息 */}
+      <IonContent className="bg-[#0f172a]">
+        {/* 实时聊天组件 */}
+        <RealTimeChat
+          chats={[
+            {
+              id: matchId,
+              name: matchedUser.name,
+              avatar: matchedUser.avatar || '',
+              messages: messages
+            }
+          ]}
+          activeChatId={matchId}
+          onSelectChat={() => {}}
+          onSend={(chatId, msg) => handleSendMessage(msg)}
+        />
+      </IonContent>
       <IonFooter>
+        {/* 消息输入框 */}
         <MessageInput
-          matchId={matchId}
-          senderId={currentUserId}
-          receiverId={match.users.find(id => id !== currentUserId) || ''}
-          onSendMessage={handleSendMessage}
+          onSend={handleSendMessage}
+          disabled={loading}
         />
       </IonFooter>
-
       <IonToast
         isOpen={showToast}
         onDidDismiss={() => setShowToast(false)}

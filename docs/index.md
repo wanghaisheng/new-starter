@@ -30,63 +30,60 @@
 
 ### 数据库架构
 
-数据库架构采用分层设计，支持多环境数据存储和同步：
+数据库架构采用多层分离设计，支持多端（Web/移动）、多环境（Mock/本地/生产）、多模式（离线/同步）灵活切换：
 
 ```
 src/core/lib/db/
-├── clients/          # 数据库客户端实现
-│   ├── capacitor-sqlite/  # 移动端SQLite
-│   ├── indexeddb/        # Web端IndexedDB
-│   │   └── fake-indexeddb.ts  # 模拟IndexedDB的客户端离线存储
-│   ├── mock/            # Mock环境实现（模拟远程数据存储）
-│   └── base-client.ts   # 基础客户端抽象
-├── repositories/     # 数据访问层
-├── schema/          # 数据模型定义
-├── types/           # 类型定义
-└── service.ts       # 核心服务实现
+├── clients/             # 数据库客户端实现
+│   ├── capacitor-sqlite/   # 移动端 SQLite 客户端
+│   ├── indexeddb/          # Web 端 IndexedDB 客户端
+│   ├── fake-indexeddb.ts   # 测试/Mock IndexedDB 客户端
+│   ├── mock/               # Mock/内存数据库实现
+│   └── base-client.ts      # 客户端基类抽象
+├── repositories/        # 数据访问仓储层，封装所有表的 CRUD
+├── schema/              # 数据模型与结构定义（TypeScript 类型 + 校验）
+├── types/               # 通用类型定义（如 QueryResult、分页等）
+├── sync/                # 数据同步管理（如 SyncManager、同步策略）
+├── migration/           # 数据库迁移与版本管理（如 schema 升级）
 ```
 
-存储策略：
-- **开发阶段(Mock)**:
-  - **远程数据存储模拟**: 使用 MockDatabaseClient (内存/JSON模式)，模拟服务器端数据
-  - **客户端离线存储模拟**: 使用 MockIndexedDBClient (fake-indexeddb)，模拟浏览器的本地存储
-  - 这种双层模拟策略与实际生产环境的架构一致，便于测试在线/离线场景
-- **本地阶段(Local)**:
-  - **Web离线存储**: 使用IndexedDB
-  - **测试环境**: 使用fake-indexeddb模拟客户端离线存储
-  - **移动端存储**: 使用SQLite
-- **生产阶段(Production)**:
-  - **远程存储**: Firebase/Supabase等云端服务
-  - **本地离线缓存**: IndexedDB(Web)或SQLite(移动端)
+**架构要点：**
+- 所有环境（Mock/本地/生产）均通过统一接口访问数据库，页面/服务层无需关心实现细节。
+- 支持多端存储（Web IndexedDB、移动端 SQLite）、Mock/测试环境自动降级。
+- repositories 层实现表级/聚合级数据访问，解耦业务与存储。
+- schema 层统一数据模型定义，便于类型校验与多端兼容。
+- sync 层支持多种同步策略（在线优先/离线优先/手动同步等），适配复杂业务需求。
+- migration 层管理数据库结构演进，支持平滑升级与回滚。
 
-同步策略：
-- **在线优先**: 用户注册、个人资料更新
-- **离线优先**: 消息、匹配操作
-- **手动同步**: 批量数据同步、大文件传输
-- **离线存储**: 本地数据，永不同步到云端
+**典型场景：**
+- Mock/测试环境：fake-indexeddb + mock 客户端，开发体验一致。
+- Web 端：IndexedDB 持久化，支持离线优先。
+- 移动端：Capacitor-SQLite，原生性能与本地存储。
+- 生产环境：可接入 Firebase/Supabase 等云端存储，支持本地缓存与同步。
 
 ### 服务层架构
 
-服务层采用分层架构：
+服务层采用分层架构，支持多业务服务、统一注册与动态切换、全量 hooks 调用：
 
 ```
-UI组件层 (Components)
-      ↓
-服务层 (UserService, MessageService, 等)
-      ↓
-数据访问层 (DataServiceFactory → DatabaseService/MockDataService)
-      ↓
-存储层 (Repositories, SyncManager)
+src/core/services/
+├── business/           # 业务服务（如用户、消息、命理分析、语音安全、壁纸生成等）
+├── hooks/              # 所有业务 hooks，页面/组件仅通过 hooks 获取服务
+├── data/               # 数据访问、仓储、同步等（如有）
+├── infrastructure/     # 基础设施（如 registry、factory、providers、类型定义等）
+│   ├── registry/       # 服务注册与切换
+│   ├── factory/        # 服务工厂
+│   ├── providers/      # 第三方服务适配
+│   ├── types.ts        # 服务接口类型定义
+│   └── ...
+└── ...
 ```
 
-关键服务：
-- **IDataService**: 数据服务统一接口
-- **DatabaseService**: 主数据库服务实现
-- **MockDataService**: 模拟数据服务
-- **DataServiceFactory**: 数据服务工厂
-- **OfflineStorageService**: 离线数据管理
-- **StorageService**: 本地与云端存储
-- **UserService/MessageService**: 领域服务实现
+- 所有页面/组件业务数据流必须通过 hooks，禁止直接 ServiceFactory/Service。
+- hooks 返回值统一包含 loading、error、empty，异常处理与用户提示一致。
+- 服务实例全部通过 Registry 注入，支持多环境切换与降级。
+- 支持组合 hooks、Mock/测试环境自动降级。
+- 新增业务服务（如命理分析、语音安全、壁纸生成等）均以独立目录和 hooks 实现，便于扩展与维护。
 
 ### API文档
 - [数据库API文档](./guides/api/database-api.md) - 详细的数据库API使用说明和示例
@@ -96,62 +93,45 @@ UI组件层 (Components)
 
 # 项目知识体系导航
 
-本 index.md 旨在为开发团队提供完整的知识体系地图，涵盖架构、开发、服务、数据库、API、最佳实践等所有重要主题。
-
-## 文档目录结构
-```
-docs/
-├── README.md                # 文档总览与快速入口
-├── index.md                 # 项目知识体系导航（本文件）
-├── guides/
-│   ├── architecture/
-│   │   ├── database/        # 数据库架构与实现
-│   │   ├── services/        # 服务层设计与实现
-│   │   └── ...
-│   ├── best-practices/      # 各主题最佳实践
-│   ├── development/         # 开发流程、API、前后端等
-│   ├── deployment/          # 部署与运维
-│   ├── testing/             # 测试与质量保障
-│   └── tools/               # 工具与脚本
-├── assets/                  # 图片、图表等资源
-├── ...
-```
+本项目文档体系采用分层结构，所有 guides 主题均采用“唯一权威入口 + 子领域导航”模式，详见 guides/README.md。
 
 ## 主题导航
-- [架构设计（Architecture）](./guides/architecture/README.md)
-- [数据库架构与实现](./guides/architecture/database/README.md)
-- [服务层架构与规范](./guides/architecture/services/README.md)
-- [API开发与后端](./guides/development/backend/index.md)
-- [最佳实践](./guides/best-practices/README.md)
-- [部署与运维](./guides/deployment/README.md)
-- [测试与质量保障](./guides/testing/README.md)
-- [常用工具与脚本](./guides/tools/README.md)
 
-## 服务层与API分层架构（当前方案）
+- [架构设计（architecture）](./guides/architecture/README.md)
+  - [数据库 (database)](./guides/architecture/database/README.md)
+    - [核心设计](./guides/architecture/database/core/README.md)
+    - [实现与配置](./guides/architecture/database/implementation/README.md)
+    - [测试与排查](./guides/architecture/database/testing/README.md)
+  - [服务层 (services)](./guides/architecture/services/README.md)
+- [开发流程（development）](./guides/development/README.md)
+  - [前端开发](./guides/development/frontend/README.md)
+  - [后端开发](./guides/development/backend/README.md)
+  - [初始化与环境](./guides/development/setup/README.md)
+  - [开发流程与规范](./guides/development/workflow/README.md)
+- [最佳实践（best-practices）](./guides/best-practices/README.md)
+  - [数据库最佳实践](./guides/best-practices/database/README.md)
+  - [性能优化](./guides/best-practices/performance/README.md)
+  - [安全实践](./guides/best-practices/security/README.md)
+- [部署与运维（deployment）](./guides/deployment/README.md)
+  - [Web 部署](./guides/deployment/web/README.md)
+  - [移动端部署](./guides/deployment/mobile/README.md)
+  - [CI/CD 自动化](./guides/deployment/ci-cd/README.md)
+- [测试（testing）](./guides/testing/README.md)
+  - [集成测试](./guides/testing/integration/README.md)
+  - [单元测试](./guides/testing/unit/README.md)
+  - [端到端测试](./guides/testing/e2e/README.md)
+- [工具与脚本（tools）](./guides/tools/README.md)
+  - [自动化工具](./guides/tools/automation/README.md)
 
-服务层采用分层架构，API 路由只做分发和响应，全部业务逻辑集中于服务层，类型统一由 types 层导出，详见相关架构文档：
+---
 
-```
-UI组件层 (Components)
-      ↓
-服务层 (UserService, MessageService, 等)
-      ↓
-数据访问层 (DataServiceFactory → DatabaseService/MockDataService)
-      ↓
-存储层 (Repositories, SyncManager)
-```
+## 规范说明
 
-- **IDataService**: 数据服务统一接口
-- **DatabaseService**: 主数据库服务实现
-- **MockDataService**: 模拟数据服务
-- **DataServiceFactory**: 数据服务工厂
-- **UserService/MessageService**: 领域服务实现
-- **OfflineStorageService**: 离线数据管理
-- **StorageService**: 本地与云端存储
+- 每个 guides 主题目录下 README.md 为唯一权威入口，所有详细内容归档到子文档并在主文档导航中引用。
+- 子目录仅有单一文档时已合并进上级 README.md，避免层级过深。
+- 所有导航均为相对路径，便于本地与在线浏览。
+- 历史讨论与头脑风暴内容已归档或删除，详见 guides/README.md “参考与补充说明”节。
 
-> 详细 API 路由与服务分层设计参见：[API开发与后端](./guides/development/backend/index.md)
+---
 
-## 其他资源
-- [数据库API文档](./guides/api/database-api.md)
-- [常见问题与解决方案](./issues/)
-- [脚本与模板](./bash-scripts/)
+如需详细结构与内容，请查阅 [guides/README.md](./guides/README.md)。

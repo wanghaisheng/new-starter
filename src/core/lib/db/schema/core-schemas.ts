@@ -32,6 +32,14 @@ export function registerCoreSchemas(): void {
           const userSchema = require('./definitions/user-schema').default;
           if (userSchema) {
             console.log('注册用户模式:', userSchema.name);
+            
+            // 用户表增加 bazi 字段（如未定义）
+            // 若已通过 user-schema.ts 注册，则此处无需重复定义
+            // 可选：如有内联定义或动态注册，也应包含 bazi 字段
+            if (!userSchema.columns.find(column => column.name === 'bazi')) {
+              userSchema.columns.push({ name: 'bazi', type: ColumnType.STRING, nullable: true });
+            }
+            
             schemaRegistry.register(userSchema);
           } else {
             console.error('用户模式导入失败: 模式为空');
@@ -92,6 +100,7 @@ export function registerCoreSchemas(): void {
           columns: [
             { name: 'id', type: ColumnType.STRING, primaryKey: true },
             { name: 'name', type: ColumnType.STRING, nullable: false },
+            { name: 'bazi', type: ColumnType.STRING, nullable: true },
             { name: 'createdAt', type: ColumnType.DATETIME, nullable: false },
             { name: 'updatedAt', type: ColumnType.DATETIME, nullable: false }
           ],

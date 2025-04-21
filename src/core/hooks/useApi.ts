@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { NetworkService } from '@/core/services/data/network-service';
-import { DataServiceFactory } from '@/core/services/data/data-service-factory';
+import { getNetworkManager } from '@/core/services/infrastructure/network/registry/network-registry';
+import { DataServiceFactory } from '@core/services/data/factory/data-service-factory';
 import { useAuth } from './useAuth';
+import { useToast } from './useToast';
 
 export interface UseApiOptions {
   immediate?: boolean;
@@ -16,8 +17,8 @@ export interface UseApiOptions {
 export interface UseApiResult<T, R = T> {
   data: R | null;
   loading: boolean;
-  error: Error | null;
-  networkStatus: 'online' | 'offline' | 'limited';
+  fetchError: Error | null;
+  networkStatus: 'online' | 'offline';
   execute: <U = T>(apiFunction: () => Promise<U>) => Promise<U>;
   reset: () => void;
   refresh: () => Promise<void>;
@@ -40,102 +41,72 @@ export function useApi<T>(
   const { isAuthenticated } = useAuth();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [networkStatus, setNetworkStatus] = useState<'online' | 'offline' | 'limited'>(
-    NetworkService.getInstance().getConnectionStatus()
-  );
+  const [fetchError, setFetchError] = useState<Error | null>(null);
 
-  // 监听网络状态变化
+  // 使用 NetworkManager 统一管理网络状态
+  const networkManager = getNetworkManager();
+  const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>(
+    networkManager.isConnected() ? 'online' : 'offline'
+  );
+  const { triggerToast } = useToast();
+
   useEffect(() => {
-    const networkService = NetworkService.getInstance();
-    const listenerId = networkService.addNetworkStatusListener(() => {
-      setNetworkStatus(networkService.getConnectionStatus());
-    });
-
-    // 配置数据服务 - 只在服务未初始化时设置
-    try {
-      if (useHybridClient) {
-        DataServiceFactory.setUseHybridClient(true);
-      }
-      if (offlineFirst) {
-        DataServiceFactory.getOfflineModeService();
-      }
-    } catch (err) {
-      console.warn('Could not configure data service:', err);
-    }
-
+    const handleOnline = () => setNetworkStatus('online');
+    const handleOffline = () => setNetworkStatus('offline');
+    networkManager.onConnect(handleOnline);
+    networkManager.onDisconnect(handleOffline);
     return () => {
-      networkService.removeNetworkStatusListener(listenerId);
+      networkManager.offConnect(handleOnline);
+      networkManager.offDisconnect(handleOffline);
     };
-  }, [useHybridClient, offlineFirst]);
+  }, [networkManager]);
 
-  const execute = useCallback(
-    async <U = T>(apiFunction: () => Promise<U>): Promise<U> => {
-      if (requireAuth && !isAuthenticated) {
-        throw new Error('Authentication required');
-      }
+  // 配置数据服务 - 按需动态选择适配器
+  // 如需动态切换数据服务，可在此处调用 DataServiceFactory.createService 传递 config
+  // 例如：
+  // const dataService = DataServiceFactory.createService({ services: { data: { adapter: useHybridClient ? 'hybrid' : offlineFirst ? 'indexeddb' : 'mock', options: {} } } });
+  // 若只需用默认环境变量推断，可省略
 
-      setLoading(true);
-      setError(null);
-
-      let attempt = 0;
-      const maxAttempts = retries + 1;
-
-      while (attempt < maxAttempts) {
-        try {
-          const result = await apiFunction();
-          if (result === data) {
-            setData(result as T);
-          }
-          setLoading(false);
-          return result;
-        } catch (err) {
-          attempt++;
-          
-          if (attempt === maxAttempts) {
-            const error = err instanceof Error ? err : new Error('Unknown error');
-            setError(error);
-            setLoading(false);
-            throw error;
-          }
-
-          // 如果还有重试次数，等待后重试
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-        }
-      }
-
-      // TypeScript需要这个返回语句，但实际上永远不会执行到这里
-      throw new Error('Unexpected execution path');
-    },
-    [data, retries, retryDelay, requireAuth, isAuthenticated]
-  );
+  const execute = useCallback(async <U = T>(apiFunction: () => Promise<U>): Promise<U> => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const result = await apiFunction();
+      setData(result as any);
+      return result;
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setFetchError(errorObj);
+      triggerToast(errorObj.message);
+      throw errorObj;
+    } finally {
+      setLoading(false);
+    }
+  }, [triggerToast]);
 
   const reset = useCallback(() => {
     setData(null);
-    setLoading(false);
-    setError(null);
+    setFetchError(null);
   }, []);
 
   const refresh = useCallback(async () => {
-    if (data) {
-      await execute(defaultFunction);
-    }
-  }, [data, execute, defaultFunction]);
+    await execute(defaultFunction);
+  }, [execute, defaultFunction]);
 
-  // 如果设置了immediate，组件挂载时执行
   useEffect(() => {
     if (immediate && (!requireAuth || isAuthenticated)) {
       execute(defaultFunction);
     }
-  }, [immediate, execute, defaultFunction, requireAuth, isAuthenticated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immediate, requireAuth, isAuthenticated]);
 
   return {
     data,
     loading,
-    error,
+    fetchError,
     networkStatus,
     execute,
     reset,
-    refresh
+    refresh,
   };
-} 
+}

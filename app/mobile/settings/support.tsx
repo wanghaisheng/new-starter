@@ -7,19 +7,19 @@ export default function SettingsSupport() {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle>帮助与支持</IonTitle>
+          <IonTitle{t('auto.support.')}/IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding bg-[#0f172a]">
         <IonList>
           <IonItem button href="mailto:support@example.com">
-            <IonLabel>联系客服邮箱</IonLabel>
+            <IonLabel{t('auto.support.')}/IonLabel>
           </IonItem>
           <IonItem button href="/mobile/settings/faq">
-            <IonLabel>常见问题</IonLabel>
+            <IonLabel{t('auto.support.')}/IonLabel>
           </IonItem>
           <IonItem button href="/mobile/settings/feedback">
-            <IonLabel>意见反馈</IonLabel>
+            <IonLabel{t('auto.support.')}/IonLabel>
           </IonItem>
         </IonList>
         <div className="text-xs text-slate-400 mt-8 text-center">

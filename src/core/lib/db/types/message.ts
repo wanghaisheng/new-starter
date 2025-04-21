@@ -35,6 +35,17 @@ export interface Message extends BaseEntity {
    * - read: 已读
    */
   status: 'sent' | 'delivered' | 'read';
+  
+  /** 消息附件（可选，支持图片、音频等） */
+  attachments?: Array<{
+    url: string;
+    type: 'image' | 'audio' | 'video' | 'file';
+    name?: string;
+    size?: number;
+  }>;
+  
+  /** 额外扩展字段 */
+  [key: string]: any;
 }
 
 /**

@@ -1,12 +1,16 @@
-import { NetworkService } from '@/core/services/data/network-service';
-import { NetworkStatus } from '@capacitor/network';
+// 移除无用的旧 NetworkService 引入
+// import { NetworkService } from '@/core/services/data/network-service';
 import { BaseSyncClient } from '@/core/lib/db/clients/sync/base-sync-client';
 import { IDatabaseClient, IBaseDatabaseClient } from '@/core/lib/db/interfaces';
 import { HybridDatabaseConfig, SyncConfig, QueryOptions, QueryResult, SyncStrategy, BatchOperation } from '@/core/lib/db/types/database.types';
 import { DatabaseError } from '@/core/lib/db/errors/database-error';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { getNetworkManager } from '@/core/services/infrastructure/network/registry/network-registry';
+import type { NetworkStatus as AppNetworkStatus } from '@/core/services/infrastructure/network/network-manager';
 
-type EntityWithId = { id: string } & Record<string, any>;
+// 明确本地 EntityWithId 类型
+// 保证 pendingSync 类型兼容 BaseEntity[]
+type EntityWithId = BaseEntity & { id: string };
 
 /**
  * 混合数据库客户端
@@ -15,7 +19,6 @@ type EntityWithId = { id: string } & Record<string, any>;
  * 可根据配置的同步策略确定数据存取的优先顺序和同步行为。
  * 
  * @example
- * ```typescript
  * // 创建本地和远程客户端
  * const localClient = new IndexedDBClient({ ... });
  * const remoteClient = new FirebaseClient({ ... });
@@ -35,7 +38,6 @@ type EntityWithId = { id: string } & Record<string, any>;
  * // 初始化混合客户端
  * const hybridClient = new HybridDatabaseClient(config);
  * await hybridClient.initialize();
- * ```
  */
 export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseClient {
   protected localClient: IDatabaseClient;
@@ -43,7 +45,8 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
   protected syncStrategy: SyncStrategy;
   private initialized: boolean = false;
   protected isOnline: boolean = true;
-  protected pendingSync: Map<string, EntityWithId[]> = new Map();
+  // 保证 pendingSync 类型与父类一致
+  protected pendingSync: Map<string, BaseEntity[]> = new Map();
   protected syncInProgress: boolean = false;
   protected syncInterval: NodeJS.Timeout | null = null;
 
@@ -84,15 +87,16 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
   }
 
   /**
-   * 设置网络状态监听
-   * 当网络状态变化时更新在线状态，并在恢复连接时自动同步待处理操作
+   * 监听网络状态变化，自动切换 isOnline 并在恢复网络时同步
    */
   protected async setupNetworkListener(): Promise<void> {
-    NetworkService.getInstance().addNetworkStatusListener((status: NetworkStatus) => {
-      this.isOnline = status.connected;
-      if (status.connected && this.pendingSync.size > 0) {
+    const networkManager = getNetworkManager();
+    networkManager.onStatusChange((status: AppNetworkStatus) => {
+      this.isOnline = status === 'online' || status === 'limited' || status === 'slow';
+      if (this.isOnline && this.pendingSync.size > 0) {
         this.syncPendingOperations();
       }
+      // 可根据 proxy/slow/unknown 做进一步降级或提示
     });
   }
 
@@ -163,13 +167,13 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
    * @param collection 集合名称
    * @param items 待同步的项目
    */
-  protected async syncCollectionItems(collection: string, items: any[]): Promise<void> {
+  protected async syncCollectionItems(collection: string, items: BaseEntity[]): Promise<void> {
     if (!this.isOnline || this.syncInProgress) return;
     
     this.syncInProgress = true;
     
     try {
-      const failedItems: any[] = [];
+      const failedItems: BaseEntity[] = [];
       
       for (const item of items) {
         try {
@@ -294,7 +298,7 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     const result = await this.localClient.create<T>(collection, data);
     
     // 根据表名添加到相应的待同步列表
-    await this.addToPendingSync(collection, result as unknown as EntityWithId);
+    await this.addToPendingSync(collection, result as unknown as BaseEntity);
     
     return result;
   }
@@ -306,7 +310,7 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
     // 获取完整数据并添加到待同步列表
     const fullData = await this.localClient.findById<T>(collection, id);
     if (fullData) {
-      await this.addToPendingSync(collection, fullData as unknown as EntityWithId);
+      await this.addToPendingSync(collection, fullData as unknown as BaseEntity);
     }
     
     return result;
@@ -382,7 +386,7 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
    * @param tableName 表名
    * @param item 待同步的项目
    */
-  protected async addToPendingSync(collection: string, item: EntityWithId): Promise<void> {
+  protected async addToPendingSync(collection: string, item: BaseEntity): Promise<void> {
     const items = this.pendingSync.get(collection) || [];
     items.push(item);
     this.pendingSync.set(collection, items);

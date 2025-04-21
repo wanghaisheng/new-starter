@@ -1,166 +1,149 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useApi } from './useApi';
-import { useAuth } from './useAuth';
-import { Message } from '@/core/lib/db/types/message';
-import { Match } from '@/core/lib/db/types/match';
-import { DataServiceFactory } from '@/core/services/data/data-service-factory';
-import { IDataService } from '@/core/lib/db/interfaces';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { MessageServiceRegistry } from '@/core/services/business/messages/registry/message-service-registry';
+import type { Message } from '@/core/lib/db/types/message';
+import type { CreateMessageData, UpdateMessageData } from '@/core/lib/db/types/message';
+import type { IMessageService } from '@/core/services/business/messages/types/message-service';
+import { useToast } from './useToast';
 
-interface UseMessagesResult {
-  // 消息相关
+export interface UseMessagesResult {
   messages: Message[];
   loading: boolean;
-  error: Error | null;
-  
-  // 消息操作
-  getMatchMessages: (matchId: string) => Promise<Message[]>;
-  sendMessage: (data: {
-    matchId: string;
-    senderId: string;
-    receiverId: string;
-    content: string;
-    type?: 'text' | 'image';
-  }) => Promise<Message>;
-  markMessagesAsRead: (matchId: string) => Promise<void>;
+  error: null | { type: string; message: string };
+  empty: boolean;
+  fetchMessages: (page?: number, pageSize?: number) => Promise<void>;
+  sendMessage: (data: CreateMessageData) => Promise<Message>;
+  updateMessage: (messageId: string, data: UpdateMessageData) => Promise<Message>;
   deleteMessage: (messageId: string) => Promise<void>;
-  
-  // 匹配相关
-  getActiveMatches: () => Promise<Match[]>;
-  getMatchById: (matchId: string) => Promise<Match | null>;
+  reloadMessages: () => Promise<void>;
 }
 
-export function useMessages(): UseMessagesResult {
-  const { isAuthenticated, user } = useAuth();
+export function useMessages(conversationId: string): UseMessagesResult {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<null | { type: string; message: string }>(null);
+  const [empty, setEmpty] = useState(false);
+  const { triggerToast } = useToast();
+  const serviceRef = useRef<IMessageService | null>(null);
+  const pageRef = useRef<number>(1);
+  const pageSizeRef = useRef<number>(20);
 
-  const messageApi = useApi(() => Promise.resolve(messages), {
-    offlineFirst: true,
-    requireAuth: true
-  });
-
-  const matchApi = useApi(() => Promise.resolve(matches), {
-    offlineFirst: true,
-    requireAuth: true
-  });
-
-  // 获取匹配的消息
-  const getMatchMessages = useCallback(async (matchId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
-    }
-
-    const result = await messageApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      return service.getMessages(matchId);
-    });
-    setMessages(result);
-    return result;
-  }, [messageApi, isAuthenticated]);
-
-  // 发送消息
-  const sendMessage = useCallback(async (messageData: {
-    matchId: string;
-    senderId: string;
-    receiverId: string;
-    content: string;
-    type?: 'text' | 'image';
-  }) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
-    }
-
-    const result = await messageApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      const newMessage: Message = {
-        id: crypto.randomUUID(),
-        matchId: messageData.matchId,
-        senderId: messageData.senderId,
-        receiverId: messageData.receiverId,
-        content: messageData.content,
-        type: messageData.type || 'text',
-        status: 'sent',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      return service.createMessage(newMessage);
-    });
-    setMessages(prev => [...prev, result]);
-    return result;
-  }, [messageApi, isAuthenticated]);
-
-  // 标记消息为已读
-  const markMessagesAsRead = useCallback(async (matchId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
-    }
-
-    await messageApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      const unreadMessages = await service.getUnreadMessages(user?.id || '');
-      const matchUnreadMessages = unreadMessages.filter(msg => msg.matchId === matchId);
-      await Promise.all(matchUnreadMessages.map((message: Message) => 
-        service.updateMessage(message.id, { status: 'read' })
-      ));
-    });
-  }, [messageApi, isAuthenticated, user?.id]);
-
-  // 删除消息
-  const deleteMessage = useCallback(async (messageId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
-    }
-
-    await messageApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      await service.deleteMessage(messageId);
-    });
-    setMessages(prev => prev.filter(msg => msg.id !== messageId));
-  }, [messageApi, isAuthenticated]);
-
-  // 获取活跃的匹配
-  const getActiveMatches = useCallback(async () => {
-    if (!isAuthenticated || !user?.id) {
-      throw new Error('Authentication required');
-    }
-
-    const result = await matchApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      return service.getMatches(user.id);
-    });
-    setMatches(result);
-    return result;
-  }, [matchApi, isAuthenticated, user?.id]);
-
-  // 获取特定匹配
-  const getMatchById = useCallback(async (matchId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
-    }
-
-    const result = await matchApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      return service.getMatch(matchId);
-    });
-    return result;
-  }, [matchApi, isAuthenticated]);
-
-  // 自动加载活跃匹配
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
-      getActiveMatches();
+    // 统一通过 Registry 获取服务实例，参数类型安全
+    const allowedTypes = ['mock', 'remote', 'hybrid', 'advanced-hybrid'] as const;
+    type MessageServiceType = typeof allowedTypes[number];
+    const envType = process.env.NEXT_PUBLIC_MESSAGE_SERVICE_TYPE;
+    const type: MessageServiceType = allowedTypes.includes(envType as MessageServiceType)
+      ? (envType as MessageServiceType)
+      : (process.env.NODE_ENV === 'development' ? 'mock' : 'remote');
+    const provider = MessageServiceRegistry.getInstance().getProvider(type, 'default');
+    serviceRef.current = provider ? provider() : null;
+  }, []);
+
+  // 事件回调 useCallback 保证引用稳定
+  const handleMessageEvent = useCallback((data: { type: string; payload?: any }) => {
+    switch (data.type) {
+      case 'update':
+        setMessages(Array.isArray(data.payload?.messages) ? data.payload.messages : []);
+        setEmpty(!data.payload?.messages?.length);
+        break;
+      case 'error': {
+        const err = data.payload?.error;
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError({ type: 'fetch', message: errorObj.message });
+        setMessages([]);
+        setEmpty(true);
+        triggerToast(errorObj.message);
+        break;
+      }
+      default:
+        break;
     }
-  }, [isAuthenticated, user?.id, getActiveMatches]);
+  }, [triggerToast]);
+
+  const fetchMessages = useCallback(async (page?: number, pageSize?: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      const msgs = await serviceRef.current.getMessages(conversationId, page || pageRef.current, pageSize || pageSizeRef.current);
+      setMessages(msgs);
+      setEmpty(msgs.length === 0);
+    } catch (err: any) {
+      setError({ type: 'fetch', message: err?.message || '获取消息失败' });
+      setMessages([]);
+      setEmpty(true);
+      triggerToast(err?.message || '获取消息失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [conversationId, triggerToast]);
+
+  const sendMessage = useCallback(async (data: CreateMessageData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      const msg = await serviceRef.current.createMessage({ ...data, conversationId });
+      await fetchMessages();
+      return msg;
+    } catch (err: any) {
+      setError({ type: 'send', message: err?.message || '发送消息失败' });
+      triggerToast(err?.message || '发送消息失败');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchMessages, triggerToast, conversationId]);
+
+  const updateMessage = useCallback(async (messageId: string, data: UpdateMessageData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      const msg = await serviceRef.current.updateMessage(messageId, data);
+      await fetchMessages();
+      return msg;
+    } catch (err: any) {
+      setError({ type: 'update', message: err?.message || '更新消息失败' });
+      triggerToast(err?.message || '更新消息失败');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchMessages, triggerToast]);
+
+  const deleteMessage = useCallback(async (messageId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      await serviceRef.current.deleteMessage(messageId);
+      await fetchMessages();
+    } catch (err: any) {
+      setError({ type: 'delete', message: err?.message || '删除消息失败' });
+      triggerToast(err?.message || '删除消息失败');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchMessages, triggerToast]);
+
+  const reloadMessages = fetchMessages;
+
+  useEffect(() => {
+    fetchMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   return {
     messages,
-    loading: messageApi.loading || matchApi.loading,
-    error: messageApi.error || matchApi.error,
-    getMatchMessages,
+    loading,
+    error,
+    empty,
+    fetchMessages,
     sendMessage,
-    markMessagesAsRead,
+    updateMessage,
     deleteMessage,
-    getActiveMatches,
-    getMatchById
+    reloadMessages,
   };
-} 
+}

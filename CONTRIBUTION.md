@@ -127,6 +127,53 @@ src/core/lib/db/
 └── service.ts       # 核心服务实现
 ```
 
+## 贡献指南（Contribution Guide）
+
+本项目采用分层文档结构与 AI 辅助开发规范，建议所有贡献者遵循 vibe-coding-guide.md 与 guides/README.md 的流程和规范。
+
+## 快速开始
+
+1. 克隆仓库：
+   ```bash
+   git clone https://github.com/your-org/heytcm.git
+   cd heytcm/new-starter
+   ```
+
+2. 安装依赖：
+   ```bash
+   bun install
+   # 或
+   yarn install
+   ```
+
+3. 配置环境变量：
+   ```bash
+   cp .env.example .env.local
+   # 编辑 .env.local 文件，设置必要的环境变量
+   ```
+
+4. 运行开发服务器：
+   ```bash
+   bun run dev
+   # 或
+   yarn dev
+   ```
+
+5. 贡献流程与开发规范
+   - 请优先查阅 [vibe-coding-guide.md](./vibe-coding-guide.md) 获取开发全流程范式与最佳实践。
+   - 代码、文档、脚本等所有贡献需遵循 guides/README.md 的结构和命名规范。
+   - 提交前请确保通过 lint、测试和格式化检查。
+   - 详细贡献流程、分支策略、PR 模板等见 guides/development/README.md。
+
+6. 代码风格与质量保障
+   - 强制使用 Prettier、ESLint 统一格式
+   - 单元测试与集成测试覆盖主要业务逻辑
+   - 所有类型定义需统一出口（详见 guides/architecture/database/README.md）
+
+---
+
+如需详细开发方法与 AI 协作范式，请查阅 [vibe-coding-guide.md](./vibe-coding-guide.md)。
+
 ## 开发指南
 
 ### 数据与服务开发
@@ -164,19 +211,7 @@ src/core/lib/db/
    - 检查 `localStorage` 和 `IndexedDB` 中的数据（Web环境）
    - 监控同步操作和网络请求
 
-## 贡献指南
-
-我们欢迎并感谢所有形式的贡献。以下是参与项目的方法：
-
-### 提交贡献流程
-
-1. Fork 本仓库
-2. 创建您的特性分支: `git checkout -b feature/amazing-feature`
-3. 提交您的更改: `git commit -m '添加某某功能'`
-4. 推送到分支: `git push origin feature/amazing-feature`
-5. 提交 Pull Request
-
-### 报告问题
+## 报告问题
 
 发现问题时，请在 issues 页面提交，并提供以下信息：
 - 复现步骤

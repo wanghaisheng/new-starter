@@ -12,7 +12,7 @@ import {
   SyncConfig 
 } from '@/core/lib/db/types/sync-flags';
 import { DatabaseClient } from '@/core/lib/db/types/database.types';
-import { NetworkManager } from '@/core/lib/network/network-manager';
+import { NetworkManager } from '/network/network-manager';
 
 export interface SyncManagerOptions {
   client: DatabaseClient;

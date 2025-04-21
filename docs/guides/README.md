@@ -190,3 +190,7 @@ When adding new documentation:
 - 🚧 In Progress: Service layer architecture
 - 🚧 In Progress: Security best practices
 - 🚧 In Progress: CI/CD documentation 
+
+## 参考与补充说明
+
+- 本项目曾在 `guides/brain-storm/readme.md` 目录下记录过关于本地/云端存储方案与技术选型的头脑风暴内容，现已删除。如需查阅相关历史讨论，请参考团队知识库或联系维护者。

@@ -1,9 +1,11 @@
 import { useRouter } from 'next/navigation';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonImg
 } from '@ionic/react';
 
 export default function MatchScreen() {
+  useRequireAuth();
   const router = useRouter();
   // TODO: 可通过 props/context 传递配对对象信息
   const matchUser = {
@@ -15,7 +17,7 @@ export default function MatchScreen() {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle>配对成功</IonTitle>
+          <IonTitle{t('auto.match_screen.')}/IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding bg-gradient-to-br from-pink-700 to-yellow-300 min-h-screen flex flex-col items-center justify-center">

@@ -108,6 +108,12 @@ const userSchema: TableSchema = {
       type: ColumnType.DATE,
       notNull: true,
       defValue: () => new Date()
+    },
+    {
+      name: 'bazi',
+      type: ColumnType.JSON,
+      notNull: false,
+      defValue: '{}'
     }
   ],
   indexes: [

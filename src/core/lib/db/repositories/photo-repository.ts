@@ -55,4 +55,40 @@ export class PhotoRepository extends BaseRepository<Photo> {
     });
     return result.data;
   }
+
+  /**
+   * 根据照片标签查找照片
+   * @param tag 标签
+   * @returns 照片列表
+   */
+  async findByTag(tag: string): Promise<Photo[]> {
+    const result = await this.query({
+      where: {
+        tags: { $contains: tag }
+      }
+    });
+    return result.data;
+  }
+
+  /**
+   * 更新照片标题/描述
+   * @param photoId 照片ID
+   * @param caption 新标题/描述
+   * @returns 更新后的照片
+   */
+  async updateCaption(photoId: string, caption: string): Promise<Photo | null> {
+    const result = await this.update(photoId, { caption });
+    return result;
+  }
+
+  /**
+   * 更新照片标签
+   * @param photoId 照片ID
+   * @param tags 新标签数组
+   * @returns 更新后的照片
+   */
+  async updateTags(photoId: string, tags: string[]): Promise<Photo | null> {
+    const result = await this.update(photoId, { tags });
+    return result;
+  }
 }

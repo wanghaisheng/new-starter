@@ -2,6 +2,8 @@
  * 数据库错误类
  * 用于标准化数据库操作中的错误处理
  */
+import { getErrorService } from '@/core/services/infrastructure/error/registry/error-registry';
+
 export class DatabaseError extends Error {
   /**
    * 错误代码
@@ -18,8 +20,9 @@ export class DatabaseError extends Error {
    * @param message 错误消息
    * @param code 错误代码
    * @param details 错误详情
+   * @param autoReport 是否自动全局上报（默认true）
    */
-  constructor(message: string, code: string = 'UNKNOWN_ERROR', details?: any) {
+  constructor(message: string, code: string = 'UNKNOWN_ERROR', details?: any, autoReport: boolean = true) {
     super(message);
     this.name = 'DatabaseError';
     this.code = code;
@@ -27,6 +30,17 @@ export class DatabaseError extends Error {
     
     // 确保正确的原型链
     Object.setPrototypeOf(this, DatabaseError.prototype);
+    
+    // 自动全局上报与日志
+    if (autoReport) {
+      try {
+        const errorService = getErrorService();
+        errorService.capture(this, { source: 'database', code, details });
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[DatabaseError] errorService.capture failed', e);
+      }
+    }
   }
   
   /**
@@ -54,71 +68,71 @@ export class DatabaseError extends Error {
   /**
    * 创建连接错误
    */
-  static connectionError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_CONNECTION_ERROR', details);
+  static connectionError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_CONNECTION_ERROR', details, autoReport);
   }
 
   /**
    * 创建查询错误
    */
-  static queryError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_QUERY_ERROR', details);
+  static queryError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_QUERY_ERROR', details, autoReport);
   }
 
   /**
    * 创建事务错误
    */
-  static transactionError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_TRANSACTION_ERROR', details);
+  static transactionError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_TRANSACTION_ERROR', details, autoReport);
   }
 
   /**
    * 创建迁移错误
    */
-  static migrationError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_MIGRATION_ERROR', details);
+  static migrationError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_MIGRATION_ERROR', details, autoReport);
   }
 
   /**
    * 创建同步错误
    */
-  static syncError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_SYNC_ERROR', details);
+  static syncError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_SYNC_ERROR', details, autoReport);
   }
 
   /**
    * 创建验证错误
    */
-  static validationError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_VALIDATION_ERROR', details);
+  static validationError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_VALIDATION_ERROR', details, autoReport);
   }
 
   /**
    * 创建权限错误
    */
-  static permissionError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_PERMISSION_ERROR', details);
+  static permissionError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_PERMISSION_ERROR', details, autoReport);
   }
 
   /**
    * 创建不存在错误
    */
-  static notFoundError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_NOT_FOUND_ERROR', details);
+  static notFoundError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_NOT_FOUND_ERROR', details, autoReport);
   }
 
   /**
    * 创建冲突错误
    */
-  static conflictError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_CONFLICT_ERROR', details);
+  static conflictError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_CONFLICT_ERROR', details, autoReport);
   }
 
   /**
    * 创建超时错误
    */
-  static timeoutError(message: string, details?: any): DatabaseError {
-    return new DatabaseError(message, 'DB_TIMEOUT_ERROR', details);
+  static timeoutError(message: string, details?: any, autoReport: boolean = true): DatabaseError {
+    return new DatabaseError(message, 'DB_TIMEOUT_ERROR', details, autoReport);
   }
 }
 
@@ -171,8 +185,9 @@ export enum DatabaseErrorCode {
  * @param code 错误代码
  * @param message 错误消息
  * @param details 错误详情
+ * @param autoReport 是否自动全局上报（默认true）
  * @returns DatabaseError 实例
  */
-export function createDatabaseError(code: string | DatabaseErrorCode, message: string, details?: any): DatabaseError {
-  return new DatabaseError(message, code, details);
+export function createDatabaseError(code: string | DatabaseErrorCode, message: string, details?: any, autoReport: boolean = true): DatabaseError {
+  return new DatabaseError(message, code, details, autoReport);
 }

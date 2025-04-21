@@ -9,6 +9,9 @@ import { useAuth } from '@/core/hooks/useAuth';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { useUserList } from '@/core/hooks/useUserList';
+import { useMatches } from '@/core/hooks/useMatches';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
 // Add type definition for Photo
 interface Photo {
@@ -34,72 +37,20 @@ const calculateAge = (birthDate: Date): number => {
 };
 
 export default function HomePage() {
+  useRequireAuth();
   const router = useRouter();
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
+  const { users, loading, error } = useUserList(currentUser?.id);
+  const { matches, createMatch, loading: matchesLoading, error: matchesError } = useMatches(currentUser?.id);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [showMatch, setShowMatch] = useState(false);
   const [matchedUser, setMatchedUser] = useState<User | null>(null);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
-  
-  useEffect(() => {
-    loadUsers();
-  }, [currentUser]);
-  
-  const loadUsers = async () => {
-    if (!currentUser) {
-      setToastMessage('Please login first');
-      setShowToast(true);
-      setIsLoading(false);
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Fetch all users
-      const usersResponse = await fetch('/api/users');
-      if (!usersResponse.ok) {
-        throw new Error('Failed to fetch users');
-      }
-      const allUsers = await usersResponse.json();
-      
-      // Fetch matches for current user
-      let matchedUserIds: string[] = [];
-      try {
-        const matchesResponse = await fetch(`/api/matches?userId=${currentUser.id}`);
-        if (matchesResponse.ok) {
-          const matches: Match[] = await matchesResponse.json();
-          matchedUserIds = matches.flatMap(match => match.users);
-        }
-      } catch (err) {
-        console.log('Failed to fetch matches', err);
-      }
-      
-      // Filter out current user and already matched users
-      const filteredUsers = allUsers.filter((user: User) => 
-        user.id !== currentUser.id && 
-        !matchedUserIds.includes(user.id)
-      );
-      
-      setUsers(filteredUsers);
-    } catch (err) {
-      console.error('Error loading users:', err);
-      setError(err instanceof Error ? err : new Error('Failed to load users'));
-      setToastMessage('Failed to load. Please try again.');
-      setShowToast(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
+
   const handleLike = async () => {
     handleSwipe('right');
   };
@@ -119,37 +70,23 @@ export default function HomePage() {
     if (!swipedUser) return;
 
     if (direction === 'right') {
-      try {
-        const response = await fetch('/api/matches', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            users: [currentUser.id, swipedUser.id]
-          }),
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to create match');
-        }
-        
-        const match = await response.json();
-        if (match) {
-          setMatchedUser(swipedUser);
-          setShowMatch(true);
-          return;
-        }
-      } catch (err) {
-        console.error('Error creating match:', err);
-        setToastMessage('Failed to create match');
-        setShowToast(true);
-      }
+      await handleMatch(swipedUser.id);
     }
     
     goToNextProfile();
   };
-  
+
+  const handleMatch = async (targetUserId: string) => {
+    try {
+      await createMatch(targetUserId);
+      setShowMatch(true);
+      setMatchedUser(users.find(u => u.id === targetUserId) || null);
+    } catch (e) {
+      setToastMessage('匹配失败，请重试');
+      setShowToast(true);
+    }
+  };
+
   const goToNextProfile = () => {
     setSwipeDirection(null);
     if (currentIndex < users.length - 1) {
@@ -219,21 +156,21 @@ export default function HomePage() {
     goToNextProfile();
   };
 
-  if (isLoading) {
+  if (loading || matchesLoading) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="Loading profiles..." />
+          <LoadingSpinner message={t('auto.page.Loading')} />
         </IonContent>
       </IonPage>
     );
   }
 
-  if (error) {
+  if (error || matchesError) {
     return (
       <IonPage>
         <IonContent className="bg-[#0f172a]">
-          <ErrorDisplay error={error.toString()} onRetry={loadUsers} />
+          <ErrorDisplay error={(error || matchesError)?.toString()} onRetry={() => {}} />
         </IonContent>
       </IonPage>
     );
@@ -248,7 +185,7 @@ export default function HomePage() {
           // Match screen
           <div className="fixed inset-0 bg-opacity-90 bg-gray-900 z-50 flex items-center justify-center">
             <div className="text-center p-6 max-w-sm mx-auto">
-              <h1 className="text-3xl font-bold text-pink-500 mb-4">It&apos;s a Match!</h1>
+              <h1 className="text-3xl font-bold text-pink-500 mb-4"{t('auto.page.Itapos')}/h1>
               <p className="text-white mb-6">You and {matchedUser?.name} have liked each other</p>
               
               <div className="flex justify-center space-x-4 mb-8">
@@ -256,7 +193,7 @@ export default function HomePage() {
                   <div className="absolute inset-0 rounded-full overflow-hidden border-2 border-white">
                     <Image 
                       src="/assets/images/avatar-placeholder.jpg"
-                      alt="Your profile"
+                      alt={t('auto.page.Yourpro')}
                       fill
                       className="object-cover"
                     />
@@ -346,8 +283,8 @@ export default function HomePage() {
         ) : (
           <div className="h-full flex items-center justify-center p-4">
             <div className="text-center">
-              <h2 className="text-xl font-semibold text-white mb-2">No more profiles</h2>
-              <p className="text-gray-400">Check back later for new matches</p>
+              <h2 className="text-xl font-semibold text-white mb-2"{t('auto.page.Nomore')}/h2>
+              <p className="text-gray-400"{t('auto.page.Checkba')}/p>
             </div>
           </div>
         )}

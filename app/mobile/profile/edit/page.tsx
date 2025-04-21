@@ -25,35 +25,30 @@ import { add, remove, camera } from 'ionicons/icons';
 import { useRouter } from 'next/navigation';
 import { User } from '@/core/lib/db/types/user';
 import { CreatePhotoData } from '@/core/lib/db/types/photo';
-import { useServices } from '@/core/hooks/useServices';
+import { useUser } from '@/core/hooks/useUser';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
-import { CameraService } from '@/core/services/camera-service';
+import { CameraServiceFactory } from '@/core/services/business/phone/camera/factory/camera-service-factory';
+import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
 export default function EditProfilePage() {
+  useRequireAuth();
   const router = useRouter();
-  const { userService, isLoading, error } = useServices();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user, updateUser, loading, updateError } = useUser();
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [newInterest, setNewInterest] = useState('');
-  const cameraService = CameraService.getInstance();
+  const cameraService = CameraServiceFactory.create();
 
   useEffect(() => {
-    loadUserData();
-  }, [userService]);
+    if (!user) loadUserData();
+  }, [user]);
 
   const loadUserData = async () => {
-    if (!userService) return;
+    if (!user) return;
 
     try {
-      const user = await userService.getCurrentUser();
-      if (!user) {
-        setToastMessage('无法加载用户数据');
-        setShowToast(true);
-        return;
-      }
       setCurrentUser(user);
     } catch (err) {
       console.error('Error loading user data:', err);
@@ -62,12 +57,14 @@ export default function EditProfilePage() {
     }
   };
 
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
   const handleImageUpload = async () => {
     try {
-      const photo = await cameraService.takePicture();
-      if (photo && currentUser && photo.webPath) {
+      const photo = await cameraService.takePhoto();
+      if (photo && currentUser && photo.uri) {
         const tempPhoto = {
-          url: photo.webPath,
+          url: photo.uri,
           order: currentUser.photos.length,
           isMain: currentUser.photos.length === 0,
           userId: currentUser.id
@@ -79,8 +76,8 @@ export default function EditProfilePage() {
         });
       }
     } catch (err) {
-      console.error('Error uploading image:', err);
-      setToastMessage('上传图片失败');
+      console.error('上传照片失败:', err);
+      setToastMessage('上传照片失败，请重试');
       setShowToast(true);
     }
   };
@@ -116,49 +113,54 @@ export default function EditProfilePage() {
   };
 
   const handleSave = async () => {
-    if (!currentUser || !userService) return;
-
+    if (!currentUser) return;
+    setIsSaving(true);
     try {
-      setIsSaving(true);
-      await userService.updateUser(currentUser.id, currentUser);
+      await updateUser(currentUser);
       setToastMessage('保存成功');
       setShowToast(true);
-      setTimeout(() => {
-        router.push('/mobile/profile');
-      }, 1500);
-    } catch (err) {
-      console.error('Error saving user data:', err);
-      setToastMessage('保存失败，请重试');
+      setTimeout(() => router.back(), 1000);
+    } catch (err: any) {
+      console.error('保存用户资料失败:', err);
+      setToastMessage(err.message || '保存失败，请重试');
       setShowToast(true);
+      // 可在此处添加埋点 logEvent('profile_save_failed', { error: err.message })
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (isLoading) {
+  useEffect(() => {
+    if (updateError) {
+      setToastMessage(updateError.message || '更新失败');
+      setShowToast(true);
+    }
+  }, [updateError]);
+
+  if (loading) {
     return (
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>编辑资料</IonTitle>
+            <IonTitle{t('auto.page.')}/IonTitle>
             <IonButtons slot="start">
               <IonBackButton defaultHref="/mobile/profile" />
             </IonButtons>
           </IonToolbar>
         </IonHeader>
         <IonContent className="bg-[#0f172a]">
-          <LoadingSpinner message="加载中..." />
+          <LoadingSpinner message={t('auto.page.')} />
         </IonContent>
       </IonPage>
     );
   }
 
-  if (error || !currentUser) {
+  if (updateError || !currentUser) {
     return (
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>编辑资料</IonTitle>
+            <IonTitle{t('auto.page.')}/IonTitle>
             <IonButtons slot="start">
               <IonBackButton defaultHref="/mobile/profile" />
             </IonButtons>
@@ -166,7 +168,7 @@ export default function EditProfilePage() {
         </IonHeader>
         <IonContent className="bg-[#0f172a]">
           <ErrorDisplay 
-            error={error?.toString() || '未找到用户数据'} 
+            error={updateError?.toString() || '未找到用户数据'} 
             onRetry={loadUserData} 
           />
         </IonContent>
@@ -178,7 +180,7 @@ export default function EditProfilePage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>编辑资料</IonTitle>
+          <IonTitle{t('auto.page.')}/IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/profile" />
           </IonButtons>
@@ -193,16 +195,16 @@ export default function EditProfilePage() {
         <div className="max-w-md mx-auto p-4 space-y-6">
           {/* 基本信息 */}
           <div>
-            <h2 className="text-lg font-semibold mb-4 text-white">基本信息</h2>
+            <h2 className="text-lg font-semibold mb-4 text-white"{t('auto.page.')}/h2>
             <IonItem>
-              <IonLabel position="stacked">姓名</IonLabel>
+              <IonLabel position="stacked"{t('auto.page.')}/IonLabel>
               <IonInput
                 value={currentUser.name}
                 onIonChange={e => setCurrentUser({ ...currentUser, name: e.detail.value || '' })}
               />
             </IonItem>
             <IonItem>
-              <IonLabel position="stacked">个人简介</IonLabel>
+              <IonLabel position="stacked"{t('auto.page.')}/IonLabel>
               <IonTextarea
                 value={currentUser.bio}
                 onIonChange={e => setCurrentUser({ ...currentUser, bio: e.detail.value || '' })}
@@ -214,7 +216,7 @@ export default function EditProfilePage() {
           {/* 照片 */}
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-white">照片</h2>
+              <h2 className="text-lg font-semibold text-white"{t('auto.page.')}/h2>
               <IonButton onClick={handleImageUpload}>
                 <IonIcon icon={camera} slot="start" />
                 添加照片
@@ -247,7 +249,7 @@ export default function EditProfilePage() {
 
           {/* 兴趣爱好 */}
           <div>
-            <h2 className="text-lg font-semibold mb-4 text-white">兴趣爱好</h2>
+            <h2 className="text-lg font-semibold mb-4 text-white"{t('auto.page.')}/h2>
             <div className="flex flex-wrap gap-2 mb-4">
               {currentUser.interests.map((interest, index) => (
                 <IonChip key={index}>
@@ -259,7 +261,7 @@ export default function EditProfilePage() {
             <div className="flex gap-2">
               <IonInput
                 value={newInterest}
-                placeholder="添加新的兴趣爱好"
+                placeholder={t('auto.page.')}
                 onIonChange={e => setNewInterest(e.detail.value || '')}
               />
               <IonButton onClick={handleAddInterest}>

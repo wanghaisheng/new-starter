@@ -22,7 +22,7 @@ This guide outlines the implementation standards for API endpoints in the HeyTCM
 ```typescript
 // app/api/[service]/[resource]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getService } from '@/core/services-update/factory';
+import { getService } from '@/core/services/factory';
 import { validateRequest } from '@/core/utils/validation';
 import { handleError } from '@/core/utils/error';
 
@@ -156,7 +156,7 @@ export const handleError = (error: unknown) => {
 ```typescript
 // app/api/users/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getService } from '@/core/services-update/factory';
+import { getService } from '@/core/services/factory';
 import { validateRequest } from '@/core/utils/validation';
 import { handleError } from '@/core/utils/error';
 
@@ -193,7 +193,7 @@ export async function PUT(
 ```typescript
 // app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getService } from '@/core/services-update/factory';
+import { getService } from '@/core/services/factory';
 import { validateRequest } from '@/core/utils/validation';
 import { handleError } from '@/core/utils/error';
 

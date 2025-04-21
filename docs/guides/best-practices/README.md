@@ -23,22 +23,28 @@ best-practices/
 ## Documentation Purpose
 
 ### Database Best Practices
-- Database design principles and patterns
-- Performance optimization techniques
-- Security considerations and implementations
-- Data migration and versioning strategies
+详见 database/README.md，涵盖数据库设计与实现规范。
 
 ### Security Best Practices
-- Authentication implementation guidelines
-- Authorization patterns and practices
-- Data security and encryption
-- Security testing and validation
+详见 security/README.md，涵盖安全实践与防护措施。
 
 ### Performance Best Practices
-- Frontend performance optimization
-- Backend performance tuning
-- Mobile application optimization
-- Monitoring and profiling
+详见 performance/README.md，涵盖性能优化建议。
+
+## Best Practices Subdomains
+
+### Database Best Practices
+详见 database/README.md，涵盖数据库设计与实现规范。
+
+### Performance Best Practices
+详见 performance/README.md，涵盖性能优化建议。
+
+### Security Best Practices
+详见 security/README.md，涵盖安全实践与防护措施。
+
+---
+
+> database/performance/security 子目录 README.md 内容已归档至本文件，子目录 README.md 可保留简要说明。
 
 ## Usage
 

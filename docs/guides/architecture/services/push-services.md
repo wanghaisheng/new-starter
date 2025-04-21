@@ -54,7 +54,7 @@
 ### 目录结构
 
 ```
-src/core/services-update/push/
+src/core/services/push/
 ├── types/               # 推送服务类型
 │   ├── push-service.ts  # 推送服务接口
 │   ├── web-push.ts      # Web推送类型

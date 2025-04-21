@@ -16,8 +16,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { logoGoogle } from 'ionicons/icons';
+// import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
 export default function OnboardingPage() {
+  // useRequireAuth();
+  
   const router = useRouter();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   
@@ -45,7 +48,7 @@ export default function OnboardingPage() {
             <IonCol className="ion-text-center" sizeMd="6" sizeSm="10" sizeXs="12">
               <div className="max-w-md mx-auto">
                 <IonText color="light">
-                  <h1 className="text-3xl font-bold mb-2">Connect</h1>
+                  <h1 className="text-3xl font-bold mb-2"{t('auto.page.Connect')}/h1>
                 </IonText>
                 <IonText color="medium">
                   <p className="mb-10">
@@ -57,7 +60,7 @@ export default function OnboardingPage() {
                   <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-secondary-500">
                     <Image 
                       src="/assets/images/avatar-placeholder.jpg" 
-                      alt="Profile"
+                      alt={t('auto.page.Profile')}
                       layout="fill"
                       objectFit="cover"
                       width={80}
@@ -89,7 +92,7 @@ export default function OnboardingPage() {
                     {isGoogleLoading ? (
                       <>
                         <IonSpinner name="dots" />
-                        <span className="ml-2">Processing...</span>
+                        <span className="ml-2"{t('auto.page.Processi')}/span>
                       </>
                     ) : (
                       <>

@@ -1,160 +1,125 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useApi } from './useApi';
-import { useAuth } from './useAuth';
-import { Match, CreateMatchData } from '@/core/lib/db/types/match';
-import { User } from '@/core/lib/db/types/user';
-import { DataServiceFactory } from '@/core/services/data/data-service-factory';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { MatchServiceRegistry } from '@/core/services/business/match/registry/match-service-registry';
+import type { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/match';
+import type { User } from '@/core/lib/db/types/user';
+import type { IMatchService } from '@/core/services/business/match/types/match-service';
+import { useToast } from './useToast';
+import { DataServiceFactory } from '@/core/services/data/factory/data-service-factory';
 
 export interface UseMatchesResult {
   matches: Match[];
-  matchedUsers: User[];
   loading: boolean;
-  error: Error | null;
+  error: null | { type: string; message: string };
+  empty: boolean;
   getUserMatches: (userId: string) => Promise<Match[]>;
-  createMatch: (userId: string, targetUserId: string) => Promise<Match>;
-  updateMatch: (matchId: string, data: Partial<Match>) => Promise<Match>;
+  createMatch: (data: CreateMatchData) => Promise<Match>;
+  updateMatch: (matchId: string, data: UpdateMatchData) => Promise<Match>;
   deleteMatch: (matchId: string) => Promise<void>;
-  getMatchedUsers: (userId: string) => Promise<User[]>;
-  acceptMatch: (matchId: string) => Promise<Match>;
-  rejectMatch: (matchId: string) => Promise<Match>;
+  refresh: (userId: string) => Promise<void>;
 }
 
-export function useMatches(): UseMatchesResult {
-  const { isAuthenticated, user } = useAuth();
+export function useMatches(userId: string): UseMatchesResult {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [matchedUsers, setMatchedUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<null | { type: string; message: string }>(null);
+  const [empty, setEmpty] = useState(false);
+  const { triggerToast } = useToast();
+  const serviceRef = useRef<IMatchService | null>(null);
 
-  const matchApi = useApi(() => Promise.resolve(matches), {
-    offlineFirst: true,
-    requireAuth: true
-  });
+  useEffect(() => {
+    const allowedTypes = ['mock', 'remote', 'hybrid', 'brandA', 'brandB'] as const;
+    type MatchServiceType = typeof allowedTypes[number];
+    const envType = process.env.NEXT_PUBLIC_MATCH_SERVICE_TYPE;
+    const type: MatchServiceType = allowedTypes.includes(envType as MatchServiceType)
+      ? (envType as MatchServiceType)
+      : (process.env.NODE_ENV === 'development' ? 'mock' : 'remote');
+    const dataService = DataServiceFactory.createService();
+    const provider = MatchServiceRegistry.getInstance().getProvider(type, 'default', dataService);
+    serviceRef.current = provider ? provider() : null;
+    if (userId) getUserMatches(userId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
-  const getUserMatches = useCallback(async (userId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
+  const getUserMatches = useCallback(async (uid: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      const data = await serviceRef.current.getUserMatches(uid);
+      setMatches(data);
+      setEmpty(data.length === 0);
+      return data;
+    } catch (err: any) {
+      setError({ type: 'fetch', message: err?.message || '获取匹配失败' });
+      setEmpty(true);
+      triggerToast(err?.message || '获取匹配失败');
+      return [];
+    } finally {
+      setLoading(false);
     }
+  }, [triggerToast]);
 
-    const result = await matchApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      return service.getMatches(userId);
-    });
-    setMatches(result);
-    return result;
-  }, [matchApi, isAuthenticated]);
-
-  const createMatch = useCallback(async (userId: string, targetUserId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
+  const createMatch = useCallback(async (data: CreateMatchData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      const match = await serviceRef.current.createMatch(data);
+      await getUserMatches(data.users[0]);
+      return match;
+    } catch (err: any) {
+      setError({ type: 'create', message: err?.message || '创建匹配失败' });
+      triggerToast(err?.message || '创建匹配失败');
+      throw err;
+    } finally {
+      setLoading(false);
     }
+  }, [getUserMatches, triggerToast]);
 
-    const result = await matchApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      const now = new Date();
-      const matchData: Match = {
-        users: [userId, targetUserId],
-        status: 'pending',
-        id: '', // 将由服务生成
-        createdAt: now,
-        updatedAt: now
-      };
-      return service.createMatch(matchData);
-    });
-    setMatches(prev => [...prev, result]);
-    return result;
-  }, [matchApi, isAuthenticated]);
-
-  const updateMatch = useCallback(async (matchId: string, data: Partial<Match>) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
+  const updateMatch = useCallback(async (matchId: string, data: UpdateMatchData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      const match = await serviceRef.current.updateMatch(matchId, data);
+      await getUserMatches(userId);
+      return match;
+    } catch (err: any) {
+      setError({ type: 'update', message: err?.message || '更新匹配失败' });
+      triggerToast(err?.message || '更新匹配失败');
+      throw err;
+    } finally {
+      setLoading(false);
     }
-
-    const result = await matchApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      return service.updateMatch(matchId, data);
-    });
-    setMatches(prev => prev.map(match => match.id === matchId ? result : match));
-    return result;
-  }, [matchApi, isAuthenticated]);
+  }, [getUserMatches, triggerToast, userId]);
 
   const deleteMatch = useCallback(async (matchId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
+    setLoading(true);
+    setError(null);
+    try {
+      if (!serviceRef.current) throw new Error('服务未初始化');
+      await serviceRef.current.deleteMatch(matchId);
+      await getUserMatches(userId);
+    } catch (err: any) {
+      setError({ type: 'delete', message: err?.message || '删除匹配失败' });
+      triggerToast(err?.message || '删除匹配失败');
+      throw err;
+    } finally {
+      setLoading(false);
     }
+  }, [getUserMatches, triggerToast, userId]);
 
-    await matchApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      await service.deleteMatch(matchId);
-    });
-    setMatches(prev => prev.filter(match => match.id !== matchId));
-  }, [matchApi, isAuthenticated]);
-
-  const getMatchedUsers = useCallback(async (userId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
-    }
-
-    const result = await matchApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      const userMatches = await service.getMatches(userId);
-      const matchedUserIds = userMatches
-        .filter(match => match.status === 'matched' && match.users.includes(userId))
-        .map(match => match.users.find(id => id !== userId))
-        .filter((id): id is string => id !== undefined);
-      
-      const matchedUsers = await Promise.all(
-        matchedUserIds.map(id => service.getUser(id))
-      );
-      
-      return matchedUsers.filter((user): user is User => user !== null);
-    });
-    setMatchedUsers(result);
-    return result;
-  }, [matchApi, isAuthenticated]);
-
-  const acceptMatch = useCallback(async (matchId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
-    }
-
-    const result = await matchApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      return service.updateMatch(matchId, { status: 'matched' });
-    });
-    setMatches(prev => prev.map(match => match.id === matchId ? result : match));
-    return result;
-  }, [matchApi, isAuthenticated]);
-
-  const rejectMatch = useCallback(async (matchId: string) => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required');
-    }
-
-    const result = await matchApi.execute(async () => {
-      const service = DataServiceFactory.getDataService();
-      return service.updateMatch(matchId, { status: 'rejected' });
-    });
-    setMatches(prev => prev.map(match => match.id === matchId ? result : match));
-    return result;
-  }, [matchApi, isAuthenticated]);
-
-  // 自动加载用户匹配列表
-  useEffect(() => {
-    if (isAuthenticated && user?.id) {
-      getUserMatches(user.id);
-    }
-  }, [isAuthenticated, user?.id, getUserMatches]);
+  const refresh = getUserMatches;
 
   return {
     matches,
-    matchedUsers,
-    loading: matchApi.loading,
-    error: matchApi.error,
+    loading,
+    error,
+    empty,
     getUserMatches,
     createMatch,
     updateMatch,
     deleteMatch,
-    getMatchedUsers,
-    acceptMatch,
-    rejectMatch
+    refresh,
   };
-} 
+}

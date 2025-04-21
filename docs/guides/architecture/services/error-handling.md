@@ -53,7 +53,7 @@
 ### 目录结构
 
 ```
-src/core/services-update/error/
+src/core/services/error/
 ├── types/               # 错误处理类型
 │   ├── error-service.ts  # 错误服务接口
 │   ├── error-types.ts    # 错误类型定义

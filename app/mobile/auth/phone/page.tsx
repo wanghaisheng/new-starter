@@ -69,7 +69,9 @@ export default function PhoneAuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md p-8">
         <div id="recaptcha-container" />
-        <h1 className="text-2xl font-bold text-center mb-6"{t('auto.page.')}/h1>
+        <h1 className="text-2xl font-bold text-center mb-6">
+  {t('auto.page.')}
+</h1>
         {(localError || error) && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {localError || (typeof error === 'string' ? error : error?.message)}
@@ -120,7 +122,9 @@ export default function PhoneAuthPage() {
         )}
         <div className="text-sm text-center mt-4">
           <span className="text-gray-500">或</span>
-          <Link href="/mobile/auth/login" className="ml-2 text-blue-500"{t('auto.page.')}/Link>
+          <Link href="/mobile/auth/login" className="ml-2 text-blue-500">
+  {t('auto.page.')}
+</Link>
         </div>
       </Card>
     </div>

@@ -8,8 +8,8 @@ import type { IImageService, ImageUploadResult, ImageInfo, ImageUploadQueueEvent
 export class TelegramImageAdapter implements IImageService {
   private listeners: Partial<Record<ImageUploadQueueEventType, ((evt: ImageUploadQueueEvent) => void)[]>> = {};
   constructor(
-    private botToken: string,
-    private chatId: string,
+    private botToken: string = (typeof process !== 'undefined' && process.env.TG_BOT_TOKEN) || '',
+    private chatId: string = (typeof process !== 'undefined' && process.env.TG_CHAT_ID) || '',
   ) {}
 
   async uploadImage(file: Buffer | Uint8Array | Blob, filename: string, contentType: string): Promise<ImageUploadResult> {

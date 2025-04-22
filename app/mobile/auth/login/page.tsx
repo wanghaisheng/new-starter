@@ -28,7 +28,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle{t('auto.page.')}/CardTitle>
+          <CardTitle>
+            {t('auto.page.Login')}
+          </CardTitle>
           <CardDescription>
             输入您的账号信息以登录
           </CardDescription>
@@ -43,11 +45,13 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium"{t('auto.page.')}/label>
+              <label htmlFor="email" className="text-sm font-medium">
+                {t('auto.page.Email')}
+              </label>
               <Input
                 id="email"
                 type="email"
-                placeholder={t('auto.page.')}
+                placeholder={t('auto.page.EmailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -55,11 +59,13 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium"{t('auto.page.')}/label>
+              <label htmlFor="password" className="text-sm font-medium">
+                {t('auto.page.Password')}
+              </label>
               <Input
                 id="password"
                 type="password"
-                placeholder={t('auto.page.')}
+                placeholder={t('auto.page.PasswordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -73,11 +79,17 @@ export default function LoginPage() {
               {loading ? '登录中...' : '登录'}
             </Button>
             <div className="text-sm text-center">
-              <span className="text-gray-500"{t('auto.page.')}/span>
-              <CustomLink href="/mobile/auth/register"{t('auto.page.')}/CustomLink>
+              <span className="text-gray-500">
+                {t('auto.page.AlreadyHaveAccount') || '已有账号？'}
+              </span>
+              <CustomLink href="/mobile/auth/register">
+                {t('auto.page.RegisterNow') || '立即注册'}
+              </CustomLink>
             </div>
             <div className="text-sm text-center">
-              <CustomLink href="/mobile/auth/forgot-password"{t('auto.page.')}/CustomLink>
+              <CustomLink href="/mobile/auth/forgot-password">
+                {t('auto.page.ForgotPassword') || '忘记密码？'}
+              </CustomLink>
             </div>
           </CardFooter>
         </form>

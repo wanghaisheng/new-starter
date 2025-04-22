@@ -18,7 +18,7 @@ import {
   DocumentSnapshot,
   DocumentData
 } from 'firebase/firestore';
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 
 /**
@@ -81,7 +81,7 @@ export class RealtimeListener {
    * @param db - Firestore 数据库实例
    */
   constructor(private db: Firestore) {
-    this.logger = getLogger('RealtimeListener');
+    this.logger = getDatabaseLogger('RealtimeListener');
   }
   
   /**

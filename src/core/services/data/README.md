@@ -1,397 +1,215 @@
-# 数据服务设计文档
-
-## 设计目标
-
-- 提供统一的数据访问接口，屏蔽底层实现细节。
-- 支持多种数据库后端（如 SQLite、IndexedDB、Mock 等），可根据环境灵活切换。
-- 采用工厂、注册表、适配器等模式，保证架构解耦、可扩展、易维护。
+# 数据服务设计文档（2025重构版）
 
 ---
 
-## 目录结构
+## 一、架构模式与开发阶段选择
+
+### 支持的三种核心模式
+
+1. **纯在线（Online Only）**
+   - 只依赖云端数据库（如 Supabase、远程 SQLite）。
+   - 适合生产环境、强一致性需求。
+2. **纯离线（Offline Only）**
+   - 只依赖本地数据库（如 IndexedDB、Capacitor SQLite、MockClient）。
+   - 适合 mock 阶段、本地开发、断网场景。
+3. **混合模式（Hybrid）**
+   - 同时支持本地和云端，自动切换/同步。
+   - 断网时本地可用，联网后自动同步。
+
+### 各开发阶段推荐模式
+
+| 阶段       | 推荐模式   | Adapter/实现                  | 说明                              |
+|------------|------------|-------------------------------|-----------------------------------|
+| mock       | 纯离线     | mock-database-client          | 零配置自动 mock，开发体验最佳      |
+| local      | 离线/混合  | indexeddb/sqlite/hybrid       | 支持本地存储，部分表可混合同步      |
+| dev        | 混合/在线  | hybrid/supabase/sqlite        | 支持断网、自动降级、数据同步        |
+| production | 混合/在线  | hybrid/supabase/sqlite        | 云端为主，断网自动降级本地，自动同步 |
+
+> 环境变量（如 `MOCK_DB_MODE`、`ONLINE_DB`、`OFFLINE_DB`）决定工厂/注册表选择哪种 adapter。
+
+---
+
+## 二、目录结构与职责分工
 
 ```
 src/core/services/data/
-├── adapters/      # 数据库适配器（如 IndexedDB、SQLite 等）
-├── factory/       # 数据服务工厂（动态创建服务实例，根据配置选择后端）
-├── registry/      # 数据服务注册表（统一管理服务实例，解耦获取方式）
+├── adapters/      # 各类数据库适配器（每种 provider 一个，单一职责）
+│   ├── mock-database-client.ts
+│   ├── sqlite-database-client.ts
+│   ├── indexeddb-database-client.ts
+│   ├── supabase-client.ts
+│   ├── capacitor-sqlite-client.ts
+│   └── hybrid-database-client.ts   # 混合/聚合适配器
+├── factory/       # 数据服务工厂，根据环境动态创建实例
+├── registry/      # 数据服务注册表，统一管理/获取服务实例
 ├── types/         # 类型定义（接口、配置、类型约束等）
-├── database-service.ts # 数据服务统一实现，依赖注入底层适配器
+├── database-service.ts # 统一实现，依赖注入底层适配器
 ├── README.md      # 本设计文档
 ```
 
+- **Adapter**：每种 provider/模式一个 adapter，职责单一，易扩展。
+- **Hybrid Adapter**：组合 offline/online adapter，实现自动切换/同步。
+- **Factory**：读取环境变量/配置，动态实例化对应 adapter。
+- **Registry**：全局唯一注册和获取数据服务实例。
+
 ---
 
-## 架构核心
+## 三、核心实现与用法
 
 ### 1. 统一接口（IDataService）
 - 所有数据服务实现均需遵循 `IDataService` 接口，保证业务层调用方式一致。
-- 详见 `types/index.ts`。
 
-### 2. 工厂模式
-- 工厂根据环境变量或配置，动态选择合适的数据库适配器，并注入到 `DatabaseService`。
-- 例如：开发环境用 IndexedDB，生产环境用 SQLite，测试环境用 Mock。
+### 2. 工厂与注册表自动切换
+- 工厂根据环境变量/配置，动态选择合适的 adapter 实例。
+- 注册表统一注册和获取服务实例，业务/页面/hooks 仅通过注册表获取，禁止直接 new。
 
-### 3. 注册表模式
-- 所有数据服务实例统一注册到注册表，业务层通过注册表获取服务实例，实现解耦。
+#### 示例代码：
+```typescript
+import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
+const dataService = DataServiceRegistry.getInstance(config);
+await dataService.initialize();
+```
 
-### 4. 适配器模式
-- 每种数据库实现一个适配器，负责具体的数据操作逻辑。
-- 适配器需实现统一接口，便于工厂和服务层调用。
+### 3. mock-client 自动化
+- mock 阶段自动加载所有 schema 和 mock 配置，动态建表与批量插入，无需手动维护表结构和 mock 数据。
+- 支持所有表，mock 数据结构与真实数据库结构高度一致。
+
+### 4. Hybrid/高级混合适配器
+- 断网自动切换本地存储，联网后自动同步。
+- 支持表级/数据级同步策略、冲突解决、同步队列、事件钩子等高级能力（见 advanced-hybrid-database-client.ts）。
+
+### 5. 数据迁移与同步
+- 提供 DataMigrationService，支持表级迁移配置、字段映射、数据过滤、批量迁移、断点续传、失败重试等。
+- Hybrid/AdvancedHybrid 支持本地与云端数据迁移与同步，满足复杂业务场景。
 
 ---
 
-## 环境配置与切换
+## 四、最佳实践与扩展
 
-- 支持通过环境变量（如 `NEXT_PUBLIC_DATABASE_ENV`）或配置对象，自动切换底层数据库实现。
-- 配置项包括：同步开关、调试日志、后端类型、混合策略等，详见 `types/index.ts`。
-- 工厂读取配置，自动选择并创建合适的服务实例。
+- 业务层/hooks 只依赖 `IDataService` 统一接口。
+- 禁止直接 new 或 Factory/Client 直连，全部通过 Registry 获取。
+- mock/test 环境自动降级到 mock-client，无需手动切换。
+- 新增 provider 只需实现 adapter 并注册，无需改动业务层。
+- Hybrid/AdvancedHybrid 可应对复杂同步、冲突、表级策略等场景。
 
 ---
 
-## 业务层调用方式
+## 五、常见问题与决策理由
 
-业务层只依赖 `IDataService` 统一接口，无需关心底层数据库类型。
+- 为什么只保留三种模式？—— 纯在线、纯离线、混合模式已覆盖所有主流需求，其他变体均可归入三者之一，架构简洁、易维护。
+- 业务层如何解耦？—— 只依赖统一接口和 Registry，底层切换透明。
+- 如何扩展新数据源？—— 实现 adapter 并注册到工厂/注册表，无需动业务代码。
+- 如何做数据迁移？—— 用 DataMigrationService 配置迁移策略，Hybrid/AdvancedHybrid 支持本地与云端同步。
+
+---
+
+## 六、参考配置与代码片段
 
 ```typescript
-import { createDataService } from './factory/data-service-factory';
-
-const dataService = createDataService();
+// 注册表自动选择数据服务
+import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
+const dataService = DataServiceRegistry.getInstance(config);
 await dataService.initialize();
 const user = await dataService.getUser('id123');
+
+// HybridDatabaseClient 自动切换 online/offline
+const hybridClient = new HybridDatabaseClient(config);
+await hybridClient.initialize();
+// 网络断开自动切换 offlineClient，恢复后自动同步
 ```
 
 ---
 
-## 扩展与维护
+### 各开发阶段的存储供应商选择最佳实践
 
-- 新增数据库后端：只需实现适配器并在工厂注册。
-- 新增配置项：在类型定义和工厂逻辑中补充即可。
-- 业务层无需改动，保证高可维护性。
+#### 1. mock 阶段
+- **在线存储**：MockClient（推荐底层为 JSON 或 fake-indexeddb，便于迁移和测试）
+- **离线存储**：memory、json、fake-indexeddb（Web）、mock-capacitor-sqlite（移动端）等
+- **目的**：极致开发体验、无副作用、可随时重置、支持自动化测试
+
+#### 2. dev/local 阶段
+- **在线存储**：测试/沙箱环境的 Supabase、Firebase、远程 SQLite（避免污染生产数据）
+- **离线存储**：IndexedDB（Web）、Capacitor SQLite（移动端）、本地 SQLite（桌面/Node）
+- **目的**：模拟真实环境，支持离线调试，数据可持久化但易清理
+
+#### 3. production 阶段
+- **在线存储**：正式生产环境 Supabase、Firebase、云数据库、远程 SQLite
+- **离线存储**：IndexedDB（Web）、Capacitor SQLite（移动端）
+- **目的**：保证数据安全、实时性，断网可用，恢复后自动同步
+
+#### 4. 推荐选择总览表
+
+| 阶段       | 在线存储默认                 | 离线存储默认                |
+|------------|-----------------------------|-----------------------------|
+| mock       | MockClient (json/fake-indexeddb) | memory/json/fake-indexeddb  |
+| dev/local  | 测试 Supabase/SQLite        | IndexedDB/Capacitor SQLite  |
+| production | 生产 Supabase/SQLite        | IndexedDB/Capacitor SQLite  |
+
+- 供应商选择由工厂/注册表通过环境变量（如 `MOCK_DB_MODE`、`ONLINE_DB`、`OFFLINE_DB`）自动切换。
+- 推荐 mock 阶段采用 mock/fake adapter，dev/local 阶段采用测试环境真实 adapter，production 阶段采用正式 adapter。
+- 保证 schema、mock config、表结构一致，便于各阶段数据迁移与切换。
 
 ---
 
-## 数据服务架构（Data Service Architecture）
+### mock 阶段 MockClient 的实现与数据迁移最佳实践
 
-本模块实现了统一的数据服务层，支持多种数据库后端（如 SQLite、IndexedDB），并通过工厂和注册表实现解耦与可扩展。
+#### 1. MockClient 背后的实现选型
 
-### 目录结构
+- MockClient 作为 mock 阶段的“统一入口”，其底层可支持多种存储方式：
+  - **内存（memory）**：数据仅存在于进程内存，适合自动化测试、重启即失。
+  - **JSON 文件**：数据持久化为本地 JSON 文件，便于导出、导入、迁移。
+  - **fake-indexeddb**：用 JS 实现的 IndexedDB mock，API 兼容真实 IndexedDB，适合 Web mock 环境。
+  - **mock-sqlite**：sqlite 的内存或本地文件模式，适合模拟真实数据库。
 
-- `types/`：统一接口与配置类型（IDataService, DataServiceConfig 等）
-- `adapters/`：各类数据库适配器（如 SqliteDatabaseClient, IndexedDBDatabaseClient）
-- `factory/`：工厂方法，动态创建数据服务实例
-- `registry/`：服务注册表，支持多实例注册/获取
+- 推荐 mock 阶段优先用 **JSON 或 fake-indexeddb**：
+  - JSON 便于数据导出、导入，适合迁移到 local/dev 阶段。
+  - fake-indexeddb 兼容真实 API，迁移时 adapter 切换即可，无需数据重构。
+  - 内存适合自动化测试，不适合需要数据持久化/迁移的场景。
 
-### 快速使用
+#### 2. 数据迁移与兼容性
 
-#### 1. 配置与工厂
+- mock 阶段的数据结构、表 schema、mock 数据应与 local/dev/production 阶段保持一致。
+- mock 阶段如用 JSON/fake-indexeddb，local 阶段可直接用 IndexedDB/SQLite，数据迁移只需导入导出，无需重复建设。
+- MockClient 可通过配置选择底层存储类型（memory/json/fake-indexeddb/sqlite），业务层完全透明。
 
-```typescript
-import { DataServiceFactory } from './factory/data-service-factory';
-import { DataServiceConfig } from './types';
+#### 3. 避免重复建设的建议
 
-const config: DataServiceConfig = {
-  services: {
-    data: {
-      adapter: 'sqlite',
-      options: {
-        sqlite: { name: 'mydb.sqlite' }
-      }
-    }
-  }
-};
+- MockClient 设计为“多后端”，通过配置参数（如 `MOCK_DB_MODE`）选择底层存储。
+- mock 阶段用的 schema、mock 数据、表结构与正式环境一致，迁移时无需重建。
+- 数据迁移工具（如 DataMigrationService）支持 mock（json/fake-indexeddb）到本地 IndexedDB/SQLite 的数据迁移。
 
-const dataService = DataServiceFactory.createService(config);
-await dataService.initialize();
-```
-
-#### 2. 环境变量自动切换
-
-无需传 config 时，工厂会根据 `NEXT_PUBLIC_DATABASE_ENV` 环境变量自动选择适配器：
-- `sqlite`：使用 SqliteDatabaseClient
-- `indexeddb`：使用 IndexedDBDatabaseClient
-- `mock`：使用 MockDataService（预留）
-
-
-
-#### 3. 注册表用法
+#### 4. 典型配置/用法示例
 
 ```typescript
-import { DataServiceRegistry } from '../registry/data-service-registry';
-
-DataServiceRegistry.register('main', dataService);
-const mainService = DataServiceRegistry.get('main');
-```
-
-#### 4. 业务层调用与事件示例
-
-```typescript
-// 基本 CRUD
-const user = await dataService.findOne('users', 'id123');
-await dataService.insert('users', { id: 'id124', name: '张三' });
-await dataService.update('users', 'id124', { name: '李四' });
-await dataService.delete('users', 'id124');
-
-// 事件与缓存机制
-mainService.on('insert', (entity) => {
-  console.log('[event] 新数据插入：', entity);
-});
-mainService.on('update', (id, data) => {
-  console.log('[event] 数据更新：', id, data);
-});
-mainService.on('delete', (id) => {
-  console.log('[event] 数据删除：', id);
+// mock 阶段
+const mockClient = new MockDatabaseClient({
+  mode: 'json', // 或 'fake-indexeddb', 'memory', 'sqlite'
+  file: './mock-data.json', // 仅 json/sqlite 模式需要
+  schemaDir: './config/schema',
+  mockDataDir: './config/types',
 });
 
-// 查询缓存演示
-const cachedUser = await mainService.findOne('users', 'id124');
-console.log('[cache] 查询缓存命中：', cachedUser);
-
-// 资源销毁
-await mainService.dispose();
-```
-
-### 扩展说明
-
-- 新增适配器：实现 IDataService 并在工厂注册即可。
-- 支持多实例：通过注册表可管理多个数据服务实例。
-- 详细接口见 `types/index.ts`。
-- 支持事件订阅（on/off/emit）、findOne/query 查询缓存与自动失效、懒加载与按需销毁。
-
-### 单元测试建议
-
-建议为工厂、注册表、各适配器补充单元测试，确保不同环境和配置下行为一致。
-
----
-
-## 数据预加载服务（DataPreloadService）增强用法
-
-### 1. 初始化与配置
-
-```typescript
-import { HybridDatabaseClient } from '../adapters/hybrid-database-client';
-import { DataPreloadService } from './preload/data-preload-service';
-import { DataPreloadConfig } from './preload/types';
-
-const hybrid = new HybridDatabaseClient({ /* ... */ });
-const preloadConfig: DataPreloadConfig = {
-  enabled: true,
-  preloadTables: [
-    { name: 'users', maxRecords: 20, priority: 1 },
-    { name: 'messages', maxRecords: 50, cacheTTL: 10 * 60 * 1000, priority: 2, dependsOn: ['users'] },
-    'matches' // 简写支持
-  ],
-  autoPreloadInterval: 5 * 60 * 1000,
-  cacheTTL: 15 * 60 * 1000,
-  preloadOnNetworkReconnect: true
-};
-const preloadService = DataPreloadService.getInstance(hybrid, preloadConfig);
-```
-
-### 2. 事件订阅/通知
-
-```typescript
-preloadService.on('preload:start', ({ table }) => console.log('开始预加载', table));
-preloadService.on('preload:success', ({ table, data }) => console.log('预加载成功', table, data.length));
-preloadService.on('preload:error', ({ table, error }) => console.error('预加载失败', table, error));
-preloadService.on('cache:expired', ({ table }) => console.warn('缓存过期', table));
-preloadService.on('network:online', () => console.info('网络恢复，自动触发预加载'));
-preloadService.on('network:offline', () => console.info('网络断开'));
-```
-
-### 3. 主动刷新/清理缓存
-
-```typescript
-preloadService.refreshCache('users'); // 主动刷新 users 表
-preloadService.clearCache('messages'); // 清理 messages 表缓存
-preloadService.clearCache(); // 清空所有缓存
-```
-
-### 4. 获取缓存与状态
-
-```typescript
-const users = preloadService.getCachedData('users');
-const status = preloadService.getStatus('users');
-```
-
-### 5. 结合前端状态管理
-
-```typescript
-preloadService.onCacheUpdate = (table, data) => {
-  // 可同步到 Redux/MobX/Vuex 等
-  // dispatch({ type: 'PRELOAD_UPDATE', table, data })
-};
-```
-
-### 6. 表优先级/依赖/细粒度 TTL
-- preloadTables 支持 priority、dependsOn、per-table cacheTTL。
-- 先加载 priority 低的表，后加载高的。
-- dependsOn 支持简单依赖（如 messages 依赖 users）。
-
----
-
-## 离线专用表最佳实践（hybrid 适配器方案）
-
-### 1. schema 配置规范
-
-在表 schema 配置中加 `offlineOnly: true`，hybrid 适配器会自动将该表的所有 CRUD 路由到本地存储：
-
-```typescript
-export const MessageTableSchema = {
-  name: 'messages',
-  columns: {
-    id: { type: 'string', primary: true },
-    content: { type: 'string' },
-    createdAt: { type: 'number' }
-  },
-  syncConfig: {
-    offlineOnly: true // 关键配置
-  }
-};
-```
-
-### 2. 典型用法示例
-
-```typescript
-import { HybridDatabaseClient } from '../adapters/hybrid-database-client';
-
-async function offlineTableUsageExample() {
-  const hybrid = new HybridDatabaseClient({ /* ... */ });
-  hybrid.setMode('offline');
-
-  // 所有 messages 表操作只会落地本地，不会同步云端
-  await hybrid.insert('messages', { id: 'msg1', content: 'hello', createdAt: Date.now() });
-  const msg = await hybrid.findOne('messages', 'msg1');
-  await hybrid.update('messages', 'msg1', { content: 'updated' });
-  await hybrid.delete('messages', 'msg1');
-
-  // 批量操作
-  await hybrid.insert('messages', [
-    { id: 'msg2', content: 'hi', createdAt: Date.now() },
-    { id: 'msg3', content: 'hey', createdAt: Date.now() }
-  ]);
-
-  // 查询所有
-  const all = await hybrid.query('messages');
-  console.log('本地所有消息：', all);
-}
-```
-
-### 3. 业务层建议
-- 只需在 schema 配置中正确标记 `offlineOnly: true`，业务层无需关心底层存储细节。
-- 推荐统一通过 hybrid 适配器实例进行所有表的 CRUD，利用 schema 灵活区分离线/同步表。
-- 如需批量操作、分页、缓存、事件等，hybrid 适配器已支持，无需额外实现 OfflineStorageService。
-
-### 4. 进阶校验
-
-```typescript
-function assertOfflineOnly(hybrid: HybridDatabaseClient, table: string) {
-  const schema = hybrid.getSchema(table);
-  if (!schema?.syncConfig?.offlineOnly) {
-    throw new Error(`表 ${table} 未标记为 offlineOnly`);
-  }
-}
-```
-
----
-如需进一步扩展或定制，请参考各目录下的 README 和类型定义。
-
----
-
-## 数据迁移服务（DataMigrationService）高级能力文档
-
-### 1. 配置项与类型
-
-```typescript
-// 表级迁移配置
-interface TableMigrationConfig {
-  name: string;
-  mapping?: Record<string, string>; // 字段映射
-  filter?: (row: any) => boolean;   // 数据过滤
-  transform?: (row: any) => any;    // 自定义转换
-}
-
-// 全局迁移配置
-interface DataMigrationConfig {
-  source: HybridDatabaseClient;
-  target: HybridDatabaseClient;
-  tables: (string | TableMigrationConfig)[];
-  batchSize?: number;               // 每批迁移条数
-  resumable?: boolean;              // 是否断点续传
-  maxRetry?: number;                // 批量失败最大重试次数
-  verify?: boolean;                 // 迁移后自动校验
-  concurrency?: number;             // 并发迁移表数
-  onLog?: (log: MigrationLog) => void;        // 日志回调
-  onGlobalProgress?: (progress: GlobalProgress) => void; // 全局进度回调
-  beforeMigration?: () => Promise<void> | void;
-  afterMigration?: () => Promise<void> | void;
-  beforeBatch?: (table: string, batchIndex: number) => Promise<void> | void;
-  afterBatch?: (table: string, batchIndex: number) => Promise<void> | void;
-  beforeRow?: (table: string, row: any) => Promise<void> | void;
-  afterRow?: (table: string, row: any) => Promise<void> | void;
-  onCancel?: () => void;
-}
-```
-
-### 2. 主要能力说明
-
-- **并发迁移**：concurrency 控制同一时刻并行迁移表数，提升性能。
-- **任务暂停/恢复/取消**：pause/resume/cancel 方法，支持断点续传和任务终止。
-- **字段映射/数据过滤/转换**：每表可配置 mapping、filter、transform，实现复杂数据结构适配。
-- **批量迁移与失败重试**：batchSize 控制单批量，maxRetry 支持失败自动重试。
-- **全局进度统计**：getGlobalProgress() 和 onGlobalProgress 回调，便于 UI 实时展示总进度。
-- **多级钩子**：before/afterMigration、before/afterBatch、before/afterRow，灵活插入自定义逻辑（如脱敏、审计等）。
-- **迁移校验**：verify=true 时自动校验源/目标数据量。
-- **失败数据导出**：getFailedData(table) 导出迁移失败数据，便于人工修复或后续重试。
-- **全过程日志**：getLogs() 查询全量迁移日志，onLog 实时回调。
-
-### 3. 用法示例
-
-```typescript
-import { DataMigrationService, DataMigrationConfig, TableMigrationConfig } from './migration/data-migration-service';
-
-const migrationConfig: DataMigrationConfig = {
-  source, target,
-  tables: [
-    {
-      name: 'users',
-      mapping: { id: 'userId', name: 'username' },
-      filter: row => row.active,
-      transform: row => ({ ...row, migratedAt: Date.now() })
-    },
-    'logs'
-  ],
-  batchSize: 100,
-  concurrency: 2,
-  maxRetry: 2,
-  verify: true,
-  beforeMigration: () => console.log('即将开始迁移'),
-  afterMigration: () => console.log('全部迁移完成'),
-  onLog: log => console.log('[日志]', log),
-  onGlobalProgress: gp => console.log('[全局进度]', gp)
-};
-
-const migrationService = new DataMigrationService(migrationConfig);
-
-// 启动迁移
-migrationService.migrateAll(progress => {
-  console.log(`[${progress.table}] 进度: ${progress.migrated}/${progress.total}, 状态: ${progress.status}`);
+// local 阶段
+const localClient = new IndexedDBDatabaseClient({
+  schemaDir: './config/schema',
 });
 
-// 可随时暂停、恢复、取消
-// migrationService.pause();
-// migrationService.resume();
-// migrationService.cancel();
-
-// 导出失败数据与日志
-const failedRows = migrationService.getFailedData('users');
-const logs = migrationService.getLogs();
+// 数据迁移
+await DataMigrationService.migrate(mockClient, localClient);
 ```
 
-### 4. 最佳实践建议
+> MockClient 背后推荐用 JSON 或 fake-indexeddb，可直接迁移到 local/dev 阶段，避免重复建设。只需保证 schema、mock config、表结构始终一致，adapter/底层存储可灵活切换。
 
-- 推荐结合全局进度与日志回调，实现 UI 端进度条、错误提示、迁移报告。
-- 复杂表结构建议用 mapping/transform 明确字段映射与数据转换。
-- 大批量数据建议开启并发迁移与批量重试，提升整体吞吐。
-- 强烈建议对迁移失败数据进行导出与人工复核，确保数据一致性。
-- 钩子函数可用于实现脱敏、审计、数据清洗等企业级场景。
+---
+
+如需详细用法、配置模板或迁移指南，请查阅各目录 README 和架构文档。
+
+---
+
+#### ⚠️ 动态注册与懒加载原则（强制要求）
+
+- 所有 adapter/service 必须通过 Registry/Factory 延迟注册与实例化，严禁在模块顶层静态 new 或全局赋值。
+- Registry/Factory 必须在每次 getDataService 时根据最新环境变量动态选择实现，支持运行时热切换。
+- 禁止业务层、hooks 直接依赖具体 adapter 或工厂，必须统一通过注册表获取实例。
+- 这样可避免静态加载导致的环境切换失效、测试副作用和全局状态污染，提升可维护性与测试隔离性。
+- 推荐所有单元测试、自动化测试前先 reset/clear 注册表，确保测试隔离和无副作用。

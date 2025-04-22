@@ -1,11 +1,12 @@
 // 通知业务服务聚合层，便于扩展聚合业务逻辑
-import type { INotificationService, INotificationAdapter } from '../types/notification-service';
+import type { INotificationService, INotificationAdapter, NotificationServiceType, NotificationServiceOptions } from '../types/notification-service';
+import { NotificationServiceFactory } from '../factory/notification-service-factory';
 
 export class NotificationService implements INotificationService {
   private adapter: INotificationAdapter;
 
-  constructor(adapter: INotificationAdapter) {
-    this.adapter = adapter;
+  constructor(type: NotificationServiceType = 'mock', options: NotificationServiceOptions = {}) {
+    this.adapter = NotificationServiceFactory.getAdapter(type, options) ?? NotificationServiceFactory.getAdapter('mock')!;
   }
 
   async getUserNotifications(userId: string) {

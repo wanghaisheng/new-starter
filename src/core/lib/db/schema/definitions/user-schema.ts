@@ -1,5 +1,5 @@
-import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
-import { ColumnType } from '@/core/lib/db/schema/types';
+import { schemaRegistry } from '../schema-registry-singleton';
+import { ColumnType, TableSchema } from '../types';
 
 /**
  * 用户表结构定义
@@ -59,49 +59,13 @@ const userSchema: TableSchema = {
     },
     {
       name: 'location',
-      type: ColumnType.JSON,
-      notNull: true
-    },
-    {
-      name: 'preferences',
-      type: ColumnType.JSON,
-      notNull: true
-    },
-    {
-      name: 'tags',
-      type: ColumnType.JSON,
-      notNull: true,
-      defValue: '[]'
-    },
-    {
-      name: 'profile',
-      type: ColumnType.JSON,
-      notNull: true,
-      defValue: '{}'
-    },
-    {
-      name: 'isVerified',
-      type: ColumnType.BOOLEAN,
-      notNull: true,
-      defValue: false
-    },
-    {
-      name: 'lastActive',
-      type: ColumnType.DATE,
-      notNull: true,
-      defValue: () => new Date()
+      type: ColumnType.JSON
     },
     {
       name: 'status',
       type: ColumnType.STRING,
       notNull: true,
       defValue: 'active'
-    },
-    {
-      name: 'createdAt',
-      type: ColumnType.DATE,
-      notNull: true,
-      defValue: () => new Date()
     },
     {
       name: 'updatedAt',
@@ -112,38 +76,9 @@ const userSchema: TableSchema = {
     {
       name: 'bazi',
       type: ColumnType.JSON,
-      notNull: false,
-      defValue: '{}'
+      notNull: false
     }
-  ],
-  indexes: [
-    {
-      name: 'idx_users_email',
-      columns: ['email'],
-      unique: true
-    },
-    {
-      name: 'idx_users_phone',
-      columns: ['phone'],
-      unique: true
-    },
-    {
-      name: 'idx_users_google_id',
-      columns: ['googleId'],
-      unique: true
-    },
-    {
-      name: 'idx_users_name',
-      columns: ['name']
-    },
-    {
-      name: 'idx_users_status',
-      columns: ['status']
-    },
-    {
-      name: 'idx_users_last_active',
-      columns: ['lastActive']
-    }
+    // ... 其它字段
   ]
 };
 

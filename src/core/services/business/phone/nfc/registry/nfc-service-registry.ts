@@ -5,6 +5,7 @@ export interface NFCServiceConfig {
   environment: string;
   name: string;
   type: NFCServiceType;
+  options?: Record<string, any>;
 }
 
 export class NFCServiceRegistry {
@@ -21,7 +22,7 @@ export class NFCServiceRegistry {
     const key = `${config.environment}:${config.name}`;
     if (this.registry[key]) return this.registry[key];
     const adapter = NFCServiceRegistry.adapters[config.type];
-    const service = adapter ? adapter() : NFCServiceFactory.create(config.type);
+    const service = adapter ? adapter() : NFCServiceFactory.createService({ type: config.type, options: config.options });
     this.registry[key] = service;
     return service;
   }
@@ -37,9 +38,21 @@ export class NFCServiceRegistry {
     return factory ? factory() : undefined;
   }
   static registerAllAdapters() {
-    NFCServiceRegistry.registerAdapter('web', () => NFCServiceFactory.create('web'));
-    NFCServiceRegistry.registerAdapter('capacitor', () => NFCServiceFactory.create('capacitor'));
-    NFCServiceRegistry.registerAdapter('mock', () => NFCServiceFactory.create('mock'));
+    NFCServiceRegistry.registerAdapter('web', () => NFCServiceFactory.createService({ type: 'web' }));
+    NFCServiceRegistry.registerAdapter('capacitor', () => NFCServiceFactory.createService({ type: 'capacitor' }));
+    NFCServiceRegistry.registerAdapter('mock', () => NFCServiceFactory.createService({ type: 'mock' }));
+  }
+
+  /**
+   * 统一 getProvider 签名，供 hooks/业务层调用
+   */
+  getProvider(
+    type: NFCServiceType = 'capacitor',
+    name: string = 'default',
+    _dataService?: unknown,
+    options?: Record<string, any>
+  ): () => INFCService {
+    return () => this.createService({ environment: type, name, type, options });
   }
 
   /**
@@ -47,11 +60,10 @@ export class NFCServiceRegistry {
    * 优先 remote，其次 hybrid，其次 mock
    */
   getDefaultService(_dataService?: unknown): INFCService {
-    // 保持参数签名统一，参数未用到
     return (
-      this.getService('remote') ||
-      this.getService('hybrid') ||
-      this.getService('mock') ||
+      this.getService('remote', 'default') ||
+      this.getService('hybrid', 'default') ||
+      this.getService('mock', 'default') ||
       this.createService({ environment: 'mock', name: 'mock', type: 'mock' })
     );
   }

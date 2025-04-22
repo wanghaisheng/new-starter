@@ -95,6 +95,22 @@ CameraServiceFactory.registerAdapter('xiaomi', () => new XiaomiCameraAdapter());
 - __tests__ 目录建议为所有服务补全适配器/工厂/注册表单元测试。
 - hooks/README.md 建议补充典型用法和最佳实践说明。
 
+## 8. 服务注册表 getProvider 统一规范
+
+所有 Registry 的 `getProvider` 方法应采用如下统一签名：
+
+```typescript
+getProvider(
+  type: string,         // mock/remote/hybrid/brandA/brandB 等服务类型
+  name?: string,        // 实例名，默认 'default'
+  dataService?: any,    // 可选，部分服务如 Match 需注入数据服务
+  options?: object      // 其它扩展参数，预留
+): () => IService
+```
+
+- 推荐统一调用体验，便于 hooks 泛型化和批量重构。
+- 详见[服务架构统一规范](../../../../docs/guides/architecture/services/overview.md)。
+
 ---
 - 各功能服务详细用法、插件注册、自动降级等请查阅各自子目录下的 README.md。
 - 如需代码模板/工厂/注册表实现样例，或希望对现有服务文件进行具体重构，请查阅本目录相关实现或联系维护者。

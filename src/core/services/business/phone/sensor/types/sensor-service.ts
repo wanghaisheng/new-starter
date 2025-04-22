@@ -19,8 +19,17 @@ export type SensorData = {
 
 export type SensorEvent = 'data' | 'error' | 'activated' | 'deactivated';
 
-// 适配器类型定义
-export type SensorServiceType = 'mock' | 'web' | 'capacitor';
+// Provider 与品牌分离
+export type SensorProviderType = 'capacitor' | 'web' | 'mock';
+export type SensorBrand = 'huawei' | 'xiaomi' | 'oppo' | 'vivo' | 'apple' | 'generic';
+
+export type SensorServiceOptions = {
+  brand?: SensorBrand;
+  [key: string]: any;
+};
+
+// 适配器类型定义（兼容旧用法，推荐新用法只用 ProviderType）
+export type SensorServiceType = SensorProviderType;
 
 export interface ISensorService {
   initialize(): Promise<void>;

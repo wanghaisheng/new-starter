@@ -3,7 +3,7 @@
 // 可聚合多个适配器/服务，实现业务流程编排
 // 便于扩展埋点、缓存、权限校验等横切逻辑
 import type { IAuthService, AuthResult, AuthUser } from '../types/auth-service';
-import { AuthServiceFactory } from '../factory/auth-service-factory';
+import { AuthServiceFactory, AuthServiceType, AuthServiceOptions } from '../factory/auth-service-factory';
 
 /**
  * AuthService 业务服务层（可选）
@@ -14,8 +14,8 @@ import { AuthServiceFactory } from '../factory/auth-service-factory';
 export class AuthService {
   private adapter: IAuthService;
 
-  constructor(type: 'mock'|'firebase'|'better'|'hybrid' = 'mock') {
-    this.adapter = AuthServiceFactory.createService(type);
+  constructor({ type = 'mock', options = {} }: { type?: AuthServiceType, options?: AuthServiceOptions } = {}) {
+    this.adapter = AuthServiceFactory.createService({ type, options });
   }
 
   async initialize() { await this.adapter.initialize(); }

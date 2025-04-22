@@ -8,11 +8,11 @@ import type { IImageService, ImageUploadResult, ImageInfo, ImageUploadQueueEvent
 export class GithubImageAdapter implements IImageService {
   private listeners: Partial<Record<ImageUploadQueueEventType, ((evt: ImageUploadQueueEvent) => void)[]>> = {};
   constructor(
-    private token: string,
-    private repo: string, // 格式：owner/repo
-    private branch: string = 'main',
-    private path: string = '', // 仓库内图片存储目录
-    private rawBase: string = 'https://raw.githubusercontent.com', // CDN 直链前缀
+    private token: string = (typeof process !== 'undefined' && process.env.GITHUB_TOKEN) || '',
+    private repo: string = (typeof process !== 'undefined' && process.env.GITHUB_REPO) || '', // 格式：owner/repo
+    private branch: string = (typeof process !== 'undefined' && process.env.GITHUB_BRANCH) || 'main',
+    private path: string = (typeof process !== 'undefined' && process.env.GITHUB_PATH) || '',
+    private rawBase: string = (typeof process !== 'undefined' && process.env.GITHUB_RAW_BASE) || 'https://raw.githubusercontent.com',
   ) {}
 
   async uploadImage(file: Buffer | Uint8Array | Blob, filename: string, contentType: string): Promise<ImageUploadResult> {

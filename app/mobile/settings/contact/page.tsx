@@ -102,7 +102,9 @@ export default function ContactSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.Contact')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.Contact')}
+</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -113,12 +115,16 @@ export default function ContactSettingsPage() {
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.CONTACT')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.CONTACT')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={mailOutline} slot="start" />
-              <IonLabel position="stacked"{t('auto.page.EmailAd')}/IonLabel>
+              <IonLabel position="stacked">
+  {t('auto.page.EmailAd')}
+</IonLabel>
               <IonInput
                 type="email"
                 value={contact.email}
@@ -129,7 +135,9 @@ export default function ContactSettingsPage() {
             
             <IonItem>
               <IonIcon icon={callOutline} slot="start" />
-              <IonLabel position="stacked"{t('auto.page.PhoneNu')}/IonLabel>
+              <IonLabel position="stacked">
+  {t('auto.page.PhoneNu')}
+</IonLabel>
               <IonInput
                 type="tel"
                 value={contact.phone}
@@ -141,12 +149,16 @@ export default function ContactSettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.VISIBILI')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.VISIBILI')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={globeOutline} slot="start" />
-              <IonLabel{t('auto.page.ShowEma')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.ShowEma')}
+</IonLabel>
               <IonToggle
                 checked={contact.privacySettings?.showEmailToMatches}
                 onIonChange={e => updateContactSettings({
@@ -160,7 +172,9 @@ export default function ContactSettingsPage() {
             
             <IonItem>
               <IonIcon icon={callOutline} slot="start" />
-              <IonLabel{t('auto.page.ShowPho')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.ShowPho')}
+</IonLabel>
               <IonToggle
                 checked={contact.privacySettings?.showPhoneToMatches}
                 onIonChange={e => updateContactSettings({
@@ -175,12 +189,16 @@ export default function ContactSettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.SHARING')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.SHARING')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={shareSocialOutline} slot="start" />
-              <IonLabel{t('auto.page.AllowPr')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.AllowPr')}
+</IonLabel>
               <IonToggle
                 checked={contact.privacySettings?.allowProfileSharing}
                 onIonChange={e => updateContactSettings({

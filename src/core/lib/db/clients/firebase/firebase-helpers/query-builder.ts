@@ -24,7 +24,7 @@ import {
   SortDirection, 
   QueryFilter 
 } from '@/core/lib/db/types/database.types';
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 
 /**
  * Firebase 查询构建器
@@ -37,7 +37,7 @@ export class FirebaseQueryBuilder {
    * 创建查询构建器实例
    */
   constructor() {
-    this.logger = getLogger('FirebaseQueryBuilder');
+    this.logger = getDatabaseLogger('FirebaseQueryBuilder');
   }
 
   /**

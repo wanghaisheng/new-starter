@@ -8,6 +8,7 @@
 2. [初始化步骤](#初始化步骤)
 3. [验证初始化](#验证初始化)
 4. [常见问题](#常见问题)
+5. [Mock 阶段数据源支持与切换说明](#mock-阶段数据源支持与切换说明)
 
 ## 环境要求
 
@@ -109,6 +110,54 @@ bun run cap:android
 # 打开iOS项目
 bun run cap:ios
 ```
+
+## Mock 阶段数据源支持与切换说明
+
+### 支持的数据源类型
+
+- **memory**：内存 mock，适合简单单元测试和极简演示。
+- **json**：基于 JSON 文件的 mock，适合需要持久化 mock 数据的场景。
+- **indexeddb**：浏览器端 IndexedDB，适合 web 端离线开发。
+- **fake-indexeddb**：Node.js/mock 环境下模拟 IndexedDB，支持全 CRUD，便于无缝迁移到 dev/prod IndexedDB。
+- **sqlite**：Node.js 环境下支持 SQLite，推荐移动端开发/测试，支持文件与内存两种模式。
+
+### 切换方式
+
+1. **通过环境变量**
+   - 在 `.env.mock` 或系统环境变量中设置：
+     ```env
+     MOCK_DB_MODE=sqlite # 可选值：memory/json/indexeddb/fake-indexeddb/sqlite
+     MOCK_SQLITE_FILE=./mock-db.sqlite # mockMode=sqlite 时指定 SQLite 文件路径，默认为 :memory:
+     ```
+2. **配置参数优先级**
+   - 代码中传入的 `mockMode` 优先级最高，其次为环境变量，最后为默认值。
+
+### 各模式适用场景
+
+- **memory**：极简测试、临时 mock。
+- **json**：mock 数据持久化、回归测试。
+- **indexeddb/fake-indexeddb**：web 端或 Node.js 环境下模拟 IndexedDB，便于数据结构、API 行为与正式环境无缝对接。
+- **sqlite**：移动端开发/测试、复杂 SQL/事务验证、数据导出/备份。
+
+### SQLite mock 使用说明
+
+- 支持 `:memory:`（内存数据库）和文件路径（如 `./mock-db.sqlite`）。
+- mock-client.ts 会自动根据 schema 和 config/types 下的 mock 配置批量建表和插入演示数据。
+- 适合端到端一致性测试和数据迁移。
+
+### 代码示例
+
+```ts
+const mockDb = new MockDatabaseClient({
+  mockMode: process.env.MOCK_DB_MODE as any, // 或 'sqlite'
+  sqliteFilePath: process.env.MOCK_SQLITE_FILE || ':memory:'
+});
+await mockDb.initialize();
+```
+
+---
+
+如需扩展新的 mock 数据源，只需在 mock-client.ts 中新增分支并完善初始化逻辑即可。
 
 ## 常见问题
 

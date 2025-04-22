@@ -8,7 +8,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject,
          StorageReference, UploadResult, StorageError } from 'firebase/storage';
 
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 
 import { FirebaseConfig } from './firebase-config';
 
@@ -96,7 +96,7 @@ export class FirebaseStorageService {
   private maxUploadSize: number;
   
   constructor(private config: FirebaseConfig) {
-    this.logger = getLogger('FirebaseStorage');
+    this.logger = getDatabaseLogger('FirebaseStorage');
     this.bucketName = config.storage?.bucketName || '';
     this.maxUploadSize = config.storage?.maxUploadSize || 10 * 1024 * 1024; // 默认 10MB
     this.initialize();

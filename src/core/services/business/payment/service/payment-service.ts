@@ -1,13 +1,13 @@
 // 支付服务业务层，聚合调用适配器
 import { IPaymentService, Product, PurchaseResult, Subscription } from '../types/payment-service';
-import { createPaymentService } from '../factory/payment-service-factory';
-import type { PaymentServiceType } from '../factory/payment-service-factory';
+import { PaymentServiceRegistry } from '../registry/payment-service-registry';
+import type { PaymentServiceType } from '../registry/payment-service-registry';
 
 export class PaymentService {
   private adapter: IPaymentService;
 
   constructor(type: PaymentServiceType = 'revenuecat') {
-    this.adapter = createPaymentService(type);
+    this.adapter = PaymentServiceRegistry.getInstance().createService(type);
   }
 
   async initialize() { await this.adapter.initialize(); }

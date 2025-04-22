@@ -11,6 +11,7 @@ import type { IMatchService } from './match/types/match-service';
 import type { IMessageService } from './messages/types/message-service';
 import type { IQuizService, IQuizAIService, IQuizReportService } from './quiz/types/quiz-service';
 import type { INotificationService } from './notifications/types/notification-service';
+import { DataServiceRegistry } from '../data/registry/data-service-registry';
 
 // AppService 统一管理所有业务服务实例，建议所有页面/组件仅通过 hooks 间接访问服务
 export class AppService {
@@ -55,7 +56,13 @@ export class AppService {
     if (this.initialized) return;
     this._authService = AuthServiceFactory.createService(env.authType || 'mock');
     this._userService = UserServiceFactory.createService(env.userType || 'mock', env.apiBaseUrl);
-    this._matchService = MatchServiceRegistry.getInstance().createService(env.matchType || 'mock');
+    // 修复：为 matchService 注入 dataService，避免因缺失参数报错
+    const matchDataService = DataServiceRegistry.get('default');
+    this._matchService = MatchServiceRegistry.getInstance().createService(
+      env.matchType || 'mock',
+      'default',
+      matchDataService
+    );
     this._messageService = MessageServiceFactory.createService(env.messageType || 'mock');
     this._notificationService = NotificationServiceFactory.createService(env.notificationType || 'mock');
 

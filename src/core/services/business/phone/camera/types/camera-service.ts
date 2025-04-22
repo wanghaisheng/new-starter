@@ -18,3 +18,8 @@ export type CameraEvent = 'photoTaken' | 'galleryPicked';
 export interface CameraOptions { quality?: number; width?: number; height?: number; }
 export interface GalleryOptions { maxCount?: number; }
 export interface CameraPhotoResult { uri: string; base64?: string; width?: number; height?: number; [key: string]: any; }
+
+// 修复：导出 CameraServiceOptions 类型，供工厂/注册表透传扩展参数
+export interface CameraServiceOptions {
+  [key: string]: any;
+}

@@ -106,3 +106,9 @@ export interface UserQuizDetail {
   result: QuizResult | null;
   questions: QuizQuestion[];
 }
+
+// Service 工厂类型定义
+export type QuizServiceType = 'mock' | 'remote' | 'hybrid';
+export interface QuizServiceOptions {
+  apiBaseUrl?: string;
+}

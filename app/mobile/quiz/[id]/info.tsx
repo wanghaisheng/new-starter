@@ -65,24 +65,34 @@ export default function TestInfoFormPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.info.')}/IonTitle>
+          <IonTitle>
+  {t('auto.info.')}
+</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
         <IonItem>
-          <IonLabel position="stacked"{t('auto.info.')}/IonLabel>
+          <IonLabel position="stacked">
+  {t('auto.info.')}
+</IonLabel>
           <IonInput type="date" value={info.birthDate} onIonChange={e => handleChange("birthDate", e.detail.value!)} />
         </IonItem>
         <IonItem>
-          <IonLabel position="stacked"{t('auto.info.')}/IonLabel>
+          <IonLabel position="stacked">
+  {t('auto.info.')}
+</IonLabel>
           <IonInput type="time" value={info.birthTime} onIonChange={e => handleChange("birthTime", e.detail.value!)} />
         </IonItem>
         <IonItem>
-          <IonLabel position="stacked"{t('auto.info.')}/IonLabel>
+          <IonLabel position="stacked">
+  {t('auto.info.')}
+</IonLabel>
           <IonInput value={info.birthPlace} onIonChange={e => handleChange("birthPlace", e.detail.value!)} />
         </IonItem>
         <IonItem>
-          <IonLabel position="stacked"{t('auto.info.')}/IonLabel>
+          <IonLabel position="stacked">
+  {t('auto.info.')}
+</IonLabel>
           <IonRadioGroup value={info.gender} onIonChange={e => handleChange("gender", e.detail.value!)}>
             <IonItem lines="none">
               <IonLabel>男</IonLabel>

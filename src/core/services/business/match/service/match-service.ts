@@ -3,6 +3,8 @@ import { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/mat
 import { User } from '@/core/lib/db/types/user';
 import { IMatchAIAdapter } from '../ai-adapters/match-ai-adapter';
 import { DefaultMatchAIAdapter } from '../ai-adapters/default-match-ai-adapter';
+import { MatchServiceFactory, MatchServiceType, MatchServiceOptions } from '../factory/match-service-factory';
+import type { IDataService } from '@/core/services/data/types';
 
 /**
  * MatchService：负责根据地理位置、用户标签等匹配机制，触发匹配等
@@ -11,11 +13,13 @@ export class MatchService implements IMatchService {
   private adapter: IMatchService;
   private aiAdapter: IMatchAIAdapter;
   private userService: any;
+  private dataService: IDataService;
 
-  constructor(adapter: IMatchService, aiAdapter?: IMatchAIAdapter, userService?: any) {
-    this.adapter = adapter;
+  constructor(type: MatchServiceType = 'mock', options: MatchServiceOptions = {}, dataService: IDataService, aiAdapter?: IMatchAIAdapter, userService?: any) {
+    this.adapter = MatchServiceFactory.getAdapter(type, options, dataService) ?? MatchServiceFactory.getAdapter('mock', {}, dataService)!;
     this.aiAdapter = aiAdapter || new DefaultMatchAIAdapter();
     this.userService = userService;
+    this.dataService = dataService;
   }
 
   /**
@@ -31,7 +35,6 @@ export class MatchService implements IMatchService {
   async refreshUserMatches(userId: string): Promise<void> {
     return this.adapter.refreshUserMatches(userId);
   }
-
 
   async getUserMatches(userId: string): Promise<Match[]> {
     return this.adapter.getUserMatches(userId);

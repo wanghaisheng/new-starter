@@ -1,17 +1,37 @@
 // 认证服务工厂，统一为 class + static createService 方法
 import { IAuthService } from '../types/auth-service';
 import { MockAuthService } from '../adapters/mock/mock-auth-service';
-import { FirebaseAuthService } from '../adapters/firebase/firebase-auth-service';
-import { BetterAuthService } from '../adapters/better/better-auth-service';
 import { HybridAuthService } from '../adapters/hybrid-auth-service';
 
+export type AuthServiceType = 'mock' | 'firebase' | 'better' | 'hybrid';
+export type AuthServiceOptions = { [key: string]: any };
+
 export class AuthServiceFactory {
-  static createService(type: 'mock'|'firebase'|'better'|'hybrid' = 'mock'): IAuthService {
+  static createService({
+    type = 'mock',
+    dataService,
+    options = {}
+  }: {
+    type?: AuthServiceType,
+    dataService?: any,
+    options?: AuthServiceOptions
+  } = {}): IAuthService {
+    console.log('[DEBUG][auth-service-factory] 创建 auth 类型:', type);
     switch(type) {
-      case 'firebase': return new FirebaseAuthService() as IAuthService;
-      case 'better': return new BetterAuthService() as IAuthService;
-      case 'hybrid': return new HybridAuthService() as IAuthService;
-      default: return new MockAuthService() as IAuthService;
+      case 'firebase': {
+        // 动态 require，避免 mock 环境下 firebase-adapter 被静态 import
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { FirebaseAuthAdapter } = require('../adapters/firebase/firebase-auth-service');
+        return new FirebaseAuthAdapter();
+      }
+      case 'better': {
+        // 动态 require，避免 mock 环境下 better-auth-adapter 被静态 import
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { BetterAuthService } = require('../adapters/better/better-auth-service');
+        return new BetterAuthService();
+      }
+      case 'hybrid': return new HybridAuthService();
+      default: return new MockAuthService();
     }
   }
 }
@@ -19,7 +39,7 @@ export class AuthServiceFactory {
 export type AuthServiceConfig = {
   environment: 'production'|'test'|'mock',
   name: string,
-  type?: 'mock'|'firebase'|'better'|'hybrid'
+  type?: AuthServiceType
 };
 
 export class AuthServiceFactoryRegistry {
@@ -35,9 +55,22 @@ export class AuthServiceFactoryRegistry {
     const key = `${config.environment}:${config.name}`;
     if (this.registry[key]) return this.registry[key];
     let service: IAuthService;
+    console.log('[DEBUG][auth-service-factory] 创建 auth 类型:', config.type ?? (config.environment === 'production' ? 'firebase' : 'mock'));
     switch (config.type ?? (config.environment === 'production' ? 'firebase' : 'mock')) {
-      case 'firebase': service = new FirebaseAuthService(); break;
-      case 'better': service = new BetterAuthService(); break;
+      case 'firebase': {
+        // 动态 require，避免 mock 环境下 firebase-adapter 被静态 import
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { FirebaseAuthAdapter } = require('../adapters/firebase/firebase-auth-service');
+        service = new FirebaseAuthAdapter();
+        break;
+      }
+      case 'better': {
+        // 动态 require，避免 mock 环境下 better-auth-adapter 被静态 import
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { BetterAuthService } = require('../adapters/better/better-auth-service');
+        service = new BetterAuthService();
+        break;
+      }
       case 'hybrid': service = new HybridAuthService(); break;
       default: service = new MockAuthService();
     }

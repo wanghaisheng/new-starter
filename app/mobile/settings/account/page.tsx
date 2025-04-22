@@ -99,7 +99,9 @@ export default function AccountSettingsPage() {
           <IonButtons slot="start">
             <IonBackButton />
           </IonButtons>
-          <IonTitle{t('auto.page.')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.')}
+</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent>
@@ -110,21 +112,31 @@ export default function AccountSettingsPage() {
         ) : (
           <IonList>
             <IonItemDivider>
-              <IonLabel{t('auto.page.CONTACT')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.CONTACT')}
+</IonLabel>
             </IonItemDivider>
             <IonItem>
-              <IonLabel position="stacked"{t('auto.page.Email')}/IonLabel>
+              <IonLabel position="stacked">
+  {t('auto.page.Email')}
+</IonLabel>
               <IonInput value={email} onIonChange={e => setEmail(e.detail.value!)} />
             </IonItem>
             <IonItem>
-              <IonLabel position="stacked"{t('auto.page.PhoneNu')}/IonLabel>
+              <IonLabel position="stacked">
+  {t('auto.page.PhoneNu')}
+</IonLabel>
               <IonInput value={phone} onIonChange={e => setPhone(e.detail.value!)} />
             </IonItem>
             <IonItemDivider>
-              <IonLabel{t('auto.page.CHANGEP')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.CHANGEP')}
+</IonLabel>
             </IonItemDivider>
             <IonItem>
-              <IonLabel position="stacked"{t('auto.page.Current')}/IonLabel>
+              <IonLabel position="stacked">
+  {t('auto.page.Current')}
+</IonLabel>
               <IonInput
                 type="password"
                 value={currentPassword}
@@ -133,7 +145,9 @@ export default function AccountSettingsPage() {
               />
             </IonItem>
             <IonItem>
-              <IonLabel position="stacked"{t('auto.page.NewPass')}/IonLabel>
+              <IonLabel position="stacked">
+  {t('auto.page.NewPass')}
+</IonLabel>
               <IonInput
                 type="password"
                 value={newPassword}
@@ -142,7 +156,9 @@ export default function AccountSettingsPage() {
               />
             </IonItem>
             <IonItem>
-              <IonLabel position="stacked"{t('auto.page.Confirm')}/IonLabel>
+              <IonLabel position="stacked">
+  {t('auto.page.Confirm')}
+</IonLabel>
               <IonInput
                 type="password"
                 value={confirmPassword}
@@ -151,7 +167,9 @@ export default function AccountSettingsPage() {
               />
             </IonItem>
             <IonItemDivider>
-              <IonLabel{t('auto.page.ACCOUNT')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.ACCOUNT')}
+</IonLabel>
             </IonItemDivider>
             <FormSaveButton loading={isSaving || saveLoading} onClick={handleSave}>
               保存修改

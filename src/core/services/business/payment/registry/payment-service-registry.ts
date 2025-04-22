@@ -1,10 +1,16 @@
-// 支付服务注册表/单例工厂，支持多类型多实例注册与获取，并内置适配器注册机制
+// 支付服务类型与 options 类型定义
+export type PaymentServiceType = 'revenuecat' | 'capacitor-purchases' | 'stripe' | 'wechat' | 'mock';
+export type PaymentServiceOptions = {
+  [key: string]: any;
+};
+
 import type { IPaymentService } from '../types/payment-service';
-import { createPaymentService, PaymentServiceType } from '../factory/payment-service-factory';
+import { PaymentServiceFactory } from '../factory/payment-service-factory';
 import { RevenueCatPaymentService } from '../adapters/in-app/revenuecat/revenuecat-payment-service';
 import { CapacitorPurchasesPaymentService } from '../adapters/in-app/capacitor-purchases-payment-service';
 import { StripePaymentService } from '../adapters/web/stripe/stripe-payment-service';
 import { WechatPaymentService } from '../adapters/web/wechat/wechat-payment-service';
+import { MockPaymentService } from '../adapters/mock-payment-service';
 
 /**
  * 支付服务注册表，支持多实例、revenuecat/capacitor-purchases 等切换
@@ -15,7 +21,7 @@ export class PaymentServiceRegistry {
   private static instance: PaymentServiceRegistry;
   private registry: Record<string, IPaymentService> = {};
   // 适配器注册表，兼容插件式动态注册
-  private static adapters: Record<string, () => IPaymentService> = {};
+  private static adapters: Partial<Record<PaymentServiceType, () => IPaymentService>> = {};
 
   static getInstance() {
     if (!this.instance) this.instance = new PaymentServiceRegistry();
@@ -23,22 +29,32 @@ export class PaymentServiceRegistry {
   }
 
   /**
-   * 注册/获取支付服务实例
-   * @param type revenuecat/capacitor-purchases/stripe/wechat
-   * @param name 实例名（默认 default）
+   * 统一 provider 获取方法（推荐 hooks/页面调用）
+   * @param type 服务类型（revenuecat/capacitor-purchases/stripe/wechat）
+   * @param name 实例名，默认 'default'
+   * @param dataService 预留，兼容统一签名
+   * @param options 其它扩展参数，预留
    */
-  createService(type: PaymentServiceType = 'revenuecat', name: string = 'default'): IPaymentService {
+  getProvider(type: PaymentServiceType = 'revenuecat', name: string = 'default', dataService?: any, options?: PaymentServiceOptions): (() => IPaymentService) {
+    return () => this.createService(type, name, dataService, options);
+  }
+
+  /**
+   * 统一 createService 签名，兼容 options 扩展
+   */
+  createService(type: PaymentServiceType = 'revenuecat', name: string = 'default', dataService?: any, options?: PaymentServiceOptions): IPaymentService {
     const key = `${type}:${name}`;
     if (this.registry[key]) return this.registry[key];
-    // 优先用插件式适配器，否则走工厂
     const adapter = PaymentServiceRegistry.adapters[type];
-    const service = adapter ? adapter() : createPaymentService(type);
+    const service = adapter
+      ? adapter()
+      : PaymentServiceFactory.createService({ type, dataService, options });
     this.registry[key] = service;
     return service;
   }
 
   /** 获取已注册实例 */
-  getService(type: string, name: string = 'default'): IPaymentService | undefined {
+  getService(type: PaymentServiceType, name: string = 'default'): IPaymentService | undefined {
     return this.registry[`${type}:${name}`];
   }
 
@@ -50,12 +66,11 @@ export class PaymentServiceRegistry {
   /**
    * 适配器注册与获取（插件式扩展场景）
    */
-  static registerAdapter(type: string, factory: () => IPaymentService) {
+  static registerAdapter(type: PaymentServiceType, factory: () => IPaymentService) {
     this.adapters[type] = factory;
   }
-  static getAdapter(type: string): IPaymentService | undefined {
-    const factory = this.adapters[type];
-    return factory ? factory() : undefined;
+  static getAdapter(type: PaymentServiceType): (() => IPaymentService) | undefined {
+    return this.adapters[type];
   }
 
   /**
@@ -66,19 +81,20 @@ export class PaymentServiceRegistry {
     PaymentServiceRegistry.registerAdapter('capacitor-purchases', () => new CapacitorPurchasesPaymentService());
     PaymentServiceRegistry.registerAdapter('stripe', () => new StripePaymentService());
     PaymentServiceRegistry.registerAdapter('wechat', () => new WechatPaymentService());
+    PaymentServiceRegistry.registerAdapter('mock', () => new MockPaymentService());
   }
 
   /**
    * 获取默认实例（兼容 hooks 统一调用）
-   * 优先 remote，其次 hybrid，其次 mock
+   * 优先 revenuecat，其次 capacitor-purchases，其次 stripe，其次 wechat
    */
-  getDefaultService(_dataService?: unknown): IPaymentService {
-    // 保持参数签名统一，参数未用到
+  getDefaultService(dataService?: any, options?: PaymentServiceOptions): IPaymentService {
     return (
-      this.getService('remote') ||
-      this.getService('hybrid') ||
-      this.getService('mock') ||
-      this.createService('mock')
+      this.getService('revenuecat') ||
+      this.getService('capacitor-purchases') ||
+      this.getService('stripe') ||
+      this.getService('wechat') ||
+      this.createService('revenuecat', 'default', dataService, options)
     );
   }
 }

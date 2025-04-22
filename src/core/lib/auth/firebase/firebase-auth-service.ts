@@ -36,4 +36,21 @@ export class FirebaseAuthService {
     const token = await user.getIdToken();
     return { user, token };
   }
+
+  getCurrentUser() {
+    return this.auth.currentUser;
+  }
+
+  async refreshToken() {
+    const user = this.auth.currentUser;
+    if (user) {
+      return await user.getIdToken(true);
+    }
+    throw new Error('No current user');
+  }
+
+  async signOut() {
+    if (!this.auth) throw new Error('Firebase 未初始化');
+    await import('firebase/auth').then(({ signOut }) => signOut(this.auth));
+  }
 }

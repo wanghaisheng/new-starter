@@ -1,35 +1,32 @@
-'use client';
-
 import { createAuthClient } from "better-auth/client";
-import { useCallback, useEffect, useState } from "react";
 import { AuthError, AuthSession } from "@/core/services/business/auth/types/auth-service";
 import { User } from "@/core/lib/db/types/user";
+import { useCallback, useEffect, useState } from "react";
 
-// Initialize the auth client
+// 类型定义
+export type SignInOptions = { email: string; password: string; };
+export type SignUpOptions = { email: string; password: string; name: string; image?: string; };
+export type UpdateProfileOptions = { name?: string; image?: string; };
+
+// 类型声明增强，严格对齐 better-auth 官方 API
+export type BetterAuthClient = {
+  signIn: (opts: SignInOptions) => Promise<{ user: any; token: string }>;
+  signUp: (opts: SignUpOptions) => Promise<{ user: any; token: string }>;
+  signOut: () => Promise<void>;
+  getSession: () => Promise<{ user: any; token: string } | null>;
+  socialSignIn: (opts: { provider: string; token: string; }) => Promise<{ user: any; token: string }>;
+  updateUser: (opts: UpdateProfileOptions) => Promise<{ status: boolean; data: any; error: any; }>;
+  // 其它方法可按需补充
+  [key: string]: any;
+};
+
+// 初始化客户端（类型断言为官方 API 类型）
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_API_URL || "/api/auth",
   debug: process.env.NODE_ENV === "development",
-});
+}) as BetterAuthClient;
 
-// Types for better-auth client
-export type SignInOptions = {
-  email: string;
-  password: string;
-};
-
-export type SignUpOptions = {
-  email: string;
-  password: string;
-  name: string;
-  image?: string;
-};
-
-export type UpdateProfileOptions = {
-  name?: string;
-  image?: string;
-};
-
-// Map better-auth user to our User type
+// 用户映射（如需自定义 User 类型，可在此扩展）
 function mapAuthUserToUser(authUser: any): User {
   return {
     id: authUser.id,
@@ -87,6 +84,25 @@ function mapAuthUserToUser(authUser: any): User {
   };
 }
 
+// getCurrentUser/refreshToken 业务适配
+export async function getCurrentUser() {
+  const session = await authClient.getSession();
+  return session?.user || null;
+}
+export async function refreshToken() {
+  const session = await authClient.getSession();
+  return session?.token || "";
+}
+
+// 导出常用方法
+export const {
+  signIn,
+  signUp,
+  signOut,
+  getSession,
+  socialSignIn,
+} = authClient;
+
 // React hooks for auth
 export function useAuth() {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -97,12 +113,11 @@ export function useAuth() {
   useEffect(() => {
     const loadSession = async () => {
       try {
-        const { data, error } = await authClient.getSession();
-        if (error) throw error;
-        if (data?.user) {
+        const session = await authClient.getSession();
+        if (session?.user) {
           setSession({
-            user: mapAuthUserToUser(data.user),
-            token: data.session?.token || "",
+            user: mapAuthUserToUser(session.user),
+            token: session.token || "",
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
           });
         }
@@ -120,16 +135,15 @@ export function useAuth() {
   const signIn = useCallback(async (options: SignInOptions) => {
     try {
       setLoading(true);
-      const { data, error } = await authClient.signIn.email(options);
-      if (error) throw error;
-      if (data?.user) {
+      const session = await authClient.signIn(options);
+      if (session?.user) {
         setSession({
-          user: mapAuthUserToUser(data.user),
-          token: data.token || "",
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+          user: mapAuthUserToUser(session.user),
+          token: session.token || "",
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         });
       }
-      return data;
+      return session;
     } catch (err) {
       setError(err as AuthError);
       throw err;
@@ -142,16 +156,15 @@ export function useAuth() {
   const signUp = useCallback(async (options: SignUpOptions) => {
     try {
       setLoading(true);
-      const { data, error } = await authClient.signUp.email(options);
-      if (error) throw error;
-      if (data?.user) {
+      const session = await authClient.signUp(options);
+      if (session?.user) {
         setSession({
-          user: mapAuthUserToUser(data.user),
-          token: data.token || "",
+          user: mapAuthUserToUser(session.user),
+          token: session.token || "",
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
         });
       }
-      return data;
+      return session;
     } catch (err) {
       setError(err as AuthError);
       throw err;
@@ -164,9 +177,30 @@ export function useAuth() {
   const signOut = useCallback(async () => {
     try {
       setLoading(true);
-      const { error } = await authClient.signOut();
-      if (error) throw error;
+      await authClient.signOut();
       setSession(null);
+    } catch (err) {
+      setError(err as AuthError);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Sign in with social provider
+  const socialSignIn = useCallback(async (provider: string, token: string) => {
+    try {
+      setLoading(true);
+      if (typeof authClient.socialSignIn !== 'function') throw new Error('socialSignIn not implemented');
+      const session = await authClient.socialSignIn({ provider, token });
+      if (session?.user) {
+        setSession({
+          user: mapAuthUserToUser(session.user),
+          token: session.token || "",
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        });
+      }
+      return session;
     } catch (err) {
       setError(err as AuthError);
       throw err;
@@ -207,15 +241,7 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
+    socialSignIn,
     updateProfile,
   };
 }
-
-// Export methods for convenience
-export const {
-  signIn,
-  signUp,
-  signOut,
-  useSession,
-  getSession,
-} = authClient; 

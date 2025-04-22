@@ -1,55 +1,61 @@
-// translation-service-registry.ts
-import type { ITranslationService } from '../types/translation-service';
-import { TranslationServiceFactory } from '../factory/translation-service-factory';
+import { ITranslationService } from '../types/translation-service';
+import { TranslationServiceFactory, TranslationServiceType, TranslationServiceOptions } from '../factory/translation-service-factory';
 
 export class TranslationServiceRegistry {
   private static instance: TranslationServiceRegistry;
   private registry: Record<string, ITranslationService> = {};
-  private static adapters: Record<string, () => ITranslationService> = {};
+  private static adapters: Partial<Record<TranslationServiceType, (options?: TranslationServiceOptions) => ITranslationService>> = {};
 
   static getInstance() {
     if (!this.instance) this.instance = new TranslationServiceRegistry();
     return this.instance;
   }
 
-  /**
-   * 注册/获取翻译服务实例
-   * @param env mock/remote/hybrid
-   * @param name 实例名（默认 default）
-   */
-  createService(env: 'mock'|'remote'|'hybrid', name: string = 'default'): ITranslationService {
-    const key = `${env}:${name}`;
+  getProvider(type: TranslationServiceType = 'remote', name: string = 'default', options?: TranslationServiceOptions): () => ITranslationService {
+    return () => this.createService(type, name, options);
+  }
+
+  createService(type: TranslationServiceType = 'remote', name: string = 'default', options?: TranslationServiceOptions): ITranslationService {
+    const key = `${type}:${name}`;
     if (this.registry[key]) return this.registry[key];
-    const service = TranslationServiceFactory.createService(env);
+    const adapter = TranslationServiceRegistry.adapters[type];
+    const service = adapter
+      ? adapter(options)
+      : TranslationServiceFactory.createService({ type, options });
     this.registry[key] = service;
     return service;
   }
 
-  getService(env: string, name: string = 'default'): ITranslationService | undefined {
-    return this.registry[`${env}:${name}`];
+  getService(type: TranslationServiceType, name: string = 'default'): ITranslationService | undefined {
+    return this.registry[`${type}:${name}`];
+  }
+
+  static registerAdapter(type: TranslationServiceType, factory: (options?: TranslationServiceOptions) => ITranslationService): void {
+    this.adapters[type] = factory;
+  }
+  static getAdapter(type: TranslationServiceType): ((options?: TranslationServiceOptions) => ITranslationService) | undefined {
+    return this.adapters[type];
+  }
+  static unregisterAdapter(type: TranslationServiceType): void {
+    delete this.adapters[type];
+  }
+
+  getDefaultService(options?: TranslationServiceOptions): ITranslationService {
+    return (
+      this.getService('remote') ||
+      this.getService('hybrid') ||
+      this.getService('mock') ||
+      this.createService('mock', 'default', options)
+    );
   }
 
   clear() {
     this.registry = {};
   }
 
-  static registerAdapter(type: string, factory: () => ITranslationService) {
-    this.adapters[type] = factory;
-  }
-  static getAdapter(type: string): ITranslationService | undefined {
-    const factory = this.adapters[type];
-    return factory ? factory() : undefined;
-  }
-
-  /**
-   * 获取默认实例，优先 hybrid，其次 remote，其次 mock
-   */
-  getDefaultService(): ITranslationService {
-    return (
-      this.getService('hybrid') ||
-      this.getService('remote') ||
-      this.getService('mock') ||
-      this.createService('hybrid')
-    );
+  static registerAllAdapters() {
+    TranslationServiceRegistry.registerAdapter('mock', (options) => TranslationServiceFactory.createService({ type: 'mock', options }));
+    TranslationServiceRegistry.registerAdapter('remote', (options) => TranslationServiceFactory.createService({ type: 'remote', options }));
+    TranslationServiceRegistry.registerAdapter('hybrid', (options) => TranslationServiceFactory.createService({ type: 'hybrid', options }));
   }
 }

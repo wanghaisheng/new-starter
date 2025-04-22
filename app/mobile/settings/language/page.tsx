@@ -109,7 +109,9 @@ export default function LanguageSettingsPage() {
       <IonPage>
         <IonContent className="bg-[#0f172a]">
           <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4"{t('auto.page.Pleasel')}/p>
+            <p className="text-gray-400 mb-4">
+  {t('auto.page.Pleasel')}
+</p>
             <button
               onClick={() => router.push('/mobile/auth/login')}
               className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
@@ -126,7 +128,9 @@ export default function LanguageSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.Language')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.Language')}
+</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -143,7 +147,9 @@ export default function LanguageSettingsPage() {
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.AVAILABL')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.AVAILABL')}
+</IonLabel>
             </IonItemDivider>
             
             <IonRadioGroup value={selectedLanguage} onIonChange={e => setSelectedLanguage(e.detail.value)}>

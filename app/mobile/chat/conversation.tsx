@@ -93,7 +93,9 @@ export default function ChatConversation() {
         <div className="flex-1 overflow-y-auto glass-card rounded-2xl p-4 w-full max-w-md mx-auto mt-10">
           <IonList lines="none">
             {empty ? (
-              <div className="text-center text-gray-400"{t('auto.conversation.')}/div>
+              <div className="text-center text-gray-400">
+  {t('auto.conversation.')}
+</div>
             ) : (
               messages.map((msg) => (
                 <IonItem key={msg.id} className={msg.senderId === user?.id ? 'justify-end flex-row-reverse bg-pink-100/10 rounded-xl mb-2' : 'bg-slate-800/50 rounded-xl mb-2'}>

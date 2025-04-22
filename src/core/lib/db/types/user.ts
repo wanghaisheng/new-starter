@@ -140,6 +140,13 @@ export interface User extends BaseEntity {
 
   /** 用户画像/AI报告 */
   profile?: any;
+
+  /**
+   * MBTI（十六型人格）类型
+   * 例如："INTJ"、"ENFP" 等
+   * 用于智能匹配、兴趣画像等业务场景
+   */
+  mbti?: string;
 }
 
 /**

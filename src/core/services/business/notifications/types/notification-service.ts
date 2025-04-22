@@ -14,3 +14,9 @@ export interface INotificationService {
   deleteNotification(notificationId: string): Promise<void>;
   // 可扩展聚合业务方法，如批量推送、日志等
 }
+
+// Service 工厂类型定义
+export type NotificationServiceType = 'mock' | 'remote' | 'hybrid';
+export interface NotificationServiceOptions {
+  apiBaseUrl?: string;
+}

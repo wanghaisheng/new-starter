@@ -5,13 +5,21 @@ import { HybridTranslationServiceAdapter } from '../adapters/hybrid-translation-
 import { TranslationService } from '../service/translation-service';
 import type { ITranslationService } from '../types/translation-service';
 
+export type TranslationServiceType = 'mock' | 'remote' | 'hybrid';
+export type TranslationServiceOptions = {
+  apiBaseUrl?: string;
+  [key: string]: any;
+};
+
 export class TranslationServiceFactory {
-  static createService(type?: 'mock' | 'remote' | 'hybrid'): ITranslationService {
-    const env = typeof process !== 'undefined' ? process.env.NODE_ENV : 'production';
+  static createService({
+    type = 'remote',
+    options = {}
+  }: {
+    type?: TranslationServiceType,
+    options?: TranslationServiceOptions
+  } = {}): ITranslationService {
     let finalType = type;
-    if (!finalType) {
-      finalType = (env === 'test' || env === 'development') ? 'hybrid' : 'remote';
-    }
     let adapter;
     switch (finalType) {
       case 'mock':

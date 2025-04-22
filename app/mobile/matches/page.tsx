@@ -70,11 +70,15 @@ export default function MatchesPage() {
     <IonPage>
       <IonContent className="bg-[#0f172a]">
         <div className="p-4">
-          <h1 className="text-2xl font-bold text-white mb-6"{t('auto.page.YourMat')}/h1>
+          <h1 className="text-2xl font-bold text-white mb-6">
+  {t('auto.page.YourMat')}
+</h1>
           
           {matchedUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-[60vh]">
-              <p className="text-gray-400 mb-4"{t('auto.page.Nomatch')}/p>
+              <p className="text-gray-400 mb-4">
+  {t('auto.page.Nomatch')}
+</p>
               <button
                 onClick={() => router.push('/mobile/discover')}
                 className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"

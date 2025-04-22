@@ -10,6 +10,7 @@ const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'u
 // Only import Node.js modules in non-browser environments
 let fs: any;
 let path: any;
+let sqlite3: any;
 
 if (!isBrowser) {
   fs = require('fs');
@@ -21,19 +22,27 @@ if (!isBrowser) {
  */
 export interface MockDatabaseConfig extends DatabaseConfig {
   /**
-   * 数据源模式: 'memory' | 'json' | 'indexeddb'
+   * 数据源模式: 'memory' | 'json' | 'indexeddb' | 'fake-indexeddb' | 'sqlite'
    * - memory: 使用内存中预定义的数据
    * - json: 从JSON文件加载数据
    * - indexeddb: 使用IndexedDB
+   * - fake-indexeddb: Node.js 环境下模拟 IndexedDB（全 CRUD，便于迁移）
+   * - sqlite: 使用 SQLite（Node.js 环境，支持文件和内存模式，推荐移动端开发/测试）
    * @default 'memory'
    */
-  mockMode?: 'memory' | 'json' | 'indexeddb';
+  mockMode?: 'memory' | 'json' | 'indexeddb' | 'fake-indexeddb' | 'sqlite';
 
   /**
    * JSON文件路径（当mockMode为'json'时使用）
    * 如果提供相对路径，将相对于当前工作目录解析
    */
   jsonFilePath?: string;
+
+  /**
+   * SQLite 文件路径（mockMode=sqlite 时使用）
+   * ':memory:' 代表内存数据库
+   */
+  sqliteFilePath?: string;
 
   /**
    * 是否自动保存对JSON文件的更改
@@ -71,16 +80,18 @@ export interface MockQueryOptions {
  */
 export class MockDatabaseClient implements IDatabaseClient {
   private data: Record<string, Map<string, any>> = {};
-  private mockConfig: Required<Pick<MockDatabaseConfig, 'mockMode' | 'jsonFilePath' | 'autoSave'>>;
+  private mockConfig: Required<Pick<MockDatabaseConfig, 'mockMode' | 'jsonFilePath' | 'autoSave' | 'sqliteFilePath'>>;
   private isInitialized: boolean = false;
   protected transactionActive: boolean = false;
   private logger;
+  private sqliteDb: any;
 
   constructor(private config: MockDatabaseConfig) {
     this.mockConfig = {
-      mockMode: config.mockMode || 'memory',
+      mockMode: config.mockMode || (process.env.MOCK_DB_MODE as any) || 'memory',
       jsonFilePath: config.jsonFilePath || './mock-data.json',
-      autoSave: config.autoSave ?? true
+      autoSave: config.autoSave ?? true,
+      sqliteFilePath: config.sqliteFilePath || process.env.MOCK_SQLITE_FILE || ':memory:'
     };
     this.logger = getLoggerService();
   }
@@ -106,10 +117,23 @@ export class MockDatabaseClient implements IDatabaseClient {
     }
 
     this.logger.debug('Initializing mock database client');
-    
     try {
       if (this.mockConfig.mockMode === 'json') {
         await this.loadFromJson();
+      } else if (this.mockConfig.mockMode === 'fake-indexeddb') {
+        // 动态引入 fake-indexeddb 并初始化
+        const { indexedDB } = await import('fake-indexeddb');
+        (globalThis as any).indexedDB = indexedDB;
+        // 可选：初始化表结构和演示数据（可参考 indexeddb 方案）
+        // 具体实现略，需根据实际 indexeddb schema/init 逻辑补充
+        this.logger.info('Initialized with fake-indexeddb');
+      } else if (this.mockConfig.mockMode === 'sqlite') {
+        // 动态引入 sqlite3
+        sqlite3 = require('sqlite3').verbose();
+        this.sqliteDb = new sqlite3.Database(this.mockConfig.sqliteFilePath);
+        // 初始化表结构和 mock/config 数据
+        await this.initSQLiteSchemaAndData();
+        this.logger.info(`Initialized with SQLite: ${this.mockConfig.sqliteFilePath}`);
       } else {
         // 加载示例数据
         const exampleData = require('./example-data.json') as Record<string, any[]>;
@@ -120,7 +144,6 @@ export class MockDatabaseClient implements IDatabaseClient {
           }
         }
       }
-      
       this.isInitialized = true;
       this.logger.debug('Mock database client initialized successfully');
     } catch (error) {
@@ -139,11 +162,12 @@ export class MockDatabaseClient implements IDatabaseClient {
     }
 
     this.logger.debug('Closing mock database client');
-    
     if (this.mockConfig.mockMode === 'json' && this.mockConfig.autoSave) {
       await this.saveToJson();
     }
-    
+    if (this.mockConfig.mockMode === 'sqlite') {
+      this.sqliteDb.close();
+    }
     this.data = {};
     this.isInitialized = false;
     this.logger.debug('Mock database client closed');
@@ -152,24 +176,18 @@ export class MockDatabaseClient implements IDatabaseClient {
   async clear(): Promise<void> {
     this.validateInitialized();
     this.logger.debug('Clearing all data');
-    
     this.data = {};
-    
     if (this.mockConfig.mockMode === 'json') {
       await this.saveToJson();
     }
-    
     this.logger.debug('All data cleared');
   }
 
   async query<T>(collection: string, query: any): Promise<QueryResult<T>> {
     this.validateInitialized();
     this.logger.debug(`Querying ${collection}`, query);
-    
     const table = this.getTable(collection);
     const records = Array.from(table.values()) as T[];
-    
-    // 如果没有查询条件，返回所有记录
     if (!query) {
       return {
         data: records,
@@ -178,14 +196,11 @@ export class MockDatabaseClient implements IDatabaseClient {
       };
     }
 
-    // 处理简单的字段匹配
     let filtered = records;
     if (typeof query === 'object') {
       if (query.filter && typeof query.filter === 'function') {
-        // 处理 filter 函数
         filtered = records.filter(query.filter);
       } else if (query.where) {
-        // 处理复杂的 where 条件
         filtered = records.filter(record => {
           if ('$and' in query.where) {
             return (query.where.$and || []).every((condition: any) => 
@@ -200,7 +215,6 @@ export class MockDatabaseClient implements IDatabaseClient {
           }
         });
       } else {
-        // 处理简单的字段匹配
         filtered = records.filter(record => {
           return Object.entries(query).every(([key, value]) => {
             if (key === 'email') {
@@ -214,8 +228,6 @@ export class MockDatabaseClient implements IDatabaseClient {
         });
       }
     }
-    
-    // 应用排序
     if (query.orderBy) {
       const { field, direction } = query.orderBy;
       filtered.sort((a, b) => {
@@ -226,12 +238,9 @@ export class MockDatabaseClient implements IDatabaseClient {
           (aValue < bValue ? 1 : -1);
       });
     }
-    
-    // 应用分页
     const offset = query.offset || 0;
     const limit = query.limit || filtered.length;
     const paginatedRecords = filtered.slice(offset, offset + limit);
-    
     this.logger.debug(`Query results for ${collection}`, {
       total: filtered.length,
       returned: paginatedRecords.length,
@@ -247,11 +256,9 @@ export class MockDatabaseClient implements IDatabaseClient {
 
   private matchesCondition<T>(record: T, condition: QueryOptions['where']): boolean {
     if (!condition || typeof condition !== 'object') return true;
-    
     if ('field' in condition) {
       const { field, operator, value } = condition;
       const recordValue = (record as Record<string, any>)[field];
-      
       switch (operator) {
         case '==':
           return recordValue === value;
@@ -273,7 +280,6 @@ export class MockDatabaseClient implements IDatabaseClient {
           return false;
       }
     }
-    
     return Object.entries(condition).every(([key, value]) => 
       (record as Record<string, any>)[key] === value
     );
@@ -282,20 +288,16 @@ export class MockDatabaseClient implements IDatabaseClient {
   async findById<T>(collection: string, id: string): Promise<T | null> {
     this.validateInitialized();
     this.logger.debug(`Finding record by id in ${collection}`, { id });
-    
     const table = this.getTable(collection);
     const record = table.get(id) as T;
-    
     return record || null;
   }
 
   async findAll<T extends BaseEntity>(collection: string, filter?: Record<string, any>): Promise<T[]> {
     this.validateInitialized();
     this.logger.debug(`Finding all records in ${collection}`, { filter });
-    
     const table = this.getTable(collection);
     const records = Array.from(table.values()) as T[];
-    
     if (filter) {
       return records.filter(record => 
         Object.entries(filter).every(([key, value]) => 
@@ -303,31 +305,25 @@ export class MockDatabaseClient implements IDatabaseClient {
         )
       );
     }
-    
     return records;
   }
 
   async create<T>(collection: string, data: Partial<T>): Promise<T> {
     this.validateInitialized();
     this.logger.debug(`Creating record in ${collection}`, data);
-    
     const table = this.getTable(collection);
     const id = (data as any).id || this.generateId();
     const timestamp = new Date();
-    
     const record = {
       id,
       ...data,
       createdAt: timestamp,
       updatedAt: timestamp
     } as T;
-    
     table.set(id, record);
-    
     if (this.mockConfig.mockMode === 'json') {
       await this.saveToJson();
     }
-    
     this.logger.debug(`Record created in ${collection}`, { id });
     return record;
   }
@@ -335,29 +331,23 @@ export class MockDatabaseClient implements IDatabaseClient {
   async update<T>(collection: string, id: string, data: Partial<T>): Promise<T> {
     this.validateInitialized();
     this.logger.debug(`Updating record in ${collection}`, { id, data });
-    
     const table = this.getTable(collection);
     const existing = table.get(id);
-    
     if (!existing) {
       throw new DatabaseError(
         `Record not found in ${collection}`,
         DatabaseErrorCode.NOT_FOUND
       );
     }
-    
     const updated = {
       ...existing,
       ...data,
       updatedAt: new Date()
     } as T;
-    
     table.set(id, updated);
-    
     if (this.mockConfig.mockMode === 'json') {
       await this.saveToJson();
     }
-    
     this.logger.debug(`Record updated in ${collection}`, { id });
     return updated;
   }
@@ -365,23 +355,18 @@ export class MockDatabaseClient implements IDatabaseClient {
   async delete(collection: string, id: string): Promise<boolean> {
     this.validateInitialized();
     this.logger.debug(`Deleting record from ${collection}`, { id });
-    
     const table = this.getTable(collection);
     const exists = table.has(id);
-    
     if (!exists) {
       throw new DatabaseError(
         `Record not found in ${collection}`,
         DatabaseErrorCode.NOT_FOUND
       );
     }
-    
     const success = table.delete(id);
-    
     if (success && this.mockConfig.mockMode === 'json') {
       await this.saveToJson();
     }
-    
     this.logger.debug(`Record deleted from ${collection}`, { id, success });
     return success;
   }
@@ -389,16 +374,13 @@ export class MockDatabaseClient implements IDatabaseClient {
   async count(collection: string, filter?: Record<string, any>): Promise<number> {
     this.validateInitialized();
     this.logger.debug(`Counting records in ${collection}`, { filter });
-    
     const table = this.getTable(collection);
     let count = table.size;
-    
     if (filter) {
       count = Array.from(table.values()).filter(record => 
         Object.entries(filter).every(([key, value]) => record[key] === value)
       ).length;
     }
-    
     return count;
   }
 
@@ -438,10 +420,8 @@ export class MockDatabaseClient implements IDatabaseClient {
   async batch<T extends BaseEntity>(collection: string, operations: BatchOperation<T>[]): Promise<void> {
     this.validateInitialized();
     this.logger.debug(`Executing batch operations on ${collection}`, { operationCount: operations.length });
-    
     try {
       await this.beginTransaction();
-      
       for (const operation of operations) {
         switch (operation.type) {
           case 'add':
@@ -461,19 +441,16 @@ export class MockDatabaseClient implements IDatabaseClient {
             break;
         }
       }
-      
       await this.commitTransaction();
     } catch (error) {
       await this.rollbackTransaction();
-        throw error;
+      throw error;
     }
   }
 
   async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
     this.validateInitialized();
     this.logger.debug('Executing raw query in mock client', { query, params });
-    
-    // Mock client doesn't support raw queries, return empty array
     this.logger.warn('Raw queries are not supported in mock client');
     return [];
   }
@@ -491,8 +468,6 @@ export class MockDatabaseClient implements IDatabaseClient {
 
   private async loadFromJson(): Promise<void> {
     if (isBrowser) {
-      // In browser environment, we can't load from files
-      // Just use memory mode instead
       this.mockConfig.mockMode = 'memory';
       return;
     }
@@ -506,17 +481,14 @@ export class MockDatabaseClient implements IDatabaseClient {
         );
       }
 
-      // Check if file exists
       if (!fs.existsSync(filePath)) {
         this.logger.warn(`JSON file not found: ${filePath}. Using empty data.`);
         return;
       }
 
-      // Read and parse JSON file
       const jsonData = await fs.promises.readFile(filePath, 'utf8');
       const data = JSON.parse(jsonData);
 
-      // Convert plain objects to Maps
       for (const [collection, records] of Object.entries(data)) {
         this.data[collection] = new Map(Object.entries(records as Record<string, any>));
       }
@@ -531,8 +503,6 @@ export class MockDatabaseClient implements IDatabaseClient {
 
   private async saveToJson(): Promise<void> {
     if (isBrowser) {
-      // In browser environment, we can't save to files
-      // Just log a warning
       this.logger.warn('Saving to JSON file is not supported in browser environment');
       return;
     }
@@ -546,13 +516,11 @@ export class MockDatabaseClient implements IDatabaseClient {
         );
       }
 
-      // Convert Maps to plain objects for JSON serialization
       const jsonData: Record<string, Record<string, any>> = {};
       for (const [collection, records] of Object.entries(this.data)) {
         jsonData[collection] = Object.fromEntries(records as Map<string, any>);
       }
 
-      // Write to JSON file
       await fs.promises.writeFile(filePath, JSON.stringify(jsonData, null, 2), 'utf8');
     } catch (error) {
       this.logger.error('Failed to save data to JSON file', { error });
@@ -561,6 +529,76 @@ export class MockDatabaseClient implements IDatabaseClient {
         DatabaseErrorCode.OPERATION_FAILED
       );
     }
+  }
+
+  /**
+   * 初始化 SQLite 表结构和 mock/config 数据（自动导入所有表）
+   */
+  private async initSQLiteSchemaAndData(): Promise<void> {
+    // 1. 动态加载所有 schema
+    const schemaDir = path.resolve(__dirname, '../../../../services/infrastructure/config/schema');
+    const schemaFiles = fs.readdirSync(schemaDir).filter((f: string) => f.endsWith('.schema.ts'));
+    const schemas: Record<string, any> = {};
+    for (const file of schemaFiles) {
+      const schemaMod = require(path.join(schemaDir, file));
+      // 约定：每个 schema 文件导出一个 xxxConfigSchema 或 xxxSchema
+      for (const key of Object.keys(schemaMod)) {
+        if (key.endsWith('ConfigSchema') || key.endsWith('Schema')) {
+          schemas[key.replace(/ConfigSchema|Schema/, '').toLowerCase()] = schemaMod[key];
+        }
+      }
+    }
+
+    // 2. 动态加载所有 mock 配置
+    const mockDir = path.resolve(__dirname, '../../../../services/infrastructure/config/types');
+    const mockFiles = fs.readdirSync(mockDir).filter((f: string) => f.match(/\.mock(\.|$)/));
+    const mockData: Record<string, any[]> = {};
+    for (const file of mockFiles) {
+      const mockMod = require(path.join(mockDir, file));
+      for (const [key, value] of Object.entries(mockMod)) {
+        // 约定：mock 配置为数组或对象（如 translationMockData、mockSkinConfig）
+        if (Array.isArray(value)) {
+          // 如 translationMockData
+          mockData[key.replace(/^mock|Config|Data/gi, '').toLowerCase()] = value;
+        } else if (typeof value === 'object' && value !== null) {
+          // 如 mockSkinConfig、mockGiftConfig、mockMemberGrowthConfig
+          // 若包含数组字段（如 skins/items/levels），则以字段名为表名
+          for (const [k, v] of Object.entries(value)) {
+            if (Array.isArray(v)) {
+              mockData[k.toLowerCase()] = v;
+            }
+          }
+        }
+      }
+    }
+
+    // 3. 自动建表并批量插入
+    await new Promise<void>((resolve, reject) => {
+      this.sqliteDb.serialize(() => {
+        for (const [table, schema] of Object.entries(schemas)) {
+          // 仅为有 mock 数据的表建表
+          if (!mockData[table]) continue;
+          // 简单推断字段类型（可扩展为更强类型映射）
+          const sample = mockData[table][0];
+          const columns = Object.keys(sample).map(col => {
+            let type = 'TEXT';
+            if (typeof sample[col] === 'number') type = 'REAL';
+            if (typeof sample[col] === 'boolean') type = 'INTEGER';
+            return `"${col}" ${type}`;
+          });
+          const createSQL = `CREATE TABLE IF NOT EXISTS "${table}" (${columns.join(',')})`;
+          this.sqliteDb.run(createSQL);
+          // 批量插入
+          for (const row of mockData[table]) {
+            const fields = Object.keys(row);
+            const placeholders = fields.map(() => '?').join(',');
+            const insertSQL = `INSERT OR IGNORE INTO "${table}" (${fields.map(f => `"${f}"`).join(',')}) VALUES (${placeholders})`;
+            this.sqliteDb.run(insertSQL, fields.map(f => row[f]));
+          }
+        }
+        resolve();
+      });
+    });
   }
 
   private validateInitialized(): void {

@@ -11,7 +11,8 @@ import {
   IonButtons,
   IonButton,
   IonIcon,
-  IonToast
+  IonToast,
+  IonLabel
 } from '@ionic/react';
 import { settingsOutline, pencilOutline } from 'ionicons/icons';
 import { useUser } from '@/core/hooks/useUser';
@@ -91,13 +92,14 @@ export default function ProfilePage() {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle{t('auto.page.')}/IonTitle>
+          <IonTitle>{t('auto.page.Profile') || '个人资料'}</IonTitle>
           <IonButtons slot="end">
             <IonButton onClick={handleSettings}>
               <IonIcon icon={settingsOutline} />
             </IonButton>
             <IonButton onClick={handleEditProfile}>
               <IonIcon icon={pencilOutline} />
+              <IonLabel>{t('auto.page.EditProfile') || '编辑资料'}</IonLabel>
             </IonButton>
           </IonButtons>
         </IonToolbar>
@@ -145,26 +147,36 @@ export default function ProfilePage() {
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <h2 className="text-sm font-medium text-gray-400"{t('auto.page.Age')}/h2>
+                <h2 className="text-sm font-medium text-gray-400">
+  {t('auto.page.Age')}
+</h2>
                 <p>{age || 'Not specified'}</p>
               </div>
               <div>
-                <h2 className="text-sm font-medium text-gray-400"{t('auto.page.Location')}/h2>
+                <h2 className="text-sm font-medium text-gray-400">
+  {t('auto.page.Location')}
+</h2>
                 <p>{locationText}</p>
               </div>
               <div>
-                <h2 className="text-sm font-medium text-gray-400"{t('auto.page.Gender')}/h2>
+                <h2 className="text-sm font-medium text-gray-400">
+  {t('auto.page.Gender')}
+</h2>
                 <p>{user.gender || 'Not specified'}</p>
               </div>
               <div>
-                <h2 className="text-sm font-medium text-gray-400"{t('auto.page.Looking')}/h2>
+                <h2 className="text-sm font-medium text-gray-400">
+  {t('auto.page.Looking')}
+</h2>
                 <p>{user.preferences?.gender?.join(', ') || 'Not specified'}</p>
               </div>
             </div>
             
             {user.interests && user.interests.length > 0 && (
               <div>
-                <h2 className="text-sm font-medium text-gray-400 mb-2"{t('auto.page.Interest')}/h2>
+                <h2 className="text-sm font-medium text-gray-400 mb-2">
+  {t('auto.page.Interest')}
+</h2>
                 <div className="flex flex-wrap gap-2">
                   {user.interests.map((interest: string, index: number) => (
                     <span 

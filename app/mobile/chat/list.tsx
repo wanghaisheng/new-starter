@@ -41,7 +41,9 @@ export default function ChatListPage() {
     return (
       <IonPage>
         <IonContent className="flex flex-col items-center justify-center min-h-screen">
-          <p className="text-gray-400 mb-4"{t('auto.list.')}/p>
+          <p className="text-gray-400 mb-4">
+  {t('auto.list.')}
+</p>
         </IonContent>
       </IonPage>
     );
@@ -51,7 +53,9 @@ export default function ChatListPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle{t('auto.list.')}/IonTitle>
+          <IonTitle>
+  {t('auto.list.')}
+</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">

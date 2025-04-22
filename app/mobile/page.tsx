@@ -48,7 +48,9 @@ export default function OnboardingPage() {
             <IonCol className="ion-text-center" sizeMd="6" sizeSm="10" sizeXs="12">
               <div className="max-w-md mx-auto">
                 <IonText color="light">
-                  <h1 className="text-3xl font-bold mb-2"{t('auto.page.Connect')}/h1>
+                  <h1 className="text-3xl font-bold mb-2">
+  {t('auto.page.Connect')}
+</h1>
                 </IonText>
                 <IonText color="medium">
                   <p className="mb-10">
@@ -92,7 +94,9 @@ export default function OnboardingPage() {
                     {isGoogleLoading ? (
                       <>
                         <IonSpinner name="dots" />
-                        <span className="ml-2"{t('auto.page.Processi')}/span>
+                        <span className="ml-2">
+  {t('auto.page.Processi')}
+</span>
                       </>
                     ) : (
                       <>

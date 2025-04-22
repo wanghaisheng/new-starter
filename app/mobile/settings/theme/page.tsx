@@ -128,7 +128,9 @@ export default function ThemeSettingsPage() {
       <IonPage>
         <IonContent className="bg-[#0f172a]">
           <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4"{t('auto.page.Pleasel')}/p>
+            <p className="text-gray-400 mb-4">
+  {t('auto.page.Pleasel')}
+</p>
             <button
               onClick={() => router.push('/mobile/auth/login')}
               className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
@@ -145,7 +147,9 @@ export default function ThemeSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.ThemeSe')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.ThemeSe')}
+</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -162,12 +166,16 @@ export default function ThemeSettingsPage() {
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.APPEARAN')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.APPEARAN')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={moonOutline} slot="start" />
-              <IonLabel{t('auto.page.DarkMod')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.DarkMod')}
+</IonLabel>
               <IonToggle
                 checked={themeSettings.darkMode}
                 onIonChange={e => updateTheme({ darkMode: e.detail.checked })}
@@ -176,7 +184,9 @@ export default function ThemeSettingsPage() {
             
             <IonItem>
               <IonIcon icon={sunnyOutline} slot="start" />
-              <IonLabel{t('auto.page.LightMo')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.LightMo')}
+</IonLabel>
               <IonToggle
                 checked={!themeSettings.darkMode}
                 onIonChange={e => updateTheme({ darkMode: !e.detail.checked })}
@@ -186,12 +196,16 @@ export default function ThemeSettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.ACCENTC')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.ACCENTC')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={colorPaletteOutline} slot="start" />
-              <IonLabel{t('auto.page.Choosea')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.Choosea')}
+</IonLabel>
             </IonItem>
             
             <div className="p-4 grid grid-cols-4 gap-4">
@@ -230,7 +244,9 @@ export default function ThemeSettingsPage() {
         <div className="p-4">
           <IonCard className="bg-slate-800">
             <IonCardContent>
-              <h3 className="text-lg font-medium mb-2"{t('auto.page.Preview')}/h3>
+              <h3 className="text-lg font-medium mb-2">
+  {t('auto.page.Preview')}
+</h3>
               <div className="flex items-center space-x-4">
                 <div 
                   className="w-10 h-10 rounded-full"

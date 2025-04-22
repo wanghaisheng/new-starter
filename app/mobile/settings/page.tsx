@@ -125,7 +125,9 @@ export default function SettingsPage() {
       <IonPage>
         <IonContent className="bg-[#0f172a]">
           <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4"{t('auto.page.Noprofi')}/p>
+            <p className="text-gray-400 mb-4">
+  {t('auto.page.Noprofi')}
+</p>
             <button
               onClick={() => router.push('/mobile/auth/login')}
               className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
@@ -142,7 +144,9 @@ export default function SettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.Settings')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.Settings')}
+</IonTitle>
         </IonToolbar>
       </IonHeader>
 
@@ -182,12 +186,16 @@ export default function SettingsPage() {
         <IonList>
           <IonItem button detail onClick={handleAccountPress}>
             <IonIcon icon={personCircleOutline} slot="start" color="medium" />
-            <IonLabel{t('auto.page.Account')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.Account')}
+</IonLabel>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/notifications">
             <IonIcon icon={notificationsOutline} slot="start" color="medium" />
-            <IonLabel{t('auto.page.Notifica')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.Notifica')}
+</IonLabel>
             {user.unreadNotifications && user.unreadNotifications > 0 && (
               <IonBadge slot="end" color="danger">
                 {user.unreadNotifications}
@@ -197,12 +205,16 @@ export default function SettingsPage() {
           
           <IonItem button detail routerLink="/mobile/settings/privacy">
             <IonIcon icon={lockClosedOutline} slot="start" color="medium" />
-            <IonLabel{t('auto.page.Privacy')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.Privacy')}
+</IonLabel>
           </IonItem>
           
           <IonItem>
             <IonIcon icon={moonOutline} slot="start" color="medium" />
-            <IonLabel{t('auto.page.DarkMod')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.DarkMod') || '深色模式'}
+</IonLabel>
             <IonToggle 
               checked={darkMode}
               onIonChange={e => setDarkMode(e.detail.checked)}
@@ -213,28 +225,40 @@ export default function SettingsPage() {
         <IonList>
           <IonItem button detail routerLink="/mobile/settings/help">
             <IonIcon icon={helpCircleOutline} slot="start" color="medium" />
-            <IonLabel{t('auto.page.GetHelp')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.GetHelp') || '获取帮助'}
+</IonLabel>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/contact">
             <IonIcon icon={mailOutline} slot="start" color="medium" />
-            <IonLabel{t('auto.page.Contact')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.Contact')}
+</IonLabel>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/about">
             <IonIcon icon={informationCircleOutline} slot="start" color="medium" />
-            <IonLabel{t('auto.page.About')}/IonLabel>
-            <IonNote slot="end" color="medium"{t('auto.page.v100')}/IonNote>
+            <IonLabel>
+  {t('auto.page.About')}
+</IonLabel>
+            <IonNote slot="end" color="medium">
+  {t('auto.page.v100')}
+</IonNote>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/terms">
             <IonIcon icon={documentTextOutline} slot="start" color="medium" />
-            <IonLabel{t('auto.page.Termsof')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.Termsof') || '服务条款'}
+</IonLabel>
           </IonItem>
           
           <IonItem button detail routerLink="/mobile/settings/privacy-policy">
             <IonIcon icon={shieldOutline} slot="start" color="medium" />
-            <IonLabel{t('auto.page.Privacy')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.Privacy') || '隐私政策'}
+</IonLabel>
           </IonItem>
         </IonList>
         
@@ -248,7 +272,9 @@ export default function SettingsPage() {
             onClick={handleLogout}
           >
             <IonIcon icon={logOutOutline} slot="start" />
-            <IonLabel{t('auto.page.LogOut')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.LogOut')}
+</IonLabel>
           </IonItem>
         </div>
 

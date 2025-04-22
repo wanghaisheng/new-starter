@@ -1,14 +1,15 @@
 // Hybrid 认证服务适配器示例（聚合 mock 与 remote 行为，可扩展为品牌定制等）
 import { IAuthAdapter, AuthUser, AuthResult } from '../types/auth-service';
 import { MockAuthService } from './mock/mock-auth-service';
-import { FirebaseAuthService } from './firebase/firebase-auth-service';
+import { FirebaseAuthAdapter } from './firebase/firebase-auth-service';
 
 export class HybridAuthService implements IAuthAdapter {
   private mock = new MockAuthService();
-  private remote = new FirebaseAuthService();
+  private remote: FirebaseAuthAdapter;
 
   async initialize() {
     await this.mock.initialize();
+    this.remote = new FirebaseAuthAdapter();
     await this.remote.initialize();
   }
   async loginWithEmail(email: string, password: string): Promise<AuthResult> {

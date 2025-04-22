@@ -41,3 +41,13 @@ export interface IMessageService {
   onMessageChange(callback: (messages: Message[]) => void): () => void;
   // 可扩展聚合业务方法，如多端聚合、青少年安全等
 }
+
+// Service 工厂类型定义
+export type MessageServiceType = 'mock' | 'remote' | 'hybrid' | 'advanced-hybrid';
+export interface MessageServiceOptions {
+  apiBaseUrl?: string;
+  enableTeenSafety?: boolean;
+  enableMultiDevice?: boolean;
+  enableAI?: boolean;
+  featureFlag?: string;
+}

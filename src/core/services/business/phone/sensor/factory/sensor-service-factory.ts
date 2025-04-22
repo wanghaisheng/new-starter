@@ -1,36 +1,38 @@
-import type { ISensorService, SensorServiceType } from '../types/sensor-service';
+import type { ISensorService, SensorProviderType, SensorServiceOptions } from '../types/sensor-service';
 import { MockSensorAdapter } from '../adapters/mock-sensor-adapter';
 import { WebSensorAdapter } from '../adapters/web-sensor-adapter';
 import { CapacitorSensorAdapter } from '../adapters/capacitor-sensor-adapter';
-import { Capacitor } from '@capacitor/core';
 
 export class SensorServiceFactory {
-  private static adapters: Record<string, () => ISensorService> = {};
+  private static adapters: Record<SensorProviderType, (options?: SensorServiceOptions) => ISensorService> = {
+    mock: (options) => new MockSensorAdapter(options),
+    web: (options) => new WebSensorAdapter(options),
+    capacitor: (options) => new CapacitorSensorAdapter(options),
+  };
 
-  static registerAdapter(type: SensorServiceType, factory: () => ISensorService) {
+  static registerAdapter(type: SensorProviderType, factory: (options?: SensorServiceOptions) => ISensorService) {
     this.adapters[type] = factory;
   }
-  static getAdapter(type: SensorServiceType): ISensorService | undefined {
+
+  static getAdapter(type: SensorProviderType = 'mock', options: SensorServiceOptions = {}): ISensorService | undefined {
     const factory = this.adapters[type];
-    return factory ? factory() : undefined;
+    return factory ? factory(options) : undefined;
   }
+
   static registerAllAdapters() {
-    SensorServiceFactory.registerAdapter('mock', () => new MockSensorAdapter());
-    SensorServiceFactory.registerAdapter('web', () => new WebSensorAdapter());
-    SensorServiceFactory.registerAdapter('capacitor', () => new CapacitorSensorAdapter());
+    SensorServiceFactory.registerAdapter('mock', (options) => new MockSensorAdapter(options));
+    SensorServiceFactory.registerAdapter('web', (options) => new WebSensorAdapter(options));
+    SensorServiceFactory.registerAdapter('capacitor', (options) => new CapacitorSensorAdapter(options));
   }
-  static create(type: SensorServiceType = 'capacitor'): ISensorService {
-    SensorServiceFactory.registerAllAdapters();
-    const adapter = this.getAdapter(type);
-    if (adapter) return adapter;
-    // auto
-    if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Sensors')) {
-      return this.getAdapter('capacitor')!;
-    } else if ('Accelerometer' in window || 'Gyroscope' in window) {
-      const webAdapter = this.getAdapter('web');
-      if (webAdapter) return webAdapter;
-      return this.getAdapter('mock')!;
-    }
-    return this.getAdapter('mock')!;
+
+  static createService({
+    type = 'capacitor',
+    options = {}
+  }: {
+    type?: SensorProviderType,
+    options?: SensorServiceOptions
+  } = {}): ISensorService {
+    this.registerAllAdapters();
+    return new (require('../service/sensor-service').SensorService)(type, options);
   }
 }

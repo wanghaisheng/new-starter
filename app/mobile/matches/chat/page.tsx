@@ -60,9 +60,13 @@ export default function ChatPage() {
 
   // 渲染消息列表
   const renderMessages = () => {
-    if (isLoading) return <div className="p-4 text-center"{t('auto.page.')}/div>;
+    if (isLoading) return <div className="p-4 text-center">
+  {t('auto.page.')}
+</div>;
     if (combinedError) return <div className="p-4 text-center text-red-500">{combinedError.toString()}</div>;
-    if (messages.length === 0) return <div className="p-4 text-center text-gray-400"{t('auto.page.')}/div>;
+    if (messages.length === 0) return <div className="p-4 text-center text-gray-400">
+  {t('auto.page.')}
+</div>;
     return (
       <div className="flex flex-col gap-2">
         {messages.map(msg => (
@@ -116,8 +120,12 @@ export default function ChatPage() {
             </div>
             
             <div>
-              <h2 className="font-semibold"{t('auto.page.User')}/h2>
-              <p className="text-sm text-gray-500"{t('auto.page.Online')}/p>
+              <h2 className="font-semibold">
+  {t('auto.page.User')}
+</h2>
+              <p className="text-sm text-gray-500">
+  {t('auto.page.Online')}
+</p>
             </div>
           </div>
           

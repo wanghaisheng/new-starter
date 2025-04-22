@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2015",
     "lib": [
       "dom",
       "dom.iterable",
@@ -28,7 +28,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],      
+      "@/*": ["./src/*"],
       "@/app/*": ["./app/*"],
       "@core/*": ["./src/core/*"],
       "@mobile/*": ["./src/mobile/*"],
@@ -36,7 +36,9 @@
       "@db/*": ["./src/core/lib/db/*"],
       "@db/types/*": ["./src/core/lib/db/types/*"],
       "@db/interfaces/*": ["./src/core/lib/db/interfaces/*"],
-      "@db/test/*": ["./src/core/lib/db/test/*"]
+      "@db/test/*": ["./src/core/lib/db/test/*"],
+      "@/src/*": ["./src/*"],
+      "@/src/providers": ["./src/providers/index.ts", "./src/providers"]
     }
   },
   "include": [

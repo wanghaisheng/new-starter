@@ -6,6 +6,7 @@ import { RemoteMatchServiceAdapter } from '../adapters/remote-match-service-adap
 import { HybridMatchServiceAdapter } from '../adapters/hybrid-match-service-adapter';
 import { BrandAMatchServiceAdapter } from '../adapters/brandA-match-service-adapter';
 import { BrandBMatchServiceAdapter } from '../adapters/brandB-match-service-adapter';
+import { MatchService } from '../service/match-service'; // 新增导入 MatchService
 
 /**
  * MatchServiceFactory
@@ -13,28 +14,37 @@ import { BrandBMatchServiceAdapter } from '../adapters/brandB-match-service-adap
  * 推荐用法：type 由上层（如 AppService）统一配置和注入
  * 支持自动降级：测试/开发环境自动使用 mock，生产环境用 remote/hybrid
  */
+export type MatchServiceType = 'mock' | 'remote' | 'hybrid' | 'brandA' | 'brandB';
+export type MatchServiceOptions = { [key: string]: any };
+
 export class MatchServiceFactory {
   /**
    * 创建匹配服务实例
-   * @param dataService 必填，注入自定义数据服务实例
-   * @param type 匹配服务类型 mock/remote/hybrid/brandA/brandB，默认自动根据 NODE_ENV 推断
+   * @param params 必填，包含 type、dataService 和 options
    * @returns 匹配服务实例
    */
-  static createService(
+  static createService({
+    type = 'remote',
+    dataService,
+    options = {}
+  }: {
+    type?: MatchServiceType,
     dataService: IDataService,
-    type?: 'mock' | 'remote' | 'hybrid' | 'brandA' | 'brandB'
-  ): IMatchService {
+    options?: MatchServiceOptions
+  }): IMatchService {
     if (!dataService) {
       throw new Error('[MatchServiceFactory] dataService is required');
     }
-    // 自动降级：测试/开发环境优先 mock
-    const env = typeof process !== 'undefined' ? process.env.NODE_ENV : 'production';
-    let finalType = type;
-    if (!finalType) {
-      if (env === 'test' || env === 'development') finalType = 'mock';
-      else finalType = 'remote';
+    // 统一通过 type/options/dataService 创建 MatchService，内部自动注入 adapter
+    return new MatchService(type, options,dataService);
+  }
+
+  // 自动适配器获取（供统一注册表/工厂调用）
+  static getAdapter(type: MatchServiceType = 'remote', options: MatchServiceOptions = {}, dataService: IDataService): any {
+    if (!dataService) {
+      throw new Error('[MatchServiceFactory.getAdapter] dataService is required');
     }
-    switch (finalType) {
+    switch (type) {
       case 'mock':
         return new MockMatchServiceAdapter(dataService);
       case 'remote':
@@ -46,7 +56,7 @@ export class MatchServiceFactory {
       case 'brandB':
         return new BrandBMatchServiceAdapter(dataService);
       default:
-        throw new Error(`[MatchServiceFactory] Invalid match service type: ${finalType}`);
+        throw new Error(`[MatchServiceFactory.getAdapter] Invalid match service type: ${type}`);
     }
   }
 }

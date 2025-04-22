@@ -479,6 +479,44 @@ const data = await matchService.current.getUserMatches(userId);
    }
    ```
 
+## 服务适配器配置推荐实践
+
+### 推荐：适配器内部自动读取配置
+
+对于需要依赖密钥、Token、API Endpoint 等运行环境敏感参数的服务适配器（如 Telegram、Github、OSS、Stripe 等），**强烈推荐适配器内部自动读取配置**，而不是在 Registry 或调用方传递参数。
+
+- 适配器构造函数应提供默认参数，优先从 `process.env`、全局 config、平台安全存储等读取。
+- 这样可避免在 Registry 或页面中硬编码敏感信息，提高安全性和可维护性。
+- 适配器可支持通过 options 参数覆盖默认配置，但一般无需强制要求。
+
+#### 示例
+```ts
+export class TelegramImageAdapter implements IImageService {
+  constructor(
+    token = process.env.TG_BOT_TOKEN,
+    chatId = process.env.TG_CHAT_ID
+  ) {
+    // ...
+  }
+}
+
+// Registry 中直接实例化，无需传参
+service = new TelegramImageAdapter();
+```
+
+### 反例：在 Registry/页面硬编码参数
+```ts
+// 不推荐
+service = new TelegramImageAdapter('hardcode-token', 'hardcode-chatid');
+```
+
+### 适用范围
+- 推荐所有第三方 API、云服务、消息推送、支付等适配器均采用此模式。
+- 业务侧如确需动态切换，可通过 options 参数传递，但一般应优先自动读取。
+
+---
+如需统一整改服务适配器实例化方式，请优先采用上述推荐实践。
+
 ## 注意事项
 
 1. **第三方服务集成**

@@ -95,7 +95,9 @@ export default function PrivacySettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.Privacy')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.Privacy')}
+</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -105,11 +107,15 @@ export default function PrivacySettingsPage() {
       <IonContent className="bg-[#0f172a]">
         <IonList lines="full">
           <IonItemDivider>
-            <IonLabel{t('auto.page.PROFILE')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.PROFILE')}
+</IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel{t('auto.page.ShowPro')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.ShowPro')}
+</IonLabel>
             <IonToggle
               checked={privacy.showProfileToEveryone}
               onIonChange={e => updatePrivacyForm({ showProfileToEveryone: e.detail.checked })}
@@ -117,7 +123,9 @@ export default function PrivacySettingsPage() {
           </IonItem>
           
           <IonItem>
-            <IonLabel{t('auto.page.ShowOnl')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.ShowOnl')}
+</IonLabel>
             <IonToggle
               checked={privacy.showOnlineStatus}
               onIonChange={e => updatePrivacyForm({ showOnlineStatus: e.detail.checked })}
@@ -125,7 +133,9 @@ export default function PrivacySettingsPage() {
           </IonItem>
           
           <IonItem>
-            <IonLabel{t('auto.page.ShowLas')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.ShowLas')}
+</IonLabel>
             <IonToggle
               checked={privacy.showLastActive}
               onIonChange={e => updatePrivacyForm({ showLastActive: e.detail.checked })}
@@ -133,11 +143,15 @@ export default function PrivacySettingsPage() {
           </IonItem>
           
           <IonItemDivider>
-            <IonLabel{t('auto.page.MATCHING')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.MATCHING')}
+</IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel{t('auto.page.ShowMe')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.ShowMe')}
+</IonLabel>
             <IonToggle
               checked={privacy.showInDiscovery}
               onIonChange={e => updatePrivacyForm({ showInDiscovery: e.detail.checked })}
@@ -145,7 +159,9 @@ export default function PrivacySettingsPage() {
           </IonItem>
           
           <IonItem>
-            <IonLabel{t('auto.page.ShowDis')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.ShowDis')}
+</IonLabel>
             <IonToggle
               checked={privacy.showDistance}
               onIonChange={e => updatePrivacyForm({ showDistance: e.detail.checked })}
@@ -153,11 +169,15 @@ export default function PrivacySettingsPage() {
           </IonItem>
           
           <IonItemDivider>
-            <IonLabel{t('auto.page.DATAP')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.DATAP')}
+</IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel{t('auto.page.AllowDa')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.AllowDa')}
+</IonLabel>
             <IonToggle
               checked={privacy.allowDataCollection}
               onIonChange={e => updatePrivacyForm({ allowDataCollection: e.detail.checked })}
@@ -165,7 +185,9 @@ export default function PrivacySettingsPage() {
           </IonItem>
           
           <IonItem>
-            <IonLabel{t('auto.page.AllowPe')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.AllowPe')}
+</IonLabel>
             <IonToggle
               checked={privacy.allowPersonalizedAds}
               onIonChange={e => updatePrivacyForm({ allowPersonalizedAds: e.detail.checked })}

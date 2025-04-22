@@ -140,7 +140,9 @@ export default function SecuritySettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.Security')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.Security')}
+</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -157,18 +159,26 @@ export default function SecuritySettingsPage() {
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.ACCOUNT')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.ACCOUNT')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem button onClick={handleChangePassword}>
               <IonIcon icon={keyOutline} slot="start" />
-              <IonLabel{t('auto.page.ChangeP')}/IonLabel>
-              <IonNote slot="end" color="medium"{t('auto.page.Lastcha')}/IonNote>
+              <IonLabel>
+  {t('auto.page.ChangeP')}
+</IonLabel>
+              <IonNote slot="end" color="medium">
+  {t('auto.page.Lastcha')}
+</IonNote>
             </IonItem>
             
             <IonItem button onClick={handleEnableTwoFactor}>
               <IonIcon icon={phonePortraitOutline} slot="start" />
-              <IonLabel{t('auto.page.TwoFact')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.TwoFact')}
+</IonLabel>
               <IonToggle 
                 slot="end" 
                 checked={security.twoFactorEnabled} 
@@ -178,12 +188,16 @@ export default function SecuritySettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.SECURITY')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.SECURITY')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={mailOutline} slot="start" />
-              <IonLabel{t('auto.page.EmailNo')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.EmailNo')}
+</IonLabel>
               <IonToggle 
                 slot="end" 
                 checked={security.emailNotifications} 
@@ -193,7 +207,9 @@ export default function SecuritySettingsPage() {
             
             <IonItem>
               <IonIcon icon={warningOutline} slot="start" />
-              <IonLabel{t('auto.page.LoginAl')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.LoginAl')}
+</IonLabel>
               <IonToggle 
                 slot="end" 
                 checked={security.loginAlerts} 
@@ -204,7 +220,9 @@ export default function SecuritySettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.LOGINHI')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.LOGINHI')}
+</IonLabel>
             </IonItemDivider>
             
             {loginHistory.map(item => (
@@ -216,14 +234,18 @@ export default function SecuritySettingsPage() {
                   <p className="text-xs text-gray-400">{item.date}</p>
                 </IonLabel>
                 {item.current && (
-                  <IonBadge color="success" slot="end"{t('auto.page.Current')}/IonBadge>
+                  <IonBadge color="success" slot="end">
+  {t('auto.page.Current')}
+</IonBadge>
                 )}
               </IonItem>
             ))}
             
             <IonItem button onClick={handleLogoutAllDevices}>
               <IonIcon icon={lockClosedOutline} slot="start" color="danger" />
-              <IonLabel color="danger"{t('auto.page.LogoutA')}/IonLabel>
+              <IonLabel color="danger">
+  {t('auto.page.LogoutA')}
+</IonLabel>
             </IonItem>
           </IonItemGroup>
         </IonList>

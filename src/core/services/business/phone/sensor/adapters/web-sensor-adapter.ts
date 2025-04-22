@@ -1,9 +1,15 @@
-import { ISensorService, SensorType, SensorEvent, SensorData } from '../types/sensor-service';
+import { ISensorService, SensorType, SensorEvent, SensorData, SensorServiceOptions } from '../types/sensor-service';
 
 export class WebSensorAdapter implements ISensorService {
   private initialized = false;
   private listeners: Partial<Record<SensorEvent, ((data: any) => void)[]>> = {};
   private sensors: Map<SensorType, any> = new Map();
+  private brand: string | undefined;
+
+  constructor(options: SensorServiceOptions = {}) {
+    this.brand = options.brand;
+    // 可根据 brand 做差异化处理
+  }
 
   async initialize() { this.initialized = true; }
   isInitialized() { return this.initialized; }
@@ -36,13 +42,13 @@ export class WebSensorAdapter implements ISensorService {
           values: { ...sensor }
         } as SensorData);
       });
-      sensor.addEventListener('error', (e: any) => this.emit('error', e));
-      sensor.start();
+      // 可根据 this.brand 做品牌差异化事件绑定
       this.sensors.set(type, sensor);
-      this.emit('activated', { type });
+      sensor.start();
+      this.emit('activated', { type, timestamp: Date.now(), values: {} });
       return true;
     } catch (e) {
-      this.emit('error', e);
+      this.emit('error', { type, timestamp: Date.now(), values: {}, error: e });
       return false;
     }
   }
@@ -50,8 +56,8 @@ export class WebSensorAdapter implements ISensorService {
     const sensor = this.sensors.get(type);
     if (sensor) {
       sensor.stop();
+      this.emit('deactivated', { type, timestamp: Date.now(), values: {} });
       this.sensors.delete(type);
-      this.emit('deactivated', { type });
       return true;
     }
     return false;
@@ -61,10 +67,15 @@ export class WebSensorAdapter implements ISensorService {
     this.listeners[event]!.push(handler);
   }
   off(event: SensorEvent, handler: (data: any) => void): void {
-    if (!this.listeners[event]) return;
-    this.listeners[event] = this.listeners[event]!.filter(fn => fn !== handler);
+    if (this.listeners[event]) {
+      this.listeners[event] = this.listeners[event]!.filter(fn => fn !== handler);
+    }
   }
   private emit(event: SensorEvent, data: any) {
-    (this.listeners[event] || []).forEach(fn => fn(data));
+    if (this.listeners[event]) {
+      for (const fn of this.listeners[event]!) {
+        fn(data);
+      }
+    }
   }
 }

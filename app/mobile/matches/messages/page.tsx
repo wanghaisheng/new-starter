@@ -51,8 +51,12 @@ export default function MessagesPage() {
   };
 
   const renderChats = () => {
-    if (loading) return <div className="p-4 text-center"{t('auto.page.')}/div>;
-    if (filteredChats.length === 0) return <div className="p-4 text-center text-gray-400"{t('auto.page.')}/div>;
+    if (loading) return <div className="p-4 text-center">
+  {t('auto.page.')}
+</div>;
+    if (filteredChats.length === 0) return <div className="p-4 text-center text-gray-400">
+  {t('auto.page.')}
+</div>;
     return (
       <IonList>
         {filteredChats.map(chat => (
@@ -78,7 +82,9 @@ export default function MessagesPage() {
       <IonHeader>
         <IonToolbar>
           <div className="px-4 py-3 flex items-center justify-between">
-            <h1 className="text-xl font-bold"{t('auto.page.Messages')}/h1>
+            <h1 className="text-xl font-bold">
+  {t('auto.page.Messages')}
+</h1>
             <button 
               onClick={handleNewMessage}
               className="text-primary-500"

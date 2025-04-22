@@ -34,3 +34,9 @@ export interface IUserAdapter {
  */
 export interface IUserService extends IUserAdapter {
 }
+
+// Service 工厂类型定义
+export type UserServiceType = 'mock' | 'remote' | 'hybrid';
+export interface UserServiceOptions {
+  apiBaseUrl?: string;
+}

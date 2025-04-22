@@ -3,6 +3,7 @@ import { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/mat
 import { User } from '@/core/lib/db/types/user';
 import { IDataService } from '@/core/services/data/types';
 import { getUserRelatedMatches, getMatchedUsers as getMatchedUsersUtil } from '../utils/match-aggregation-utils';
+import { MatchServiceOptions } from '../types/match-service';
 
 /**
  * BrandAMatchServiceAdapter
@@ -10,12 +11,15 @@ import { getUserRelatedMatches, getMatchedUsers as getMatchedUsersUtil } from '.
  * 本层只做聚合/过滤，不做 bazi/mbti 智能评分，相关算法全部由 ai-adapters 层负责。
  */
 export class BrandAMatchServiceAdapter implements IMatchService {
-  constructor(private dataService: IDataService) {}
+  constructor(private dataService: IDataService, private options: MatchServiceOptions = {}) {}
 
   async getUserMatches(userId: string): Promise<Match[]> {
     // 只做聚合/过滤，不做智能评分
     const matches = await getUserRelatedMatches(this.dataService, userId);
-    // 品牌A：优先推荐同城用户（假设有 city 字段）
+    // 品牌A：优先推荐同城用户（假设有 city 字段或通过 options.region）
+    if (this.options.region) {
+      return matches.filter(match => (match as any).city === this.options.region);
+    }
     return matches.filter(match => (match as any).city === 'shanghai');
   }
 
@@ -60,47 +64,33 @@ export class BrandAMatchServiceAdapter implements IMatchService {
     return match.status as 'matched' | 'pending' | 'none';
   }
 
-  /**
-   * 综合多机制智能匹配（地理、兴趣、mbti、八字等）
-   * 实际算法由 AI Adapter 层实现，这里只做基础聚合和过滤，可用于品牌定制二次过滤
-   */
-  async matchUsers(userId: string, opts: {
-    maxDistanceKm?: number;
-    includeTags?: string[];
-    excludeTags?: string[];
-    useRandom?: boolean;
-    useBazi?: boolean;
-    useMBTI?: boolean;
-    mbtiType?: string;
-    limit?: number;
-  }): Promise<User[]> {
-    let users = await getMatchedUsersUtil(this.dataService, userId);
-    // 示例：品牌A过滤未实名
-    users = users.filter(user => (user as any).isVerified === true);
-    if (opts.limit) users = users.slice(0, opts.limit);
-    return users;
+  async matchUsers(userId: string, opts: MatchServiceOptions): Promise<User[]> {
+    // 可根据 opts/this.options.brand/region/userType 等灵活过滤
+    let candidates = await this.dataService.query<User>('users', {}) || [];
+    if (opts.region || this.options.region) {
+      candidates = candidates.filter(u => (u as any).city === (opts.region || this.options.region));
+    }
+    if (opts.userType === 'vip' || this.options.userType === 'vip') {
+      candidates = candidates.filter(u => (u as any).isVIP === true);
+    }
+    // 其它品牌定制逻辑...
+    return candidates;
   }
 
-  /**
-   * 获取用户所有相关的历史匹配对象（含已过期/已解除/所有历史）
-   */
   async getUserMatchHistory(userId: string): Promise<User[]> {
-    return getMatchedUsersUtil(this.dataService, userId); // 可扩展历史数据聚合逻辑
+    const matches = await this.dataService.query<Match>('matches', { users: { $elemMatch: userId } });
+    const userIds = matches?.map(m => m.users.find(id => id !== userId)).filter(Boolean) as string[];
+    if (!userIds || userIds.length === 0) return [];
+    const users = await Promise.all(userIds.map(id => this.dataService.findOne<User>('users', id)));
+    return users.filter((user): user is User => !!user);
   }
 
-  /**
-   * quiz 结果联动入口：接收标签和报告，自动刷新用户标签、触发推荐等
-   */
   async onQuizResult(userId: string, tags: string[], report: any, userService?: any): Promise<void> {
     await this.refreshUserMatches(userId);
   }
 
-  /**
-   * 根据最新标签/画像刷新推荐池
-   */
   async refreshUserMatches(userId: string): Promise<void> {
-    // 可在此触发本地/远程同步等操作
-    // 示例：无实际操作，仅为接口合规
+    // 可实现品牌A专属刷新逻辑
     return;
   }
 }

@@ -1,7 +1,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonAvatar, IonCard, IonCardHeader, IonCardTitle, IonCardContent
+  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonAvatar, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonLabel
 } from '@ionic/react';
 
 const mockProfile = {
@@ -26,7 +26,9 @@ export default function ProfileView() {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle{t('auto.view.')}/IonTitle>
+          <IonTitle>
+            {t('auto.page.ViewProfile') || '查看资料'}
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding bg-gradient-to-br from-purple-600 to-pink-600 min-h-screen">
@@ -43,18 +45,30 @@ export default function ProfileView() {
           </div>
           <IonCard className="w-full max-w-md mx-auto mt-4 glass-card">
             <IonCardHeader>
-              <IonCardTitle{t('auto.view.')}/IonCardTitle>
+              <IonCardTitle>
+                {t('auto.page.ViewProfile') || '查看资料'}
+              </IonCardTitle>
             </IonCardHeader>
             <IonCardContent>
               <div className="flex gap-2 flex-wrap">
                 {user.photos.map((url, i) => (
-                  <img key={i} src={url} alt={t('auto.view.')} className="w-20 h-20 object-cover rounded-lg shadow-md" />
+                  <img key={i} src={url} alt={t('auto.page.ViewProfile') || '查看资料'} className="w-20 h-20 object-cover rounded-lg shadow-md" />
                 ))}
               </div>
             </IonCardContent>
           </IonCard>
           <IonButton expand="block" color="warning" className="mt-8 rounded-full" onClick={() => router.back()}>
             返回
+          </IonButton>
+          <IonButton expand="block" color="primary" className="mt-4 rounded-full">
+            <IonLabel>
+              {t('auto.page.SendMessage') || '发送消息'}
+            </IonLabel>
+          </IonButton>
+          <IonButton expand="block" color="danger" className="mt-4 rounded-full">
+            <IonLabel>
+              {t('auto.page.ReportUser') || '举报用户'}
+            </IonLabel>
           </IonButton>
         </div>
       </IonContent>

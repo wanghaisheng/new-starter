@@ -73,7 +73,9 @@ export default function HelpSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.HelpS')}/IonTitle>
+          <IonTitle>
+            {t('auto.page.Help') || '帮助中心'}
+          </IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -84,32 +86,44 @@ export default function HelpSettingsPage() {
         <IonSearchbar
           value={searchText}
           onIonInput={e => setSearchText(e.detail.value!)}
-          placeholder={t('auto.page.Searchh')}
+          placeholder={t('auto.page.Searchh') || '搜索'}
           className="px-4 py-2"
         />
         
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.CONTACT')}/IonLabel>
+              <IonLabel>
+                {t('auto.page.ContactUs') || '联系客服'}
+              </IonLabel>
             </IonItemDivider>
             
             <IonItem button onClick={() => router.push('/mobile/settings/help/chat')}>
               <IonIcon icon={chatbubbleOutline} slot="start" />
-              <IonLabel{t('auto.page.LiveCha')}/IonLabel>
-              <IonNote slot="end"{t('auto.page.247Sup')}/IonNote>
+              <IonLabel>
+                {t('auto.page.LiveCha') || '在线客服'}
+              </IonLabel>
+              <IonNote slot="end">
+                {t('auto.page.247Sup') || '24/7 支持'}
+              </IonNote>
             </IonItem>
             
             <IonItem button onClick={() => router.push('/mobile/settings/help/email')}>
               <IonIcon icon={mailOutline} slot="start" />
-              <IonLabel{t('auto.page.EmailSu')}/IonLabel>
-              <IonNote slot="end"{t('auto.page.support')}/IonNote>
+              <IonLabel>
+                {t('auto.page.EmailSu') || '邮箱支持'}
+              </IonLabel>
+              <IonNote slot="end">
+                {t('auto.page.support') || '支持'}
+              </IonNote>
             </IonItem>
           </IonItemGroup>
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.FREQUENT')}/IonLabel>
+              <IonLabel>
+                {t('auto.page.FAQ') || '常见问题'}
+              </IonLabel>
             </IonItemDivider>
             
             <IonAccordionGroup
@@ -136,17 +150,23 @@ export default function HelpSettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.LEGAL')}/IonLabel>
+              <IonLabel>
+                {t('auto.page.LEGAL') || '法律'}
+              </IonLabel>
             </IonItemDivider>
             
             <IonItem button onClick={() => router.push('/mobile/settings/terms')}>
               <IonIcon icon={documentTextOutline} slot="start" />
-              <IonLabel{t('auto.page.Termsof')}/IonLabel>
+              <IonLabel>
+                {t('auto.page.Termsof') || '服务条款'}
+              </IonLabel>
             </IonItem>
             
             <IonItem button onClick={() => router.push('/mobile/settings/privacy-policy')}>
               <IonIcon icon={documentTextOutline} slot="start" />
-              <IonLabel{t('auto.page.Privacy')}/IonLabel>
+              <IonLabel>
+                {t('auto.page.Privacy') || '隐私政策'}
+              </IonLabel>
             </IonItem>
           </IonItemGroup>
         </IonList>

@@ -9,7 +9,7 @@ import { getDatabase, ref, set, get, remove, update, query, orderByChild,
          connectDatabaseEmulator } from 'firebase/database';
 
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { QueryOptions, QueryResult } from '@/core/lib/db/types/database.types';
 
@@ -46,7 +46,7 @@ export class FirebaseRealtimeDBService {
   private listeners: Map<string, RealtimeListenerConfig> = new Map();
   
   constructor(private config: FirebaseConfig) {
-    this.logger = getLogger('FirebaseRealtimeDB');
+    this.logger = getDatabaseLogger('FirebaseRealtimeDB');
     this.initialize();
   }
   

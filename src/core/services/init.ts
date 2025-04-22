@@ -15,7 +15,7 @@ import { LocationServiceRegistry } from './business/phone/location/registry/loca
 import { NFCServiceRegistry } from './business/phone/nfc/registry/nfc-service-registry';
 import { SensorServiceRegistry } from './business/phone/sensor/registry/sensor-service-registry';
 import { QuizServiceRegistry } from './business/quiz/registry/quiz-service-registry';
-import { getDefaultService as getDefaultImageService } from './business/image/registry/image-service-registry';
+import { imageServiceRegistry } from './business/image/registry/image-service-registry';
 import { DataServiceRegistry } from './data/registry/data-service-registry';
 // 自动检测补全
 import { MockDataServiceRegistry } from './business/mock/registry/MockDataServiceRegistry';
@@ -36,7 +36,7 @@ export async function initializeCoreServices() {
   getLoggerService();
   getErrorService();
   getNetworkManager();
-  // 业务服务
+  // 业务服务（全部通过 Registry 单例获取，禁止 Factory 直连）
   UserServiceRegistry.getInstance();
   AuthServiceRegistry.getInstance();
   MatchServiceRegistry.getInstance();
@@ -49,7 +49,7 @@ export async function initializeCoreServices() {
   NFCServiceRegistry.getInstance();
   SensorServiceRegistry.getInstance();
   QuizServiceRegistry.getInstance();
-  getDefaultImageService();
+  imageServiceRegistry.createService('mock'); // 如需其他类型可调整
   DataServiceRegistry.get('default');
   // 自动检测补全服务
   MockDataServiceRegistry.getInstance('memory');
@@ -59,7 +59,7 @@ export async function initializeCoreServices() {
   // 自动注入 mock 多语言内容（开发/测试环境专用，生产可移除）
   if (process.env.NODE_ENV !== 'production') {
     try {
-      const { insertMockTranslations } = await import('@/scripts/mock/translations-mock-data');
+      const { insertMockTranslations } = await import('../../../scripts/mock/translations-mock-data');
       await insertMockTranslations();
       // 可加日志
       console.log('[i18n] Mock translations initialized');

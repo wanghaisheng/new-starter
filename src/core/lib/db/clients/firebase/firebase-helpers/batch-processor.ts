@@ -15,7 +15,7 @@ import {
   DocumentData,
   getDoc
 } from 'firebase/firestore';
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 
 /**
@@ -136,7 +136,7 @@ export class FirebaseBatchProcessor {
    * @param options 配置选项
    */
   constructor(private db: Firestore, options: BatchProcessorOptions = {}) {
-    this.logger = getLogger('FirebaseBatchProcessor');
+    this.logger = getDatabaseLogger('FirebaseBatchProcessor');
     
     // 设置默认选项
     this.options = {

@@ -39,7 +39,9 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md p-8">
-        <h1 className="text-2xl font-bold text-center mb-6"{t('auto.page.')}/h1>
+        <h1 className="text-2xl font-bold text-center mb-6">
+  {t('auto.page.')}
+</h1>
         {(localError || error) && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {localError || error?.message}
@@ -103,8 +105,8 @@ export default function RegisterPage() {
           </Button>
         </form>
         <div className="text-sm text-center mt-4">
-          <span className="text-gray-500"{t('auto.page.')}/span>
-          <Link href="/mobile/auth/login" className="ml-2 text-blue-500"{t('auto.page.')}/Link>
+          <span className="text-gray-500">{t('auto.page.AlreadyHaveAccount') || '已有账号？'}</span>
+          <Link href="/mobile/auth/login" className="ml-2 text-blue-500">{t('auto.page.LoginNow') || '立即登录'}</Link>
         </div>
       </Card>
     </div>

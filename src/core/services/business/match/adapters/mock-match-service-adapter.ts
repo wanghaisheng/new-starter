@@ -3,6 +3,7 @@ import { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/mat
 import { User } from '@/core/lib/db/types/user';
 import { IDataService } from '@/core/services/data/types';
 import { getUserRelatedMatches, getMatchedUsers as getMatchedUsersUtil } from '../utils/match-aggregation-utils';
+import { MatchServiceOptions } from '../types/match-service';
 
 /**
  * MockMatchServiceAdapter
@@ -10,7 +11,7 @@ import { getUserRelatedMatches, getMatchedUsers as getMatchedUsersUtil } from '.
  * 本层只做聚合/过滤，不做 bazi/mbti 智能评分，相关算法全部由 ai-adapters 层负责。
  */
 export class MockMatchServiceAdapter implements IMatchService {
-  constructor(private dataService?: IDataService) {}
+  constructor(private dataService?: IDataService, private options: MatchServiceOptions = {}) {}
 
   async getUserMatches(userId: string): Promise<Match[]> {
     // 只做聚合/过滤，不做智能评分
@@ -62,38 +63,35 @@ export class MockMatchServiceAdapter implements IMatchService {
     return match.status as 'matched' | 'pending' | 'none';
   }
 
-  /**
-   * 综合多机制智能匹配（地理、兴趣、mbti、八字等）
-   * 实际算法由 AI Adapter 层实现，这里只做基础聚合和过滤
-   */
-  async matchUsers(userId: string, opts: {
-    maxDistanceKm?: number;
-    includeTags?: string[];
-    excludeTags?: string[];
-    useRandom?: boolean;
-    useBazi?: boolean;
-    useMBTI?: boolean;
-    mbtiType?: string;
-    limit?: number;
-  }): Promise<User[]> {
+  async matchUsers(userId: string, opts: MatchServiceOptions): Promise<User[]> {
     if (!this.dataService) throw new Error('MockMatchServiceAdapter: dataService 未注入');
-    let users = await getMatchedUsersUtil(this.dataService, userId);
-    if (opts.limit) users = users.slice(0, opts.limit);
-    return users;
+    let candidates = await this.dataService.query<User>('users', {}) || [];
+    // 支持 mock 环境下多维过滤
+    if (opts.brand) {
+      candidates = candidates.filter(u => (u as any).brand === opts.brand);
+    }
+    if (opts.region) {
+      candidates = candidates.filter(u => (u as any).region === opts.region);
+    }
+    // 其它 mock 策略过滤...
+    return candidates;
   }
 
   async getUserMatchHistory(userId: string): Promise<User[]> {
     if (!this.dataService) throw new Error('MockMatchServiceAdapter: dataService 未注入');
-    return getMatchedUsersUtil(this.dataService, userId);
+    const matches = await this.dataService.query<Match>('matches', { users: { $elemMatch: userId } });
+    const userIds = (matches?.map(m => m.users.find(id => id !== userId)).filter((id): id is string => !!id)) || [];
+    if (userIds.length === 0) return [];
+    const users = await Promise.all(userIds.map(id => this.dataService!.findOne<User>('users', id)));
+    return users.filter((user): user is User => !!user);
   }
 
   async onQuizResult(userId: string, tags: string[], report: any, userService?: any): Promise<void> {
-    if (!this.dataService) throw new Error('MockMatchServiceAdapter: dataService 未注入');
     await this.refreshUserMatches(userId);
   }
 
   async refreshUserMatches(userId: string): Promise<void> {
-    if (!this.dataService) throw new Error('MockMatchServiceAdapter: dataService 未注入');
+    // 可实现 mock 专属刷新逻辑
     return;
   }
 }

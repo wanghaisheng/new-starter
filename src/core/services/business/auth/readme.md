@@ -103,6 +103,22 @@ AuthRegistry.register('my-auth', new MyAuthService());
 - **如何做 mock/测试？**
   提供 mock 适配器实现，在测试/开发环境自动降级。
 
+## 服务注册表 getProvider 统一规范
+
+所有 Registry 的 `getProvider` 方法应采用如下统一签名：
+
+```typescript
+getProvider(
+  type: string,         // mock/remote/hybrid/brandA/brandB 等服务类型
+  name?: string,        // 实例名，默认 'default'
+  dataService?: any,    // 可选，部分服务如 Match 需注入数据服务
+  options?: object      // 其它扩展参数，预留
+): () => IService
+```
+
+- 推荐统一调用体验，便于 hooks 泛型化和批量重构。
+- 详见[服务架构统一规范](../../../../docs/guides/architecture/services/overview.md)。
+
 ---
 如需批量注册、自动降级、事件总线、hooks 组合等最佳实践代码模板，请参考本目录或联系架构负责人。
 如需更详细的适配器模板或自动注册脚本，请参考 `adapters/` 目录下的现有实现。

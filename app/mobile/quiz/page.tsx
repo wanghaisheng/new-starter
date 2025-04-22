@@ -67,7 +67,7 @@ export default function TestTypesPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>{t('testsTitle')}</IonTitle>
+          <IonTitle>{t('auto.page.Quiz') || '性格测试'}</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
@@ -96,6 +96,9 @@ export default function TestTypesPage() {
                   <IonBadge slot="end" color={getStatusColor(quiz.status)}>
                     {t(`status.${quiz.status}`)}
                   </IonBadge>
+                  <IonLabel>{t('auto.page.StartQuiz') || '开始测试'}</IonLabel>
+                  <IonLabel>{t('auto.page.SubmitQuiz') || '提交答案'}</IonLabel>
+                  <IonLabel>{t('auto.page.QuizResult') || '测试结果'}</IonLabel>
                 </IonItem>
               ))}
             </IonList>

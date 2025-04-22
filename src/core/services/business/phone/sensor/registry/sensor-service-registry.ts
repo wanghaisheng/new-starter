@@ -1,10 +1,11 @@
-import type { ISensorService, SensorServiceType } from '../types/sensor-service';
+import type { ISensorService, SensorProviderType, SensorServiceOptions } from '../types/sensor-service';
 import { SensorServiceFactory } from '../factory/sensor-service-factory';
 
 export interface SensorServiceConfig {
   environment?: string;
   name?: string;
-  type?: SensorServiceType;
+  type?: SensorProviderType;
+  options?: SensorServiceOptions;
 }
 
 export class SensorServiceRegistry {
@@ -33,13 +34,13 @@ export class SensorServiceRegistry {
     if (this.registry[key]) return this.registry[key];
     let service: ISensorService;
     try {
-      const adapter = SensorServiceRegistry.adapters[type];
-      service = adapter ? adapter() : SensorServiceFactory.create(type);
+      const adapter = SensorServiceRegistry.adapters[type!];
+      service = adapter ? adapter() : SensorServiceFactory.createService({ type, options: config.options });
     } catch (e) {
       // web/capacitor 创建失败兜底为 mock
       if (type !== 'mock') {
         const fallbackAdapter = SensorServiceRegistry.adapters['mock'];
-        service = fallbackAdapter ? fallbackAdapter() : SensorServiceFactory.create('mock');
+        service = fallbackAdapter ? fallbackAdapter() : SensorServiceFactory.createService({ type: 'mock' });
       } else {
         throw e;
       }
@@ -52,17 +53,29 @@ export class SensorServiceRegistry {
     return this.registry[`${environment}:${name}`];
   }
   clear() { this.registry = {}; }
-  static registerAdapter(type: SensorServiceType, factory: () => ISensorService) {
+  static registerAdapter(type: SensorProviderType, factory: () => ISensorService) {
     this.adapters[type] = factory;
   }
-  static getAdapter(type: SensorServiceType): ISensorService | undefined {
+  static getAdapter(type: SensorProviderType): ISensorService | undefined {
     const factory = this.adapters[type];
     return factory ? factory() : undefined;
   }
   static registerAllAdapters() {
-    SensorServiceRegistry.registerAdapter('web', () => SensorServiceFactory.create('web'));
-    SensorServiceRegistry.registerAdapter('capacitor', () => SensorServiceFactory.create('capacitor'));
-    SensorServiceRegistry.registerAdapter('mock', () => SensorServiceFactory.create('mock'));
+    SensorServiceRegistry.registerAdapter('mock', () => SensorServiceFactory.createService({ type: 'mock' }));
+    SensorServiceRegistry.registerAdapter('web', () => SensorServiceFactory.createService({ type: 'web' }));
+    SensorServiceRegistry.registerAdapter('capacitor', () => SensorServiceFactory.createService({ type: 'capacitor' }));
+  }
+
+  /**
+   * 统一 getProvider 签名，供 hooks/业务层调用
+   */
+  getProvider(
+    type: SensorProviderType = 'capacitor',
+    name: string = 'default',
+    _dataService?: unknown,
+    options?: SensorServiceOptions
+  ): () => ISensorService {
+    return () => this.createService({ environment: type, name, type, options });
   }
 
   /**
@@ -70,11 +83,10 @@ export class SensorServiceRegistry {
    * 优先 remote，其次 hybrid，其次 mock
    */
   getDefaultService(_dataService?: unknown): ISensorService {
-    // 保持参数签名统一，参数未用到
     return (
-      this.getService('remote') ||
-      this.getService('hybrid') ||
-      this.getService('mock') ||
+      this.getService('remote', 'default') ||
+      this.getService('hybrid', 'default') ||
+      this.getService('mock', 'default') ||
       this.createService({ environment: 'mock', name: 'mock', type: 'mock' })
     );
   }

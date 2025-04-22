@@ -1,10 +1,11 @@
 import type { IBluetoothService, BluetoothServiceType } from '../types/bluetooth-service';
-import { BluetoothServiceFactory } from '../factory/bluetooth-service-factory';
+import { BluetoothServiceFactory, BluetoothServiceOptions } from '../factory/bluetooth-service-factory';
 
 export interface BluetoothServiceConfig {
   environment: string;
   name: string;
   type: BluetoothServiceType;
+  options?: BluetoothServiceOptions;
 }
 
 /**
@@ -13,7 +14,7 @@ export interface BluetoothServiceConfig {
 export class BluetoothServiceRegistry {
   private static instance: BluetoothServiceRegistry;
   private registry: Record<string, IBluetoothService> = {};
-  private static adapters: Record<string, () => IBluetoothService> = {};
+  private static adapters: Record<string, (options?: BluetoothServiceOptions) => IBluetoothService> = {};
 
   static getInstance() {
     if (!this.instance) this.instance = new BluetoothServiceRegistry();
@@ -22,21 +23,22 @@ export class BluetoothServiceRegistry {
 
   /**
    * 注册/获取蓝牙服务实例
-   * @param config 配置项（环境、名称、类型）
+   * @param config 配置项（环境、名称、类型、options）
    */
   createService(config: BluetoothServiceConfig): IBluetoothService {
     const key = `${config.environment}:${config.name}`;
     if (this.registry[key]) return this.registry[key];
     // 优先用插件式适配器，否则走工厂
     const adapter = BluetoothServiceRegistry.adapters[config.type];
-    const service = adapter ? adapter() : BluetoothServiceFactory.create(config.type);
+    const service = adapter ? adapter(config.options) : BluetoothServiceFactory.createService({ type: config.type, options: config.options });
     this.registry[key] = service;
     return service;
   }
 
   /** 获取已注册实例 */
   getService(environment: string, name: string): IBluetoothService | undefined {
-    return this.registry[`${environment}:${name}`];
+    const key = `${environment}:${name}`;
+    return this.registry[key];
   }
 
   /** 清空注册表 */
@@ -47,7 +49,7 @@ export class BluetoothServiceRegistry {
   /**
    * 插件式适配器注册与获取
    */
-  static registerAdapter(type: BluetoothServiceType, factory: () => IBluetoothService) {
+  static registerAdapter(type: BluetoothServiceType, factory: (options?: BluetoothServiceOptions) => IBluetoothService) {
     this.adapters[type] = factory;
   }
   static getAdapter(type: BluetoothServiceType): IBluetoothService | undefined {
@@ -59,12 +61,12 @@ export class BluetoothServiceRegistry {
    * 批量注册所有内置适配器（可在应用入口调用一次）
    */
   static registerAllAdapters() {
-    BluetoothServiceRegistry.registerAdapter('web', () => BluetoothServiceFactory.create('web'));
-    BluetoothServiceRegistry.registerAdapter('capacitor', () => BluetoothServiceFactory.create('capacitor'));
-    BluetoothServiceRegistry.registerAdapter('mock', () => BluetoothServiceFactory.create('mock'));
+    BluetoothServiceRegistry.registerAdapter('web', (options) => BluetoothServiceFactory.createService({ type: 'web', options }));
+    BluetoothServiceRegistry.registerAdapter('capacitor', (options) => BluetoothServiceFactory.createService({ type: 'capacitor', options }));
+    BluetoothServiceRegistry.registerAdapter('mock', (options) => BluetoothServiceFactory.createService({ type: 'mock', options }));
     // 可扩展 huawei/xiaomi 等
-    // BluetoothServiceRegistry.registerAdapter('huawei', () => BluetoothServiceFactory.create('huawei'));
-    // BluetoothServiceRegistry.registerAdapter('xiaomi', () => BluetoothServiceFactory.create('xiaomi'));
+    // BluetoothServiceRegistry.registerAdapter('huawei', (options) => BluetoothServiceFactory.createService({ type: 'huawei', options }));
+    // BluetoothServiceRegistry.registerAdapter('xiaomi', (options) => BluetoothServiceFactory.createService({ type: 'xiaomi', options }));
   }
 
   /**
@@ -74,10 +76,10 @@ export class BluetoothServiceRegistry {
   getDefaultService(_dataService?: unknown): IBluetoothService {
     // 保持参数签名统一，参数未用到
     return (
-      this.getService('remote') ||
-      this.getService('hybrid') ||
-      this.getService('mock') ||
-      this.createService({ environment: 'mock', name: 'mock', type: 'mock' })
+      this.getService('remote', 'default') ||
+      this.getService('hybrid', 'default') ||
+      this.getService('mock', 'default') ||
+      this.createService({ environment: 'default', name: 'default', type: 'mock' })
     );
   }
 }

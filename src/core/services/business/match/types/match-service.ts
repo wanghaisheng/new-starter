@@ -13,16 +13,7 @@ export interface IMatchAdapter {
   deleteMatch(matchId: string): Promise<void>;
   isMatchedWith(userId: string, targetUserId: string): Promise<boolean>;
   getMatchStatus(userId: string, targetUserId: string): Promise<'matched' | 'pending' | 'none'>;
-  matchUsers(userId: string, opts: {
-    maxDistanceKm?: number;
-    includeTags?: string[];
-    excludeTags?: string[];
-    useRandom?: boolean;
-    useBazi?: boolean;
-    useMBTI?: boolean;
-    mbtiType?: string;
-    limit?: number;
-  }): Promise<User[]>;
+  matchUsers(userId: string, opts: MatchServiceOptions): Promise<User[]>;
   getUserMatchHistory(userId: string): Promise<User[]>;
 }
 
@@ -49,16 +40,7 @@ export interface IMatchService {
    * 综合多机制智能匹配
    * 支持地理、兴趣、mbti、八字等任意组合
    */
-  matchUsers(userId: string, opts: {
-    maxDistanceKm?: number;
-    includeTags?: string[];
-    excludeTags?: string[];
-    useRandom?: boolean;
-    useBazi?: boolean;
-    useMBTI?: boolean;
-    mbtiType?: string;
-    limit?: number;
-  }): Promise<User[]>;
+  matchUsers(userId: string, opts: MatchServiceOptions): Promise<User[]>;
   /**
    * 获取用户所有相关的历史匹配对象（含已过期/已解除/所有历史）
    */
@@ -75,4 +57,27 @@ export interface IMatchService {
    * 监听匹配数据变更（如有适配器支持），返回取消订阅函数
    */
   onMatchChange?(callback: (matches: Match[]) => void): () => void;
+}
+
+// Service 工厂类型定义
+export type MatchServiceType = 'mock' | 'remote' | 'hybrid' | 'brandA' | 'brandB';
+
+// 新增多维 options/context 支持
+export interface MatchServiceOptions {
+  apiBaseUrl?: string;
+  brand?: string;
+  algoVersion?: string | number;
+  featureFlag?: string;
+  userType?: 'vip' | 'normal' | 'guest';
+  region?: string;
+  env?: 'dev' | 'test' | 'prod';
+  maxDistanceKm?: number;
+  includeTags?: string[];
+  excludeTags?: string[];
+  useRandom?: boolean;
+  useBazi?: boolean;
+  useMBTI?: boolean;
+  mbtiType?: string;
+  limit?: number;
+  [key: string]: any;
 }

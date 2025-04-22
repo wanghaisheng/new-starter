@@ -24,7 +24,7 @@ import {
 
 
 import { DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { SyncStatus } from '@/core/lib/db/types/database.types';
 

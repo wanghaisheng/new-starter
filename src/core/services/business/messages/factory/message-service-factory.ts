@@ -9,20 +9,39 @@ import { MultiDeviceSyncMessageServiceAdapter } from '../adapters/multi-device-s
 import { AIMessageAssistantAdapter } from '../adapters/ai-message-assistant-adapter';
 import type { IDataService } from '@/core/services/data/types';
 
-// 消息服务工厂，统一为 class + static createService 方法
+export type MessageServiceType = 'mock' | 'remote' | 'hybrid' | 'advanced-hybrid';
+export type MessageServiceOptions = {
+  apiBaseUrl?: string;
+  featureFlag?: string;
+  enableTeenSafety?: boolean;
+  enableMultiDevice?: boolean;
+  enableAI?: boolean;
+  [key: string]: any;
+};
+
 export class MessageServiceFactory {
-  static createService(
-    type?: 'mock' | 'remote' | 'hybrid' | 'advanced-hybrid',
+  static createService({
+    type = 'mock',
+    dataService,
+    options = {}
+  }: {
+    type?: MessageServiceType,
     dataService?: IDataService,
-    options?: { apiBaseUrl?: string; featureFlag?: string; enableTeenSafety?: boolean; enableMultiDevice?: boolean; enableAI?: boolean }
-  ): IMessageService {
-    let adapter: IMessageAdapter;
+    options?: MessageServiceOptions
+  } = {}): IMessageService {
+    // 统一通过 type/options/dataService 创建 MessageService，内部自动注入 adapter
+    return new MessageService(type, options, dataService);
+  }
+
+  // 新增：自动适配器获取（供统一注册表/工厂调用）
+  static getAdapter(type: MessageServiceType = 'mock', options: MessageServiceOptions = {}, dataService?: IDataService): IMessageAdapter {
     const apiBaseUrl = options?.apiBaseUrl;
-    const env = typeof process !== 'undefined' ? process.env.NODE_ENV : 'production';
     let finalType = type;
+    const env = typeof process !== 'undefined' ? process.env.NODE_ENV : 'production';
     if (!finalType) {
       finalType = (env === 'test' || env === 'development') ? 'mock' : 'remote';
     }
+    let adapter: IMessageAdapter;
     switch (finalType) {
       case 'mock':
         adapter = new MockMessageServiceAdapter(dataService);
@@ -31,23 +50,18 @@ export class MessageServiceFactory {
         adapter = new RemoteMessageServiceAdapter(dataService, apiBaseUrl);
         break;
       case 'hybrid':
-        adapter = new HybridMessageServiceAdapter(
-          new MockMessageServiceAdapter(dataService),
-          new RemoteMessageServiceAdapter(dataService, apiBaseUrl)
-        );
+        adapter = new HybridMessageServiceAdapter(dataService, apiBaseUrl);
         break;
       case 'advanced-hybrid':
-        adapter = new AdvancedHybridMessageServiceAdapter(dataService);
+        adapter = new AdvancedHybridMessageServiceAdapter(dataService, apiBaseUrl);
         break;
       default:
-        // 自动降级
-        if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        if (env === 'development' || env === 'test') {
           adapter = new MockMessageServiceAdapter(dataService);
         } else {
           adapter = new RemoteMessageServiceAdapter(dataService, apiBaseUrl);
         }
     }
-    // 可选聚合 adapter
     if (options?.enableTeenSafety) {
       adapter = new TeenSafetyMessageServiceAdapter(adapter);
     }
@@ -57,6 +71,6 @@ export class MessageServiceFactory {
     if (options?.enableAI) {
       adapter = new AIMessageAssistantAdapter(adapter);
     }
-    return new MessageService(adapter);
+    return adapter;
   }
 }

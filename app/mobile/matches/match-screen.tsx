@@ -17,7 +17,9 @@ export default function MatchScreen() {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle{t('auto.match_screen.')}/IonTitle>
+          <IonTitle>
+            {t('auto.match_screen.title') || '配对成功'}
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding bg-gradient-to-br from-pink-700 to-yellow-300 min-h-screen flex flex-col items-center justify-center">

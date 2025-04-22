@@ -1,11 +1,14 @@
-import { IBluetoothService, BluetoothServiceType, BluetoothEvent, BluetoothDevice, ConnectOptions } from '../types/bluetooth-service';
-import { createBluetoothService } from '../factory/bluetooth-service-factory';
+import type { IBluetoothService, BluetoothServiceType, BluetoothEvent, BluetoothDevice, ConnectOptions } from '../types/bluetooth-service';
+import { BluetoothServiceFactory } from '../factory/bluetooth-service-factory';
 
+// 统一蓝牙服务实现，适配不同平台
 export class BluetoothService implements IBluetoothService {
   private adapter: IBluetoothService;
-  constructor(type?: BluetoothServiceType) {
-    this.adapter = createBluetoothService(type);
+
+  constructor(type: BluetoothServiceType = 'capacitor', options: Record<string, any> = {}) {
+    this.adapter = BluetoothServiceFactory.getAdapter(type, options) ?? BluetoothServiceFactory.getAdapter('mock')!;
   }
+
   async initialize() { await this.adapter.initialize(); }
   isInitialized(): boolean { return this.adapter.isInitialized(); }
   async requestPermissions(): Promise<boolean> { return this.adapter.requestPermissions(); }

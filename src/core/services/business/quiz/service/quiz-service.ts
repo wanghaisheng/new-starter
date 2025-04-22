@@ -1,15 +1,18 @@
 import { QuizDataService } from './quiz-data-service';
 import { Quiz, QuizResult, QuizQuestion } from '@/core/lib/db/types/quiz';
-import type { QuizWithQuestions, UserQuizDetail, IQuizService } from '../types/quiz-service';
+import type { QuizWithQuestions, UserQuizDetail, IQuizService, QuizServiceType, QuizServiceOptions } from '../types/quiz-service';
+import { QuizServiceFactory } from '../factory/quiz-service-factory';
 
 /**
  * QuizService 实现 IQuizService，聚合 QuizAdapter 能力，暴露统一业务 API
  */
 export class QuizService implements IQuizService {
   private dataService: QuizDataService;
-  constructor(dataService: QuizDataService) {
-    this.dataService = dataService;
+
+  constructor(type: QuizServiceType = 'mock', options: QuizServiceOptions = {}) {
+    this.dataService = QuizServiceFactory.getAdapter(type, options) ?? QuizServiceFactory.getAdapter('mock')!;
   }
+
   getQuizzes(): Promise<Quiz[]> {
     return this.dataService.getQuizzes();
   }

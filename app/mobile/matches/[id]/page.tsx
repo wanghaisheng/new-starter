@@ -141,7 +141,9 @@ export default function ChatPage() {
       <IonPage>
         <IonContent className="bg-[#0f172a]">
           <div className="flex flex-col items-center justify-center h-full">
-            <p className="text-gray-400 mb-4"{t('auto.page.')}/p>
+            <p className="text-gray-400 mb-4">
+  {t('auto.page.')}
+</p>
             <button
               onClick={loadChatData}
               className="px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"

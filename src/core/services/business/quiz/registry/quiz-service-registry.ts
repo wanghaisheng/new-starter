@@ -1,6 +1,6 @@
 // 测评服务注册表/单例工厂，支持多环境多实例注册与获取，并内置 provider 注册机制
 import { IQuizService } from '../types/quiz-service';
-import { QuizServiceFactory } from '../factory/quiz-service-factory';
+import { QuizServiceFactory, QuizServiceType, QuizServiceOptions } from '../factory/quiz-service-factory';
 
 /**
  * 测评服务注册表，支持多实例、mock/remote/hybrid 切换，支持 provider 插件式注册
@@ -9,13 +9,11 @@ import { QuizServiceFactory } from '../factory/quiz-service-factory';
 export class QuizServiceRegistry {
   private static instance: QuizServiceRegistry;
   private registry: Record<string, IQuizService> = {};
-  private static providers: Map<string, (apiBaseUrl?: string) => IQuizService> = new Map();
+  private static adapters: Partial<Record<QuizServiceType, (options?: QuizServiceOptions) => IQuizService>> = {};
 
   private constructor() {
     // 默认注册底层 provider，兼容底层自定义工厂
-    QuizServiceRegistry.registerProvider('mock', (apiBaseUrl) => QuizServiceFactory.createService('mock', apiBaseUrl));
-    QuizServiceRegistry.registerProvider('remote', (apiBaseUrl) => QuizServiceFactory.createService('remote', apiBaseUrl));
-    QuizServiceRegistry.registerProvider('hybrid', (apiBaseUrl) => QuizServiceFactory.createService('hybrid', apiBaseUrl));
+    QuizServiceRegistry.registerAllAdapters();
   }
 
   static getInstance() {
@@ -24,62 +22,68 @@ export class QuizServiceRegistry {
   }
 
   /**
-   * 注册/获取测评服务实例
-   * @param type mock/remote/hybrid/自定义
-   * @param apiBaseUrl 远程 API 地址
-   * @param name 实例名（默认 default）
+   * 统一 provider 获取方法（推荐 hooks/页面调用）
+   * @param type 服务类型（mock/remote/hybrid/自定义）
+   * @param name 实例名，默认 'default'
+   * @param options 其它扩展参数，预留
    */
-  createService(type: string = 'remote', apiBaseUrl?: string, name: string = 'default'): IQuizService {
+  getProvider(type: QuizServiceType = 'remote', name: string = 'default', options?: QuizServiceOptions): () => IQuizService {
+    return () => this.createService(type, name, options);
+  }
+
+  /**
+   * 统一 createService 签名，兼容 options 扩展
+   */
+  createService(type: QuizServiceType = 'remote', name: string = 'default', options?: QuizServiceOptions): IQuizService {
     const key = `${type}:${name}`;
     if (this.registry[key]) return this.registry[key];
-    // 优先用 provider，否则 fallback 到工厂
-    const provider = QuizServiceRegistry.providers.get(type);
-    const service = provider ? provider(apiBaseUrl) : QuizServiceFactory.createService(type as any, apiBaseUrl);
+    const adapter = QuizServiceRegistry.adapters[type];
+    const service = adapter
+      ? adapter(options)
+      : QuizServiceFactory.createService({ type, options });
     this.registry[key] = service;
     return service;
   }
 
   /** 获取已注册实例 */
-  getService(type: string, name: string = 'default'): IQuizService | undefined {
+  getService(type: QuizServiceType, name: string = 'default'): IQuizService | undefined {
     return this.registry[`${type}:${name}`];
-  }
-
-  /**
-   * 兼容 hooks 场景的 provider 用法
-   */
-  getProvider(type: string = 'remote', apiBaseUrl?: string, name: string = 'default'): (() => IQuizService) {
-    return () => this.createService(type, apiBaseUrl, name);
   }
 
   /**
    * provider 注册与获取（插件式扩展场景）
    */
-  static registerProvider(type: string, factory: (apiBaseUrl?: string) => IQuizService): void {
-    this.providers.set(type, factory);
+  static registerAdapter(type: QuizServiceType, factory: (options?: QuizServiceOptions) => IQuizService): void {
+    this.adapters[type] = factory;
   }
-  static getProviderFactory(type: string): ((apiBaseUrl?: string) => IQuizService) | undefined {
-    return this.providers.get(type);
+  static getAdapter(type: QuizServiceType): ((options?: QuizServiceOptions) => IQuizService) | undefined {
+    return this.adapters[type];
   }
-  static unregisterProvider(type: string): void {
-    this.providers.delete(type);
+  static unregisterAdapter(type: QuizServiceType): void {
+    delete this.adapters[type];
   }
 
   /**
    * 获取默认实例（兼容 hooks 统一调用）
    * 优先 remote，其次 hybrid，其次 mock
    */
-  getDefaultService(_dataService?: unknown): IQuizService {
-    // 保持参数签名统一，参数未用到
+  getDefaultService(options?: QuizServiceOptions): IQuizService {
     return (
       this.getService('remote') ||
       this.getService('hybrid') ||
       this.getService('mock') ||
-      this.createService('mock')
+      this.createService('mock', 'default', options)
     );
   }
 
   /** 清空注册表 */
   clear() {
     this.registry = {};
+  }
+
+  static registerAllAdapters() {
+    QuizServiceRegistry.registerAdapter('mock', (options) => QuizServiceFactory.createService({ type: 'mock', options }));
+    QuizServiceRegistry.registerAdapter('remote', (options) => QuizServiceFactory.createService({ type: 'remote', options }));
+    QuizServiceRegistry.registerAdapter('hybrid', (options) => QuizServiceFactory.createService({ type: 'hybrid', options }));
   }
 }

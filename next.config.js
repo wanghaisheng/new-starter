@@ -52,44 +52,45 @@ const nextConfig = {
       ],
     };
   },
-  // 配置Ionic和Capacitor相关的webpack设置
+  // 合并所有 webpack 相关逻辑，仅保留一个 webpack 字段
   webpack: (config, { isServer }) => {
-    return {
-      ...config,
-      resolve: {
-        ...config.resolve,
-        fallback: {
-          ...config.resolve.fallback,
-          fs: false,
-          path: false,
-          dgram: false,
-          net: false,
-          tls: false,
-          child_process: false,
-          dns: false,
-          pg: false,
-          'pg-native': false,
-          'pg-hstore': false
-        },
-        alias: {
-          ...config.resolve.alias,
-          '@': require('path').resolve(__dirname, 'src'),
-          '@app': require('path').resolve(__dirname, 'app'),
-          '@core': require('path').resolve(__dirname, 'src/core'),
-          '@mobile': require('path').resolve(__dirname, 'src/mobile'),
-          '@web': require('path').resolve(__dirname, 'src/web'),
-          '@db': require('path').resolve(__dirname, 'src/core/lib/db'),
-          '@db/types': require('path').resolve(__dirname, 'src/core/lib/db/types'),
-          '@db/interfaces': require('path').resolve(__dirname, 'src/core/lib/db/interfaces'),
-          '@db/test': require('path').resolve(__dirname, 'src/core/lib/db/test')
-        },
+    // 禁用缓存，防止 OOM
+    config.cache = false;
+    // 合并 alias 和 fallback
+    config.resolve = {
+      ...config.resolve,
+      fallback: {
+        ...config.resolve?.fallback,
+        fs: false,
+        path: false,
+        dgram: false,
+        net: false,
+        tls: false,
+        child_process: false,
+        dns: false,
+        pg: false,
+        'pg-native': false,
+        'pg-hstore': false
       },
-      // 在浏览器环境中排除Node.js模块
-      externals: [
-        ...(config.externals || []),
-        ...(isServer ? [] : ['pg', 'pg-native', 'pg-hstore'])
-      ]
+      alias: {
+        ...config.resolve?.alias,
+        '@': require('path').resolve(__dirname, 'src'),
+        '@app': require('path').resolve(__dirname, 'app'),
+        '@core': require('path').resolve(__dirname, 'src/core'),
+        '@mobile': require('path').resolve(__dirname, 'src/mobile'),
+        '@web': require('path').resolve(__dirname, 'src/web'),
+        '@db': require('path').resolve(__dirname, 'src/core/lib/db'),
+        '@db/types': require('path').resolve(__dirname, 'src/core/lib/db/types'),
+        '@db/interfaces': require('path').resolve(__dirname, 'src/core/lib/db/interfaces'),
+        '@db/test': require('path').resolve(__dirname, 'src/core/lib/db/test')
+      },
     };
+    // 在浏览器环境中排除Node.js模块
+    config.externals = [
+      ...(config.externals || []),
+      ...(isServer ? [] : ['pg', 'pg-native', 'pg-hstore'])
+    ]
+    return config;
   },
 };
 

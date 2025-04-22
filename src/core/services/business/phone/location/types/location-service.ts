@@ -13,5 +13,10 @@ export interface ILocationAdapter extends ILocationService {
 }
 
 export type LocationServiceType = 'web' | 'capacitor' | 'mock' | 'huawei' | 'xiaomi' | (string & {});
-export interface LocationOptions { enableHighAccuracy?: boolean; timeout?: number; maximumAge?: number; }
+export interface LocationOptions { enableHighAccuracy?: boolean; timeout?: number; maximumAge?: number; [key: string]: any; }
 export interface LocationResult { latitude: number; longitude: number; accuracy?: number; altitude?: number; [key: string]: any; }
+
+// 导出 LocationServiceOptions 供工厂/注册表透传扩展参数
+export interface LocationServiceOptions {
+  [key: string]: any;
+}

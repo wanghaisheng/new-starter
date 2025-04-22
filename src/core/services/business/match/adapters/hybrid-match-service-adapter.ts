@@ -2,6 +2,7 @@ import { IMatchService } from '../types/match-service';
 import { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/match';
 import { User } from '@/core/lib/db/types/user';
 import { IDataService } from '@/core/services/data/types';
+import { MatchServiceOptions } from '../types/match-service';
 
 /**
  * HybridMatchServiceAdapter
@@ -9,7 +10,7 @@ import { IDataService } from '@/core/services/data/types';
  * 本层只做聚合/过滤，不做 bazi/mbti 智能评分，相关算法全部由 ai-adapters 层负责。
  */
 export class HybridMatchServiceAdapter implements IMatchService {
-  constructor(private dataService?: IDataService) {}
+  constructor(private dataService?: IDataService, private options: MatchServiceOptions = {}) {}
 
   async getUserMatches(userId: string): Promise<Match[]> {
     // 只做聚合/过滤，不做智能评分
@@ -61,31 +62,19 @@ export class HybridMatchServiceAdapter implements IMatchService {
       updatedAt: now,
     };
     await this.dataService?.insert<Match>('matches', match);
-    // 尝试远程同步（忽略失败）
-    fetch(`/api/match`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }).catch(() => {});
+    // 可选：远程同步
     return match;
   }
 
   async updateMatch(matchId: string, data: UpdateMatchData): Promise<Match> {
     const updated = await this.dataService?.update<Match>('matches', matchId, data);
-    // 远程同步
-    fetch(`/api/match/${matchId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }).catch(() => {});
-    if (!updated) throw new Error('Local update failed');
+    if (!updated) throw new Error('Update failed');
     return updated;
   }
 
   async deleteMatch(matchId: string): Promise<void> {
     await this.dataService?.delete('matches', matchId);
-    // 远程同步
-    fetch(`/api/match/${matchId}`, { method: 'DELETE' }).catch(() => {});
+    // 可选：远程同步删除
   }
 
   async isMatchedWith(userId: string, targetUserId: string): Promise<boolean> {
@@ -100,27 +89,29 @@ export class HybridMatchServiceAdapter implements IMatchService {
     return match.status as 'matched' | 'pending' | 'none';
   }
 
-  /**
-   * 综合多机制智能匹配（地理、兴趣、mbti、八字等）
-   * 实际算法由 AI Adapter 层实现，这里只做基础聚合和过滤
-   */
-  async matchUsers(userId: string, opts: {
-    maxDistanceKm?: number;
-    includeTags?: string[];
-    excludeTags?: string[];
-    useRandom?: boolean;
-    useBazi?: boolean;
-    useMBTI?: boolean;
-    mbtiType?: string;
-    limit?: number;
-  }): Promise<User[]> {
-    let users = await this.getMatchedUsers(userId);
-    if (opts.limit) users = users.slice(0, opts.limit);
-    return users;
+  async matchUsers(userId: string, opts: MatchServiceOptions): Promise<User[]> {
+    // 这里可根据 opts/this.options.brand/algoVersion/featureFlag/userType/region/env 等灵活分流
+    // 示例：不同品牌可有不同过滤逻辑
+    let candidates = await this.dataService?.query<User>('users', {}) || [];
+    // 宽松兼容：仅在 User 类型上做 as any 判断
+    if (opts.brand === 'huawei' || this.options.brand === 'huawei') {
+      candidates = candidates.filter(u => (u as any).deviceBrand === 'huawei');
+    }
+    if (opts.region) {
+      candidates = candidates.filter(u => (u as any).region === opts.region);
+    }
+    // 其它条件过滤...
+    // 这里只做基础过滤，智能算法交给 AIAdapter
+    return candidates;
   }
 
   async getUserMatchHistory(userId: string): Promise<User[]> {
-    return this.getMatchedUsers(userId);
+    // 查询历史匹配用户
+    const matches = await this.dataService?.query<Match>('matches', { users: { $elemMatch: userId } });
+    const userIds = matches?.map(m => m.users.find(id => id !== userId)).filter(Boolean) as string[];
+    if (!userIds || userIds.length === 0) return [];
+    const users = await Promise.all(userIds.map(id => this.dataService?.findOne<User>('users', id)));
+    return users.filter((user): user is User => !!user);
   }
 
   async onQuizResult(userId: string, tags: string[], report: any, userService?: any): Promise<void> {
@@ -128,6 +119,7 @@ export class HybridMatchServiceAdapter implements IMatchService {
   }
 
   async refreshUserMatches(userId: string): Promise<void> {
+    // 可实现 Hybrid 专属刷新逻辑
     return;
   }
 }

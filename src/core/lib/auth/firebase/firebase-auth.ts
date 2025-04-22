@@ -21,7 +21,7 @@ import {
   browserSessionPersistence
 } from 'firebase/auth';
 
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { FirebaseConfig } from '../db/clients/firebase/firebase-config';
 

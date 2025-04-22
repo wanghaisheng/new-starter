@@ -5,9 +5,13 @@ import {
   PreloadStatus,
   PreloadEvent,
   PreloadCallback,
-  TablePreloadConfig
+  TablePreloadConfig,
+  PreloadResult
 } from './types';
-import { NetworkService } from '../../infrastructure/providers/network/network-service';
+import { createNetworkManager, NetworkManager } from '@/core/services/infrastructure/network/network-manager';
+
+// 默认最大缓存表数量
+const DEFAULT_MAX_CACHE_TABLES = 20;
 
 export class DataPreloadService {
   private static instance: DataPreloadService;
@@ -17,15 +21,28 @@ export class DataPreloadService {
   private preloadStatus: Record<string, PreloadStatus> = {};
   private autoPreloadTimer: any = null;
   private eventListeners: Map<PreloadEvent, Set<PreloadCallback>> = new Map();
-  private networkService: NetworkService;
+  private networkManager: NetworkManager;
   private lastNetworkOnline: boolean = true;
 
   private constructor(hybrid: HybridDatabaseClient, config: DataPreloadConfig) {
     this.hybrid = hybrid;
     this.config = config;
-    this.networkService = NetworkService.getInstance();
-    this.setupNetworkListener();
+    this.networkManager = createNetworkManager();
+    this.lastNetworkOnline = this.networkManager.isConnected();
+    this.networkManager.onConnect(() => {
+      this.emit('network:online');
+      if (this.config.preloadOnNetworkReconnect) {
+        this.preloadAll();
+      }
+      this.lastNetworkOnline = true;
+    });
+    this.networkManager.onDisconnect(() => {
+      this.emit('network:offline');
+      this.lastNetworkOnline = false;
+    });
     this.setupAutoPreload();
+    // 定期检查缓存大小
+    setInterval(() => this.checkCacheSize(), 60000); // 每分钟检查一次
   }
 
   public static getInstance(hybrid: HybridDatabaseClient, config: DataPreloadConfig): DataPreloadService {
@@ -45,22 +62,6 @@ export class DataPreloadService {
     if (this.config.enabled && this.config.autoPreloadInterval) {
       this.autoPreloadTimer = setInterval(() => this.preloadAll(), this.config.autoPreloadInterval);
     }
-  }
-
-  private setupNetworkListener() {
-    // 假设 networkService 提供 addNetworkStatusListener(callback: (online: boolean) => void)
-    this.networkService.addNetworkStatusListener((online: boolean) => {
-      if (online && !this.lastNetworkOnline) {
-        this.emit('network:online');
-        if (this.config.preloadOnNetworkReconnect) {
-          this.preloadAll();
-        }
-      }
-      if (!online && this.lastNetworkOnline) {
-        this.emit('network:offline');
-      }
-      this.lastNetworkOnline = online;
-    });
   }
 
   public on(event: PreloadEvent, callback: PreloadCallback) {
@@ -101,11 +102,12 @@ export class DataPreloadService {
     try {
       const max = cfg.maxRecords || this.config.maxRecordsPerTable || 100;
       const data = await this.hybrid.query(table, { limit: max });
-      this.cache.set(table, { data, timestamp: Date.now() });
+      this.cache.set(table, { data, timestamp: Date.now() }); // 成功时不写 error 字段
       this.preloadStatus[table] = 'success';
       this.emit('preload:success', { table, data });
       cb?.(table, 'success');
     } catch (e) {
+      this.cache.set(table, { data: [], timestamp: Date.now(), error: e }); // 失败时写 error 字段
       this.preloadStatus[table] = 'error';
       this.emit('preload:error', { table, error: e });
       cb?.(table, 'error');
@@ -124,6 +126,37 @@ export class DataPreloadService {
       return null;
     }
     return entry.data;
+  }
+
+  /**
+   * 获取统一的预加载结果
+   */
+  public getPreloadResult<T = any>(table: string): PreloadResult<T> {
+    const entry = this.cache.get(table);
+    const status = this.preloadStatus[table] || 'idle';
+    return {
+      status,
+      data: entry?.data ?? [],
+      error: entry?.error,
+      updatedAt: entry?.timestamp ?? 0,
+    };
+  }
+
+  /**
+   * 检查缓存大小，如果超过限制则清理最旧的数据
+   */
+  private checkCacheSize(): void {
+    const maxTables = this.config.maxCacheTables || DEFAULT_MAX_CACHE_TABLES;
+    if (this.cache.size <= maxTables) return;
+    // 按时间戳排序，删除最旧的缓存
+    const entries = Array.from(this.cache.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp);
+    // 删除超出限制的最旧缓存
+    const toDelete = entries.slice(0, this.cache.size - maxTables);
+    for (const [table] of toDelete) {
+      this.cache.delete(table);
+      this.emit('cache:expired', { table, reason: 'cache_limit_exceeded' });
+    }
   }
 
   public clearCache(table?: string) {

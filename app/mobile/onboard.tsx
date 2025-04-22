@@ -52,7 +52,9 @@ export default function Onboard() {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle{t('auto.onboard.')}/IonTitle>
+          <IonTitle>
+  {t('auto.onboard.')}
+</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen flex flex-col justify-between">
@@ -78,7 +80,9 @@ export default function Onboard() {
               {googleError && <div className="text-red-500 text-center text-xs mt-2">{googleError.message}</div>}
             </div>
             <div className="text-center mt-6 text-sm text-slate-400">
-              已有账号？<a href="/mobile/auth/login" className="text-pink-500 hover:underline"{t('auto.onboard.')}/a>
+              已有账号？<a href="/mobile/auth/login" className="text-pink-500 hover:underline">
+  {t('auto.onboard.')}
+</a>
             </div>
           </div>
         </div>

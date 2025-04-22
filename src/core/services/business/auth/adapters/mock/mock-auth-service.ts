@@ -1,3 +1,5 @@
+console.log('[DEBUG][mock-auth-service] 文件被加载');
+
 // mock 认证服务适配器，便于本地开发与单元测试
 import { IAuthAdapter, AuthUser, AuthResult } from '../../types/auth-service';
 

@@ -100,10 +100,21 @@ export class IndexedDBDatabaseClient extends BaseDatabaseClient {
     return await fn();
   }
 
-  // async create<T>(collection: string, data: Partial<T>): Promise<T> {
-    // 直接复用 insert 逻辑
-    // return await this.insert(collection, data);
-  // }
+  async create(tableName: string, data: any): Promise<any> {
+    // 可直接调用 insert 逻辑或抛出未实现
+    return this.insert(tableName, data);
+  }
+
+  async findById<T>(tableName: string, id: string): Promise<T | null> {
+    // 已有 findOne 方法，直接调用
+    return this.findOne(tableName, id);
+  }
+
+  async count(tableName: string, filter?: Record<string, any>): Promise<number> {
+    // IndexedDBClient 可能没有 count 方法，这里给出简单实现
+    const all = await this.query(tableName, filter);
+    return all.length;
+  }
 
   async beginTransaction(): Promise<void> {
     // IndexedDB does not support multi-table transactions natively; this is a no-op or can be simulated if needed

@@ -17,3 +17,6 @@ export type NFCServiceType = 'web' | 'capacitor' | 'mock' | 'huawei' | 'xiaomi' 
 export type NFCEvent = 'tagRead' | 'tagWritten' | 'error';
 export interface NFCTagResult { id: string; data: any; [key: string]: any; }
 export interface NFCTagWriteData { data: any; [key: string]: any; }
+
+// 新增统一 options 类型
+export type NFCServiceOptions = { [key: string]: any };

@@ -1,7 +1,7 @@
 import { IBaseDatabaseClient, IDatabaseTransaction } from '@/core/lib/db/interfaces';
 import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError } from '@/core/lib/db/types/database.types';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 import { DatabaseErrorCode, createDatabaseError } from '@/core/lib/db/errors/database-error';
 
 /**
@@ -16,7 +16,7 @@ export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
   protected logger: DatabaseLogger;
   
   constructor() {
-    this.logger = getLogger(this.constructor.name);
+    this.logger = getDatabaseLogger(this.constructor.name);
   }
   
   // 生命周期方法

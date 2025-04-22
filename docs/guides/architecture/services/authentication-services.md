@@ -194,6 +194,33 @@ interface Session {
    }
    ```
 
+## 动态加载与副作用隔离策略
+
+### 背景
+在多环境（mock、测试、生产）下动态加载不同的认证服务实现时，若采用静态 import，会导致所有实现都被无条件加载，可能引发 mock 环境下加载生产依赖（如 Firebase、BetterAuth）带来的副作用和报错。
+
+### 策略与最佳实践
+- **工厂/注册表实现不得在顶层静态 import 具体实现**。
+- **所有认证服务实现必须采用动态 require/import，仅在实际需要时加载**。
+- **注册表/工厂仅在需要时注册/实例化目标实现**，避免 mock 环境下加载生产依赖。
+- **环境变量驱动服务选择，所有环境变量读取应在 run-time 进行**。
+
+#### 示例代码
+```typescript
+// 错误写法（会导致副作用）
+import { BetterAuthService } from './better-auth-service';
+
+// 正确写法（无副作用）
+let BetterAuthService;
+if (type === 'better') {
+  BetterAuthService = require('./better-auth-service').BetterAuthService;
+  // 仅此分支加载 BetterAuthService
+}
+```
+
+### 结论
+只要所有实现都采用动态 require/import，并且注册表/工厂只在需要时注册/实例化，混合“依赖注入 + 工厂/注册表 + 环境变量驱动”模式不会有副作用，mock/测试/生产环境均可安全切换。
+
 ## 最佳实践
 
 1. **服务设计**

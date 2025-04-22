@@ -1,5 +1,5 @@
 // logger-types.ts
-import type { InfrastructureServiceConfig, InfrastructureServiceType } from '@/core/services/infrastructure/types';
+import { InfrastructureServiceConfig, InfrastructureServiceType } from '@/core/services/infrastructure/types';
 
 export enum LogLevelEnum {
   ERROR = 0,
@@ -11,7 +11,8 @@ export enum LogLevelEnum {
 export type LogLevel = keyof typeof LogLevelEnum;
 
 // 关键：用 export type { ... } re-export type（isolatedModules 兼容）
-export type { InfrastructureServiceConfig, InfrastructureServiceType };
+export type { InfrastructureServiceConfig };
+export { InfrastructureServiceType };
 
 // 只在此处唯一声明 ILoggerService，避免与 types.ts 冲突
 export interface ILoggerService {

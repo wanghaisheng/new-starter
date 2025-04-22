@@ -12,7 +12,7 @@ import {
   enableNetwork,
   CACHE_SIZE_UNLIMITED
 } from 'firebase/firestore';
-import { DatabaseLogger, getLogger } from '@/core/lib/db/errors/database-logger';
+import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 
 /**
  * 离线管理器配置选项
@@ -61,7 +61,7 @@ export class FirebaseOfflineManager {
    * @param options 配置选项
    */
   constructor(private db: Firestore, options: OfflineManagerOptions = {}) {
-    this.logger = getLogger('FirebaseOfflineManager');
+    this.logger = getDatabaseLogger('FirebaseOfflineManager');
     
     // 设置默认选项
     this.options = {

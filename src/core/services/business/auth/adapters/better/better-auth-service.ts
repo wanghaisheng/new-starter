@@ -1,50 +1,52 @@
+console.log('[DEBUG][better-auth-service] 文件被加载');
+
 // Better 认证服务适配器，实现 IAuthAdapter，适用于自研/定制化场景
 import { IAuthAdapter, AuthUser, AuthResult } from '../../types/auth-service';
-import { authClient, SignInOptions, SignUpOptions } from '@/core/lib/auth/betterauth/auth-client';
+import {
+  authClient,
+  SignInOptions,
+  getCurrentUser as betterGetCurrentUser,
+  refreshToken as betterRefreshToken
+} from '@/core/lib/auth/betterauth/auth-client';
 
 export class BetterAuthService implements IAuthAdapter {
   async initialize() { /* 可选：初始化 Better Auth SDK，无需重复初始化 */ }
 
   async loginWithEmail(email: string, password: string): Promise<AuthResult> {
-    const result = await authClient.signIn({ email, password } as SignInOptions);
-    return {
-      user: result.user,
-      token: result.token,
-    };
+    if (typeof authClient.signIn === 'function') {
+      const result = await authClient.signIn({ email, password } as SignInOptions);
+      return { user: result.user, token: result.token };
+    }
+    throw new Error('BetterAuth 未实现邮箱登录');
   }
 
   async loginWithPhone(phone: string, code: string): Promise<AuthResult> {
-    // 假设 authClient 支持 phone 登录，否则可补充实现
-    if (typeof authClient.signInWithPhone === 'function') {
-      const result = await authClient.signInWithPhone({ phone, code });
-      return { user: result.user, token: result.token };
-    }
+    // 未实现，直接抛异常
     throw new Error('BetterAuth 未实现手机验证码登录');
   }
 
-  async loginWithProvider(provider: 'google'|'apple'|'wechat', token: string): Promise<AuthResult> {
-    if (typeof authClient.signInWithProvider === 'function') {
-      const result = await authClient.signInWithProvider({ provider, token });
+  async loginWithProvider(provider: string, token: string): Promise<AuthResult> {
+    if (typeof authClient.socialSignIn === 'function') {
+      const result = await authClient.socialSignIn({ provider, token });
       return { user: result.user, token: result.token };
     }
     throw new Error('BetterAuth 未实现第三方登录');
   }
 
   async logout(): Promise<void> {
-    await authClient.signOut();
+    if (typeof authClient.signOut === 'function') {
+      await authClient.signOut();
+      return;
+    }
+    throw new Error('BetterAuth 未实现登出');
   }
 
   async getCurrentUser(): Promise<AuthUser|null> {
-    const user = await authClient.getCurrentUser?.();
-    return user ?? null;
+    return await betterGetCurrentUser();
   }
 
   async refreshToken(): Promise<string> {
-    if (typeof authClient.refreshToken === 'function') {
-      const { token } = await authClient.refreshToken();
-      return token;
-    }
-    throw new Error('BetterAuth 未实现 refreshToken');
+    return await betterRefreshToken();
   }
 
   setConfig?(config: Record<string, any>) {/* 可选扩展 */}

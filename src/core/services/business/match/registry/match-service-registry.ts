@@ -1,25 +1,15 @@
 // 匹配服务注册表/单例工厂，支持多类型多实例注册与获取，兼容底层 provider 注册
 import type { IMatchService } from '../types/match-service';
 import type { IDataService } from '@/core/services/data/types';
-import { MatchServiceFactory } from '../factory/match-service-factory';
-import { MockMatchServiceAdapter } from '../adapters/mock-match-service-adapter';
-import { RemoteMatchServiceAdapter } from '../adapters/remote-match-service-adapter';
-import { HybridMatchServiceAdapter } from '../adapters/hybrid-match-service-adapter';
-import { BrandAMatchServiceAdapter } from '../adapters/brandA-match-service-adapter';
-import { BrandBMatchServiceAdapter } from '../adapters/brandB-match-service-adapter';
+import { MatchServiceFactory, MatchServiceType, MatchServiceOptions } from '../factory/match-service-factory';
 
 export class MatchServiceRegistry {
   private static instance: MatchServiceRegistry;
   private registry: Record<string, IMatchService> = {};
-  private providers: Map<string, (dataService: IDataService) => IMatchService> = new Map();
+  private static adapters: Partial<Record<MatchServiceType, (dataService: IDataService, options?: MatchServiceOptions) => IMatchService>> = {};
 
   private constructor() {
-    // 默认注册底层 provider，兼容底层自定义工厂
-    this.registerProvider('mock', (ds) => new MockMatchServiceAdapter(ds!));
-    this.registerProvider('remote', (ds) => new RemoteMatchServiceAdapter(ds!));
-    this.registerProvider('hybrid', (ds) => new HybridMatchServiceAdapter(ds!));
-    this.registerProvider('brandA', (ds) => new BrandAMatchServiceAdapter(ds!));
-    this.registerProvider('brandB', (ds) => new BrandBMatchServiceAdapter(ds!));
+    MatchServiceRegistry.registerAllAdapters();
   }
 
   static getInstance() {
@@ -28,61 +18,87 @@ export class MatchServiceRegistry {
   }
 
   /**
-   * 注册/获取匹配服务实例
-   * @param type mock/remote/hybrid/brandA/brandB
-   * @param name 实例名（默认 default）
-   * @param dataService 必填，注入自定义数据服务实例
+   * 统一 provider 获取方法（推荐 hooks/页面调用）
+   * @param type 服务类型（mock/remote/hybrid/brandA/brandB）
+   * @param name 实例名，默认 'default'
+   * @param dataService 必填，部分服务如 Match 需注入
+   * @param options 其它扩展参数，预留
    */
-  createService(type: 'mock'|'remote'|'hybrid'|'brandA'|'brandB' = 'remote', name: string = 'default', dataService: IDataService): IMatchService {
-    const key = `${type}:${name}`;
+  getProvider(type: MatchServiceType = 'remote', name: string = 'default', dataService: IDataService, options?: MatchServiceOptions): () => IMatchService {
+    return () => this.createService(type, name, dataService, options);
+  }
+
+  /**
+   * 统一 createService 签名，兼容 options 扩展
+   * 支持 options 多维 context 分流、优先级、自动降级
+   */
+  createService(type: MatchServiceType = 'remote', name: string = 'default', dataService: IDataService, options?: MatchServiceOptions): IMatchService {
+    if (!dataService) {
+      throw new Error('[MatchServiceRegistry] dataService is required for match services');
+    }
+    // 动态分流：如 options.brand/options.provider/options.region 优先选择对应适配器
+    let effectiveType = type;
+    if (options?.brand && MatchServiceRegistry.adapters[options.brand as MatchServiceType]) {
+      effectiveType = options.brand as MatchServiceType;
+    } else if (options?.provider && MatchServiceRegistry.adapters[options.provider as MatchServiceType]) {
+      effectiveType = options.provider as MatchServiceType;
+    }
+    const key = `${effectiveType}:${name}`;
     if (this.registry[key]) return this.registry[key];
-    // 统一通过工厂创建，支持自动降级和自定义 dataService
-    const service = MatchServiceFactory.createService(dataService, type);
+    const adapter = MatchServiceRegistry.adapters[effectiveType];
+    const service = adapter
+      ? adapter(dataService, options)
+      : MatchServiceFactory.createService({ type: effectiveType, dataService, options });
     this.registry[key] = service;
     return service;
   }
 
   /** 获取已注册实例 */
-  getService(type: string, name: string = 'default'): IMatchService | undefined {
+  getService(type: MatchServiceType, name: string = 'default'): IMatchService | undefined {
     return this.registry[`${type}:${name}`];
-  }
-
-  /**
-   * 兼容 hooks 场景的 provider 用法
-   */
-  getProvider(type: 'mock'|'remote'|'hybrid'|'brandA'|'brandB' = 'remote', name: string = 'default', dataService: IDataService): (() => IMatchService) {
-    return () => this.createService(type, name, dataService);
   }
 
   /**
    * 底层 provider 注册与获取（如需自定义底层适配器工厂，可用此机制）
    */
-  public registerProvider(type: string, factory: (dataService: IDataService) => IMatchService): void {
-    this.providers.set(type, factory);
+  static registerAdapter(type: MatchServiceType, factory: (dataService: IDataService, options?: MatchServiceOptions) => IMatchService): void {
+    this.adapters[type] = factory;
   }
-  public getProviderFactory(type: string): ((dataService: IDataService) => IMatchService) | undefined {
-    return this.providers.get(type);
-  }
-  public unregisterProvider(type: string): void {
-    this.providers.delete(type);
+  static getAdapter(type: MatchServiceType): ((dataService: IDataService, options?: MatchServiceOptions) => IMatchService) | undefined {
+    return this.adapters[type];
   }
 
   /**
-   * 获取默认实例（兼容 hooks 统一调用）
-   * 优先 remote，其次 hybrid，其次 mock
+   * dataService 必填，若全局无实例且未传 dataService，则抛出异常
+   * 支持自动降级优先级：remote > hybrid > mock
+   * 支持 options 多维 context 分流
    */
-  getDefaultService(dataService?: IDataService): IMatchService {
-    // 只有 match 需要 dataService
+  getDefaultService(dataService: IDataService, options?: MatchServiceOptions): IMatchService {
+    // 优先根据 options 分流
+    if (options?.brand && this.getService(options.brand as MatchServiceType)) {
+      return this.getService(options.brand as MatchServiceType)!;
+    }
+    if (options?.provider && this.getService(options.provider as MatchServiceType)) {
+      return this.getService(options.provider as MatchServiceType)!;
+    }
     return (
       this.getService('remote') ||
       this.getService('hybrid') ||
       this.getService('mock') ||
-      (dataService ? this.createService('mock', 'default', dataService) : undefined)
+      this.createService('mock', 'default', dataService, options)
     );
   }
 
   /** 清空注册表 */
   clear() {
     this.registry = {};
+  }
+
+  static registerAllAdapters() {
+    MatchServiceRegistry.registerAdapter('mock', (dataService, options) => MatchServiceFactory.createService({ type: 'mock', dataService, options }));
+    MatchServiceRegistry.registerAdapter('remote', (dataService, options) => MatchServiceFactory.createService({ type: 'remote', dataService, options }));
+    MatchServiceRegistry.registerAdapter('hybrid', (dataService, options) => MatchServiceFactory.createService({ type: 'hybrid', dataService, options }));
+    MatchServiceRegistry.registerAdapter('brandA', (dataService, options) => MatchServiceFactory.createService({ type: 'brandA', dataService, options }));
+    MatchServiceRegistry.registerAdapter('brandB', (dataService, options) => MatchServiceFactory.createService({ type: 'brandB', dataService, options }));
   }
 }

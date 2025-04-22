@@ -1,10 +1,11 @@
-import type { IUserAdapter,IUserService } from '@/core/services/business/user/types/user-service';
+import type { IUserAdapter, IUserService, UserServiceType, UserServiceOptions } from '@/core/services/business/user/types/user-service';
+import { UserServiceFactory } from '../factory/user-service-factory';
 
 export class UserService implements IUserService {
   private adapter: IUserAdapter;
 
-  constructor(adapter: IUserAdapter) {
-    this.adapter = adapter;
+  constructor(type: UserServiceType = 'mock', options: UserServiceOptions = {}) {
+    this.adapter = UserServiceFactory.getAdapter(type, options) ?? UserServiceFactory.getAdapter('mock')!;
   }
 
   async getCurrentUser(): Promise<any> {

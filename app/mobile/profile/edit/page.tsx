@@ -142,7 +142,9 @@ export default function EditProfilePage() {
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle{t('auto.page.')}/IonTitle>
+            <IonTitle>
+  {t('auto.page.')}
+</IonTitle>
             <IonButtons slot="start">
               <IonBackButton defaultHref="/mobile/profile" />
             </IonButtons>
@@ -160,7 +162,9 @@ export default function EditProfilePage() {
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle{t('auto.page.')}/IonTitle>
+            <IonTitle>
+  {t('auto.page.')}
+</IonTitle>
             <IonButtons slot="start">
               <IonBackButton defaultHref="/mobile/profile" />
             </IonButtons>
@@ -180,7 +184,9 @@ export default function EditProfilePage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.')}
+</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/profile" />
           </IonButtons>
@@ -195,16 +201,22 @@ export default function EditProfilePage() {
         <div className="max-w-md mx-auto p-4 space-y-6">
           {/* 基本信息 */}
           <div>
-            <h2 className="text-lg font-semibold mb-4 text-white"{t('auto.page.')}/h2>
+            <h2 className="text-lg font-semibold mb-4 text-white">
+  {t('auto.page.')}
+</h2>
             <IonItem>
-              <IonLabel position="stacked"{t('auto.page.')}/IonLabel>
+              <IonLabel position="stacked">
+  {t('auto.page.')}
+</IonLabel>
               <IonInput
                 value={currentUser.name}
                 onIonChange={e => setCurrentUser({ ...currentUser, name: e.detail.value || '' })}
               />
             </IonItem>
             <IonItem>
-              <IonLabel position="stacked"{t('auto.page.')}/IonLabel>
+              <IonLabel position="stacked">
+  {t('auto.page.')}
+</IonLabel>
               <IonTextarea
                 value={currentUser.bio}
                 onIonChange={e => setCurrentUser({ ...currentUser, bio: e.detail.value || '' })}
@@ -216,7 +228,9 @@ export default function EditProfilePage() {
           {/* 照片 */}
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-white"{t('auto.page.')}/h2>
+              <h2 className="text-lg font-semibold text-white">
+  {t('auto.page.')}
+</h2>
               <IonButton onClick={handleImageUpload}>
                 <IonIcon icon={camera} slot="start" />
                 添加照片
@@ -249,7 +263,9 @@ export default function EditProfilePage() {
 
           {/* 兴趣爱好 */}
           <div>
-            <h2 className="text-lg font-semibold mb-4 text-white"{t('auto.page.')}/h2>
+            <h2 className="text-lg font-semibold mb-4 text-white">
+  {t('auto.page.')}
+</h2>
             <div className="flex flex-wrap gap-2 mb-4">
               {currentUser.interests.map((interest, index) => (
                 <IonChip key={index}>

@@ -9,9 +9,9 @@ import { useAuth } from '@/core/hooks/useAuth';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
-import { useUserList } from '@/core/hooks/useUserList';
 import { useMatches } from '@/core/hooks/useMatches';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
+import { useRecommendedUsers } from '@/core/hooks/useRecommendedUsers';
 
 // Add type definition for Photo
 interface Photo {
@@ -40,7 +40,7 @@ export default function HomePage() {
   useRequireAuth();
   const router = useRouter();
   const { user: currentUser } = useAuth();
-  const { users, loading, error } = useUserList(currentUser?.id);
+  const { users, loading, error, empty } = useRecommendedUsers(currentUser);
   const { matches, createMatch, loading: matchesLoading, error: matchesError } = useMatches(currentUser?.id);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showToast, setShowToast] = useState(false);
@@ -185,7 +185,9 @@ export default function HomePage() {
           // Match screen
           <div className="fixed inset-0 bg-opacity-90 bg-gray-900 z-50 flex items-center justify-center">
             <div className="text-center p-6 max-w-sm mx-auto">
-              <h1 className="text-3xl font-bold text-pink-500 mb-4"{t('auto.page.Itapos')}/h1>
+              <h1 className="text-3xl font-bold text-pink-500 mb-4">
+  {t('auto.page.Itapos')}
+</h1>
               <p className="text-white mb-6">You and {matchedUser?.name} have liked each other</p>
               
               <div className="flex justify-center space-x-4 mb-8">
@@ -283,8 +285,12 @@ export default function HomePage() {
         ) : (
           <div className="h-full flex items-center justify-center p-4">
             <div className="text-center">
-              <h2 className="text-xl font-semibold text-white mb-2"{t('auto.page.Nomore')}/h2>
-              <p className="text-gray-400"{t('auto.page.Checkba')}/p>
+              <h2 className="text-xl font-semibold text-white mb-2">
+  {t('auto.page.Nomore')}
+</h2>
+              <p className="text-gray-400">
+  {t('auto.page.Checkba')}
+</p>
             </div>
           </div>
         )}

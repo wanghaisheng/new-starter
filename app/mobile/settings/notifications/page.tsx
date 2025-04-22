@@ -103,7 +103,9 @@ export default function NotificationsSettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.Notifica')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.Notifica')}
+</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -120,12 +122,16 @@ export default function NotificationsSettingsPage() {
         <IonList lines="full">
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.MATCHNO')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.MATCHNO')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={notificationsOutline} slot="start" />
-              <IonLabel{t('auto.page.NewMatc')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.NewMatc')}
+</IonLabel>
               <IonToggle
                 checked={notification.newMatches}
                 onIonChange={e => updateNotificationForm({ newMatches: e.detail.checked })}
@@ -134,7 +140,9 @@ export default function NotificationsSettingsPage() {
             
             <IonItem>
               <IonIcon icon={chatbubbleOutline} slot="start" />
-              <IonLabel{t('auto.page.MatchMe')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.MatchMe')}
+</IonLabel>
               <IonToggle
                 checked={notification.matchMessages}
                 onIonChange={e => updateNotificationForm({ matchMessages: e.detail.checked })}
@@ -144,12 +152,16 @@ export default function NotificationsSettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.PROFILE')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.PROFILE')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={eyeOutline} slot="start" />
-              <IonLabel{t('auto.page.Profile')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.Profile')}
+</IonLabel>
               <IonToggle
                 checked={notification.profileViews}
                 onIonChange={e => updateNotificationForm({ profileViews: e.detail.checked })}
@@ -158,7 +170,9 @@ export default function NotificationsSettingsPage() {
             
             <IonItem>
               <IonIcon icon={heartOutline} slot="start" />
-              <IonLabel{t('auto.page.Profile')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.Profile')}
+</IonLabel>
               <IonToggle
                 checked={notification.profileLikes}
                 onIonChange={e => updateNotificationForm({ profileLikes: e.detail.checked })}
@@ -168,12 +182,16 @@ export default function NotificationsSettingsPage() {
           
           <IonItemGroup>
             <IonItemDivider>
-              <IonLabel{t('auto.page.SYSTEMN')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.SYSTEMN')}
+</IonLabel>
             </IonItemDivider>
             
             <IonItem>
               <IonIcon icon={globeOutline} slot="start" />
-              <IonLabel{t('auto.page.AppUpda')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.AppUpda')}
+</IonLabel>
               <IonToggle
                 checked={notification.appUpdates}
                 onIonChange={e => updateNotificationForm({ appUpdates: e.detail.checked })}
@@ -182,7 +200,9 @@ export default function NotificationsSettingsPage() {
             
             <IonItem>
               <IonIcon icon={megaphoneOutline} slot="start" />
-              <IonLabel{t('auto.page.Promotio')}/IonLabel>
+              <IonLabel>
+  {t('auto.page.Promotio')}
+</IonLabel>
               <IonToggle
                 checked={notification.promotions}
                 onIonChange={e => updateNotificationForm({ promotions: e.detail.checked })}

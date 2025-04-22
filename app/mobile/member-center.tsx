@@ -14,17 +14,23 @@ export default function MemberCenterPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle{t('auto.member_center.')}/IonTitle>
+          <IonTitle>
+            {t('auto.member_center.title') || '会员中心'}
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        <h2 className="text-lg font-bold mb-4"{t('auto.member_center.')}/h2>
+        <h2 className="text-lg font-bold mb-4">
+          {t('auto.member_center.title') || '会员中心'}
+        </h2>
         {loading ? (
           <div className="flex justify-center my-6"><IonSpinner name="crescent" /></div>
         ) : error ? (
           <div className="text-red-500 text-center my-4">{error.message}</div>
         ) : empty ? (
-          <div className="text-gray-400 text-center my-4"{t('auto.member_center.')}/div>
+          <div className="text-gray-400 text-center my-4">
+            {t('auto.member_center.empty') || '暂无会员记录'}
+          </div>
         ) : (
           subscriptions.map(sub => (
             <IonCard key={sub.id} className="mb-4">
@@ -41,7 +47,9 @@ export default function MemberCenterPage() {
           {restoring ? '恢复中...' : '恢复购买'}
         </IonButton>
         {restoreError && <div className="text-red-500 text-center text-xs mb-2">{restoreError.message}</div>}
-        <h2 className="text-lg font-bold mt-8 mb-4"{t('auto.member_center.')}/h2>
+        <h2 className="text-lg font-bold mt-8 mb-4">
+          {t('auto.member_center.title') || '会员中心'}
+        </h2>
         <IonButton expand="block" fill="outline" onClick={fetchHistory} disabled={historyLoading} className="mb-2">
           {historyLoading ? '加载中...' : '刷新支付历史'}
         </IonButton>
@@ -61,7 +69,9 @@ export default function MemberCenterPage() {
             </IonCard>
           ))
         ) : (
-          <div className="text-gray-400 text-center my-4"{t('auto.member_center.')}/div>
+          <div className="text-gray-400 text-center my-4">
+            {t('auto.member_center.empty') || '暂无会员记录'}
+          </div>
         )}
       </IonContent>
     </IonPage>

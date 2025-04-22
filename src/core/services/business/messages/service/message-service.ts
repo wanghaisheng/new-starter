@@ -1,12 +1,13 @@
 // 消息服务实现，聚合消息适配器，暴露统一消息业务 API
-import { IMessageService, IMessageAdapter } from '../types/message-service';
+import type { IMessageService, IMessageAdapter, MessageServiceType, MessageServiceOptions } from '../types/message-service';
+import { MessageServiceFactory } from '../factory/message-service-factory';
 import { Message, CreateMessageData, UpdateMessageData } from '@/core/lib/db/types/message';
 
 export class MessageService implements IMessageService {
   private adapter: IMessageAdapter;
 
-  constructor(adapter: IMessageAdapter) {
-    this.adapter = adapter;
+  constructor(type: MessageServiceType = 'mock', options: MessageServiceOptions = {}) {
+    this.adapter = MessageServiceFactory.getAdapter(type, options) ?? MessageServiceFactory.getAdapter('mock')!;
   }
 
   async getUserMessages(userId: string): Promise<Message[]> {

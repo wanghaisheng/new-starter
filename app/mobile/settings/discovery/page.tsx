@@ -95,7 +95,9 @@ export default function DiscoverySettingsPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle{t('auto.page.Discover')}/IonTitle>
+          <IonTitle>
+  {t('auto.page.Discover')}
+</IonTitle>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/mobile/settings" />
           </IonButtons>
@@ -106,11 +108,15 @@ export default function DiscoverySettingsPage() {
         <IonList lines="full">
           {/* Distance Settings */}
           <IonItemDivider>
-            <IonLabel{t('auto.page.DISTANCE')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.DISTANCE')}
+</IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel{t('auto.page.Maximum')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.Maximum')}
+</IonLabel>
             <IonRange
               value={preferences.distance || 50}
               min={1}
@@ -123,11 +129,15 @@ export default function DiscoverySettingsPage() {
           
           {/* Age Range Settings */}
           <IonItemDivider>
-            <IonLabel{t('auto.page.AGERANG')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.AGERANG')}
+</IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel{t('auto.page.Minimum')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.Minimum')}
+</IonLabel>
             <IonRange
               value={preferences.ageRange.min || 18}
               min={18}
@@ -144,7 +154,9 @@ export default function DiscoverySettingsPage() {
           </IonItem>
           
           <IonItem>
-            <IonLabel{t('auto.page.Maximum')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.Maximum')}
+</IonLabel>
             <IonRange
               value={preferences.ageRange.max || 99}
               min={18}
@@ -162,29 +174,43 @@ export default function DiscoverySettingsPage() {
           
           {/* Gender Preferences */}
           <IonItemDivider>
-            <IonLabel{t('auto.page.GENDERP')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.GENDERP')}
+</IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel{t('auto.page.ShowMe')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.ShowMe')}
+</IonLabel>
             <IonSelect
               value={preferences.gender || ['male', 'female', 'other']}
               multiple={true}
               onIonChange={e => updatePreferences({ gender: e.detail.value })}
             >
-              <IonSelectOption value="male"{t('auto.page.Men')}/IonSelectOption>
-              <IonSelectOption value="female"{t('auto.page.Women')}/IonSelectOption>
-              <IonSelectOption value="other"{t('auto.page.Others')}/IonSelectOption>
+              <IonSelectOption value="male">
+  {t('auto.page.Men')}
+</IonSelectOption>
+              <IonSelectOption value="female">
+  {t('auto.page.Women')}
+</IonSelectOption>
+              <IonSelectOption value="other">
+  {t('auto.page.Others')}
+</IonSelectOption>
             </IonSelect>
           </IonItem>
           
           {/* Additional Settings */}
           <IonItemDivider>
-            <IonLabel{t('auto.page.ADDITION')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.ADDITION')}
+</IonLabel>
           </IonItemDivider>
           
           <IonItem>
-            <IonLabel{t('auto.page.ShowVer')}/IonLabel>
+            <IonLabel>
+  {t('auto.page.ShowVer')}
+</IonLabel>
             <IonToggle
               checked={preferences.dealBreakers?.includes('unverified') || false}
               onIonChange={e => {

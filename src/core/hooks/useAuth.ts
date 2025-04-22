@@ -59,6 +59,7 @@ export function useAuth(): UseAuthResult {
         } else {
           type = 'mock';
         }
+        console.log('[DEBUG][useAuth] 当前 auth 类型:', type, '环境变量:', process.env.NEXT_PUBLIC_AUTH_SERVICE_TYPE);
         // 工厂/适配器模式，便于 mock/remote 切换
         const provider = AuthServiceFactory.createService(type);
         setAuthProvider(provider);

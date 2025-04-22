@@ -89,6 +89,46 @@ When adding new database documentation:
 - 任何数据库类型、配置项扩展，优先在 types 层维护，业务层无需关心类型细节
 - 统一类型出口后，项目升级和重构将极为简单，避免隐式 bug
 
+## Mock 阶段数据服务设计（2025.04 更新）
+
+### 设计目标
+- 支持多种 mock 数据存储后端（memory/json/indexeddb/fake-indexeddb/sqlite），满足 Web/移动端/自动化测试等多场景需求。
+- mock 阶段数据服务需与正式环境的数据访问接口保持一致，确保迁移和端到端测试零摩擦。
+- 支持 schema 自动建表、config/types 下 mock 配置批量导入、演示数据快速加载。
+
+### Mock 数据源类型
+| mockMode         | 场景/说明                                                         |
+|------------------|------------------------------------------------------------------|
+| memory           | 纯内存，极简单元测试/演示                                        |
+| json             | JSON 文件持久化，适合数据回归和 mock 数据备份                    |
+| indexeddb        | 浏览器端本地存储，web 离线开发                                    |
+| fake-indexeddb   | Node.js 环境模拟 IndexedDB，支持全 CRUD，便于 web/dev/prod 迁移   |
+| sqlite           | Node.js 环境 SQLite，推荐移动端开发/测试，支持文件/内存两种模式   |
+
+### 选择与切换方式
+- 通过 .env.mock 或环境变量 `MOCK_DB_MODE` 动态切换 mock 后端。
+- SQLite 模式支持 `MOCK_SQLITE_FILE` 指定文件路径或 `:memory:` 内存数据库。
+- mock-client.ts 构造参数优先级：传参 > 环境变量 > 默认值。
+
+### 初始化与数据加载
+- 各 mockMode 下，mock-client.ts 自动完成 schema 建表和 config/types 下 mock 配置批量导入。
+- 支持批量导入用户、成长任务、皮肤、翻译等业务配置和演示数据。
+- SQLite/fake-indexeddb 支持复杂表结构、事务和真实端一致的 CRUD 行为。
+
+### 典型用例
+- Web 端离线开发/测试：用 fake-indexeddb，模拟浏览器 IndexedDB。
+- 移动端开发/测试：用 sqlite，提前验证表结构、SQL 兼容性和端到端数据一致性。
+- 自动化测试/CI：用 memory 或 json，快速初始化和清理。
+
+### 设计原则
+- mock 数据服务接口与正式环境完全一致，便于 Registry/Factory/Hook 层无感切换。
+- 支持多 mock 数据源并行开发和测试，便于团队协作。
+- mock 阶段所有表结构和业务配置均自动化初始化，无需手工维护。
+
+---
+
+如需扩展新的 mock 后端，只需在 mock-client.ts 新增分支并完善初始化和批量导入逻辑即可。
+
 ## 数据服务说明（已迁移）
 
 > **注意：数据服务（Data Services）相关设计与实现已完全迁移至 [`../services/README.md`](../services/README.md)。**

@@ -2,111 +2,93 @@ import { SQLiteDBConnection } from '@capacitor-community/sqlite';
 import { BaseEntity } from './base-entity';
 import { TableSchema } from '../schema/index';
 
-// 数据库引擎类型
-export type DatabaseEngine = 'mock' | 'mock-indexeddb' | 'indexeddb' | 'sqlite' | 'capacitor-sqlite' | 'cloudflare-d1' | 'firebase' | 'supabase' | 'turso' | 'tidb' | 'postgres' | 'hybrid';
+// 更新后的数据库引擎枚举值，参考数据服务设计文档
+export type DatabaseEngine =
+  | 'mock'
+  | 'mock-indexeddb'
+  | 'indexeddb'
+  | 'sqlite'
+  | 'fake-indexeddb'
+  | 'capacitor-sqlite'
+  | 'supabase'
+  | 'cloudflare-d1'
+  | 'firebase'
+  | 'turso'
+  | 'tidb'
+  | 'postgres'
+  | 'hybrid';
 
-// 同步策略类型
-export type SyncStrategy = 'auto'|'immediate' | 'periodic' | 'manual';
+export type SyncStrategy = 'auto' | 'immediate' | 'periodic' | 'manual';
 
-// 同步状态类型
 export type SyncStatus = 'pending' | 'syncing' | 'completed' | 'failed';
 
-// 同步配置接口
 export interface SyncConfig {
   enabled: boolean;
   strategy: SyncStrategy;
-  /**
-   * 是否仅离线存储，不同步到云端
-   */
   offlineOnly?: boolean;
-  interval?: number; // in milliseconds
+  interval?: number;
   retryAttempts?: number;
-  retryDelay?: number; // in milliseconds
+  retryDelay?: number;
   conflictResolution?: 'client-wins' | 'server-wins' | 'last-write-wins';
-  /**
-   * 本地客户端实例 - 由HybridDatabaseClient使用
-   */
   localClient?: any;
-  /**
-   * 远程客户端实例 - 由HybridDatabaseClient使用
-   */
   remoteClient?: any;
-  /**
-   * 同步间隔（毫秒）
-   */
   syncIntervalMs?: number;
-  /**
-   * 最大重试次数
-   */
   maxSyncRetries?: number;
-  /**
-   * 重试延迟（毫秒）
-   */
-  syncRetryDelayMs?: number;
 }
 
-// 混合数据库客户端配置
 export interface HybridDatabaseConfig {
   engine: DatabaseEngine;
+  schemas: TableSchema[];
+  sqliteConnection?: SQLiteDBConnection;
   sync?: SyncConfig;
-  offline?: {
-    maxStorageSize?: number; // in bytes
-    maxEntitiesPerTable?: number;
-    compressionEnabled?: boolean;
-    encryptionEnabled?: boolean;
-  };
 }
 
-// 数据库配置接口
 export interface DatabaseConfig extends HybridDatabaseConfig {
   name: string;
   version: number;
   encryptionKey?: string;
-  schema?: TableSchema[];
-  tables: {
-    [key: string]: {
-      columns: {
-        [key: string]: {
-          type: string;
-          constraints?: string[];
-        };
-      };
-      indexes?: {
-        [key: string]: {
-          columns: string[];
-          unique?: boolean;
-        };
-      };
-    };
-  };
 }
 
-// 数据库版本接口
 export interface DatabaseVersion {
   version: number;
   statements: string[];
 }
 
-// 数据库错误接口
 export interface DatabaseError extends Error {
   code: string;
   details?: any;
 }
 
-// 查询操作符类型
-export type QueryOperator = '==' | '<' | '<=' | '>' | '>=' | '!=' | '$in' | '$ne' | '$contains' | '$gt' | '$lt' | '$gte' | '$lte' | '$and' | '$or';
+// 查询操作符枚举值保持不变，如需扩展可参考文档
+export type QueryOperator =
+  | '=='
+  | '<'
+  | '<='
+  | '>'
+  | '>='
+  | '!='
+  | '$in'
+  | '$ne'
+  | '$contains'
+  | '$gt'
+  | '$lt'
+  | '$gte'
+  | '$lte'
+  | '$and'
+  | '$or';
 
-// 查询选项接口
 export interface QueryOptions {
-  where?: {
-    field: string;
-    operator: QueryOperator;
-    value: any;
-  } | {
-    $and?: QueryOptions['where'][];
-    $or?: QueryOptions['where'][];
-    [key: string]: any;
-  };
+  where?:
+    | {
+        field: string;
+        operator: QueryOperator;
+        value: any;
+      }
+    | {
+        $and?: QueryOptions['where'][];
+        $or?: QueryOptions['where'][];
+        [key: string]: any;
+      };
   orderBy?: {
     field: string;
     direction: 'asc' | 'desc';
@@ -115,7 +97,6 @@ export interface QueryOptions {
   offset?: number;
 }
 
-// 同步状态接口
 export interface SyncState {
   status: SyncStatus;
   lastSync?: Date;
@@ -123,219 +104,111 @@ export interface SyncState {
   progress?: number;
 }
 
-// 数据库统计接口
 export interface DatabaseStats {
   totalRecords: number;
   totalSize: number;
   lastSyncTime?: Date;
-  lastError?: DatabaseError;
 }
 
-// 数据库结果接口
 export interface DatabaseResult<T> {
   success: boolean;
   data?: T;
   error?: Error;
 }
 
-// 数据库事务接口
 export interface DatabaseTransaction {
   commit(): Promise<void>;
   rollback(): Promise<void>;
   isActive(): boolean;
 }
 
-// 数据库事件类型
-export type DatabaseEvent = 
+export type DatabaseEvent =
   | 'initialized'
   | 'closed'
   | 'error'
-  | 'syncStarted'
-  | 'syncCompleted'
-  | 'syncFailed'
-  | 'backupCreated'
-  | 'backupRestored';
+  | 'upgrade'
+  | 'downgrade'
+  | 'migrating'
+  | 'migrated';
 
-// 数据库事件处理器类型
-export type DatabaseEventHandler = (event: DatabaseEvent, data?: any) => void;
-
-// 查询结果接口
-export interface QueryResult<T> {
+export interface PaginatedResult<T> {
   data: T[];
-  total: number;
   hasMore: boolean;
 }
 
-// 数据库指标接口
 export interface DatabaseMetrics {
   queryCount: number;
   queryTime: number;
 }
 
-// 存储统计接口
-export interface StorageStats {
-  totalSize: number;
-  availableSpace: number;
-  usedSpace: number;
-}
-
-// 数据库客户端接口
-export interface DatabaseClient {
-  db: SQLiteDBConnection;
-  config: DatabaseConfig;
-  transaction<T>(callback: () => Promise<T>): Promise<T>;
-  create<T extends BaseEntity>(table: string, data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T>;
-  findById<T extends BaseEntity>(table: string, id: string): Promise<T | null>;
-  findAll<T extends BaseEntity>(table: string, filter?: Record<string, any>): Promise<T[]>;
-  update<T extends BaseEntity>(table: string, id: string, data: Partial<T>): Promise<void>;
-  delete(table: string, id: string): Promise<void>;
-  clear(): Promise<void>;
-  initialize(): Promise<void>;
-  query<T extends BaseEntity>(table: string, options: QueryOptions): Promise<QueryResult<T>>;
-  executeRawQuery<T>(query: string, params?: any[]): Promise<T[]>;
-  count(table: string, filter?: Record<string, any>): Promise<number>;
-  beginTransaction(): Promise<void>;
-  commitTransaction(): Promise<void>;
-  rollbackTransaction(): Promise<void>;
-}
-
-/**
- * 排序方向
- */
 export type SortDirection = 'asc' | 'desc';
 
-/**
- * 查询过滤操作符
- */
 export type FilterOperator =
   | '='
   | '=='
-  | 'eq'
-  | '!='
-  | 'ne'
-  | 'neq'
-  | '>'
-  | 'gt'
-  | '>='
-  | 'gte'
   | '<'
-  | 'lt'
   | '<='
-  | 'lte'
-  | 'in';
+  | '>'
+  | '>='
+  | '!='
+  | '$in'
+  | '$ne'
+  | '$contains'
+  | '$gt'
+  | '$lt'
+  | '$gte'
+  | '$lte'
+  | '$and'
+  | '$or';
 
-/**
- * 查询过滤条件
- */
 export interface QueryFilter {
-  /**
-   * 字段名
-   */
   field: string;
-  
-  /**
-   * 操作符
-   */
   operator: FilterOperator | string;
-  
-  /**
-   * 比较值
-   */
   value: any;
 }
 
-/**
- * 查询选项扩展 - 支持标准和数据库特定功能
- */
-export interface ExtendedQueryOptions extends QueryOptions {
-  /**
-   * 过滤条件数组
-   * 提供了比简单的 where 更灵活的过滤方式
-   */
-  filters?: QueryFilter[];
-  
-  /**
-   * 排序条件
-   * 键为字段名，值为排序方向
-   */
+export interface QueryCursor {
   sort?: Record<string, SortDirection>;
-  
-  /**
-   * 游标 - 从指定文档之后开始
-   */
   startAfter?: any;
-  
-  /**
-   * 游标 - 从指定文档开始
-   */
   startAt?: any;
-  
-  /**
-   * 游标 - 到指定文档之前结束
-   */
   endBefore?: any;
-  
-  /**
-   * 游标 - 到指定文档结束
-   */
   endAt?: any;
-  
-  /**
-   * 分页偏移量
-   * 注意：有些数据库引擎不支持偏移，如 Firestore
-   */
   offset?: number;
 }
 
-/**
- * 游标相关配置
- */
 export interface CursorOptions {
-  /**
-   * 开始位置的游标值（包含）
-   */
   startAt?: any;
-  
-  /**
-   * 开始位置的游标值（不包含）
-   */
   startAfter?: any;
-  
-  /**
-   * 结束位置的游标值（包含）
-   */
   endAt?: any;
-  
-  /**
-   * 结束位置的游标值（不包含）
-   */
   endBefore?: any;
-  
-  /**
-   * 跳过的记录数
-   */
-  offset?: number;
 }
 
-export type DatabaseEnvironment = 'development' | 'production';
+export type DatabaseEnvironment = 'mock' | 'local' | 'development' | 'production';
 
-// 动态获取所有支持的存储类型，避免硬编码
-export const SUPPORTED_STORAGE_TYPES = [
+export const SUPPORTED_ONLINE_STORAGE_TYPES = [
   'memory',
   'indexeddb',
   'sqlite',
+  'fake-indexeddb',
+  'capacitor-sqlite',
+  'supabase',
+  'cloudflare-d1',
+  'firebase',
+  'turso',
+  'tidb',
   'postgres',
+  'hybrid',
 ] as const;
 
 export const SUPPORTED_OFFLINE_STORAGE_TYPES = [
-
   'memory',
-  'indexeddb',  'sqlite',
-
+  'indexeddb',
+  'sqlite',
+  'capacitor-sqlite',
+  'mock',
 ] as const;
 
-
-export type StorageType = typeof SUPPORTED_STORAGE_TYPES[number];
+export type OnlineStorageType = typeof SUPPORTED_ONLINE_STORAGE_TYPES[number];
 export type OfflineStorageType = typeof SUPPORTED_OFFLINE_STORAGE_TYPES[number];
 
 export type DemoDataSource = 'example' | 'dating';
@@ -343,14 +216,10 @@ export type DemoDataSource = 'example' | 'dating';
 export interface DatabaseConnection {
   host?: string;
   port?: number;
-  database?: string;
-  username?: string;
-  password?: string;
-  path?: string;
 }
 
-export interface StorageConfig {
-  type: StorageType;
+export interface OnlineStorageConfig {
+  type: OnlineStorageType;
   connection: DatabaseConnection;
 }
 
@@ -377,7 +246,7 @@ export interface DatabaseConfig {
   tables: Record<string, TableConfig>;
   env: EnvironmentConfig;
   storage: {
-    online: StorageConfig;
+    online: OnlineStorageConfig;
     offline: OfflineStorageConfig;
   };
   sync: SyncConfig;
@@ -406,37 +275,37 @@ export const defaultConfig: DatabaseConfig = {
   name: 'app_database',
   version: 1,
   engine: 'mock',
+  schemas: [],
   tables: {},
   env: {
     environment: 'development',
     enableOffline: false,
-    enableHybrid: false
+    enableHybrid: false,
   },
   storage: {
     online: {
       type: 'memory',
-      connection: {}
+      connection: {},
     },
     offline: {
       type: 'indexeddb',
-      connection: {}
-    }
+      connection: {},
+    },
   },
   sync: {
     enabled: false,
     strategy: 'auto',
     conflictResolution: 'server-wins',
-    syncIntervalMs: 0
+    syncIntervalMs: 0,
   },
   testData: {
     loadOnStartup: false,
-    source: 'example'
-  }
-}; 
+    source: 'example',
+  },
+};
 
 export type { BaseEntity } from './base-entity';
 
-// 批量操作接口
 export interface BatchOperation<T = any> {
   type: 'add' | 'put' | 'delete';
   data: T;

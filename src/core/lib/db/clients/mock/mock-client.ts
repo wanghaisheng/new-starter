@@ -22,21 +22,35 @@ if (!isBrowser) {
  */
 export interface MockDatabaseConfig extends DatabaseConfig {
   /**
-   * 数据源模式: 'memory' | 'json' | 'indexeddb' | 'fake-indexeddb' | 'sqlite'
+   * 数据源模式: 'memory' | 'json' | 'indexeddb' | 'fake-indexeddb' | 'sqlite' | 'csv' | 'sql'
    * - memory: 使用内存中预定义的数据
    * - json: 从JSON文件加载数据
    * - indexeddb: 使用IndexedDB
    * - fake-indexeddb: Node.js 环境下模拟 IndexedDB（全 CRUD，便于迁移）
    * - sqlite: 使用 SQLite（Node.js 环境，支持文件和内存模式，推荐移动端开发/测试）
+   * - csv: 从 CSV 文件加载数据
+   * - sql: 从 SQL 文件加载数据
    * @default 'memory'
    */
-  mockMode?: 'memory' | 'json' | 'indexeddb' | 'fake-indexeddb' | 'sqlite';
+  mockMode?: 'memory' | 'json' | 'indexeddb' | 'fake-indexeddb' | 'sqlite' | 'csv' | 'sql';
 
   /**
    * JSON文件路径（当mockMode为'json'时使用）
    * 如果提供相对路径，将相对于当前工作目录解析
    */
   jsonFilePath?: string;
+
+  /**
+   * CSV文件目录（当mockMode为'csv'时使用）
+   * 如果提供相对路径，将相对于当前工作目录解析
+   */
+  csvDir?: string;
+
+  /**
+   * SQL文件目录（当mockMode为'sql'时使用）
+   * 如果提供相对路径，将相对于当前工作目录解析
+   */
+  sqlDir?: string;
 
   /**
    * SQLite 文件路径（mockMode=sqlite 时使用）
@@ -80,7 +94,7 @@ export interface MockQueryOptions {
  */
 export class MockDatabaseClient implements IDatabaseClient {
   private data: Record<string, Map<string, any>> = {};
-  private mockConfig: Required<Pick<MockDatabaseConfig, 'mockMode' | 'jsonFilePath' | 'autoSave' | 'sqliteFilePath'>>;
+  private mockConfig: Required<Pick<MockDatabaseConfig, 'mockMode' | 'jsonFilePath' | 'csvDir' | 'sqlDir' | 'autoSave' | 'sqliteFilePath'>>;
   private isInitialized: boolean = false;
   protected transactionActive: boolean = false;
   private logger;
@@ -90,6 +104,8 @@ export class MockDatabaseClient implements IDatabaseClient {
     this.mockConfig = {
       mockMode: config.mockMode || (process.env.MOCK_DB_MODE as any) || 'memory',
       jsonFilePath: config.jsonFilePath || './mock-data.json',
+      csvDir: config.csvDir || './mock-csv',
+      sqlDir: config.sqlDir || './mock-sql',
       autoSave: config.autoSave ?? true,
       sqliteFilePath: config.sqliteFilePath || process.env.MOCK_SQLITE_FILE || ':memory:'
     };
@@ -134,13 +150,43 @@ export class MockDatabaseClient implements IDatabaseClient {
         // 初始化表结构和 mock/config 数据
         await this.initSQLiteSchemaAndData();
         this.logger.info(`Initialized with SQLite: ${this.mockConfig.sqliteFilePath}`);
+      } else if (this.mockConfig.mockMode === 'csv') {
+        await this.loadFromCsv();
+        this.logger.info('Initialized with CSV mock data');
+      } else if (this.mockConfig.mockMode === 'sql') {
+        await this.loadFromSql();
+        this.logger.info('Initialized with SQL mock data');
       } else {
-        // 加载示例数据
-        const exampleData = require('./example-data.json') as Record<string, any[]>;
-        for (const [collection, records] of Object.entries(exampleData)) {
-          const table = this.getTable(collection);
-          for (const record of records) {
-            table.set(record.id, record);
+        // 加载 src/core/lib/db/data/mock 下的 mock 数据（每个集合一个 ts 文件导出数组）
+        // 动态 require 目录下所有 .mock.ts 文件
+        const mockModules = [
+          'user.mock',
+          'match.mock',
+          'message.mock',
+          'quiz.mock',
+          'report.mock',
+          'gift.mock',
+          'skin.mock',
+          'translation.mock',
+          'config.mock',
+          'member-growth.mock',
+          'member-growth-task.mock',
+          'member-growth-task.mock.30days',
+          'global-config.mock',
+        ];
+        for (const mod of mockModules) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const records = require(`@/core/lib/db/data/mock/${mod}`).default;
+            if (Array.isArray(records)) {
+              const collection = mod.replace(/\.mock.*/, '');
+              const table = this.getTable(collection);
+              for (const record of records) {
+                table.set(record.id, record);
+              }
+            }
+          } catch (e) {
+            this.logger.warn(`Mock data module load failed: ${mod}`, e);
           }
         }
       }
@@ -528,6 +574,49 @@ export class MockDatabaseClient implements IDatabaseClient {
         `Failed to save data to JSON file: ${error instanceof Error ? error.message : String(error)}`,
         DatabaseErrorCode.OPERATION_FAILED
       );
+    }
+  }
+
+  private async loadFromCsv(): Promise<void> {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const { parse } = await import('csv-parse/sync');
+    const csvDir = this.mockConfig.csvDir || path.join(process.cwd(), 'mock-csv');
+    const files = await fs.readdir(csvDir);
+    for (const file of files) {
+      if (file.endsWith('.csv')) {
+        const filePath = path.join(csvDir, file);
+        const content = await fs.readFile(filePath, 'utf8');
+        const records = parse(content, { columns: true });
+        // 假设文件名 user.csv -> this.mockData['user']
+        const key = path.basename(file, '.csv');
+        this.data[key] = new Map(Object.entries(records));
+        this.logger.info(`Loaded CSV mock data for ${key}, count: ${records.length}`);
+      }
+    }
+  }
+
+  private async loadFromSql(): Promise<void> {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const sqlDir = this.mockConfig.sqlDir || path.join(process.cwd(), 'mock-sql');
+    const files = await fs.readdir(sqlDir);
+    for (const file of files) {
+      if (file.endsWith('.sql')) {
+        const filePath = path.join(sqlDir, file);
+        const sql = await fs.readFile(filePath, 'utf8');
+        if (this.sqliteDb) {
+          await new Promise((resolve, reject) => {
+            this.sqliteDb.exec(sql, (err: any) => {
+              if (err) reject(err); else resolve(null);
+            });
+          });
+          this.logger.info(`Executed SQL file: ${file}`);
+        } else {
+          // 这里可以根据实际 mock 数据结构做解析填充
+          this.logger.warn(`SQL mock mode: skipping SQL execution (sqliteDb not available): ${file}`);
+        }
+      }
     }
   }
 

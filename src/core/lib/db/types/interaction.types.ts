@@ -1,3 +1,4 @@
+// 互动相关类型定义
 import { BaseEntity } from './base-entity';
 
 /**
@@ -10,12 +11,12 @@ export interface Report extends BaseEntity {
   reason: string;
   details?: string;
   status: 'pending' | 'reviewed' | 'resolved';
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   resolution?: {
     action: 'warning' | 'suspension' | 'ban';
     note: string;
-    resolvedAt: Date;
+    resolvedAt: string;
   };
 }
 
@@ -27,6 +28,6 @@ export interface Block extends BaseEntity {
   blockerId: string;
   blockedId: string;
   reason?: string;
-  createdAt: Date;
-  expiresAt?: Date;
+  createdAt: string;
+  expiresAt?: string;
 }

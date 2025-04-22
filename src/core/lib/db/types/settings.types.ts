@@ -1,7 +1,7 @@
-// 迁移自 src/core/types/settings.ts
-// 此处为 settings 相关类型定义
+// 迁移�?src/core/types/settings.ts
+// 此处�?settings 相关类型定义
 
-// 示例类型定义（请根据原文件内容粘贴/合并）
+// 用户设置相关类型定义
 export interface UserSettings {
   theme: 'light' | 'dark';
   language: string;
@@ -52,4 +52,4 @@ export interface SecuritySettings {
   loginAlerts: boolean;
 }
 
-// 可扩展其它 settings 相关类型
+// 可扩展其�?settings 相关类型

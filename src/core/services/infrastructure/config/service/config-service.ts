@@ -1,31 +1,44 @@
 // ConfigService 实现
-import { IConfigService, InfrastructureServiceType, InfrastructureServiceConfig } from '@core/services/infrastructure/types';
+import { IConfigAdapter } from '../types/config-adapter.types';
 
-export class ConfigService implements IConfigService {
+export class ConfigService {
   private static instance: ConfigService;
-  private _isInitialized = false;
-  private config: InfrastructureServiceConfig = { id: 'config', type: 'config' };
-  private store: Record<string, any> = {};
+  private adapter: IConfigAdapter;
+  private initialized = false;
 
-  private constructor() {}
+  private constructor(adapter: IConfigAdapter) {
+    this.adapter = adapter;
+  }
 
-  static getInstance(): ConfigService {
+  static getInstance(adapter: IConfigAdapter): ConfigService {
     if (!ConfigService.instance) {
-      ConfigService.instance = new ConfigService();
+      ConfigService.instance = new ConfigService(adapter);
     }
     return ConfigService.instance;
   }
 
-  async initialize(): Promise<void> { this._isInitialized = true; }
-  async dispose(): Promise<void> { this._isInitialized = false; }
-  isInitialized(): boolean { return this._isInitialized; }
-  getServiceType(): InfrastructureServiceType { return InfrastructureServiceType.CONFIG; }
-  getConfig(): InfrastructureServiceConfig { return this.config; }
+  async initialize() {
+    if (!this.initialized) {
+      await this.adapter.initialize();
+      this.initialized = true;
+    }
+  }
 
-  get<T = any>(key: string): T | undefined { return this.store[key]; }
-  set<T = any>(key: string, value: T): void { this.store[key] = value; }
-  has(key: string): boolean { return key in this.store; }
-  remove(key: string): void { delete this.store[key]; }
+  get<T = any>(key: string): T | undefined {
+    return this.adapter.get<T>(key);
+  }
+
+  set<T = any>(key: string, value: T) {
+    this.adapter.set<T>(key, value);
+  }
+
+  has(key: string): boolean {
+    return this.adapter.has(key);
+  }
+
+  remove(key: string) {
+    this.adapter.remove(key);
+  }
 }
 
 // 注释或移除找不到的 re-export，防止构建报错

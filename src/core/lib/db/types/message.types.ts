@@ -1,3 +1,4 @@
+// 消息相关类型定义
 import { BaseEntity } from './base-entity';
 
 /**
@@ -6,12 +7,8 @@ import { BaseEntity } from './base-entity';
  * 
  * @description
  * 表示Dating App中用户之间的消息通信，支持文本和图片消息类型
- * 包含消息状态追踪和发送/接收者信息
- */
+ * 包含消息状态追踪和发�?接收者信�? */
 export interface Message extends BaseEntity {
-  /** 关联的匹配ID */
-  matchId: string;
-  
   /** 发送者用户ID */
   senderId: string;
   
@@ -21,37 +18,19 @@ export interface Message extends BaseEntity {
   /** 消息内容 */
   content: string;
   
-  /** 
-   * 消息类型
-   * - text: 文本消息
-   * - image: 图片消息
-   */
-  type: 'text' | 'image';
+  /** 消息类型 */
+  type: string;
   
-  /**
-   * 消息状态
-   * - sent: 已发送
-   * - delivered: 已送达
-   * - read: 已读
-   */
-  status: 'sent' | 'delivered' | 'read';
-  
-  /** 消息附件（可选，支持图片、音频等） */
-  attachments?: Array<{
-    url: string;
-    type: 'image' | 'audio' | 'video' | 'file';
-    name?: string;
-    size?: number;
-  }>;
+  /** 消息状�?*/
+  status: string;
   
   /** 额外扩展字段 */
-  [key: string]: any;
+  ext?: Record<string, any>;
 }
 
 /**
  * 消息创建接口
- * 用于创建新消息时的数据类型
- */
+ * 用于创建新消息时的数据类�? */
 export interface CreateMessageData {
   matchId: string;
   senderId: string;

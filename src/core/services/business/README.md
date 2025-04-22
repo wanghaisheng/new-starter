@@ -205,77 +205,17 @@ flowchart TD
 
 ---
 
-## 业务服务体系设计说明
+> ⚠️ 本目录所有业务服务设计、分层架构、接口、工厂/注册表、状态输出、性能与安全等规范请统一参考 [../../service-design-guidelines.md](../../service-design-guidelines.md)。
+> 
+> **服务运行模式（Service Modes）与 provider/adapter 类型适配规范请统一参考 [../../../docs/guides/service-modes.md](../../../docs/guides/service-modes.md)。**
+> 
+> - 业务服务需支持 online-only、offline-only、hybrid 三种模式，适配 mock、local、remote、hybrid-adapter 等多类型 provider。
+> - 详细适配原则、环境变量建议、各开发阶段推荐模式详见 service-modes.md。
+> - 如有特殊补充仅在此说明，其余请勿重复维护。
 
-本目录下所有业务服务（如消息、用户、认证、支付、设备等）均采用统一的 provider/adapter/options 分层架构，便于多端适配、扩展与测试。
-
-## 1. 设计分层概览
-
-- **Provider**：主实现类型（如 remote、local、mock、web、capacitor、thirdparty 等），决定业务服务的运行环境或主后端。
-- **Adapter**：具体实现 provider 的适配器，负责实际的 API 调用、数据处理等（如 RemoteMessageServiceAdapter、WebSensorAdapter）。
-- **Options**：灵活扩展参数（如 brand、apiBaseUrl、featureFlag、环境变量等），用于 adapter 内部差异化处理。
-- **Factory/Registry**：统一注册和获取服务实例，支持自动降级、mock 等。
-- **Service/Hook**：业务调用层，页面/组件通过 hooks 获取服务实例，禁止直接 new。
-
-## 2. 目录结构说明
-
-每个业务服务目录结构建议如下：
-```
-adapters/    # 各种 provider/adapter 具体实现
-factory/     # 工厂，注册所有 provider 实现
-registry/    # 注册表，统一管理服务实例
-service/     # 业务服务聚合层
-hooks/       # 业务 hooks（如 useXxx）
-types/       # 类型定义（ProviderType、Options、接口等）
-```
-
-## 3. 主要业务服务设计细节
-
-### 消息服务（messages）
-- 支持 remote/local/mock 多种 provider。
-- RemoteMessageServiceAdapter 负责远程 API 交互，MockMessageServiceAdapter 用于测试。
-- options 支持 apiBaseUrl、featureFlag 等。
-- hooks/useMessages 统一获取实例，返回 loading/error/empty。
-
-### 用户服务（user）
-- 支持 remote/local/mock provider。
-- RemoteUserAdapter 处理远程用户数据，LocalUserAdapter 支持离线。
-- options 可扩展缓存策略、API 地址等。
-- hooks/useUser 统一调用。
-
-### 认证服务（auth）
-- 支持 remote、mock、第三方登录等 provider。
-- 适配器内部可根据 options 处理多种登录方式和环境。
-- hooks/useAuth 统一调用。
-
-### 支付服务（payment）
-- 支持 stripe、wechat、mock 等 provider。
-- options 支持支付渠道、回调地址等。
-- hooks/usePayment 统一调用。
-
-### 设备/传感器服务（phone/*）
-- 如 sensor、nfc、camera、location、bluetooth 等均按 provider/adapter/options 分层。
-- provider 如 web/capacitor/mock，options.brand 支持多品牌差异化。
-- hooks/useSensor、useNFC 等统一调用。
-
-### 其他服务（quiz、image、notifications、translation 等）
-- 结构同上，支持多 provider/adapter，options 灵活扩展。
-
-## 4. 统一调用与扩展范式
-
-- 所有业务服务实例均通过工厂/注册表创建：
-  ```ts
-  const service = XxxServiceFactory.createService({
-    type: 'remote',
-    options: { apiBaseUrl: '/api/v1', brand: 'huawei' }
-  });
-  ```
-- 推荐通过 hooks 获取服务实例：
-  ```ts
-  const { service, isLoading, error } = useXxxService({ provider: 'remote', brand: 'xiaomi' });
-  ```
-- 禁止页面/组件直接 new Adapter，避免耦合。
-- 自动降级、mock、featureFlag、环境变量等全部通过 options 配置。
+---
+> ⚠️ 本目录环境模式与环境变量配置请统一参考 [../../../docs/guides/environment-modes.md](../../../docs/guides/environment-modes.md)。
+> - 多环境适配、环境变量说明、配置示例详见 environment-modes.md。
 
 ---
 如需详细模板、最佳实践、或批量生成脚本，请参考各业务子目录 README 或联系维护者。

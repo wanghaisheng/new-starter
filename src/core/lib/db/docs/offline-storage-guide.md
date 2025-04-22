@@ -120,6 +120,39 @@ class CustomRepository extends BaseRepository<CustomEntity> {
 }
 ```
 
+## 服务模式与离线专用存储的关系
+
+> 本节结合 [service-modes.md](../../../../../docs/guides/service-modes.md) 对三种服务模式下的离线专用存储、数据初始化与同步行为进行详细说明。
+
+### 1. 三种模式下的行为差异
+
+- **online-only（纯在线模式）**
+  - 离线专用表依然仅存本地，不同步到云端。
+  - 其它表正常走远程同步。
+- **offline-only（纯离线模式）**
+  - 所有表均仅本地存储，无任何同步行为。
+  - 离线专用表与普通表行为一致，但语义上更强调“永不上传”。
+- **hybrid（混合模式）**
+  - 普通表本地+云端自动同步，断网自动降级本地。
+  - 离线专用表始终仅本地，参与本地初始化，但永不进入同步队列。
+
+### 2. 数据初始化与同步策略
+
+- 数据初始化阶段（如首次安装/注册/切换账号），所有表（含 offlineOnly）均可通过本地脚本/工厂批量初始化。
+- 离线专用表初始化后，直接标记为 `SYNCED`，同步管理器跳过。
+- 普通表根据当前模式决定是否进入同步队列。
+
+### 3. 配置与环境变量建议
+
+- 推荐通过 `DATA_MODE`（或 `SYNC_MODE`）环境变量驱动同步管理器行为。
+- 可通过统一 schema/表定义的 `syncConfig.offlineOnly` 字段声明离线专用表。
+- 详细模式含义、provider 适配建议见 [service-modes.md](../../../../../docs/guides/service-modes.md)。
+
+### 4. 场景举例
+
+- 用户草稿、隐私便签等表建议始终加 `offlineOnly: true`，即使在 hybrid/online-only 模式下也绝不上传。
+- 设备偏好、临时缓存等表可根据业务需求选择是否同步。
+
 ## 注意事项
 
 1. **多设备一致性**：离线专用数据不会跨设备同步，用户在不同设备上会有不同的数据状态。
@@ -144,3 +177,8 @@ class CustomRepository extends BaseRepository<CustomEntity> {
 问题：离线专用数据被意外删除
 * 检查是否有清理本地存储的逻辑
 * 验证用户卸载/重装应用的行为是否保留数据 
+
+> ⚠️ 离线专用存储相关的环境模式（mock、local、dev、prod）与环境变量、适配原则等请统一参考 [../../../../docs/guides/environment-modes.md](../../../../docs/guides/environment-modes.md)。
+> 
+> - 离线存储、同步、初始化等多环境适配原则详见 environment-modes.md。
+> - 如有补充需求，请优先完善该文档。

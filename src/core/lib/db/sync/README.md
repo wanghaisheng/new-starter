@@ -197,4 +197,59 @@ INDEXEDDB_VERSION=1
 
 - 添加自定义冲突解决策略
 - 扩展SyncManager实现特定的同步逻辑
-- 添加更多的同步事件和钩子 
+- 添加更多的同步事件和钩子
+
+---
+
+> ⚠️ 本模块所有环境模式（mock、local、dev、prod）与环境变量、同步策略等统一规范请参见 [../../../../docs/guides/environment-modes.md](../../../../docs/guides/environment-modes.md)。
+> 
+> - 推荐所有同步管理、脚本、配置等均遵循 environment-modes.md 说明，保证多环境切换和一致性。
+> - 环境变量、配置示例、适配表等详见该文档。
+> - 如有环境相关新需求，请优先补充 environment-modes.md。
+
+---
+
+## 服务模式与同步管理的适配
+
+> 本节结合 [service-modes.md](../../../../../docs/guides/service-modes.md) 详细说明三种服务模式（online-only、offline-only、hybrid）下的数据初始化、同步行为、冲突处理与环境变量配置。
+
+### 1. 三种模式下的同步策略
+
+- **online-only（纯在线模式）**
+  - 数据初始化后，所有表均默认进入同步队列，优先与云端保持一致。
+  - 离线专用表（offlineOnly: true）不会同步，直接标记为 SYNCED。
+  - 断网时部分功能受限，建议有降级提示。
+- **offline-only（纯离线模式）**
+  - 所有表仅本地存储，无任何远程同步。
+  - 离线专用表与普通表行为一致。
+  - 适合 mock、本地开发、隐私场景。
+- **hybrid（混合模式）**
+  - 普通表本地+云端同步，断网自动降级本地，联网后自动补同步。
+  - 离线专用表始终仅本地。
+  - 支持同步优先级、手动同步等高级策略。
+
+### 2. 数据初始化与同步队列
+
+- 初始化阶段（如首次安装/账号切换）会根据 schema 的 syncConfig、当前 DATA_MODE 环境变量，自动决定哪些表加入同步队列。
+- 离线专用表初始化即标记为 SYNCED，不参与同步。
+- 支持自定义初始化脚本、批量导入、迁移等。
+
+### 3. 冲突解决与同步优先级
+
+- 可为不同表/实体配置 SyncPriority、ConflictResolution 策略。
+- hybrid/online-only 模式下可用 CLIENT_WINS、SERVER_WINS、MERGE 等策略。
+- offline-only 模式下无冲突（本地唯一）。
+
+### 4. 环境变量与配置建议
+
+- 推荐统一用 `DATA_MODE` 或 `SYNC_MODE` 控制同步管理器行为。
+- 可通过 .env、配置文件或运行参数传递。
+- 详细模式/adapter 适配建议见 [service-modes.md](../../../../../docs/guides/service-modes.md)。
+
+### 5. 场景举例
+
+- hybrid 模式下，用户断网期间所有本地变更会积压在同步队列，联网后自动上云。
+- online-only 模式下，数据实时推送云端，断网时部分功能只读或受限。
+- offline-only 模式下，所有数据仅本地，适合草稿、隐私、临时缓存等场景。
+
+---

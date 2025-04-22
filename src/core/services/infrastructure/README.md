@@ -2,60 +2,16 @@
 
 本目录用于存放所有“基础设施层”相关的服务和适配器，属于 DDD 分层架构中的 Infrastructure 层。
 
-## 目录定位
+> ⚠️ 本目录所有基础设施服务设计、分层架构、目录结构、注册表、mock/降级/环境切换、日志等规范请统一参考 [../service-design-guidelines.md](../service-design-guidelines.md)。
+> 
+> **服务运行模式（Service Modes）与 provider/adapter 类型适配规范请统一参考 [../../docs/guides/service-modes.md](../../docs/guides/service-modes.md)。**
+> 
+> - 基础设施服务需支持 online-only、offline-only、hybrid 三种模式，适配 mock、local、remote、hybrid-adapter 等多类型 provider。
+> - 详细适配原则、环境变量建议、各开发阶段推荐模式详见 service-modes.md。
+> - 如有特殊补充仅在此说明，其余请勿重复维护。
 
-- 主要负责与外部系统、第三方服务、平台能力的集成和适配。
-- 与业务无关，专注于技术实现和环境抽象，为上层业务服务提供底层能力支撑。
-
-## 典型内容
-
-- 网络请求/连接（如 NetworkService、HttpClient、WebSocketProvider 等）
-- 存储适配（如 IndexedDBProvider、LocalStorageAdapter、CacheProvider 等）
-- 系统能力（如 FileSystemProvider、DeviceInfoProvider、PushProvider 等）
-- 平台桥接（如 Capacitor、Electron、React Native 相关桥接层）
-- 其他基础设施和工具类服务
-
-## 推荐目录结构（对齐业务 provider 规范）
-
-```
-infrastructure/
-  logger/
-    adapters/           # 日志适配器（如 winston、mock）
-    factory/            # 工厂方法，统一创建 logger 实例
-    registry/           # 注册表，管理 logger 单例
-    service/            # logger 服务实现
-    types/              # logger 相关类型
-    index.ts            # 统一导出
-  network/
-    adapters/
-    factory/
-    registry/
-    service/
-    types/
-    index.ts
-  email/
-    adapters/
-    factory/
-    registry/
-    service/
-    types/
-    index.ts
-  config/
-    adapters/
-    factory/
-    registry/
-    service/
-    types/
-    index.ts
-  types.ts              # 全局基础设施类型聚合
-  README.md
-```
-
-## 组织与使用规范
-
-- 每个基础设施 provider（如 logger/network/email/config）均采用 adapters/factory/registry/service/types/index.ts 结构，便于扩展和 mock。
-- 业务层禁止直接 new/factory，统一通过 registry 获取服务实例。
-- types.ts 只做类型聚合，不存具体实现。
+> ⚠️ 本目录环境模式与环境变量配置请统一参考 [../../../docs/guides/environment-modes.md](../../../docs/guides/environment-modes.md)。
+> - 多环境适配、环境变量说明、配置示例详见 environment-modes.md。
 
 ## 主要服务说明
 

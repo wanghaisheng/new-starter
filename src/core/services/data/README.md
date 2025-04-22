@@ -56,6 +56,14 @@ src/core/services/data/
 
 ## 三、核心实现与用法
 
+> ⚠️ 数据服务的统一接口、工厂与注册表、mock/混合适配器、迁移与同步等设计规范请统一参考 [../service-design-guidelines.md](../service-design-guidelines.md)。
+> 
+> **服务运行模式（Service Modes）与 provider/adapter 类型适配规范请统一参考 [../../docs/guides/service-modes.md](../../docs/guides/service-modes.md)。**
+> 
+> - 数据服务需支持 online-only、offline-only、hybrid 三种模式，适配 mock、local、remote、hybrid-adapter 等多类型 provider。
+> - 详细适配原则、环境变量建议、各开发阶段推荐模式详见 service-modes.md。
+> - 如有补充细节请在此注明，其余请勿重复维护。
+
 ### 1. 统一接口（IDataService）
 - 所有数据服务实现均需遵循 `IDataService` 接口，保证业务层调用方式一致。
 
@@ -202,6 +210,14 @@ await DataMigrationService.migrate(mockClient, localClient);
 
 ---
 
+## 渐进式适配器策略
+
+本数据服务层支持[渐进式适配器策略](../../../../docs/guides/progressive-adapter-strategy.md)，可根据业务发展阶段从本地 Mock/IndexedDB/SQLite 平滑升级到远程/集中式数据库，并支持本地缓存、远程同步、弹性扩容等能力。
+
+- 具体切换方式与最佳实践详见 [docs/guides/progressive-adapter-strategy.md](../../../../docs/guides/progressive-adapter-strategy.md)
+
+---
+
 如需详细用法、配置模板或迁移指南，请查阅各目录 README 和架构文档。
 
 ---
@@ -213,3 +229,14 @@ await DataMigrationService.migrate(mockClient, localClient);
 - 禁止业务层、hooks 直接依赖具体 adapter 或工厂，必须统一通过注册表获取实例。
 - 这样可避免静态加载导致的环境切换失效、测试副作用和全局状态污染，提升可维护性与测试隔离性。
 - 推荐所有单元测试、自动化测试前先 reset/clear 注册表，确保测试隔离和无副作用。
+
+> ⚠️ 本目录所有数据服务设计、架构模式、工厂/注册表、环境适配、性能与安全等规范请统一参考 [../service-design-guidelines.md](../service-design-guidelines.md)。
+> 
+> **服务运行模式（Service Modes）与 provider/adapter 类型适配规范请统一参考 [../../docs/guides/service-modes.md](../../docs/guides/service-modes.md)。**
+> 
+> - 数据服务需支持 online-only、offline-only、hybrid 三种模式，适配 mock、local、remote、hybrid-adapter 等多类型 provider。
+> - 详细适配原则、环境变量建议、各开发阶段推荐模式详见 service-modes.md。
+> - 如有补充细节请在此注明，其余请勿重复维护。
+
+> ⚠️ 本目录环境模式与环境变量配置请统一参考 [../../../docs/guides/environment-modes.md](../../../docs/guides/environment-modes.md)。
+> - 多环境适配、环境变量说明、配置示例详见 environment-modes.md。

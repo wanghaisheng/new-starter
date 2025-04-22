@@ -291,8 +291,7 @@ static registerAllAdapters(): void
 - 禁止 service 返回 string/number/any 作为错误。
 - 禁止页面/组件直接 try/catch service 抛出的 string/number。
 
----
-详细 error 处理约定请参考 `docs/guides/architecture/service-error-handling.md`。
+> 更多最佳实践、接口模板、标准返回结构、错误分型等请查阅 [service-design-guidelines.md](./service-design-guidelines.md)。
 
 ## 环境切换
 
@@ -381,6 +380,8 @@ static registerAllAdapters(): void
 
 ## 最佳实践
 
+> ⚠️ 服务设计、接口规范、错误处理、性能优化、安全性等详细内容请统一参考 [service-design-guidelines.md](./service-design-guidelines.md)。本节仅简要说明，具体实现和标准请以设计规范文档为准。
+
 1. **服务设计**
    - 单一职责原则
    - 接口隔离原则
@@ -400,6 +401,28 @@ static registerAllAdapters(): void
    - 输入验证
    - 权限控制
    - 数据加密
+
+> 更多最佳实践、接口模板、标准返回结构、错误分型等请查阅 [service-design-guidelines.md](./service-design-guidelines.md)。
+
+## Mock 阶段 Adapter 最佳实践说明
+
+### 极简 mock adapter 策略
+- mock 阶段推荐仅使用**极简内存型 mock adapter**（如 MemoryMockDataServiceAdapter），保证开发体验极致简单。
+- 该 adapter 数据仅存于内存，适合接口/schema 联调、UI 流程自测，**刷新页面或重启应用数据会丢失**。
+
+### 何时需要持久化型 mock adapter？
+- 仅在以下场景建议扩展持久化 mock adapter（如 json、localStorage、IndexedDB）：
+  - 需要模拟“真实 app”体验（如演示、深度交互测试）
+  - 自动化测试需要数据隔离或持久化
+- 推荐实现方式：
+  - Web 端可用 localStorage/IndexedDB mock adapter
+  - Node 环境可用 json 文件 mock adapter
+  - 这些 adapter 仅在特殊场景注册使用，主流程不强制依赖
+
+### 业务流程与文档规范
+- mock 阶段主流程只需注册/注入一种内存型 mock adapter
+- 如需持久化体验，按需扩展并在注册表/工厂中选择性暴露
+- 文档中应明确“mock 阶段不强制持久化，极简为主，持久化为可选增强”
 
 ## 示例
 
@@ -1742,45 +1765,6 @@ import * as DatabaseTypes from '@/core/lib/db/types/database.types';
    - 错误追踪
    - 日志管理
 
-### 服务配置示例
-
-```typescript
-{
-  "services": {
-    "analytics": {
-      "type": "google",
-      "config": {
-        "trackingId": "...",
-        "events": ["pageView", "userAction"]
-      }
-    },
-    "storage": {
-      "type": "s3",
-      "config": {
-        "bucket": "...",
-        "region": "...",
-        "accessKey": "..."
-      }
-    },
-    "search": {
-      "type": "algolia",
-      "config": {
-        "appId": "...",
-        "apiKey": "...",
-        "indexName": "..."
-      }
-    },
-    "map": {
-      "type": "google",
-      "config": {
-        "apiKey": "...",
-        "libraries": ["places", "geocoding"]
-      }
-    }
-  }
-}
-```
-
 ## 广告变现服务方案
 
 ### 1. 广告网络
@@ -2370,4 +2354,4 @@ interface MultimodalResponse {
    - 数据加密
    - 访问控制
 
-```
+> ⚠️ 所有服务设计、分层架构、AI 服务实现建议等规范性内容请统一参考 [./service-design-guidelines.md](./service-design-guidelines.md)。如有特殊补充仅在此说明，其余请勿重复维护。

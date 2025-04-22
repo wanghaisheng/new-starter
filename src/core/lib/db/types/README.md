@@ -2,6 +2,55 @@
 
 本文档详细说明了如何在项目中新增数据库表类型定义，包括类型定义的标准格式、命名规范以及如何与表结构定义关联。本指南旨在确保项目中的数据库类型定义保持一致性和可维护性。
 
+## 类型定义文件命名与组织规范（2025.04 修订）
+
+### 1. 命名规范
+- 所有纯类型定义文件统一命名为 `xxx.types.ts`，如 `user.types.ts`、`match.types.ts`、`settings.types.ts`。
+- 不再使用 `xxx.ts` 作为类型定义文件名，避免实现与类型混杂。
+- 工具/适配器/聚合文件可用 `xxx.ts`、`xxx.util.ts`、`xxx.adapter.ts` 等。
+
+### 2. 目录结构示例
+
+```
+db/types/
+├── base-entity.ts
+├── gift.types.ts
+├── global-config.types.ts
+├── interaction.types.ts
+├── location.ts
+├── match.types.ts
+├── member-growth-task.types.ts
+├── member-growth.types.ts
+├── message.types.ts
+├── notification.types.ts
+├── photo.types.ts
+├── quiz.types.ts
+├── settings.types.ts
+├── skin.types.ts
+├── translation.types.ts
+├── user.types.ts
+├── ...
+```
+
+### 3. 迁移与引用修正说明
+- 历史遗留的 `xxx.ts` 类型文件已全部重命名为 `xxx.types.ts`。
+- 所有 import 路径已全局替换为新文件名。
+- 仅保留一个类型定义文件，避免重复和歧义。
+
+### 4. 类型定义最佳实践
+- 仅在 `xxx.types.ts` 文件中定义 interface、type、enum。
+- 实现类、工具函数、适配器等放在独立文件。
+- 类型定义文件需添加完整 JSDoc 注释，便于团队理解和 IDE 智能提示。
+
+### 5. 兼容性与历史说明
+- translation.ts 等重复类型文件已合并至 translation.types.ts，原有字段全部兼容。
+- settings.ts、user.ts、match.ts、message.ts、photo.ts、notification.ts、quiz.ts、interaction.ts 等均已规范为 `xxx.types.ts`。
+- 其它类型如有类似需求，参照本规范执行。
+
+---
+
+> 本规范文件为团队类型定义组织、迁移与引用修正的唯一依据。请所有成员遵循本规范进行类型文件的新增、维护和引用。
+
 ## 1. 类型定义概述
 
 在本项目中，数据库类型定义主要包括以下几个部分：
@@ -17,12 +66,12 @@
 
 - `base-entity.ts`：定义基础实体类型（如`BaseEntity`、`DatabaseRecord`）和通用类型转换工具（如`CreateEntityData`、`UpdateEntityData`、`WithTimestamps`）
 - `database.types.ts`：定义数据库操作相关的类型，包括数据库引擎类型、配置接口、查询选项、事务接口等
-- `user.ts`：定义用户相关的实体类型（如`User`、`UserPreferences`等）
+- `user.types.ts`：定义用户相关的实体类型（如`User`、`UserPreferences`等）
 - `location.ts`：定义位置相关的类型（如`Location`）
-- `photo.ts`：定义照片相关的实体类型（如`Photo`）
-- `match.ts`：定义匹配相关的实体类型（如`Match`、`MatchAction`等）
-- `message.ts`：定义消息相关的实体类型（如`Message`）
-- `interaction.ts`：定义用户互动相关的实体类型（如`Report`、`Block`等）
+- `photo.types.ts`：定义照片相关的实体类型（如`Photo`）
+- `match.types.ts`：定义匹配相关的实体类型（如`Match`、`MatchAction`等）
+- `message.types.ts`：定义消息相关的实体类型（如`Message`）
+- `interaction.types.ts`：定义用户互动相关的实体类型（如`Report`、`Block`等）
 - `repository.ts`：定义仓库接口（如`IDatingRepository`）
 - `simulator.ts`：定义模拟器相关的类型，用于测试和性能评估（如`NetworkConditions`、`ResourceMetrics`、`BatchOperation`等）
 - `index.ts`：导出所有类型，提供统一的类型访问入口，解决命名冲突问题，并提供`getSchemaType`工具函数
@@ -31,10 +80,10 @@
 
 ### 3.1 定义实体接口
 
-在 `src/core/lib/db/types/` 目录下创建新的类型定义文件（如 `new-entity.ts`）：
+在 `src/core/lib/db/types/` 目录下创建新的类型定义文件（如 `new-entity.types.ts`）：
 
 ```typescript
-// 在新创建的类型文件中（如 new-entity.ts）
+// 在新创建的类型文件中（如 new-entity.types.ts）
 import { BaseEntity } from './base-entity';
 
 /**

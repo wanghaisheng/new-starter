@@ -2,13 +2,25 @@
 import { IAuthService } from '../types/auth-service';
 import { MockAuthService } from '../adapters/mock/mock-auth-service';
 import { HybridAuthService } from '../adapters/hybrid-auth-service';
+import { PersistentMockAuthService } from '../adapters/mock/persistent-mock-auth-service';
 
-export type AuthServiceType = 'mock' | 'firebase' | 'better' | 'hybrid';
+export type AuthServiceType = 'mock' | 'persistent-mock' | 'firebase' | 'better' | 'hybrid';
 export type AuthServiceOptions = { [key: string]: any };
+
+// 自动根据环境变量决定默认类型
+function getDefaultAuthType(): AuthServiceType {
+  if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_AUTH_TYPE) {
+    return process.env.NEXT_PUBLIC_AUTH_TYPE as AuthServiceType;
+  }
+  if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production') {
+    return 'firebase';
+  }
+  return 'mock';
+}
 
 export class AuthServiceFactory {
   static createService({
-    type = 'mock',
+    type,
     dataService,
     options = {}
   }: {
@@ -16,8 +28,11 @@ export class AuthServiceFactory {
     dataService?: any,
     options?: AuthServiceOptions
   } = {}): IAuthService {
-    console.log('[DEBUG][auth-service-factory] 创建 auth 类型:', type);
-    switch(type) {
+    const resolvedType = type || getDefaultAuthType();
+    console.log('[DEBUG][auth-service-factory] 创建 auth 类型:', resolvedType);
+    switch(resolvedType) {
+      case 'persistent-mock':
+        return new PersistentMockAuthService();
       case 'firebase': {
         // 动态 require，避免 mock 环境下 firebase-adapter 被静态 import
         // eslint-disable-next-line @typescript-eslint/no-var-requires

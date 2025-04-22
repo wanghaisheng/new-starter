@@ -1,45 +1,45 @@
 /**
  * 同步标志类型
- * 定义用于离线存储和跨环境同步的标志
+ * 定义用于离线存储和跨环境同步的标�?
  */
 
-// 同步状态枚举
+// 同步状态枚�?
 export enum SyncState {
   /**
-   * 新建本地，未同步到远程
+   * 新建本地，未同步到远�?
    */
   NEW = 'new',
   
   /**
-   * 本地修改，未同步到远程
+   * 本地修改，未同步到远�?
    */
   MODIFIED = 'modified',
   
   /**
-   * 本地删除，未从远程删除
+   * 本地删除，未从远程删�?
    */
   DELETED = 'deleted',
   
   /**
-   * 已同步，本地和远程相同
+   * 已同步，本地和远程相�?
    */
   SYNCED = 'synced',
   
   /**
-   * 同步冲突，需要解决
+   * 同步冲突，需要解�?
    */
   CONFLICT = 'conflict',
   
   /**
-   * 同步失败，需要重试
+   * 同步失败，需要重�?
    */
   FAILED = 'failed'
 }
 
-// 同步优先级枚举
+// 同步优先级枚�?
 export enum SyncPriority {
   /**
-   * 高优先级，立即同步
+   * 高优先级，立即同�?
    */
   HIGH = 'high',
   
@@ -72,7 +72,7 @@ export enum ConflictResolution {
   SERVER_WINS = 'server_wins',
   
   /**
-   * 合并修改，尝试合并数据
+   * 合并修改，尝试合并数�?
    */
   MERGE = 'merge',
   
@@ -83,12 +83,12 @@ export enum ConflictResolution {
 }
 
 /**
- * 同步元数据接口
- * 应用于需要离线存储和远程同步的实体
+ * 同步元数据接�?
+ * 应用于需要离线存储和远程同步的实�?
  */
 export interface SyncMetadata {
   /**
-   * 同步状态
+   * 同步状�?
    */
   syncState: SyncState;
   
@@ -113,7 +113,7 @@ export interface SyncMetadata {
   syncAttempts?: number;
   
   /**
-   * 同步优先级
+   * 同步优先�?
    */
   syncPriority: SyncPriority;
   
@@ -128,7 +128,7 @@ export interface SyncMetadata {
   conflictResolution?: ConflictResolution;
   
   /**
-   * 设备ID（用于多设备同步）
+   * 设备ID（用于多设备同步�?
    */
   deviceId?: string;
   
@@ -155,7 +155,7 @@ export interface SyncConfig {
   offlineOnly?: boolean;
   
   /**
-   * 默认同步优先级
+   * 默认同步优先�?
    */
   defaultPriority: SyncPriority;
   
@@ -170,7 +170,7 @@ export interface SyncConfig {
   syncInterval?: number;
   
   /**
-   * 最大同步重试次数
+   * 最大同步重试次�?
    */
   maxRetries?: number;
   
@@ -185,19 +185,19 @@ export interface SyncConfig {
   batchSize?: number;
   
   /**
-   * 删除后保留（毫秒）
+   * 删除后保留（毫秒�?
    * 控制删除标记的数据在本地保留多久
    */
   retentionAfterDelete?: number;
 }
 
 /**
- * 可同步实体接口
- * 用于扩展基础实体，添加同步功能
+ * 可同步实体接�?
+ * 用于扩展基础实体，添加同步功�?
  */
 export interface SyncableEntity {
   /**
-   * 同步元数据
+   * 同步元数�?
    */
   _sync?: SyncMetadata;
 } 

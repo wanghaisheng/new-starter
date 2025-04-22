@@ -1,7 +1,8 @@
+// 用户相关类型定义
 import { BaseEntity } from './base-entity';
 import { Location } from './location';
-import { Photo } from './photo';
-import { TestType } from './test';
+import { Photo } from '.\/photo.types';
+import { QuizType } from '.\/quiz.types';
 
 /**
  * 用户实体接口
@@ -9,8 +10,7 @@ import { TestType } from './test';
  * 
  * @description
  * 表示Dating App的完整用户信息，包含个人资料、照片、位置和偏好设置
- * 支持多种验证方式和状态管理
- */
+ * 支持多种验证方式和状态管�? */
 export interface User extends BaseEntity {
   /** 手机号码（可选） */
   phone?: string;
@@ -37,15 +37,12 @@ export interface User extends BaseEntity {
   birthTime?: string;
   
   /**
-   * 八字命理标签与分析结果（用于智能匹配）
-   */
+   * 八字命理标签与分析结果（用于智能匹配�?   */
   bazi?: Record<string, any>;
   
   /** 
    * 性别
-   * - male: 男性
-   * - female: 女性
-   * - other: 其他
+   * - male: 男�?   * - female: 女�?   * - other: 其他
    */
   gender: 'male' | 'female' | 'other';
   
@@ -79,19 +76,19 @@ export interface User extends BaseEntity {
   /** 安全设置 */
   securitySettings?: SecuritySettings;
   
-  /** 测试和匹配相关信息 */
+  /** 测试和匹配相关信�?*/
   matching: {
     /** 已完成的测试类型ID列表 */
     completedTests: string[];
     
     /** 测试权重设置 */
     testWeights: {
-      [K in TestType['type']]?: number;
+      [K in QuizType['type']]?: number;
     };
     
-    /** 各类测试的最新结果 */
+    /** 各类测试的最新结�?*/
     testResults: {
-      [K in TestType['type']]?: {
+      [K in QuizType['type']]?: {
         score: number;
         details: any; // 具体类型由TestResult.details定义
         lastUpdated: string;
@@ -99,31 +96,27 @@ export interface User extends BaseEntity {
     };
   };
   
-  /** 是否已验证账号 */
+  /** 是否已验证账�?*/
   isVerified: boolean;
   
-  /** 最后活跃时间 */
+  /** 最后活跃时�?*/
   lastActive: Date;
   
   /** 是否在线 */
   isOnline: boolean;
   
   /**
-   * 用户状态
-   * - active: 活跃状态
-   * - inactive: 不活跃状态
-   * - suspended: 暂停/受限状态
-   */
+   * 用户状�?   * - active: 活跃状�?   * - inactive: 不活跃状�?   * - suspended: 暂停/受限状�?   */
   status: 'active' | 'inactive' | 'suspended';
 
   /** 认证相关字段 */
-  /** 邮箱是否已验证 */
+  /** 邮箱是否已验�?*/
   emailVerified?: boolean;
   /** 手机号是否已验证 */
   phoneVerified?: boolean;
   /** 密码哈希 */
   passwordHash?: string;
-  /** 认证提供者 */
+  /** 认证提供�?*/
   provider?: 'email' | 'phone' | 'google' | 'facebook' | 'apple';
   /** 显示名称 */
   displayName?: string;
@@ -142,9 +135,7 @@ export interface User extends BaseEntity {
   profile?: any;
 
   /**
-   * MBTI（十六型人格）类型
-   * 例如："INTJ"、"ENFP" 等
-   * 用于智能匹配、兴趣画像等业务场景
+   * MBTI（十六型人格）类�?   * 例如�?INTJ"�?ENFP" �?   * 用于智能匹配、兴趣画像等业务场景
    */
   mbti?: string;
 }
@@ -159,7 +150,7 @@ export interface UserPreferences {
     max: number;
   };
   
-  /** 最大距离（公里） */
+  /** 最大距离（公里�?*/
   distance: number;
   
   /** 性别偏好 */
@@ -178,12 +169,11 @@ export interface UserPreferences {
   theme?: {
     /** 是否启用深色模式 */
     darkMode: boolean;
-    /** 主题色 */
+    /** 主题�?*/
     accentColor: string;
   };
 
-  // 兼容旧字段
-  darkMode?: boolean;
+  // 兼容旧字�?  darkMode?: boolean;
   accentColor?: string;
 }
 
@@ -217,13 +207,13 @@ export interface PrivacySettings {
   /** 是否向所有人显示个人资料 */
   showProfileToEveryone: boolean;
   
-  /** 是否显示在线状态 */
+  /** 是否显示在线状�?*/
   showOnlineStatus: boolean;
   
-  /** 是否显示最后活跃时间 */
+  /** 是否显示最后活跃时�?*/
   showLastActive: boolean;
   
-  /** 是否在发现页面显示 */
+  /** 是否在发现页面显�?*/
   showInDiscovery: boolean;
   
   /** 是否显示距离信息 */
@@ -235,10 +225,10 @@ export interface PrivacySettings {
   /** 是否允许个性化广告 */
   allowPersonalizedAds: boolean;
 
-  /** 是否向匹配用户显示邮箱 */
+  /** 是否向匹配用户显示邮�?*/
   showEmailToMatches: boolean;
 
-  /** 是否向匹配用户显示电话 */
+  /** 是否向匹配用户显示电�?*/
   showPhoneToMatches: boolean;
 
   /** 是否允许分享个人资料 */
@@ -249,7 +239,7 @@ export interface PrivacySettings {
  * 安全设置接口
  */
 export interface SecuritySettings {
-  /** 是否启用双因素认证 */
+  /** 是否启用双因素认�?*/
   twoFactorEnabled: boolean;
   /** 是否启用邮件通知 */
   emailNotifications: boolean;
@@ -257,7 +247,7 @@ export interface SecuritySettings {
   loginAlerts: boolean;
 }
 
-// --- 以下类型已独立为单文件定义 ---
+// --- 以下类型已独立为单文件定�?---
 // Match 相关类型请见 ./match.ts
 // Message 相关类型请见 ./message.ts
 
@@ -299,7 +289,7 @@ export interface UpdateUserData {
   notificationSettings?: NotificationSettings;
   matching?: {
     testWeights?: {
-      [K in TestType['type']]?: number;
+      [K in QuizType['type']]?: number;
     };
   };
   isVerified?: boolean;

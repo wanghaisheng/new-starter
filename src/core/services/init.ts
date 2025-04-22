@@ -36,11 +36,31 @@ export async function initializeCoreServices() {
   getLoggerService();
   getErrorService();
   getNetworkManager();
+  const dataService = DataServiceRegistry.get('default');
+  await dataService?.initialize?.(); // 确保库表初始化
+  console.log('[DataService] 初始化完成');
+  // if (process.env.NODE_ENV !== 'production' && dataService?.loadMockData) {
+    // try {
+      // await dataService.loadMockData();
+      // console.log('[DataService] Mock 数据已加载');
+    // } catch (e) {
+      // console.warn('[DataService] Mock 数据加载失败:', e);
+    // }
+  // }
+
   // 业务服务（全部通过 Registry 单例获取，禁止 Factory 直连）
   UserServiceRegistry.getInstance();
   AuthServiceRegistry.getInstance();
-  MatchServiceRegistry.getInstance();
-  MessageServiceRegistry.getInstance();
+  if (!dataService) {
+    throw new Error('[init] dataService 未初始化，MatchServiceRegistry 依赖 dataService！');
+  }
+  // 获取单例
+  const configService = ConfigRegistry.getInstance();
+  // 设置配置
+  // 获取配置
+const matchServiceOptions = configService.get('matchServiceOptions');
+// 推荐方式：注册并获取实例
+const matchService = MatchServiceRegistry.getInstance().createService('remote', 'default', dataService, matchServiceOptions);
   NotificationServiceRegistry.getInstance();
   PaymentServiceRegistry.getInstance();
   BluetoothServiceRegistry.getInstance();
@@ -50,7 +70,7 @@ export async function initializeCoreServices() {
   SensorServiceRegistry.getInstance();
   QuizServiceRegistry.getInstance();
   imageServiceRegistry.createService('mock'); // 如需其他类型可调整
-  DataServiceRegistry.get('default');
+
   // 自动检测补全服务
   MockDataServiceRegistry.getInstance('memory');
   ConfigRegistry.getInstance();

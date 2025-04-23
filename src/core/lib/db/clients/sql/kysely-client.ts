@@ -10,6 +10,7 @@ import { SqliteDialect } from 'kysely';
 import { Logger } from '@/core/lib/utils/logger';
 import { MockDatabaseClient } from '@/core/lib/db/clients/mock/mock-client';
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
+import { configService } from '@/core/services/infrastructure/config';
 
 export class KyselyClient implements IDatabaseClient {
   private db: Kysely<Database> | null = null;
@@ -26,7 +27,7 @@ export class KyselyClient implements IDatabaseClient {
     database: string;
   }) {
     this.logger = new Logger('KyselyClient');
-    this.currentEnvironment = process.env.NEXT_PUBLIC_DATABASE_ENV || 'mock';
+    this.currentEnvironment = configService.get('NEXT_PUBLIC_DATABASE_ENV') || 'mock';
 
     // 在 Mock 环境中使用 Mock 客户端
     if (this.currentEnvironment === 'mock') {

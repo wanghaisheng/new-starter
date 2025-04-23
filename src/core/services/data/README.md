@@ -7,7 +7,7 @@
 ### 支持的三种核心模式
 
 1. **纯在线（Online Only）**
-   - 只依赖云端数据库（如 Supabase、远程 SQLite）。
+   - 只依赖云端数据库（如 Supabase、远程 SQLite、Firebase 等）。
    - 适合生产环境、强一致性需求。
 2. **纯离线（Offline Only）**
    - 只依赖本地数据库（如 IndexedDB、Capacitor SQLite、MockClient）。
@@ -15,6 +15,17 @@
 3. **混合模式（Hybrid）**
    - 同时支持本地和云端，自动切换/同步。
    - 断网时本地可用，联网后自动同步。
+
+### 多供应商与环境阶段的选择机制
+
+- 数据服务工厂和注册表通过配置服务（ConfigService）读取环境变量自动选择适配器和供应商。
+- 主要环境变量：
+  - `NEXT_PUBLIC_DATABASE_ENV`：mock/local/dev/prod，决定当前运行阶段。
+  - `NEXT_PUBLIC_DATA_MODE`：online/offline/hybrid，决定数据服务运行模式。
+  - `NEXT_PUBLIC_ONLINE_DB`：指定在线存储供应商（如 supabase/firebase/sqlite）。
+  - `NEXT_PUBLIC_OFFLINE_DB`：指定离线存储供应商（如 indexeddb/sqlite/memory）。
+- 工厂优先读取 `DATABASE_ENV` 决定主阶段，`DATA_MODE` 决定优先模式，再根据 `ONLINE_DB`/`OFFLINE_DB` 选择具体 provider。
+- 推荐所有 key 统一通过 config-keys.ts 管理，避免硬编码。
 
 ### 各开发阶段推荐模式
 
@@ -59,184 +70,127 @@ src/core/services/data/
 > ⚠️ 数据服务的统一接口、工厂与注册表、mock/混合适配器、迁移与同步等设计规范请统一参考 [../service-design-guidelines.md](../service-design-guidelines.md)。
 > 
 > **服务运行模式（Service Modes）与 provider/adapter 类型适配规范请统一参考 [../../docs/guides/service-modes.md](../../docs/guides/service-modes.md)。**
-> 
-> - 数据服务需支持 online-only、offline-only、hybrid 三种模式，适配 mock、local、remote、hybrid-adapter 等多类型 provider。
-> - 详细适配原则、环境变量建议、各开发阶段推荐模式详见 service-modes.md。
-> - 如有补充细节请在此注明，其余请勿重复维护。
-
-### 1. 统一接口（IDataService）
-- 所有数据服务实现均需遵循 `IDataService` 接口，保证业务层调用方式一致。
-
-### 2. 工厂与注册表自动切换
-- 工厂根据环境变量/配置，动态选择合适的 adapter 实例。
-- 注册表统一注册和获取服务实例，业务/页面/hooks 仅通过注册表获取，禁止直接 new。
-
-#### 示例代码：
-```typescript
-import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
-const dataService = DataServiceRegistry.getInstance(config);
-await dataService.initialize();
-```
-
-### 3. mock-client 自动化
-- mock 阶段自动加载所有 schema 和 mock 配置，动态建表与批量插入，无需手动维护表结构和 mock 数据。
-- 支持所有表，mock 数据结构与真实数据库结构高度一致。
-
-### 4. Hybrid/高级混合适配器
-- 断网自动切换本地存储，联网后自动同步。
-- 支持表级/数据级同步策略、冲突解决、同步队列、事件钩子等高级能力（见 advanced-hybrid-database-client.ts）。
-
-### 5. 数据迁移与同步
-- 提供 DataMigrationService，支持表级迁移配置、字段映射、数据过滤、批量迁移、断点续传、失败重试等。
-- Hybrid/AdvancedHybrid 支持本地与云端数据迁移与同步，满足复杂业务场景。
 
 ---
+## 三.1 配置服务驱动的多环境/多供应商选择机制
 
-## 四、最佳实践与扩展
+### 1. 关键环境变量与配置项
 
-- 业务层/hooks 只依赖 `IDataService` 统一接口。
-- 禁止直接 new 或 Factory/Client 直连，全部通过 Registry 获取。
-- mock/test 环境自动降级到 mock-client，无需手动切换。
+- `NEXT_PUBLIC_DATABASE_ENV`：mock/local/dev/prod，决定主运行阶段。
+- `NEXT_PUBLIC_DATA_MODE`：online/offline/hybrid，决定数据服务运行模式。
+- `NEXT_PUBLIC_ONLINE_DB`：在线存储供应商（如 supabase/firebase/sqlite）。
+- `NEXT_PUBLIC_OFFLINE_DB`：离线存储供应商（如 indexeddb/sqlite/memory）。
+
+### 2. 工厂/注册表选择流程
+
+1. **优先读取 `NEXT_PUBLIC_DATABASE_ENV`**，决定当前运行阶段（mock/local/dev/prod）。
+2. **读取 `NEXT_PUBLIC_DATA_MODE`**，决定数据服务运行模式（online/offline/hybrid）。
+3. **根据模式选择供应商**：
+   - `online`：读取 `NEXT_PUBLIC_ONLINE_DB` 作为主 provider。
+   - `offline`：读取 `NEXT_PUBLIC_OFFLINE_DB` 作为主 provider。
+   - `hybrid`：两者都读取并组合为 HybridAdapter。
+4. **所有环境变量均通过 ConfigService 统一读取，禁止硬编码。**
+
+### 3. 推荐代码片段
+
+```typescript
+import { DB_KEYS, GENERAL_KEYS } from '@/core/services/infrastructure/config/config-keys';
+import { configService } from '@/core/services/infrastructure/config';
+
+const stage = configService.get(DB_KEYS.NEXT_PUBLIC_DATABASE_ENV); // mock/local/dev/prod
+const mode = configService.get(GENERAL_KEYS.NEXT_PUBLIC_DATA_MODE); // online/offline/hybrid
+const onlineProvider = configService.get(DB_KEYS.NEXT_PUBLIC_ONLINE_DB); // supabase/firebase/sqlite
+const offlineProvider = configService.get(DB_KEYS.NEXT_PUBLIC_OFFLINE_DB); // indexeddb/sqlite/memory
+
+// 工厂/注册表内部根据这些变量选择具体 adapter/provider
+```
+
+### 4. 配置与模式切换最佳实践
+
+- 推荐所有页面、hooks、服务均通过注册表获取数据服务实例，禁止直接 new。
+- mock/test 环境自动降级到 mock/fake adapter，无需手动切换。
 - 新增 provider 只需实现 adapter 并注册，无需改动业务层。
-- Hybrid/AdvancedHybrid 可应对复杂同步、冲突、表级策略等场景。
+- HybridAdapter 支持断网切换、本地缓存与自动同步。
+- 配置项全部集中于 config-keys.ts，便于维护和统一管理。
 
 ---
+## 三.2 环境模式、服务模式与数据初始化模式的集成
 
-## 五、常见问题与决策理由
+本节结合 [环境模式](../../../docs/guides/environment-modes.md)、[服务模式](../../../docs/guides/service-modes.md) 及 [数据初始化模式](../../../docs/guides/data-initialization-modes.md) 文档，说明如何在数据服务架构中实现多环境、多模式下的数据初始化与解耦。
 
-- 为什么只保留三种模式？—— 纯在线、纯离线、混合模式已覆盖所有主流需求，其他变体均可归入三者之一，架构简洁、易维护。
-- 业务层如何解耦？—— 只依赖统一接口和 Registry，底层切换透明。
-- 如何扩展新数据源？—— 实现 adapter 并注册到工厂/注册表，无需动业务代码。
-- 如何做数据迁移？—— 用 DataMigrationService 配置迁移策略，Hybrid/AdvancedHybrid 支持本地与云端同步。
+### 1. 概念关联
+- **环境模式（Environment Modes）** 决定当前整体运行环境（如 mock/local/dev/prod），影响数据服务的主模式和初始化行为。
+- **服务模式（Service Modes）** 决定数据流转方式（online-only/offline-only/hybrid），决定 adapter/provider 的选择和切换。
+- **数据初始化模式（Data Initialization Modes）** 决定不同阶段如何初始化数据（如 mock 数据、json/sql、云端拉取、自动重置等）。
 
----
+### 2. 配置驱动的数据初始化策略
+- 工厂和适配器根据 configService 读取环境变量，自动判断：
+  - 当前环境阶段（如 mock 时自动全量 mock 数据初始化）
+  - 当前服务模式（offline-only 时本地初始化，hybrid 时本地+云端同步）
+  - 当前 provider 类型（mock/json/sql/云端）
+- 推荐在每种模式下，adapter 内部或独立的 DataInitializationService 自动完成数据初始化。
+- 支持“首次初始化/重置数据/导入导出/迁移”等操作，具体策略详见 [data-initialization-modes.md](../../../docs/guides/data-initialization-modes.md)。
 
-## 六、参考配置与代码片段
+### 3. 典型初始化流程
 
 ```typescript
-// 注册表自动选择数据服务
-import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
-const dataService = DataServiceRegistry.getInstance(config);
-await dataService.initialize();
-const user = await dataService.getUser('id123');
+import { configService } from '@/core/services/infrastructure/config';
+import { DataInitializationService } from './data-initialization';
 
-// HybridDatabaseClient 自动切换 online/offline
-const hybridClient = new HybridDatabaseClient(config);
-await hybridClient.initialize();
-// 网络断开自动切换 offlineClient，恢复后自动同步
+const env = configService.get('NEXT_PUBLIC_DATABASE_ENV');
+const mode = configService.get('NEXT_PUBLIC_DATA_MODE');
+
+await DataInitializationService.initialize({
+  env,
+  mode,
+  provider: mode === 'online' ? configService.get('NEXT_PUBLIC_ONLINE_DB') : configService.get('NEXT_PUBLIC_OFFLINE_DB')
+});
+// 初始化完成后再实例化数据服务
 ```
 
----
+### 4. 设计原则与最佳实践
+- 数据初始化服务与数据服务解耦，但可由工厂/适配器自动调用。
+- 初始化逻辑应支持多数据源（memory/json/sql/云端），并可配置化扩展。
+- 推荐所有初始化配置、mock 数据、schema 均集中管理，便于迁移和切换。
+- 详细初始化模式、流程、伪代码见 [data-initialization-modes.md](../../../docs/guides/data-initialization-modes.md)。
 
-### 各开发阶段的存储供应商选择最佳实践
-
-#### 1. mock 阶段
-- **在线存储**：MockClient（推荐底层为 JSON 或 fake-indexeddb，便于迁移和测试）
-- **离线存储**：memory、json、fake-indexeddb（Web）、mock-capacitor-sqlite（移动端）等
-- **目的**：极致开发体验、无副作用、可随时重置、支持自动化测试
-
-#### 2. dev/local 阶段
-- **在线存储**：测试/沙箱环境的 Supabase、Firebase、远程 SQLite（避免污染生产数据）
-- **离线存储**：IndexedDB（Web）、Capacitor SQLite（移动端）、本地 SQLite（桌面/Node）
-- **目的**：模拟真实环境，支持离线调试，数据可持久化但易清理
-
-#### 3. production 阶段
-- **在线存储**：正式生产环境 Supabase、Firebase、云数据库、远程 SQLite
-- **离线存储**：IndexedDB（Web）、Capacitor SQLite（移动端）
-- **目的**：保证数据安全、实时性，断网可用，恢复后自动同步
-
-#### 4. 推荐选择总览表
-
-| 阶段       | 在线存储默认                 | 离线存储默认                |
-|------------|-----------------------------|-----------------------------|
-| mock       | MockClient (json/fake-indexeddb) | memory/json/fake-indexeddb  |
-| dev/local  | 测试 Supabase/SQLite        | IndexedDB/Capacitor SQLite  |
-| production | 生产 Supabase/SQLite        | IndexedDB/Capacitor SQLite  |
-
-- 供应商选择由工厂/注册表通过环境变量（如 `MOCK_DB_MODE`、`ONLINE_DB`、`OFFLINE_DB`）自动切换。
-- 推荐 mock 阶段采用 mock/fake adapter，dev/local 阶段采用测试环境真实 adapter，production 阶段采用正式 adapter。
-- 保证 schema、mock config、表结构一致，便于各阶段数据迁移与切换。
+### 5. FAQ
+- **Q: 数据初始化服务和数据服务模式如何协作？**
+  - A: 工厂/适配器根据环境和服务模式选择初始化策略，初始化服务负责实际数据准备，二者解耦但协同。
+- **Q: 支持哪些初始化方式？**
+  - A: memory、json、sql、云端拉取、自动迁移等，详见初始化模式文档。
+- **Q: 如何保证多端/多环境一致性？**
+  - A: 所有配置、schema、mock 数据集中管理，adapter/初始化服务自动适配。
 
 ---
+## 四、全局架构整合与数据服务设计的关键考量
 
-### mock 阶段 MockClient 的实现与数据迁移最佳实践
+本节总结数据服务设计在与客户端、服务端、业务初始化、仓储层等全局架构整合时需关注的关键点：
 
-#### 1. MockClient 背后的实现选型
+### 1. 客户端与服务端初始化服务的分层适配
+- 客户端（如 PWA/移动端）专用 data-initializer 负责本地（IndexedDB/SQLite）等初始化，屏蔽端上差异。
+- 业务/服务端 data-initializer 支持云端、混合、远程等复杂场景。
+- 通用初始化逻辑可抽象为基类或工具，两端分别实现 adapter。
 
-- MockClient 作为 mock 阶段的“统一入口”，其底层可支持多种存储方式：
-  - **内存（memory）**：数据仅存在于进程内存，适合自动化测试、重启即失。
-  - **JSON 文件**：数据持久化为本地 JSON 文件，便于导出、导入、迁移。
-  - **fake-indexeddb**：用 JS 实现的 IndexedDB mock，API 兼容真实 IndexedDB，适合 Web mock 环境。
-  - **mock-sqlite**：sqlite 的内存或本地文件模式，适合模拟真实数据库。
+### 2. 初始化服务与数据服务的协作边界
+- 初始化服务只依赖数据服务和仓储层，不直接操作底层数据库 client。
+- 所有写入、建表、导入都走 repository，底层 provider 切换时初始化逻辑无需变动。
 
-- 推荐 mock 阶段优先用 **JSON 或 fake-indexeddb**：
-  - JSON 便于数据导出、导入，适合迁移到 local/dev 阶段。
-  - fake-indexeddb 兼容真实 API，迁移时 adapter 切换即可，无需数据重构。
-  - 内存适合自动化测试，不适合需要数据持久化/迁移的场景。
+### 3. 多端/多环境一致性与幂等性机制
+- 初始化流程具备幂等性（如检测已初始化则跳过）。
+- mock 数据、schema、初始化脚本集中管理，保证多端一致。
+- 支持“部分表/数据初始化”，便于增量导入和测试。
 
-#### 2. 数据迁移与兼容性
+### 4. 配置驱动与自动降级/切换
+- 所有初始化策略、数据源选择、adapter/provider 切换均通过 configService/环境变量集中管理，禁止硬编码。
+- mock/测试环境下自动降级为 mock service，生产环境严格校验 provider。
 
-- mock 阶段的数据结构、表 schema、mock 数据应与 local/dev/production 阶段保持一致。
-- mock 阶段如用 JSON/fake-indexeddb，local 阶段可直接用 IndexedDB/SQLite，数据迁移只需导入导出，无需重复建设。
-- MockClient 可通过配置选择底层存储类型（memory/json/fake-indexeddb/sqlite），业务层完全透明。
+### 5. 文档与最佳实践同步
+- 初始化服务的调用链、解耦原则、适配策略等同步写入技术文档，维护 FAQ、用法示例。
+- hooks 层、仓储层、数据服务层的协作关系建议补充到相关文档。
 
-#### 3. 避免重复建设的建议
-
-- MockClient 设计为“多后端”，通过配置参数（如 `MOCK_DB_MODE`）选择底层存储。
-- mock 阶段用的 schema、mock 数据、表结构与正式环境一致，迁移时无需重建。
-- 数据迁移工具（如 DataMigrationService）支持 mock（json/fake-indexeddb）到本地 IndexedDB/SQLite 的数据迁移。
-
-#### 4. 典型配置/用法示例
-
-```typescript
-// mock 阶段
-const mockClient = new MockDatabaseClient({
-  mode: 'json', // 或 'fake-indexeddb', 'memory', 'sqlite'
-  file: './mock-data.json', // 仅 json/sqlite 模式需要
-  schemaDir: './config/schema',
-  mockDataDir: './config/types',
-});
-
-// local 阶段
-const localClient = new IndexedDBDatabaseClient({
-  schemaDir: './config/schema',
-});
-
-// 数据迁移
-await DataMigrationService.migrate(mockClient, localClient);
-```
-
-> MockClient 背后推荐用 JSON 或 fake-indexeddb，可直接迁移到 local/dev 阶段，避免重复建设。只需保证 schema、mock config、表结构始终一致，adapter/底层存储可灵活切换。
+### 6. 测试与扩展性
+- 初始化服务、数据服务、仓储层需具备 mock/本地/云端等多环境下的自动化测试用例，便于 CI/CD 和质量保障。
 
 ---
-
-## 渐进式适配器策略
-
-本数据服务层支持[渐进式适配器策略](../../../../docs/guides/progressive-adapter-strategy.md)，可根据业务发展阶段从本地 Mock/IndexedDB/SQLite 平滑升级到远程/集中式数据库，并支持本地缓存、远程同步、弹性扩容等能力。
-
-- 具体切换方式与最佳实践详见 [docs/guides/progressive-adapter-strategy.md](../../../../docs/guides/progressive-adapter-strategy.md)
-
----
-
-如需详细用法、配置模板或迁移指南，请查阅各目录 README 和架构文档。
-
----
-
-#### ⚠️ 动态注册与懒加载原则（强制要求）
-
-- 所有 adapter/service 必须通过 Registry/Factory 延迟注册与实例化，严禁在模块顶层静态 new 或全局赋值。
-- Registry/Factory 必须在每次 getDataService 时根据最新环境变量动态选择实现，支持运行时热切换。
-- 禁止业务层、hooks 直接依赖具体 adapter 或工厂，必须统一通过注册表获取实例。
-- 这样可避免静态加载导致的环境切换失效、测试副作用和全局状态污染，提升可维护性与测试隔离性。
-- 推荐所有单元测试、自动化测试前先 reset/clear 注册表，确保测试隔离和无副作用。
-
-> ⚠️ 本目录所有数据服务设计、架构模式、工厂/注册表、环境适配、性能与安全等规范请统一参考 [../service-design-guidelines.md](../service-design-guidelines.md)。
-> 
-> **服务运行模式（Service Modes）与 provider/adapter 类型适配规范请统一参考 [../../docs/guides/service-modes.md](../../docs/guides/service-modes.md)。**
-> 
-> - 数据服务需支持 online-only、offline-only、hybrid 三种模式，适配 mock、local、remote、hybrid-adapter 等多类型 provider。
-> - 详细适配原则、环境变量建议、各开发阶段推荐模式详见 service-modes.md。
-> - 如有补充细节请在此注明，其余请勿重复维护。
-
-> ⚠️ 本目录环境模式与环境变量配置请统一参考 [../../../docs/guides/environment-modes.md](../../../docs/guides/environment-modes.md)。
-> - 多环境适配、环境变量说明、配置示例详见 environment-modes.md。
+{{ ... }}

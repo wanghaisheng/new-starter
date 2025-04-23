@@ -3,6 +3,7 @@ import { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/d
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
+import { configService } from '@/core/services/infrastructure/config';
 
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
@@ -102,12 +103,12 @@ export class MockDatabaseClient implements IDatabaseClient {
 
   constructor(private config: MockDatabaseConfig) {
     this.mockConfig = {
-      mockMode: config.mockMode || (process.env.MOCK_DB_MODE as any) || 'memory',
+      mockMode: config.mockMode || configService.get('MOCK_DB_MODE') || 'memory',
       jsonFilePath: config.jsonFilePath || './mock-data.json',
       csvDir: config.csvDir || './mock-csv',
       sqlDir: config.sqlDir || './mock-sql',
       autoSave: config.autoSave ?? true,
-      sqliteFilePath: config.sqliteFilePath || process.env.MOCK_SQLITE_FILE || ':memory:'
+      sqliteFilePath: config.sqliteFilePath || configService.get('MOCK_SQLITE_FILE') || ':memory:'
     };
     this.logger = getLoggerService();
   }

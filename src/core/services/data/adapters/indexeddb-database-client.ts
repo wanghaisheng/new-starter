@@ -132,6 +132,16 @@ export class IndexedDBDatabaseClient extends BaseDatabaseClient {
     return Promise.resolve();
   }
 
+  /**
+   * 释放所有资源，适配 Registry 热插拔/销毁
+   */
+  async dispose(): Promise<void> {
+    await this.disconnect();
+    // 清理缓存、关闭句柄等（如有）
+    this.initialized = false;
+    this.db = {};
+  }
+
   getType(): string {
     return 'indexeddb';
   }

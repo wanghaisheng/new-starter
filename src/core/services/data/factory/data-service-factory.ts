@@ -4,15 +4,15 @@ import { IndexedDBDatabaseClient } from '../adapters/indexeddb-database-client';
 // 自动引入 mock 实现
 import { MockHybridDatabaseClient } from '../adapters/mock-hybrid-database-client';
 import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
+import { configService } from '@/core/services/infrastructure/config';
 
 function getEnvAdapter(): DataServiceConfig['services']['data']['adapter'] {
   // 优先使用环境变量，否则 fallback 到 mock
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env.NEXT_PUBLIC_DATABASE_ENV === 'sqlite') return 'sqlite';
-    if (process.env.NEXT_PUBLIC_DATABASE_ENV === 'indexeddb') return 'indexeddb';
-    if (process.env.NEXT_PUBLIC_DATABASE_ENV === 'mock') return 'mock';
-    // 可扩展更多环境变量
-  }
+  const dbEnv = configService.get('NEXT_PUBLIC_DATABASE_ENV');
+  if (dbEnv === 'sqlite') return 'sqlite';
+  if (dbEnv === 'indexeddb') return 'indexeddb';
+  if (dbEnv === 'mock') return 'mock';
+  // 可扩展更多环境变量
   return 'mock';
 }
 

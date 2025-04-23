@@ -6,19 +6,15 @@
     "dev": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.development && next dev",
     "dev:mock": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.mock && next dev",
     "dev:prod": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.production && next dev",
-
     "build": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.development && next build",
     "build:mock": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.mock && next build",
     "build:prod": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.production && next build",
-
     "start": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.development && next start",
     "start:mock": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.mock && next start",
     "start:prod": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.production && next start",
-
     "test": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.development && jest",
     "test:mock": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.mock && jest",
     "test:prod": "set NODE_OPTIONS=--max-old-space-size=4096 && node run-env.js .env.production && jest",
-
     "test:watch": "jest --watch",
     "test:ci": "jest --ci",
     "test:coverage": "jest --coverage",

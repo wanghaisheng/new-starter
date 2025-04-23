@@ -228,7 +228,7 @@ export interface OfflineStorageConfig {
   connection: DatabaseConnection;
 }
 
-export interface TestDataConfig {
+export interface QuizDataConfig {
   loadOnStartup: boolean;
   source: DemoDataSource;
 }
@@ -250,7 +250,7 @@ export interface DatabaseConfig {
     offline: OfflineStorageConfig;
   };
   sync: SyncConfig;
-  testData: TestDataConfig;
+  quizData: QuizDataConfig;
 }
 
 export interface TableConfig {
@@ -298,7 +298,7 @@ export const defaultConfig: DatabaseConfig = {
     conflictResolution: 'server-wins',
     syncIntervalMs: 0,
   },
-  testData: {
+  quizData: {
     loadOnStartup: false,
     source: 'example',
   },

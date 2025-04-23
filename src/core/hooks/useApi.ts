@@ -3,6 +3,7 @@ import { getNetworkManager } from '@/core/services/infrastructure/network/regist
 import { DataServiceFactory } from '@core/services/data/factory/data-service-factory';
 import { useAuth } from './useAuth';
 import { useToast } from './useToast';
+import { useConfigContext } from './useConfigContext';
 
 export interface UseApiOptions {
   immediate?: boolean;
@@ -50,6 +51,8 @@ export function useApi<T>(
   );
   const { triggerToast } = useToast();
 
+  const { config } = useConfigContext();
+
   useEffect(() => {
     const handleOnline = () => setNetworkStatus('online');
     const handleOffline = () => setNetworkStatus('offline');
@@ -60,6 +63,14 @@ export function useApi<T>(
       networkManager.offDisconnect(handleOffline);
     };
   }, [networkManager]);
+
+  useEffect(() => {
+    // 当 API_BASE_URL 或其它相关配置变化时自动处理
+    // 例如：重建 fetch 实例、重新请求、切换环境等
+    // config.NEXT_PUBLIC_API_BASE_URL
+    // config.NEXT_PUBLIC_LOG_LEVEL
+    // ...
+  }, [config.NEXT_PUBLIC_API_BASE_URL, config.NEXT_PUBLIC_LOG_LEVEL]);
 
   // 配置数据服务 - 按需动态选择适配器
   // 如需动态切换数据服务，可在此处调用 DataServiceFactory.createService 传递 config

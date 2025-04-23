@@ -196,3 +196,51 @@ async function initializeClientDbIfNeeded() {
 更多多端多场景数据初始化与同步管理细节，请参考 [docs/guides/data-initialization-modes.md](/docs/guides/data-initialization-modes.md)。
 
 如需更多高级用法和自动化脚本示例，请参考项目文档或联系架构负责人。
+
+---
+
+## 四、架构集成与高级用法
+
+### 1. 与数据服务/仓储层的解耦协作
+- DataInitializerService 不直接操作底层数据库 client，也不关心具体环境（mock/local/dev/prod）或 adapter/provider 的选择。
+- 初始化服务通过数据服务工厂/注册表获取已选好的数据服务实例（如 IndexedDB/SQLite/Supabase/Mock 等），由数据服务屏蔽环境和底层实现细节。
+- 所有数据写入、建表、批量导入均通过仓储层（Repository）完成，保证类型安全、校验和业务一致性。
+
+#### 典型调用链示例
+```typescript
+import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
+import { UserRepository } from '@/core/lib/db/repositories/user.repository';
+import { DataInitializerService } from './data-initializer.service';
+
+const dataService = DataServiceRegistry.getInstance(); // 已按环境自动选择 adapter
+const userRepository = new UserRepository(dataService);
+
+await DataInitializerService.initialize({
+  repositories: { userRepository },
+  mockData: { users: mockUsers },
+  // 其它参数如 env、mode ...
+});
+// DataInitializerService 内部通过 userRepository.bulkInsert(mockUsers) 完成写入
+```
+
+### 2. 支持多环境/多模式/多数据源的初始化策略
+- 初始化服务自动通过配置服务（configService）获取当前环境模式（如 ENV_STAGE、DATA_MODE、ONLINE_DB、OFFLINE_DB），无需手动指定。
+- 支持 memory、json、sql、云端拉取等多种初始化方式，自动适配当前运行环境。
+- 可配置“首次初始化、重置数据、导入导出、数据迁移”等高级能力。
+- 详细策略参见 [环境模式](../../../../docs/guides/environment-modes.md)、[服务模式](../../../../docs/guides/service-modes.md)、[数据初始化模式](../../../../docs/guides/data-initialization-modes.md)。
+
+### 3. 设计原则与最佳实践
+- 初始化服务与数据服务、仓储层完全解耦，便于测试、扩展和维护。
+- 所有 mock 数据、schema、初始化脚本集中管理，便于多端/多环境一致性。
+- 推荐所有业务数据初始化均通过仓储层批量写入，避免直连数据库 client。
+- 初始化流程应具备幂等性和可重入性。
+
+### 4. FAQ
+- **Q: DataInitializerService 如何屏蔽环境和底层数据库选择？**
+  - A: 通过数据服务工厂/注册表获取实例，adapter/provider 选择全部由数据服务层自动完成。
+- **Q: 如何保证 mock、本地、云端等多环境下初始化一致？**
+  - A: 初始化服务统一走仓储层和数据服务，所有数据源和表结构集中管理，流程自动适配。
+- **Q: 可以只初始化部分表/数据吗？**
+  - A: 支持传入部分 mock/json/sql 数据，按需初始化。
+
+---

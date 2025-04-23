@@ -1,15 +1,20 @@
-// 测评相关类型定义
+// æµ‹è¯„ç›¸å…³ç±»åž‹å®šä¹‰
 import { BaseEntity } from './base-entity';
 
-// 测评类型
+// QuizTypeKey 联合类型，所有 quiz 类型唯一 key
+export type QuizTypeKey = 'personality' | 'love' | 'career'; // TODO: 补全所有 quiz 类型 key
+
+// æµ‹è¯„ç±»åž‹
 export interface QuizType {
   id: string;
   createdAt: string;
   updatedAt: string;
   name: string;
   description?: string;
-  scoringRule: string; // 评分规则标识
-  categoryRule: string; // 分类规则标识
+  scoringRule: string; // è¯„åˆ†è§„åˆ™æ ‡è¯†
+  categoryRule: string; // åˆ†ç±»è§„åˆ™æ ‡è¯†
+  // 可选：唯一类型 key
+  type: QuizTypeKey;
 }
 
 export interface Quiz extends BaseEntity {
@@ -27,26 +32,26 @@ export interface QuizQuestion {
   createdAt: string;
   updatedAt: string;
   quizId: string;
-  type: string; // 题型，如single/multi/text�?  content: string;
+  type: string; // é¢˜åž‹ï¼Œå¦‚single/multi/textç­?  content: string;
   options?: { value: string; label: string; score?: number }[];
   order: number;
 }
 
-// 测评答案
+// æµ‹è¯„ç­”æ¡ˆ
 export interface QuizAnswer {
   questionId: string;
   answer: string | string[];
   score?: number;
 }
 
-// 测评结果（含标签与报告）
+// æµ‹è¯„ç»“æžœï¼ˆå�«æ ‡ç­¾ä¸ŽæŠ¥å‘Šï¼‰
 export interface QuizResult extends BaseEntity {
   id: string;
   userId: string;
   quizId: string;
   answers: QuizAnswer[];
-  tags: string[]; // 结果标签
-  report: any; // 完整JSON报告
+  tags: string[]; // ç»“æžœæ ‡ç­¾
+  report: any; // å®Œæ•´JSONæŠ¥å‘Š
   score: number;
   createdAt: string;
   updatedAt: string;

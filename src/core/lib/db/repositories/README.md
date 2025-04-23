@@ -55,18 +55,57 @@ export class YourEntityRepository extends BaseRepository<YourEntity> {
   
   // 添加其他特定于YourEntity的查询方法
 }
-```
 
-### 2.2 命名规范
+## 2.2 接口标准化与命名规范（结合服务设计规范）
 
-- **仓储类名**：`EntityNameRepository`，如`UserRepository`
-- **文件名**：`entity-name-repository.ts`或`entity-name.repository.ts`
+### 2.2.1 统一接口标准
+
+- 所有仓储类必须实现统一的仓储接口（如 `IBaseRepository<T>`），接口方法与数据服务（`IDataService`）保持风格一致，便于解耦和类型安全。
+- 推荐接口方法：
+  - `findById(id: string): Promise<T | null>`
+  - `findMany(query?: Partial<T>): Promise<T[]>`
+  - `create(data: Partial<T>): Promise<T>`
+  - `update(id: string, data: Partial<T>): Promise<T>`
+  - `delete(id: string): Promise<void>`
+- 所有方法应通过基类方法间接调用数据服务（如 `this.dataService.query()`），**禁止直接依赖底层数据库 client**。
+- 复杂业务场景下（如聚合、跨表、事务），可扩展专属接口，但也应保持风格统一，并通过数据服务实现。
+
+#### 数据服务与仓储接口的衔接
+- 数据服务接口建议统一采用 `findOne(tableName, id)`、`query(tableName, options)` 等风格，仓储层通过传递表名和参数实现实体级数据访问。
+- 示例：
+  ```typescript
+  // 数据服务接口
+  findOne<T>(tableName: string, id: string): Promise<T | null>;
+  query<T>(tableName: string, options?: any): Promise<T[]>;
+  // 仓储调用
+  async findById(id: string): Promise<User | null> {
+    return this.dataService.findOne<User>('users', id);
+  }
+  ```
+
+### 2.2.2 命名与实现规范
+
+- **仓储类名**：`EntityNameRepository`，如 `UserRepository`
+- **文件名**：`entity-name-repository.ts` 或 `entity-name.repository.ts`
 - **方法命名**：
-  - 查询方法：`findByXxx`，如`findByName`
-  - 创建方法：`create`或`createXxx`
-  - 更新方法：`update`或`updateXxx`
-  - 删除方法：`delete`或`deleteXxx`
-  - 特殊操作：使用动词开头，如`markAsRead`
+  - 查询方法：`findByXxx`，如 `findByName`
+  - 创建方法：`create` 或 `createXxx`
+  - 更新方法：`update` 或 `updateXxx`
+  - 删除方法：`delete` 或 `deleteXxx`
+  - 特殊操作：使用动词开头，如 `markAsRead`
+- **批量/事务方法**：如有批量、事务需求，接口命名应与数据服务保持一致，如 `markMultipleAsRead`、`batchUpdateStatus`、`transaction(...)`。
+
+### 2.2.3 复杂场景仓储接口设计（如 Match/Message）
+- 对于聚合、跨表、智能推荐等复杂业务，建议在专属仓储接口中扩展业务方法，如：
+  - `findUserMatches(userId: string): Promise<Match[]>`
+  - `recommendMatches(userId: string, tags: string[]): Promise<Match[]>`
+  - `findByMatchId(matchId: string, page: number, pageSize: number): Promise<Message[]>`
+  - `markMultipleAsRead(messageIds: string[]): Promise<void>`
+- 这些方法内部依然通过数据服务统一接口实现，保持解耦和可测试性。
+
+---
+
+> 本节接口标准化规范结合了 [service-design-guidelines.md](../../services/service-design-guidelines.md) 的插件化、工厂、注册表和统一接口风格要求，确保仓储层与服务层解耦、类型安全、易于扩展和 mock。
 
 ## 3. 常用方法实现模式
 
@@ -164,83 +203,109 @@ async bulkUpdate(updates: { id: string; data: Partial<Entity> }[]): Promise<void
 }
 ```
 
-## 4. 模块化设计与仓储类组织
+## 4. 接口标准化与通用仓储设计
 
-### 4.1 模块化设计原则
+### 4.1 通用仓储接口设计原则
 
-- **单一职责原则**：每个仓储类只负责一个实体的数据访问，一个表对应一个仓储类文件
-- **文件命名规范**：使用`entity-name-repository.ts`的命名方式，如`user-repository.ts`
-- **导出管理**：在`index.ts`中统一导出所有仓储类，便于其他模块引用
-- **独立实现**：每个仓储类应独立实现其特定的查询方法，不应依赖其他仓储类
+- 所有仓储类应实现统一的通用接口（如 `IBaseRepository<T>`），包括：
+  - `findById(id: string): Promise<T | null>`
+  - `findMany(query?: Partial<T>): Promise<T[]>`
+  - `create(data: Partial<T>): Promise<T>`
+  - `update(id: string, data: Partial<T>): Promise<T>`
+  - `delete(id: string): Promise<void>`
+- 通用仓储基类（`BaseRepository<T>`）实现绝大多数实体的标准 CRUD 和分页/排序等通用能力。
+- 所有仓储方法应通过基类方法间接调用底层数据服务（如 `IDataService`），避免直接依赖具体数据库客户端。
+- 错误处理、事务、分页等横切逻辑应在基类中统一实现，子类只需扩展特殊业务方法。
 
-### 4.2 仓储类组织模式
+### 4.2 通用仓储的设计与考虑
 
-- **直接使用**：对于简单场景，可以直接实例化并使用单个仓储类
-- **工厂模式**：使用工厂类统一创建和管理相关的仓储类
-- **适配器模式**：使用适配器类，对外提供统一接口，内部使用模块化的仓储类
+- **类型安全**：通过 TypeScript 泛型保证仓储接口与实体类型一致。
+- **环境解耦**：仓储依赖统一数据服务接口（如 `IDataService`），数据服务内部再调用各类 client（IndexedDB、SQLite、Mock 等），实现多环境/多数据源透明切换。
+- **Mock/测试友好**：通过依赖注入和接口抽象，便于单元测试。
+- **推荐用法**：绝大多数实体（如 User、Photo、Quiz 等）直接继承 `BaseRepository<T>`，减少重复代码
 
-### 4.3 避免代码冗余的最佳实践
+### 4.3 复杂业务场景下的仓储设计
 
-- 使用`BaseRepository`提供的通用CRUD方法，避免在每个仓储类中重复实现
-- 对于多个仓储类共享的查询逻辑，考虑在`BaseRepository`中添加通用方法
+对于需要复杂聚合、跨表查询、特殊业务逻辑的实体（如 Match、Message），建议：
 
-### 4.2 提取共享逻辑
+- 继承通用仓储基类，复用标准 CRUD 能力
+- 在专属仓储类中扩展复杂方法，如：
+  - 聚合查询（如 findUserMatches、getUnreadCount）
+  - 跨表操作（如联查用户、消息、匹配等）
+  - 业务特有操作（如 markAsRead、撤回消息、智能推荐等）
+- 复杂方法内部依然通过数据服务接口获取数据，避免直接依赖底层 client
+- 可通过组合模式引入聚合/查询构建器等工具类，提升灵活性
 
-- 对于多个仓储类中相似的查询逻辑，考虑创建工具函数或扩展`BaseRepository`
+#### 示例：Match/Message 仓储的扩展
 
 ```typescript
-// 在BaseRepository中添加通用方法
-export abstract class BaseRepository<T extends BaseEntity> {
-  // ... 现有方法 ...
-  
-  /**
-   * 分页查询通用方法
-   */
-  async findPaginated(page: number, pageSize: number, orderBy?: { field: string; direction: 'asc' | 'desc' }): Promise<QueryResult<T>> {
+// MatchRepository（复杂聚合/跨表）
+export class MatchRepository extends BaseRepository<Match> {
+  constructor(dataService: IDataService) {
+    super(dataService, 'matches');
+  }
+
+  // 复杂聚合方法：获取用户所有相关匹配
+  async findUserMatches(userId: string): Promise<Match[]> {
+    // 通过数据服务统一接口实现
     return this.query({
+      where: {
+        $or: [
+          { users: [userId] },
+          { users: { $elemMatch: userId } }
+        ]
+      }
+    });
+  }
+
+  // 跨表/业务聚合：智能推荐、quiz 联动等
+  async recommendMatches(userId: string, tags: string[]): Promise<Match[]> {
+    // 结合用户标签、兴趣等多条件聚合
+    // ...实现细节略
+    return [];
+  }
+}
+
+// MessageRepository（分页、批量、状态聚合）
+export class MessageRepository extends BaseRepository<Message> {
+  constructor(dataService: IDataService) {
+    super(dataService, 'messages');
+  }
+
+  // 分页查询某个 match 下的消息
+  async findByMatchId(matchId: string, page: number, pageSize: number): Promise<Message[]> {
+    return this.query({
+      where: { matchId },
+      orderBy: { field: 'createdAt', direction: 'desc' },
       limit: pageSize,
-      offset: (page - 1) * pageSize,
-      orderBy: orderBy || {
-        field: 'createdAt',
-        direction: 'desc'
+      offset: (page - 1) * pageSize
+    });
+  }
+
+  // 批量标记为已读
+  async markMultipleAsRead(messageIds: string[]): Promise<void> {
+    if (messageIds.length === 0) return;
+    // 通过数据服务的事务支持实现批量操作
+    await this.dataService.transaction(async () => {
+      for (const id of messageIds) {
+        await this.update(id, { status: 'read' });
       }
     });
   }
 }
 ```
 
-### 4.3 使用组合而非继承
+### 4.4 设计要点小结
 
-- 对于不适合放在`BaseRepository`中的共享逻辑，考虑使用组合模式
+- **通用优先**：绝大多数实体直接用 `BaseRepository<T>`，减少重复代码
+- **复杂场景扩展**：聚合/跨表/特殊业务通过专属仓储扩展
+- **接口标准化**：所有仓储实现统一接口，便于服务层、hooks、测试、mock
+- **环境无关**：仓储只依赖数据服务接口，底层细节完全屏蔽
+- **组合与继承结合**：可用组合/聚合模式引入灵活扩展工具类
 
-```typescript
-// 创建一个查询构建器类
-class QueryBuilder<T> {
-  constructor(private repository: BaseRepository<T>) {}
-  
-  withPagination(page: number, pageSize: number): QueryBuilder<T> {
-    // 实现分页逻辑
-    return this;
-  }
-  
-  withFilter(filter: any): QueryBuilder<T> {
-    // 实现过滤逻辑
-    return this;
-  }
-  
-  async execute(): Promise<QueryResult<T>> {
-    // 执行查询
-    return this.repository.query(/* 构建的查询参数 */);
-  }
-}
+---
 
-// 在仓储类中使用
-class SomeRepository extends BaseRepository<SomeEntity> {
-  createQueryBuilder(): QueryBuilder<SomeEntity> {
-    return new QueryBuilder<SomeEntity>(this);
-  }
-}
-```
+如需批量生成通用仓储模板、复杂仓储扩展示例或自动注册脚本，请参考本节示例或联系架构负责人。
 
 ## 5. 测试仓储类
 
@@ -288,7 +353,6 @@ describe('YourEntityRepository', () => {
     expect(result[0].name).toBe('Test');
   });
 });
-```
 
 ## 6. Lessons Learned From Consistency Fixes
 
@@ -430,96 +494,65 @@ describe('YourEntityRepository', () => {
 
 通过遵循这些经验教训，可以显著提高仓储实现的质量和一致性，减少常见错误，并使代码更易于理解和维护。
 
-## 7. 多仓储类的集成与管理
+## 7. 仓储注册表 + 工厂 + 适配器模式
 
-### 7.1 使用工厂模式管理多个仓储
+### 7.1 架构说明
 
-工厂模式是管理多个相关仓储类的有效方式：
+- **注册表（Registry）**：集中注册和获取所有仓储实例，支持多实现、动态切换、Mock、插件化等场景。
+- **工厂（Factory）**：负责根据配置/环境动态创建仓储实例，支持依赖注入、单例、多环境等。
+- **适配器（Adapter）**：底层数据服务适配器，屏蔽不同数据库/Mock/远端实现，仓储层只依赖统一接口。
+
+### 7.2 推荐目录结构
+
+```
+repositories/
+  ├── adapters/         # 仓储适配器
+  ├── factory/          # 仓储工厂
+  ├── registry/         # 仓储注册表
+  ├── user-repository.ts
+  ├── match-repository.ts
+  └── ...
+```
+
+### 7.3 示例代码
 
 ```typescript
-// 创建工厂类示例
-class RepositoryFactory {
-  private client: IBaseDatabaseClient;
-  private userRepository: UserRepository | null = null;
-  private matchRepository: MatchRepository | null = null;
-  
-  constructor(client: IBaseDatabaseClient) {
-    this.client = client;
+// 仓储工厂
+export class RepositoryFactory {
+  static createUserRepository(dataService: IDataService): UserRepository {
+    return new UserRepository(dataService);
   }
-  
-  getUserRepository(): UserRepository {
-    if (!this.userRepository) {
-      this.userRepository = new UserRepository(this.client);
-    }
-    return this.userRepository;
+  // ...其它实体
+}
+
+// 仓储注册表
+export class RepositoryRegistry {
+  private static repositories: Record<string, any> = {};
+
+  static register(name: string, repo: any) {
+    this.repositories[name] = repo;
   }
-  
-  getMatchRepository(): MatchRepository {
-    if (!this.matchRepository) {
-      this.matchRepository = new MatchRepository(this.client);
-    }
-    return this.matchRepository;
+
+  static get<T>(name: string): T {
+    return this.repositories[name];
   }
 }
 
-// 使用工厂类
-const repositoryFactory = new RepositoryFactory(databaseClient);
+// 注册所有仓储（可在应用初始化时）
+RepositoryRegistry.register('user', RepositoryFactory.createUserRepository(dataService));
+RepositoryRegistry.register('match', RepositoryFactory.createMatchRepository(dataService));
 
-// 获取特定的仓储类
-const userRepository = repositoryFactory.getUserRepository();
-const matchRepository = repositoryFactory.getMatchRepository();
-
-// 使用仓储类
-const user = await userRepository.findById('user-id');
-const matches = await matchRepository.findByUserId('user-id');
+// 业务层/Hook 获取仓储实例
+const userRepository = RepositoryRegistry.get<UserRepository>('user');
 ```
 
-### 7.2 使用适配器模式保持接口一致性
+### 7.4 设计要点
 
-适配器模式可以在保持向后兼容性的同时实现代码模块化：
+- 所有业务代码、hooks、服务层**只能通过注册表获取仓储实例**，禁止直接 new。
+- 支持运行时注册新适配器/Mock，实现插件化、A/B 测试、灰度等。
+- 工厂负责动态注入 dataService 或其它依赖，注册表负责全局唯一和统一管理。
+- 适配器层可根据环境变量选择不同数据服务实现（如 IndexedDB、SQLite、Mock）。
 
-```typescript
-// 适配器模式示例
-class RepositoryAdapter {
-  private userRepository: UserRepository;
-  private photoRepository: PhotoRepository;
-  
-  constructor(client: IBaseDatabaseClient) {
-    this.userRepository = new UserRepository(client);
-    this.photoRepository = new PhotoRepository(client);
-  }
-  
-  // 提供统一的接口
-  async getUserById(userId: string): Promise<User | null> {
-    return this.userRepository.findById(userId);
-  }
-  
-  async getUserPhotos(userId: string): Promise<Photo[]> {
-    return this.photoRepository.findByUserId(userId);
-  }
-}
+---
 
-// 使用适配器
-const repositoryAdapter = new RepositoryAdapter(databaseClient);
-
-// 通过统一接口访问不同实体的数据
-const user = await repositoryAdapter.getUserById('user-id');
-const photos = await repositoryAdapter.getUserPhotos('user-id');
-```
-
-### 7.3 依赖注入与服务定位
-
-在应用程序中注册和获取仓储类：
-
-```typescript
-// 在服务容器中注册仓储类
-container.register('userRepository', () => new UserRepository(databaseClient));
-container.register('photoRepository', () => new PhotoRepository(databaseClient));
-
-// 在需要的地方获取仓储类
-const userRepository = container.resolve('userRepository');
-```
-
-## 8. 总结
-
-仓储模式为应用程序提供了一个清晰、一致的数据访问层。通过采用模块化设计，每个表或Schema对应一个独立的仓储类文件，可以提高代码的可维护性和可扩展性。通过工厂模式和适配器模式，可以有效地组织和管理多个仓储类，同时保持接口的一致性。遵循本指南中的最佳实践，可以创建易于维护、测试和扩展的仓储类，同时避免代码冗余。
+如需自动生成注册表/工厂/适配器代码模板，或进一步细化文档，请参考本节内容或联系架构负责人。

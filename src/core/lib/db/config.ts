@@ -1,4 +1,5 @@
 import type { DatabaseConfig as DatabaseConfigType, DatabaseEngine } from '@/core/lib/db/types/database.types';
+import { configService } from '@/core/services/infrastructure/config';
 
 /**
  * 数据库配置构建器
@@ -183,9 +184,9 @@ const environments: Record<string, DatabaseConfigType> = {
   }
 };
 
-// 获取当前环境
+// 获取当前环境（标准化：通过 configService 获取）
 const getEnvironment = (): string => {
-  return process.env.NODE_ENV || 'development';
+  return configService.get('NODE_ENV') || 'development';
 };
 
 // 导出默认配置

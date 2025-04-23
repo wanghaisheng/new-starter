@@ -74,6 +74,16 @@ export class MockHybridDatabaseClient extends BaseDatabaseClient implements IDat
     this.cacheClear();
   }
 
+  /**
+   * 释放所有资源，适配 Registry 热插拔/销毁
+   */
+  async dispose(): Promise<void> {
+    if (typeof this.client.disconnect === 'function') {
+      await this.client.disconnect();
+    }
+    // 清理 mock 数据、缓存等（如有）
+  }
+
   // ===================== IDataService & BaseDatabaseClient required methods =====================
 
   async findOne<T extends { id: string }>(table: string, id: string): Promise<T | null> {

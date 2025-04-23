@@ -3,16 +3,19 @@ import { IAuthService } from '../types/auth-service';
 import { MockAuthService } from '../adapters/mock/mock-auth-service';
 import { HybridAuthService } from '../adapters/hybrid-auth-service';
 import { PersistentMockAuthService } from '../adapters/mock/persistent-mock-auth-service';
+import { configService } from '@/core/services/infrastructure/config';
 
 export type AuthServiceType = 'mock' | 'persistent-mock' | 'firebase' | 'better' | 'hybrid';
 export type AuthServiceOptions = { [key: string]: any };
 
 // 自动根据环境变量决定默认类型
 function getDefaultAuthType(): AuthServiceType {
-  if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_AUTH_TYPE) {
-    return process.env.NEXT_PUBLIC_AUTH_TYPE as AuthServiceType;
+  const authType = configService.get('NEXT_PUBLIC_AUTH_TYPE');
+  if (authType) {
+    return authType as AuthServiceType;
   }
-  if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production') {
+  const nodeEnv = configService.get('NODE_ENV');
+  if (nodeEnv === 'production') {
     return 'firebase';
   }
   return 'mock';

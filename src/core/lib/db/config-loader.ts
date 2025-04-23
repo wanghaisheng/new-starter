@@ -3,6 +3,7 @@ import { logger } from '@/core/services/infrastructure/logger/logger-service';
 import fs from 'fs';
 import path from 'path';
 import { SUPPORTED_STORAGE_TYPES, SUPPORTED_OFFLINE_STORAGE_TYPES, defaultConfig } from '@/core/lib/db/types/database.types';
+import { configService } from '@/core/services/infrastructure/config';
 
 export class ConfigLoader {
   static async loadConfig(): Promise<DatabaseConfig> {
@@ -34,55 +35,70 @@ export class ConfigLoader {
 
   private static loadFromEnv(config: DatabaseConfig): void {
     // 环境配置
-    if (process.env.NODE_ENV) {
-      config.env.environment = process.env.NODE_ENV as 'development' | 'production';
+    const nodeEnv = configService.get('NODE_ENV');
+    if (nodeEnv) {
+      config.env.environment = nodeEnv as 'development' | 'production';
     }
-    if (process.env.ENABLE_OFFLINE) {
-      config.env.enableOffline = process.env.ENABLE_OFFLINE === 'true';
+    const enableOffline = configService.get('ENABLE_OFFLINE');
+    if (enableOffline !== undefined) {
+      config.env.enableOffline = enableOffline === 'true';
     }
-    if (process.env.ENABLE_HYBRID) {
-      config.env.enableHybrid = process.env.ENABLE_HYBRID === 'true';
+    const enableHybrid = configService.get('ENABLE_HYBRID');
+    if (enableHybrid !== undefined) {
+      config.env.enableHybrid = enableHybrid === 'true';
     }
 
     // 在线存储配置
-    if (process.env.ONLINE_STORAGE_TYPE) {
-      config.storage.online.type = process.env.ONLINE_STORAGE_TYPE as StorageType;
+    const onlineType = configService.get('ONLINE_STORAGE_TYPE');
+    if (onlineType) {
+      config.storage.online.type = onlineType as StorageType;
     }
-    if (process.env.DB_HOST) config.storage.online.connection.host = process.env.DB_HOST;
-    if (process.env.DB_PORT) config.storage.online.connection.port = parseInt(process.env.DB_PORT);
-    if (process.env.DB_NAME) config.storage.online.connection.database = process.env.DB_NAME;
-    if (process.env.DB_USER) config.storage.online.connection.username = process.env.DB_USER;
-    if (process.env.DB_PASSWORD) config.storage.online.connection.password = process.env.DB_PASSWORD;
+    const dbHost = configService.get('DB_HOST');
+    if (dbHost) config.storage.online.connection.host = dbHost;
+    const dbPort = configService.get('DB_PORT');
+    if (dbPort) config.storage.online.connection.port = Number(dbPort);
+    const dbName = configService.get('DB_NAME');
+    if (dbName) config.storage.online.connection.database = dbName;
+    const dbUser = configService.get('DB_USER');
+    if (dbUser) config.storage.online.connection.username = dbUser;
+    const dbPassword = configService.get('DB_PASSWORD');
+    if (dbPassword) config.storage.online.connection.password = dbPassword;
 
     // 离线存储配置
-    if (process.env.OFFLINE_STORAGE_TYPE) {
-      const offlineType = process.env.OFFLINE_STORAGE_TYPE as StorageType;
-      if (offlineType !== 'postgres') {
-        config.storage.offline.type = offlineType;
+    const offlineType = configService.get('OFFLINE_STORAGE_TYPE');
+    if (offlineType) {
+      const offlineTypeValue = offlineType as StorageType;
+      if (offlineTypeValue !== 'postgres') {
+        config.storage.offline.type = offlineTypeValue;
       }
     }
 
     // 同步配置
-    if (process.env.AUTO_SYNC) {
-      config.sync.enabled = process.env.AUTO_SYNC === 'true';
+    const autoSync = configService.get('AUTO_SYNC');
+    if (autoSync !== undefined) {
+      config.sync.enabled = autoSync === 'true';
     }
-    if (process.env.SYNC_INTERVAL) {
-      config.sync.syncIntervalMs = parseInt(process.env.SYNC_INTERVAL);
+    const syncInterval = configService.get('SYNC_INTERVAL');
+    if (syncInterval) {
+      config.sync.syncIntervalMs = Number(syncInterval);
     }
-    if (process.env.CONFLICT_RESOLUTION) {
+    const conflictResolution = configService.get('CONFLICT_RESOLUTION');
+    if (conflictResolution) {
       // 只允许 'client-wins' | 'server-wins' | 'last-write-wins'
       const allowed = ['client-wins', 'server-wins', 'last-write-wins'];
-      if (allowed.includes(process.env.CONFLICT_RESOLUTION)) {
-        config.sync.conflictResolution = process.env.CONFLICT_RESOLUTION as typeof config.sync.conflictResolution;
+      if (allowed.includes(conflictResolution)) {
+        config.sync.conflictResolution = conflictResolution as typeof config.sync.conflictResolution;
       }
     }
 
     // 测试数据配置
-    if (process.env.LOAD_TEST_DATA) {
-      config.testData.loadOnStartup = process.env.LOAD_TEST_DATA === 'true';
+    const loadTestData = configService.get('LOAD_TEST_DATA');
+    if (loadTestData !== undefined) {
+      config.testData.loadOnStartup = loadTestData === 'true';
     }
-    if (process.env.TEST_DATA_SOURCE) {
-      config.testData.source = process.env.TEST_DATA_SOURCE as 'example' | 'dating';
+    const testDataSource = configService.get('TEST_DATA_SOURCE');
+    if (testDataSource) {
+      config.testData.source = testDataSource as 'example' | 'dating';
     }
   }
 

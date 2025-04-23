@@ -63,4 +63,33 @@ export class DataServiceRegistry {
     this.registry.delete(key);
     this.instances.delete(key);
   }
+
+  /**
+   * 热切换服务实例，自动释放旧资源并初始化新实例
+   */
+  static async switchAdapter(key: string, factory: () => IDataService) {
+    // 1. 释放旧实例资源（如有）
+    const oldInst = this.instances.get(key);
+    if (oldInst && typeof oldInst.dispose === 'function') {
+      try {
+        this.logger.info(`[DataServiceRegistry] switchAdapter: 释放旧实例资源: ${key}`);
+        await oldInst.dispose();
+      } catch (err) {
+        this.logger.error(`[DataServiceRegistry] switchAdapter: 释放资源异常: ${key}, error: ${err}`);
+        // 资源释放异常不阻断新实例切换
+      }
+    }
+    // 2. 注销旧实例
+    this.instances.delete(key);
+    // 3. 注册新工厂并懒加载新实例
+    this.logger.info(`[DataServiceRegistry] switchAdapter: 注册新工厂并懒加载: ${key}`);
+    this.registry.set(key, factory);
+    const newInst = factory();
+    if (typeof newInst.initialize === 'function') {
+      await newInst.initialize();
+    }
+    this.instances.set(key, newInst);
+    this.logger.info(`[DataServiceRegistry] switchAdapter: 新实例已初始化: ${key}`);
+    return newInst;
+  }
 }

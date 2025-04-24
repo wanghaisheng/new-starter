@@ -40,7 +40,7 @@ import {
   QueryOptions, 
   QueryResult,
   DatabaseEvent,
-} from '@/core/lib/db/types/database.types';
+} from '@/core/lib/db/types/database';
 import { Match } from '@/core/lib/db/types/match';
 import { Message } from '@/core/lib/db/types/message';
 import { User } from '@/core/lib/db/types/user';

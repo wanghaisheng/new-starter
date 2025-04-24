@@ -18,6 +18,17 @@ export class MockMessageServiceAdapter implements IMessageAdapter {
     return this.messages.filter(msg => msg.matchId === conversationId);
   }
 
+  async getConversationMessages(params: { conversationId: string; page?: number; pageSize?: number }): Promise<Message[]> {
+    const all = this.getConversationMessages(params.conversationId);
+    if ('page' in params || 'pageSize' in params) {
+      const page = params.page ?? 1;
+      const pageSize = params.pageSize ?? 20;
+      const start = (page - 1) * pageSize;
+      return (await all).slice(start, start + pageSize);
+    }
+    return all;
+  }
+
   async sendMessage(data: CreateMessageData): Promise<Message> {
     const message: Message = {
       id: crypto.randomUUID(),

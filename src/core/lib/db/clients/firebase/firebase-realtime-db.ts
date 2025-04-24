@@ -11,7 +11,7 @@ import { getDatabase, ref, set, get, remove, update, query, orderByChild,
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
-import { QueryOptions, QueryResult } from '@/core/lib/db/types/database.types';
+import { QueryOptions, QueryResult } from '@/core/lib/db/types/database';
 
 import { FirebaseConfig } from './firebase-config';
 

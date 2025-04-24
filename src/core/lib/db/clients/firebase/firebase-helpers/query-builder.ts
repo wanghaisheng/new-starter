@@ -23,7 +23,7 @@ import {
   ExtendedQueryOptions, 
   SortDirection, 
   QueryFilter 
-} from '@/core/lib/db/types/database.types';
+} from '@/core/lib/db/types/database';
 import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 
 /**

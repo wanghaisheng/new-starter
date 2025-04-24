@@ -1,5 +1,5 @@
 import { IDatabaseClient } from '@/core/lib/db/interfaces';
-import { DatabaseConfig, TransactionOptions } from '@/core/lib/db/types/database.types';
+import { DatabaseConfig, TransactionOptions } from '@/core/lib/db/types/database';
 import type { User } from '@/core/lib/db/types/user';
 import type { TestType, TestResult } from '@/core/lib/db/types/test';
 import type { DatabaseBatchOperation } from '@/core/lib/db/types';

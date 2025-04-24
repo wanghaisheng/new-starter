@@ -1,5 +1,5 @@
 // 用户服务接口定义及适配器接口统一
-import type { User } from '@/core/lib/db/types/user';
+import type { User } from '@/core/lib/db/types/user.types';
 
 /**
  * 用户适配器接口（所有实现必须实现本接口，禁止本地重复定义）

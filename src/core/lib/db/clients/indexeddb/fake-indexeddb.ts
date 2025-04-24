@@ -21,14 +21,18 @@ import {
   IDBVersionChangeEvent
 } from 'fake-indexeddb';
 
-import { IndexedDBClient, IndexedDBConfig } from '@/core/lib/db/clients/indexeddb/indexeddb-client';
+import { BaseClient } from '@/core/lib/db/clients/base-client';
+import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database';
 import { schemaRegistry } from '@/core/lib/db/schema';
-import { DatabaseErrorCode } from '@/core/lib/db/errors';
-import { TableSchema } from '@/core/lib/db/schema/types';
+import type { TableSchema } from '@/core/lib/db/schema/types';
+import type { StorageStats } from '@/core/lib/db/types/database';
+
+// 错误类型和日志类型统一从 types 下导入
+import type { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database-error';
 
 // 导出所有 fake-indexeddb 对象
-export {
-  fakeIndexedDB,
+export type {
   IDBFactory,
   IDBDatabase,
   IDBObjectStore,
@@ -39,7 +43,8 @@ export {
   IDBCursor, 
   IDBCursorWithValue,
   IDBKeyRange,
-  IDBVersionChangeEvent
+  IDBVersionChangeEvent,
+  StorageStats
 };
 
 // 存储原始的indexedDB引用，以便在需要时恢复
@@ -53,388 +58,246 @@ let currentIndexedDBInstance: IDBFactory = fakeIndexedDB;
  * Mock IndexedDB 客户端
  * 基于 fake-indexeddb，用于测试环境
  */
-export class MockIndexedDBClient extends IndexedDBClient {
-  // Use global singleton to track if fake-indexeddb has been set up
-  private static setupCompleted = false;
-  // Use instance variable to track initialization state
-  private isInitialized = false;
+export class MockIndexedDBClient<T extends BaseEntity> extends BaseClient {
+  private db: IDBDatabase | null = null;
   private dbName: string;
   private dbVersion: number;
+  private config: { name: string; version?: number };
 
-  constructor(config: IndexedDBConfig) {
-    super(config);
-    this.dbName = (this as any).config?.name || 'app-database';
-    this.dbVersion = parseInt((this as any).config?.version || '1', 10);
-    
-    // Setup the fake IndexedDB environment only once
-    if (!MockIndexedDBClient.setupCompleted) {
-      try {
-        setupFakeIndexedDB();
-        MockIndexedDBClient.setupCompleted = true;
-        console.log('FakeIndexedDB 环境已设置');
-      } catch (error) {
-        console.warn('设置fake-indexedDB环境警告:', error);
-      }
-    }
-    
-    // Point IndexedDBClient's _indexedDB to our fake instance
-    if (typeof (this as any)._indexedDB === 'undefined') {
-      (this as any)._indexedDB = fakeIndexedDB;
-    }
+  constructor(config: { name: string; version?: number }) {
+    super();
+    this.config = config;
+    this.dbName = config.name;
+    this.dbVersion = config.version || 1;
   }
 
-  /**
-   * 打开数据库
-   */
-  private async openDatabase(): Promise<IDBDatabase | null> {
-    try {
-      const dbName = (this as any).config?.name || 'app-database';
-      return await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = fakeIndexedDB.open(dbName);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-    } catch (error) {
-      console.warn('打开数据库失败:', error);
-      return null;
-    }
-  }
-
-  /**
-   * 清除所有缓存
-   */
-  public clearAllCaches(): void {
-    // 模拟清除缓存操作
-    console.log('已清除所有缓存');
-  }
-
-  /**
-   * 强制重新初始化数据库
-   * 删除并重新创建数据库
-   */
   async initialize(): Promise<void> {
-    // Skip if already initialized
-    if (this.isInitialized) {
-      console.log(`此MockIndexedDBClient实例已初始化 (${this.dbName})`);
-      return;
-    }
-    
-    try {
-      console.log(`⏱️ 开始初始化数据库: ${this.dbName}, 版本: ${this.dbVersion}`);
-      
-      // 确保没有现有数据库，先删除
-      try {
-        console.log(`🗑️ 尝试删除现有数据库: ${this.dbName}`);
-        await this.deleteDatabase(this.dbName);
-        console.log(`✅ 删除成功: ${this.dbName}`);
-      } catch (e) {
-        console.warn('删除数据库失败, 可能不存在:', e);
-      }
-      
-      console.log(`📊 正在准备数据库模式...`);
-      const { schemaRegistry, initializeSchemas } = require('@/core/lib/db/schema/index');
-      initializeSchemas();
-      
-      const schemas = schemaRegistry.getAllSchemas();
-      if (schemas.length === 0) {
-        throw new Error('没有注册任何模式，请检查模式初始化过程');
-      }
-      
-      console.log(`📋 创建数据库 "${this.dbName}" 包含 ${schemas.length} 个表: ${
-        schemas.map((s: any) => s.name).join(', ')
-      }`);
-      
-      // 创建并打开数据库
-      (this as any).db = await this.createAndOpen(schemas);
-      console.log(`🔌 数据库连接已建立: ${this.dbName}`);
-      
-      // 验证所有表是否存在
-      const verified = await this.verifyTables();
-      if (!verified) {
-        throw new Error('数据库表验证失败，请检查模式注册和表创建过程');
-      }
-      
-      this.isInitialized = true;
-      console.log(`✅ MockIndexedDBClient 初始化成功 (${this.dbName})`);
-      
-    } catch (error) {
-      console.error('❌ 初始化 MockIndexedDBClient 失败:', error);
-      this.isInitialized = false;
-      if ((this as any).db) {
-        try {
-          (this as any).db.close();
-        } catch (e) {
-          // Ignore close errors
-        }
-        (this as any).db = null;
-      }
-      throw error;
-    }
-  }
-  
-  /**
-   * 创建并打开数据库，确保所有表都已创建
-   */
-  private async createAndOpen(schemas: any[]): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-      console.log(`🔑 打开数据库: ${this.dbName}, 版本: ${this.dbVersion}`);
-      const openRequest = fakeIndexedDB.open(this.dbName, this.dbVersion);
-      
-      openRequest.onupgradeneeded = (event) => {
-        console.log(`🔼 数据库升级事件触发: ${this.dbName}, 新版本: ${this.dbVersion}`);
-        const db = openRequest.result;
-        
-        // 创建所有表
-        for (const schema of schemas) {
-          try {
-            // 检查表是否已存在
-            if (!db.objectStoreNames.contains(schema.name)) {
-              console.log(`➕ 创建表: ${schema.name}`);
-              const store = db.createObjectStore(schema.name, { keyPath: 'id' });
-              
-              // 添加索引
-              if (schema.indexes) {
-                for (const index of schema.indexes) {
-                  const indexName = index.name || index.columns.join('_');
-                  const keyPath = index.columns.length === 1 ? index.columns[0] : index.columns;
-                  console.log(`  📌 添加索引: ${indexName} 到表 ${schema.name}`);
-                  store.createIndex(indexName, keyPath, { unique: index.unique || false });
-                }
+    if (this.initialized) return;
+    this.db = await new Promise((resolve, reject) => {
+      const request = fakeIndexedDB.open(this.dbName, this.dbVersion);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        for (const schema of schemaRegistry.getAllSchemas()) {
+          if (!db.objectStoreNames.contains(schema.name)) {
+            const store = db.createObjectStore(schema.name, { keyPath: 'id' });
+            if (Array.isArray(schema.indexes)) {
+              for (const index of schema.indexes) {
+                store.createIndex(index.name, index.columns, { unique: index.unique });
               }
-            } else {
-              console.log(`⚠️ 表已存在: ${schema.name}`);
             }
-          } catch (error) {
-            console.error(`❌ 创建表 ${schema.name} 失败:`, error);
-            // 继续创建其他表
           }
         }
-        console.log('✅ 所有表创建完成');
       };
-      
-      openRequest.onsuccess = () => {
-        console.log(`✅ 数据库打开成功: ${this.dbName}`);
-        resolve(openRequest.result);
-      };
-      
-      openRequest.onerror = () => {
-        console.error(`❌ 打开数据库失败: ${this.dbName}`, openRequest.error);
-        reject(openRequest.error);
-      };
-      
-      openRequest.onblocked = () => {
-        console.warn(`⚠️ 数据库操作被阻塞: ${this.dbName}`);
-        // 尝试关闭所有其他连接
-        const closeAllRequests = fakeIndexedDB.databases();
-        Promise.resolve(closeAllRequests)
-          .then((databases) => {
-            databases.forEach((db) => {
-              if (db.name === this.dbName) {
-                try {
-                  // 尝试删除并重新打开
-                  fakeIndexedDB.deleteDatabase(this.dbName);
-                } catch (e) {
-                  console.warn('无法删除被阻塞的数据库:', e);
-                }
-              }
-            });
-          })
-          .catch(console.error);
-      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
+    this.initialized = true;
+    this.logger.info('MockIndexedDBClient 初始化完成');
   }
 
-  /**
-   * 删除数据库
-   */
-  private async deleteDatabase(dbName: string): Promise<void> {
+  async close(): Promise<void> {
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+      this.initialized = false;
+    }
+  }
+
+  async clear(): Promise<void> {
+    if (!this.db) return;
+    const storeNames = Array.from(this.db.objectStoreNames);
+    for (const name of storeNames) {
+      const tx = this.db.transaction(name, 'readwrite');
+      tx.objectStore(name).clear();
+    }
+  }
+
+  async connect(): Promise<void> { await this.initialize(); }
+  async disconnect(): Promise<void> { await this.close(); }
+
+  async findById(tableName: string, id: string): Promise<T | null> {
+    this.checkInitialized();
     return new Promise((resolve, reject) => {
-      const request = fakeIndexedDB.deleteDatabase(dbName);
-      
-      request.onsuccess = () => {
-        resolve();
-      };
-      
-      request.onerror = () => {
-        reject(request.error);
-      };
+      const tx = this.db!.transaction(tableName, 'readonly');
+      const store = tx.objectStore(tableName);
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
     });
   }
-  
-  /**
-   * 验证所有必要的表是否已经创建
-   * @returns true if verification passed, false otherwise
-   */
-  private async verifyTables(): Promise<boolean> {
-    if (!(this as any).db) {
-      console.error('❌ 无法验证表: 数据库未初始化');
-      return false;
-    }
-    
-    const { schemaRegistry } = require('@/core/lib/db/schema');
-    const expectedTables = schemaRegistry.getAllSchemas().map((schema: any) => schema.name);
-    const actualTables = Array.from((this as any).db.objectStoreNames);
-    
-    console.log('📋 验证数据库表:');
-    console.log('- 预期的表:', expectedTables.join(', '));
-    console.log('- 实际的表:', actualTables.join(', '));
-    
-    // 检查缺失的表
-    const missingTables = expectedTables.filter((name: string) => !actualTables.includes(name));
-    if (missingTables.length > 0) {
-      console.error(`❌ 表验证失败: 缺少以下表: ${missingTables.join(', ')}`);
-      
-      // 核心表检查
-      const coreTables = ['users', 'matches', 'messages'];
-      const missingCoreTables = missingTables.filter((name: string) => coreTables.includes(name));
-      if (missingCoreTables.length > 0) {
-        console.error(`❌ 致命错误: 缺少核心表: ${missingCoreTables.join(', ')}`);
-        return false;
-      }
-    } else {
-      console.log('✅ 表存在性验证通过');
-    }
-    
-    // 检查表是否可以访问
-    try {
-      console.log('🔍 验证表可访问性...');
-      for (const tableName of actualTables) {
-        const tx = (this as any).db.transaction(tableName, 'readonly');
-        const store = tx.objectStore(tableName);
-        // 检查每个表是否有id键路径
-        const keyPath = store.keyPath;
-        if (keyPath !== 'id') {
-          console.warn(`⚠️ 警告: 表 ${tableName} 的键路径不是 'id', 而是: ${keyPath}`);
+
+  async findAll(tableName: string, filter?: Record<string, any>): Promise<T[]> {
+    this.checkInitialized();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(tableName, 'readonly');
+      const store = tx.objectStore(tableName);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        let results = req.result as T[];
+        if (filter) {
+          results = results.filter(item => this.matchesFilter(item, filter as Partial<T>));
         }
-        console.log(`✅ 表 ${tableName} 可正常访问, 键路径: ${keyPath}`);
-      }
-      console.log('✅ 所有表验证成功');
-      return true;
-    } catch (error) {
-      console.error('❌ 表访问验证失败:', error);
-      return false;
-    }
+        resolve(results);
+      };
+      req.onerror = () => reject(req.error);
+    });
   }
 
-  /**
-   * 检查客户端是否已初始化
-   */
-  protected checkInitialized(): void {
-    if (!this.isInitialized || !(this as any).db) {
-      console.error(`❌ MockIndexedDBClient未初始化: ${this.dbName}`);
-      throw new Error('数据库客户端未初始化');
-    }
+  async create(tableName: string, data: T): Promise<T> {
+    this.checkInitialized();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(tableName, 'readwrite');
+      const store = tx.objectStore(tableName);
+      const req = store.add(data);
+      req.onsuccess = () => resolve(data);
+      req.onerror = () => reject(req.error);
+    });
   }
 
-  /**
-   * 查找所有记录
-   */
-  public async findAll<T>(tableName: string, filter?: any): Promise<T[]> {
-    try {
-      this.checkInitialized();
-      
-      return new Promise((resolve, reject) => {
-        try {
-          const transaction = (this as any).db.transaction(tableName, 'readonly');
-          const store = transaction.objectStore(tableName);
-          const request = store.getAll();
-          
-          request.onsuccess = () => {
-            console.log(`✅ 成功从 ${tableName} 获取了 ${request.result.length} 条记录`);
-            let results = request.result;
-            
-            // 如果有过滤条件，应用过滤器
-            if (filter) {
-              results = results.filter((item: any) => {
-                return Object.keys(filter).every(key => item[key] === filter[key]);
-              });
+  async update(tableName: string, id: string, data: Partial<T>): Promise<void> {
+    this.checkInitialized();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(tableName, 'readwrite');
+      const store = tx.objectStore(tableName);
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const entity = getReq.result;
+        if (!entity) return reject(new Error('Entity not found'));
+        const updated = { ...entity, ...data };
+        const putReq = store.put(updated);
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = () => reject(putReq.error);
+      };
+      getReq.onerror = () => reject(getReq.error);
+    });
+  }
+
+  async delete(tableName: string, id: string): Promise<void> {
+    this.checkInitialized();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(tableName, 'readwrite');
+      const store = tx.objectStore(tableName);
+      const req = store.delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async query(tableName: string, options: QueryOptions): Promise<QueryResult<T>> {
+    this.checkInitialized();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(tableName, 'readonly');
+      const store = tx.objectStore(tableName);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        let results = req.result as T[];
+        if (options.where) {
+          results = results.filter(item => this.matchesFilter(item, options.where as Partial<T>));
+        }
+        if (options.orderBy) {
+          const { field, direction } = options.orderBy;
+          results.sort((a, b) => {
+            const aValue = a[field];
+            const bValue = b[field];
+            if (aValue === bValue) return 0;
+            const comparison = aValue < bValue ? -1 : 1;
+            return direction === 'asc' ? comparison : -comparison;
+          });
+        }
+        const total = results.length;
+        let processedResults = results;
+        if (options.limit !== undefined || options.offset !== undefined) {
+          const start = options.offset || 0;
+          const end = options.limit !== undefined ? start + options.limit : undefined;
+          processedResults = processedResults.slice(start, end);
+        }
+        resolve({ items: processedResults, total, hasMore: total > (processedResults.length + (options.offset || 0)) });
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async count(tableName: string, filter?: Record<string, any>): Promise<number> {
+    const all = await this.findAll(tableName, filter);
+    return all.length;
+  }
+
+  async batch(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
+    this.checkInitialized();
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(tableName, 'readwrite');
+      const store = tx.objectStore(tableName);
+      try {
+        for (const op of operations) {
+          // BatchOperation type: type: 'add' | 'put' | 'update' | 'delete'
+          if (op.type === 'add' || op.type === 'put' || op.type === 'update') {
+            store.put(op.data);
+          } else if (op.type === 'delete') {
+            if (op.id !== undefined) {
+              store.delete(op.id);
             }
-            
-            resolve(results);
-          };
-          
-          request.onerror = () => {
-            console.error(`❌ 从 ${tableName} 获取记录失败:`, request.error);
-            reject(request.error);
-          };
-          
-          transaction.onerror = () => {
-            console.error(`❌ 事务失败 (查询 ${tableName}):`, transaction.error);
-            reject(transaction.error);
-          };
-        } catch (error) {
-          console.error(`❌ 执行findAll查询失败 (${tableName}):`, error);
-          reject(error);
+          }
         }
-      });
-    } catch (error) {
-      console.error(`❌ 查询所有记录失败: ${tableName}`, error);
-      return [];
-    }
-  }
-
-  /**
-   * 检查一个表是否存在
-   */
-  public async tableExists(tableName: string): Promise<boolean> {
-    if (!(this as any).db) {
-      return false;
-    }
-    
-    return Array.from((this as any).db.objectStoreNames).includes(tableName);
-  }
-
-  /**
-   * 重置客户端并创建新的数据库
-   */
-  public async reset(): Promise<void> {
-    this.isInitialized = false;
-    
-    try {
-      resetFakeIndexedDB();
-      
-      if ((this as any).db) {
-        try {
-          (this as any).db.close();
-        } catch (e) {
-          // Ignore close errors
-        }
-        (this as any).db = null;
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      } catch (e) {
+        reject(e);
       }
-    } catch (error) {
-      console.warn('重置fake-indexedDB失败:', error);
-    }
-    
-    await this.initialize();
+    });
   }
 
-  /**
-   * 清空测试数据
-   */
-  public async clearTestData(): Promise<void> {
-    await this.clear();
+  async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
+    this.logger.warn('executeRawQuery is not supported in MockIndexedDBClient');
+    return [];
   }
-  
-  /**
-   * 获取当前IndexedDB实例
-   */
-  public getIndexedDBInstance(): IDBFactory {
-    return currentIndexedDBInstance;
+
+  // 事务相关方法：mock 环境下为 no-op 实现
+  async beginTransaction(): Promise<void> {
+    this.logger.info('MockIndexedDBClient: beginTransaction (no-op)');
   }
-  
-  /**
-   * 确保使用正确的IndexedDB实例
-   * 覆盖父类方法，确保总是使用fake-indexedDB
-   */
-  protected getIndexedDB(): IDBFactory {
-    return currentIndexedDBInstance;
+  async commitTransaction(): Promise<void> {
+    this.logger.info('MockIndexedDBClient: commitTransaction (no-op)');
   }
-  
-  /**
-   * 析构函数，清理资源
-   */
-  public async close(): Promise<void> {
-    await super.close();
+  async rollbackTransaction(): Promise<void> {
+    this.logger.info('MockIndexedDBClient: rollbackTransaction (no-op)');
+  }
+
+  // 简单过滤器实现（可复用正式实现）
+  private matchesFilter(item: any, filter: Partial<T>): boolean {
+    if (!item || typeof item !== 'object') return false;
+    if (!filter) return true;
+    return Object.entries(filter).every(([key, value]) => {
+      if (key === '$or' && Array.isArray(value)) {
+        return value.some((subFilter: Partial<T>) => this.matchesFilter(item, subFilter));
+      }
+      if (key === '$and' && Array.isArray(value)) {
+        return value.every((subFilter: Partial<T>) => this.matchesFilter(item, subFilter));
+      }
+      if (typeof value === 'object' && value !== null) {
+        if ('$contains' in value) {
+          return Array.isArray(item[key]) && item[key].includes(value.$contains);
+        }
+        if ('$in' in value && Array.isArray(value.$in)) {
+          return value.$in.includes(item[key]);
+        }
+        if ('$gt' in value) {
+          return item[key] > value.$gt;
+        }
+        if ('$gte' in value) {
+          return item[key] >= value.$gte;
+        }
+        if ('$lt' in value) {
+          return item[key] < value.$lt;
+        }
+        if ('$lte' in value) {
+          return item[key] <= value.$lte;
+        }
+        if ('$ne' in value) {
+          return item[key] !== value.$ne;
+        }
+      }
+      return item[key] === value;
+    });
   }
 }
 
@@ -505,6 +368,18 @@ export function restoreOriginalIndexedDB(): void {
     isFakeIndexedDBEnabled = false;
     console.log('已恢复原始indexedDB引用');
   }
+}
+
+/**
+ * 获取存储统计信息
+ */
+export async function getStorageStats(dbName: string): Promise<StorageStats> {
+  // fake-indexeddb 仅模拟，直接返回 0 即可
+  return {
+    totalSize: 0,
+    availableSpace: 0,
+    usedSpace: 0
+  };
 }
 
 /**
@@ -690,5 +565,6 @@ export default {
   restoreOriginalIndexedDB,
   createTestDatabase,
   deleteTestDatabase,
-  IndexedDBTestHelper
+  IndexedDBTestHelper,
+  getStorageStats
 }; 

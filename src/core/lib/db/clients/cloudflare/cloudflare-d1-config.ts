@@ -1,7 +1,7 @@
 /**
  * Cloudflare D1 配置接口
  */
-import { DatabaseConfig } from '@/core/lib/db/types/database.types';
+import { DatabaseConfig } from '@/core/lib/db/types/database';
 
 /**
  * Cloudflare D1 数据库配置

@@ -1,55 +1,22 @@
-import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
-import { ColumnType } from '@/core/lib/db/schema/types';
+import { TableSchema, ColumnType } from '../types';
+import { schemaRegistry } from '../index';
 
-/**
- * 多语言内容表结构定义
- */
-const translationSchema: TableSchema = {
+export const translationSchema: TableSchema = {
   name: 'translations',
   columns: [
-    {
-      name: 'id',
-      type: ColumnType.STRING,
-      primaryKey: true,
-      notNull: true
-    },
-    {
-      name: 'key',
-      type: ColumnType.STRING,
-      notNull: true
-    },
-    {
-      name: 'locale',
-      type: ColumnType.STRING,
-      notNull: true
-    },
-    {
-      name: 'value',
-      type: ColumnType.TEXT,
-      notNull: true
-    },
-    {
-      name: 'type',
-      type: ColumnType.STRING,
-      notNull: false
-    },
-    {
-      name: 'updatedAt',
-      type: ColumnType.DATE,
-      notNull: true,
-      defValue: () => new Date()
-    }
+    { name: 'id', type: ColumnType.STRING, notNull: true, primaryKey: true },
+    { name: 'createdAt', type: ColumnType.STRING, notNull: true },
+    { name: 'updatedAt', type: ColumnType.STRING, notNull: true },
+    { name: 'key', type: ColumnType.STRING, notNull: true },
+    { name: 'value', type: ColumnType.STRING, notNull: true },
+    { name: 'language', type: ColumnType.STRING, notNull: true },
+    { name: 'ext', type: ColumnType.JSON, notNull: true }
   ],
   indexes: [
-    {
-      name: 'idx_translations_key_locale',
-      columns: ['key', 'locale'],
-      unique: true
-    }
+    { name: 'pk_id', columns: ["id"], unique: true }
   ]
 };
 
-// 注册表结构
 schemaRegistry.register(translationSchema);
 
 export default translationSchema;

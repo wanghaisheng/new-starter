@@ -1,4 +1,4 @@
-import { DatabaseError } from '@/core/lib/db/errors/database-error';
+import { createDatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database-error';
 
 import { databaseVersions, getLatestVersion, getUpgradeStatements, validateVersion } from './versions';
 
@@ -28,9 +28,9 @@ export class VersionManager {
    */
   public setCurrentVersion(version: number): void {
     if (!validateVersion(version)) {
-      throw new DatabaseError(
-        `Invalid database version: ${version}`,
-        'INVALID_VERSION'
+      throw createDatabaseError(
+        DatabaseErrorCode.UNKNOWN,
+        `Invalid database version: ${version}`
       );
     }
     this.currentVersion = version;
@@ -58,9 +58,9 @@ export class VersionManager {
    */
   public startUpgrade(): void {
     if (this.isUpgrading) {
-      throw new DatabaseError(
-        'Database upgrade is already in progress',
-        'UPGRADE_IN_PROGRESS'
+      throw createDatabaseError(
+        DatabaseErrorCode.UPGRADE_IN_PROGRESS,
+        'Database upgrade is already in progress'
       );
     }
     this.isUpgrading = true;
@@ -71,9 +71,9 @@ export class VersionManager {
    */
   public completeUpgrade(): void {
     if (!this.isUpgrading) {
-      throw new DatabaseError(
-        'No database upgrade is in progress',
-        'NO_UPGRADE_IN_PROGRESS'
+      throw createDatabaseError(
+        DatabaseErrorCode.NO_UPGRADE_IN_PROGRESS,
+        'No database upgrade is in progress'
       );
     }
     this.currentVersion = getLatestVersion();
@@ -85,9 +85,9 @@ export class VersionManager {
    */
   public rollbackUpgrade(): void {
     if (!this.isUpgrading) {
-      throw new DatabaseError(
-        'No database upgrade is in progress',
-        'NO_UPGRADE_IN_PROGRESS'
+      throw createDatabaseError(
+        DatabaseErrorCode.NO_UPGRADE_IN_PROGRESS,
+        'No database upgrade is in progress'
       );
     }
     this.isUpgrading = false;
@@ -106,11 +106,11 @@ export class VersionManager {
   public getVersionStatements(version: number): string[] {
     const versionDef = databaseVersions.find(v => v.version === version);
     if (!versionDef) {
-      throw new DatabaseError(
-        `Version ${version} not found`,
-        'VERSION_NOT_FOUND'
+      throw createDatabaseError(
+        DatabaseErrorCode.VERSION_NOT_FOUND,
+        `Version ${version} not found`
       );
     }
     return versionDef.statements;
   }
-} 
+}

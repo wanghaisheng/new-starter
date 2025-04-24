@@ -1,5 +1,5 @@
 // mock-config-adapter.ts
-import { IConfigAdapter } from '../types/config-adapter.types';
+import { IConfigAdapter } from '../types/config-adapter';
 
 export class MockConfigAdapter implements IConfigAdapter {
   private store: Record<string, any> = {

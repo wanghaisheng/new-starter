@@ -24,7 +24,11 @@ export interface IMessageAdapter {
 // Service 层接口
 export interface IMessageService {
   getUserMessages(userId: string): Promise<Message[]>;
-  getConversationMessages(conversationId: string): Promise<Message[]>;
+  getConversationMessages(params: {
+    conversationId: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<Message[]>;
   sendMessage(data: CreateMessageData): Promise<Message>;
   updateMessage(messageId: string, data: UpdateMessageData): Promise<Message>;
   deleteMessage(messageId: string): Promise<void>;

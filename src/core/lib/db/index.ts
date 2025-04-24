@@ -1,6 +1,5 @@
 // 导出接口
 export * from './types';
-export * from './interfaces';
 
 // 类型定义与注册表
 export type {

@@ -57,7 +57,52 @@ useEffect(() => {
 
 ---
 
-## 三、架构演进与适配器扩展
+## 三、ConfigProvider & useConfigContext 说明
+
+本模块为全局配置响应式 Context 与 Provider 实现，支持批量 keys 订阅、自动推送、业务 hooks/组件自动响应配置变化。
+
+### 典型用法
+
+```tsx
+// _app.tsx 或页面入口
+import { ConfigProvider } from '../context/ConfigProvider';
+
+<ConfigProvider keys={[CONFIG_KEYS.API_BASE_URL, CONFIG_KEYS.LOG_LEVEL]}>
+  <App />
+</ConfigProvider>
+
+// 业务 hooks/组件
+import { useConfigContext } from '../context/ConfigProvider';
+const { config, loading, error, refresh } = useConfigContext();
+useEffect(() => {
+  // config.API_BASE_URL 变化时自动响应
+}, [config.API_BASE_URL]);
+```
+
+### 能力说明
+- 支持批量 keys 订阅与自动推送
+- 支持 loading/error/refresh
+- 支持 providerType 切换
+- 仅需在入口包裹一次，全局 hooks/组件可消费
+
+---
+
+## 四、useConfig 说明
+
+单变量响应式订阅 hooks。
+
+```typescript
+import { useConfig } from '../hooks/useConfig';
+const { value, loading, error, refresh } = useConfig(CONFIG_KEYS.API_BASE_URL);
+```
+
+- 支持单变量订阅与刷新
+- 支持 loading/error/refresh
+- 支持 providerType 切换
+
+---
+
+## 五、架构演进与适配器扩展
 
 - 支持 EnvConfigAdapter（本地 .env）、RemoteConfigAdapter（远程中心）、CompositeAdapter（多源融合）等多种实现。
 - 新增适配器仅需实现 IConfigAdapter 接口并注册，无需改动业务代码。
@@ -65,7 +110,7 @@ useEffect(() => {
 
 ---
 
-## 四、最佳实践与注意事项
+## 六、最佳实践与注意事项
 
 - 禁止业务直接访问 process.env，统一通过 configService/useConfig/useConfigContext。
 - 新增变量/适配器时同步更新 config-keys.ts、config-types.ts、README.md、environment-variables.md。
@@ -75,7 +120,7 @@ useEffect(() => {
 
 ---
 
-## 五、进阶能力
+## 七、进阶能力
 
 - 支持变量变更订阅、批量订阅、全局 Context、运行时热更新、远程推送。
 - 适配器可扩展为支持 WebSocket、轮询、云厂商配置中心等多种远程变更机制。

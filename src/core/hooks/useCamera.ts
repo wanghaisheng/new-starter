@@ -26,7 +26,7 @@ export function useCamera(options?: {
     try {
       // 推荐统一通过 Registry 获取服务实例
       const registry = CameraServiceRegistry.getInstance();
-      const instance = registry.getDefaultService?.() || registry.createService?.(type) || null;
+      const instance = registry.getDefaultService?.() || registry.createService?.({ type }) || null;
       if (!instance) throw new Error('Camera 服务实例获取失败');
       await instance.initialize();
       setCamera(instance);

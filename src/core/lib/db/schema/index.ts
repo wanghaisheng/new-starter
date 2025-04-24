@@ -1,8 +1,11 @@
+console.log('schema/index loaded');
+console.log('schema/index loaded');
+
 import { mysqlTable } from 'drizzle-orm/mysql-core';
 import { pgTable, uuid, varchar, timestamp, jsonb } from 'drizzle-orm/pg-core';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
-import { DatabaseVersion } from '@/core/lib/db/types/database.types';
+// import { DatabaseVersion } from '@/core/lib/db/types/'; // 已无此导出，注释掉
 
 import { registerCoreSchemas } from './core-schemas';
 import { registerOfflineSchemas } from './offline-schemas';
@@ -18,8 +21,7 @@ export type {
   TableSchema,
   ColumnDefinition,
   IndexDefinition,
-  ISchemaRegistry,
-  DatabaseVersion
+  ISchemaRegistry
 };
 
 // 导出数据库类型
@@ -54,13 +56,9 @@ export const versionManager = VersionManager.getInstance();
  * 确保所有表结构都已注册
  */
 export function initializeSchemas(): void {
-  if (registerOfflineSchemas.length === 1) {
-    registerOfflineSchemas(schemaRegistry);
-  } else {
-    registerOfflineSchemas();
-  }
+  registerOfflineSchemas();
   if (registerCoreSchemas.length === 1) {
-    registerCoreSchemas(schemaRegistry);
+    registerCoreSchemas();
   } else {
     registerCoreSchemas();
   }

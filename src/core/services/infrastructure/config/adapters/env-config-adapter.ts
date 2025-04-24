@@ -1,5 +1,5 @@
 // env-config-adapter.ts
-import { IConfigAdapter } from '../types/config-adapter.types';
+import { IConfigAdapter } from '../types/config-adapter';
 
 const ENV_KEYS = [
   'ENV_STAGE',

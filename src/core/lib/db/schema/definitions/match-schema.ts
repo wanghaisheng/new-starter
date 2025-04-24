@@ -1,60 +1,24 @@
-import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
-import { ColumnType } from '@/core/lib/db/schema/types';
+import { TableSchema, ColumnType } from '../types';
+import { schemaRegistry } from '../index';
 
-/**
- * 匹配表结构定义
- * 定义匹配实体的数据库结构
- */
-const matchSchema: TableSchema = {
-  name: 'matches',
+export const matchSchema: TableSchema = {
+  name: 'matchs',
   columns: [
-    {
-      name: 'id',
-      type: ColumnType.STRING,
-      primaryKey: true,
-      notNull: true
-    },
-    {
-      name: 'users',
-      type: ColumnType.JSON,
-      notNull: true
-    },
-    {
-      name: 'status',
-      type: ColumnType.STRING,
-      notNull: true,
-      defValue: 'pending'
-    },
-    {
-      name: 'createdAt',
-      type: ColumnType.DATE,
-      notNull: true,
-      defValue: () => new Date()
-    },
-    {
-      name: 'updatedAt',
-      type: ColumnType.DATE,
-      notNull: true,
-      defValue: () => new Date()
-    }
+    { name: 'id', type: ColumnType.STRING, notNull: true, primaryKey: true },
+    { name: 'createdAt', type: ColumnType.STRING, notNull: true },
+    { name: 'updatedAt', type: ColumnType.STRING, notNull: true },
+    { name: 'userAId', type: ColumnType.STRING, notNull: true },
+    { name: 'userBId', type: ColumnType.STRING, notNull: true },
+    { name: 'status', type: ColumnType.STRING, notNull: true },
+    { name: 'ext', type: ColumnType.JSON, notNull: true }
   ],
   indexes: [
-    {
-      name: 'idx_matches_users',
-      columns: ['users']
-    },
-    {
-      name: 'idx_matches_status',
-      columns: ['status']
-    },
-    {
-      name: 'idx_matches_created_at',
-      columns: ['createdAt']
-    }
+    { name: 'pk_id', columns: ["id"], unique: true },
+    { name: 'idx_userAId', columns: ["userAId"], unique: true },
+    { name: 'idx_userBId', columns: ["userBId"], unique: true }
   ]
 };
 
-// 注册表结构
 schemaRegistry.register(matchSchema);
 
 export default matchSchema;

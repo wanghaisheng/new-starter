@@ -1,4 +1,6 @@
 // 支付服务接口定义
+import type { Product, PurchaseResult, Subscription } from '@/core/lib/db/types/payment.types';
+
 export interface IPaymentService {
   initialize(): Promise<void>;
   getProducts(): Promise<Product[]>;
@@ -16,29 +18,4 @@ export interface IPaymentService {
 export interface IPaymentAdapter extends IPaymentService {
   // 可扩展适配器独有的初始化/配置方法
   setConfig?(config: Record<string, any>): void;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  description?: string;
-  price: number;
-  currency: string;
-  [key: string]: any;
-}
-
-export interface PurchaseResult {
-  productId: string;
-  transactionId: string;
-  status: 'success'|'failed'|'pending';
-  error?: string;
-  [key: string]: any;
-}
-
-export interface Subscription {
-  id: string;
-  productId: string;
-  status: 'active'|'expired'|'cancelled';
-  expiresAt?: string;
-  [key: string]: any;
 }

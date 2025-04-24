@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { NotificationServiceRegistry } from '@/core/services/business/notifications/registry/notification-service-registry';
-import type { Notification } from '@/core/lib/db/types/notification';
+import type { Notification } from '@/core/lib/db/types/notification.types';
 import type { INotificationService } from '@/core/services/business/notifications/types/notification-service';
 import { useToast } from './useToast';
 

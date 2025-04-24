@@ -7,6 +7,7 @@ import { useMessages } from '@/core/hooks/useMessages';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import { useAuth } from '@/core/hooks/useAuth';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
+import { useTranslations } from 'next-intl';
 
 export default function ChatConversation() {
   useRequireAuth();
@@ -25,6 +26,7 @@ export default function ChatConversation() {
     empty
   } = useMessages(chatId || '');
   const [sending, setSending] = useState(false);
+  const t = useTranslations('auto.conversation');
 
   // 自动推断 receiverId：取当前会话中除自己外的用户
   const receiverId = useMemo(() => {
@@ -46,7 +48,7 @@ export default function ChatConversation() {
     setSending(true);
     try {
       await sendMessage({
-        matchId: chatId,
+        conversationId: chatId,
         senderId: user.id,
         receiverId,
         content: input,
@@ -76,7 +78,7 @@ export default function ChatConversation() {
       <IonPage>
         <IonContent className="flex flex-col items-center justify-center min-h-screen">
           <ErrorDisplay error={fetchError?.message || sendError?.message || '消息加载失败'} onRetry={reloadMessages} />
-          <IonButton color="medium" onClick={() => router.back()}{t('auto.conversation.')}/IonButton>
+          <IonButton color="medium" onClick={() => router.back()}>{t('back')}</IonButton>
         </IonContent>
       </IonPage>
     );
@@ -94,8 +96,8 @@ export default function ChatConversation() {
           <IonList lines="none">
             {empty ? (
               <div className="text-center text-gray-400">
-  {t('auto.conversation.')}
-</div>
+                {t('empty')}
+              </div>
             ) : (
               messages.map((msg) => (
                 <IonItem key={msg.id} className={msg.senderId === user?.id ? 'justify-end flex-row-reverse bg-pink-100/10 rounded-xl mb-2' : 'bg-slate-800/50 rounded-xl mb-2'}>
@@ -118,7 +120,7 @@ export default function ChatConversation() {
             <IonInput
               value={input}
               onIonChange={e => setInput(e.detail.value!)}
-              placeholder={t('auto.conversation.')}
+              placeholder={t('inputPlaceholder')}
               className="flex-1 bg-slate-700 text-white rounded-full px-4"
               disabled={sending}
             />

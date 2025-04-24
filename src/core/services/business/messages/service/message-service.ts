@@ -14,8 +14,14 @@ export class MessageService implements IMessageService {
     return this.adapter.getUserMessages(userId);
   }
 
-  async getConversationMessages(conversationId: string): Promise<Message[]> {
-    return this.adapter.getConversationMessages(conversationId);
+  async getConversationMessages(params: { conversationId: string; page?: number; pageSize?: number }): Promise<Message[]> {
+    // 兼容适配器只支持 conversationId 的情况
+    if ('page' in params || 'pageSize' in params) {
+      // 若适配器支持分页，可调用分页方法，否则降级为全部获取
+      // 这里假设 getMessagesByPage 支持分页
+      return this.adapter.getMessagesByPage(params.conversationId, params.page ?? 1, params.pageSize ?? 20);
+    }
+    return this.adapter.getConversationMessages(params.conversationId);
   }
 
   async sendMessage(data: CreateMessageData): Promise<Message> {

@@ -1,6 +1,10 @@
-import { DatabaseVersion } from '@/core/lib/db/types';
-
 // 数据库版本定义
+
+export interface DatabaseVersion {
+  version: number;
+  statements: string[];
+}
+
 export const databaseVersions: DatabaseVersion[] = [
   {
     version: 1,
@@ -67,6 +71,11 @@ export const databaseVersions: DatabaseVersion[] = [
   }
 ];
 
+// 验证数据库版本
+export const validateVersion = (version: number): boolean => {
+  return databaseVersions.some(v => v.version === version);
+};
+
 // 获取最新版本号
 export const getLatestVersion = (): number => {
   return Math.max(...databaseVersions.map(v => v.version));
@@ -78,8 +87,3 @@ export const getUpgradeStatements = (fromVersion: number, toVersion: number): st
     .filter(v => v.version > fromVersion && v.version <= toVersion)
     .flatMap(v => v.statements);
 };
-
-// 验证数据库版本
-export const validateVersion = (version: number): boolean => {
-  return databaseVersions.some(v => v.version === version);
-}; 

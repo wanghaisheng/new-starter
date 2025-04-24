@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { getTranslationsByKeys } from '@/core/services/business/translation/translation-service';
+import { TranslationServiceRegistry } from '@/core/services/business/translation/registry/translation-service-registry';
 
 /**
  * useTranslations - 全局内容多语言 hook
@@ -9,13 +9,17 @@ import { getTranslationsByKeys } from '@/core/services/business/translation/tran
  * @returns { loading, error, empty, data, get, fetch } - data 为 { [key]: value } 映射
  */
 export function useTranslations(keys: string | string[], locale?: string) {
+  // 统一通过 Registry 获取服务实例
+  const translationService = TranslationServiceRegistry.getInstance().getDefaultService();
+
   const {
     loading,
-    error,
-    data,
+    actionError,
+    result,
     run: fetchTranslations
   } = useAsyncAction(async (params: { keys: string[]; locale?: string }) => {
-    return getTranslationsByKeys(params.keys, params.locale);
+    // 通过服务实例获取翻译
+    return translationService.getTranslationsByKeys(params.keys, params.locale);
   });
 
   // 自动拉取
@@ -25,29 +29,29 @@ export function useTranslations(keys: string | string[], locale?: string) {
 
   // empty 状态
   const empty = useMemo(() => {
-    if (!data) return false;
+    if (!result) return false;
     const arr = Array.isArray(keys) ? keys : [keys];
-    return arr.every(k => !data[k]);
-  }, [data, keys]);
+    return arr.every(k => !result[k]);
+  }, [result, keys]);
 
   // error 结构细化
   const errorObj = useMemo(() => {
-    if (!error) return null;
-    if (typeof error === 'object' && 'type' in error) return error;
-    return { type: 'unknown', message: error instanceof Error ? error.message : String(error) };
-  }, [error]);
+    if (!actionError) return null;
+    if (typeof actionError === 'object' && 'type' in actionError) return actionError;
+    return { type: 'unknown', message: actionError instanceof Error ? actionError.message : String(actionError) };
+  }, [actionError]);
 
   // 提供 get 方法便于手动获取
   const get = useCallback(
-    (key: string) => (data && data[key]) || '',
-    [data]
+    (key: string) => (result && result[key]) || '',
+    [result]
   );
 
   return {
     loading,
     error: errorObj,
     empty,
-    data, // { [key]: value }
+    data: result, // { [key]: value }
     get,
     fetch // 可手动触发
   };

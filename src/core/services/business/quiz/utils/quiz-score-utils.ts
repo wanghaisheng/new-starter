@@ -1,4 +1,4 @@
-import { QuizType, QuizQuestion, QuizAnswer, QuizResult } from '@/core/lib/db/types/quiz';
+import type { QuizType, QuizQuestion, QuizAnswer, QuizResult } from '@/core/lib/db/types/quiz.types';
 
 /**
  * 根据不同测评类型的评分规则计算分数

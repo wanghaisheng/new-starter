@@ -1,4 +1,4 @@
-// config-adapter.types.ts
+// config-adapter.ts
 export interface IConfigAdapter {
   initialize(): Promise<void>;
   get<T = any>(key: string): T | undefined;

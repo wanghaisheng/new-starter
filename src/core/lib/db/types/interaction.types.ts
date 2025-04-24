@@ -18,6 +18,8 @@ export interface Report extends BaseEntity {
     note: string;
     resolvedAt: string;
   };
+  /** 扩展字段 */
+  ext?: Record<string, any>;
 }
 
 /**
@@ -30,4 +32,6 @@ export interface Block extends BaseEntity {
   reason?: string;
   createdAt: string;
   expiresAt?: string;
+  /** 扩展字段 */
+  ext?: Record<string, any>;
 }

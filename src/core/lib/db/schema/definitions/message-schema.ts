@@ -1,97 +1,28 @@
-import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
-import { ColumnType } from '@/core/lib/db/schema/types';
+import { TableSchema, ColumnType } from '../types';
+import { schemaRegistry } from '../index';
 
-/**
- * 消息表结构定义
- * 定义消息实体的数据库结构
- */
-const messageSchema: TableSchema = {
+export const messageSchema: TableSchema = {
   name: 'messages',
   columns: [
-    {
-      name: 'id',
-      type: ColumnType.STRING,
-      primaryKey: true,
-      notNull: true
-    },
-    {
-      name: 'matchId',
-      type: ColumnType.STRING,
-      notNull: true,
-      references: {
-        table: 'matches',
-        column: 'id'
-      }
-    },
-    {
-      name: 'senderId',
-      type: ColumnType.STRING,
-      notNull: true,
-      references: {
-        table: 'users',
-        column: 'id'
-      }
-    },
-    {
-      name: 'receiverId',
-      type: ColumnType.STRING,
-      notNull: true,
-      references: {
-        table: 'users',
-        column: 'id'
-      }
-    },
-    {
-      name: 'content',
-      type: ColumnType.TEXT,
-      notNull: true
-    },
-    {
-      name: 'type',
-      type: ColumnType.STRING,
-      notNull: true,
-      defValue: 'text'
-    },
-    {
-      name: 'status',
-      type: ColumnType.STRING,
-      notNull: true,
-      defValue: 'sent'
-    },
-    {
-      name: 'createdAt',
-      type: ColumnType.DATE,
-      notNull: true,
-      defValue: () => new Date()
-    },
-    {
-      name: 'updatedAt',
-      type: ColumnType.DATE,
-      notNull: true,
-      defValue: () => new Date()
-    }
+    { name: 'id', type: ColumnType.STRING, notNull: true, primaryKey: true },
+    { name: 'createdAt', type: ColumnType.STRING, notNull: true },
+    { name: 'updatedAt', type: ColumnType.STRING, notNull: true },
+    { name: 'senderId', type: ColumnType.STRING, notNull: true },
+    { name: 'receiverId', type: ColumnType.STRING, notNull: true },
+    { name: 'content', type: ColumnType.STRING, notNull: true },
+    { name: 'type', type: ColumnType.STRING, notNull: true },
+    { name: 'status', type: ColumnType.STRING, notNull: true },
+    { name: 'conversationId', type: ColumnType.STRING, notNull: true },
+    { name: 'ext', type: ColumnType.JSON, notNull: true }
   ],
   indexes: [
-    {
-      name: 'idx_messages_match',
-      columns: ['matchId']
-    },
-    {
-      name: 'idx_messages_sender',
-      columns: ['senderId']
-    },
-    {
-      name: 'idx_messages_receiver',
-      columns: ['receiverId']
-    },
-    {
-      name: 'idx_messages_created_at',
-      columns: ['createdAt']
-    }
+    { name: 'pk_id', columns: ["id"], unique: true },
+    { name: 'idx_senderId', columns: ["senderId"], unique: true },
+    { name: 'idx_receiverId', columns: ["receiverId"], unique: true },
+    { name: 'idx_conversationId', columns: ["conversationId"], unique: true }
   ]
 };
 
-// 注册表结构
 schemaRegistry.register(messageSchema);
 
 export default messageSchema;

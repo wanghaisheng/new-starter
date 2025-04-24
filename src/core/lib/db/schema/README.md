@@ -134,3 +134,62 @@
 - 每次修改表结构时，在 `versions.ts` 中添加新版本
 - 使用单例实例 `schemaRegistry` 和 `versionManager` 进行操作
 - 使用适当的转换器和适配器处理数据转换
+
+## 字段同步与一致性原则
+
+### 类型定义与 Schema 字段一一对应
+
+- 所有 User 类型（user.types.ts）中声明的字段（包括可选字段），都必须在 user-schema.ts 的 columns 中声明，字段名、类型需严格一致。
+- mock 数据、测试数据、实际业务插入的数据字段，也必须与 schema 字段完全一致，否则 SQLite/ORM 会报“no column named ...”错误。
+
+### 字段类型对应关系示例
+
+| TypeScript 类型           | ColumnType         | 说明                 |
+|--------------------------|--------------------|----------------------|
+| string                   | STRING             | 字符串               |
+| number                   | NUMBER             | 数值                 |
+| boolean                  | BOOLEAN            | 布尔值               |
+| Date/string (时间)       | DATETIME           | 日期时间             |
+| Record/对象/数组         | JSON               | 结构化数据           |
+
+### 常见字段补全清单（User 表）
+
+- id: STRING, notNull: true, primaryKey: true
+- name: STRING, notNull: true
+- nickname: STRING, notNull: false
+- email: STRING, notNull: false
+- phone: STRING, notNull: false
+- googleId: STRING, notNull: false
+- avatar: STRING, notNull: false
+- birthDate: STRING, notNull: true
+- birthTime: STRING, notNull: false
+- bazi: JSON, notNull: false
+- gender: STRING, notNull: true
+- photos: JSON, notNull: false
+- bio: STRING, notNull: false
+- interests: JSON, notNull: false
+- occupation: STRING, notNull: false
+- education: STRING, notNull: false
+- location: JSON, notNull: false
+- preferences: JSON, notNull: false
+- privacySettings: JSON, notNull: false
+- notificationSettings: JSON, notNull: false
+- securitySettings: JSON, notNull: false
+- isVerified: BOOLEAN, notNull: false
+- lastActive: DATETIME, notNull: false
+- isOnline: BOOLEAN, notNull: false
+- status: STRING, notNull: false
+- unreadNotifications: NUMBER, notNull: false
+- tags: JSON, notNull: false
+- mbti: STRING, notNull: false
+- ext: JSON, notNull: false
+- createdAt: DATETIME, notNull: true
+- updatedAt: DATETIME, notNull: true
+
+> ⚠️ 若类型或 mock 数据中出现新字段，务必同步补充到 schema，否则 SQLite 建表/插入会报错。
+
+## 实体数据转换说明
+
+- entity-converter.ts 支持 DATETIME/JSON 字段的自动类型转换：
+  - DATETIME 字段自动转为 Date 实例
+  - JSON 字段自动 parse 为对象

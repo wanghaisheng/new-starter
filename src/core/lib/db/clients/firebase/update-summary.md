@@ -29,7 +29,7 @@
 
 4. **辅助类**：
    - 确认 `src/core/lib/db/clients/firebase/firebase-helpers/query-builder.ts` 已经使用了正确的导入路径
-   - 使用 `@/core/lib/db/types/database.types` 导入类型定义
+   - 使用 `@/core/lib/db/types/` 导入类型定义
    - 使用 `@/core/lib/db/errors/database-logger` 导入日志功能
 
 ## 导入路径约定

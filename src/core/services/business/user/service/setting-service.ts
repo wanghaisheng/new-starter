@@ -1,5 +1,5 @@
 import { ISettingService } from '../types/setting-service';
-import { User } from '@/core/lib/db/types/user';
+import { User } from '@/core/lib/db/types/user.types';
 
 export class SettingService implements ISettingService {
   async updateAccount(data: Partial<User>) {

@@ -2,7 +2,7 @@
 import { EnvConfigAdapter } from '../adapters/env-config-adapter';
 import { RemoteConfigAdapter } from '../adapters/remote-config-adapter';
 import { MockConfigAdapter } from '../adapters/mock-config-adapter';
-import { IConfigAdapter } from '../types/config-adapter.types';
+import { IConfigAdapter } from '../types/config-adapter';
 
 /**
  * 根据 CONFIG_ADAPTER 环境变量动态选择配置源。

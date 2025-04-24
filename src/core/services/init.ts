@@ -17,10 +17,15 @@ import { SensorServiceRegistry } from './business/phone/sensor/registry/sensor-s
 import { QuizServiceRegistry } from './business/quiz/registry/quiz-service-registry';
 import { imageServiceRegistry } from './business/image/registry/image-service-registry';
 import { DataServiceRegistry } from './data/registry/data-service-registry';
-// 自动检测补全
-import { MockDataServiceRegistry } from './business/mock/registry/MockDataServiceRegistry';
-import { ConfigRegistry } from './infrastructure/config/registry/config-registry';
+import { getConfigService } from './infrastructure/config/registry/config-registry';
 import { createEmailService } from './infrastructure/email';
+import { registerCoreSchemas } from '@/core/lib/db/schema/core-schemas';
+
+// 仅主程序环境注册所有核心表结构，测试环境请手动注册需要的 schema
+if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'test') {
+  registerCoreSchemas();
+}
+
 // ...如有更多 registry，按需补充
 
 let initialized = false;
@@ -54,13 +59,12 @@ export async function initializeCoreServices() {
   if (!dataService) {
     throw new Error('[init] dataService 未初始化，MatchServiceRegistry 依赖 dataService！');
   }
-  // 获取单例
-  const configService = ConfigRegistry.getInstance();
-  // 设置配置
+  // 获取配置服务单例
+  const configService = getConfigService();
   // 获取配置
-const matchServiceOptions = configService.get('matchServiceOptions');
-// 推荐方式：注册并获取实例
-const matchService = MatchServiceRegistry.getInstance().createService('remote', 'default', dataService, matchServiceOptions);
+  const matchServiceOptions = configService.get('matchServiceOptions');
+  // 推荐方式：注册并获取实例
+  const matchService = MatchServiceRegistry.getInstance().createService('remote', 'default', dataService, matchServiceOptions);
   NotificationServiceRegistry.getInstance();
   PaymentServiceRegistry.getInstance();
   BluetoothServiceRegistry.getInstance();
@@ -71,9 +75,6 @@ const matchService = MatchServiceRegistry.getInstance().createService('remote', 
   QuizServiceRegistry.getInstance();
   imageServiceRegistry.createService('mock'); // 如需其他类型可调整
 
-  // 自动检测补全服务
-  MockDataServiceRegistry.getInstance('memory');
-  ConfigRegistry.getInstance();
   createEmailService();
 
   // 自动注入 mock 多语言内容（开发/测试环境专用，生产可移除）

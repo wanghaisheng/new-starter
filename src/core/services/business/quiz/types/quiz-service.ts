@@ -1,4 +1,4 @@
-import { Quiz, QuizResult, QuizQuestion, QuizType, QuizAnswer } from '@/core/lib/db/types/quiz';
+import type { Quiz, QuizQuestion, QuizResult, QuizType, QuizAnswer } from '@/core/lib/db/types/quiz.types';
 
 // Adapter interfaces moved from separate files for unified type management
 export interface IQuizAdapter {
@@ -93,8 +93,6 @@ export interface IQuizReportService {
     answers: QuizAnswer[]
   ): QuizReport;
 }
-
-export type { Quiz, QuizResult, QuizQuestion };
 
 export interface QuizWithQuestions {
   quiz: Quiz | null;

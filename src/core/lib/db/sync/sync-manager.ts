@@ -11,7 +11,7 @@ import {
   SyncMetadata, 
   SyncConfig 
 } from '@/core/lib/db/types/sync-flags';
-import { DatabaseClient } from '@/core/lib/db/types/database.types';
+import { DatabaseClient } from '@/core/lib/db/types/database';
 import { NetworkManager } from '/network/network-manager';
 
 export interface SyncManagerOptions {

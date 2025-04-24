@@ -3,6 +3,7 @@ import { IndexedDBClient } from '@/core/lib/db/clients/indexeddb/indexeddb-clien
 import type { DatabaseBatchOperation } from '@/core/lib/db/types';
 import { BaseDatabaseClient } from './base-database-client';
 import { extractDatabaseConfig } from '../utils/extractDatabaseConfig';
+import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 
 /**
  * IndexedDBDatabaseClient
@@ -13,6 +14,7 @@ export class IndexedDBDatabaseClient extends BaseDatabaseClient {
   private initialized = false;
   protected config: DataServiceConfig;
   private db: any = {}; // Added for compatibility, remove if not needed
+  private logger = LoggerService.getInstance();
 
   constructor(config: DataServiceConfig) {
     super(config);
@@ -133,13 +135,38 @@ export class IndexedDBDatabaseClient extends BaseDatabaseClient {
   }
 
   /**
+   * 健康检查：尝试连接 IndexedDB，返回健康状态
+   */
+  async checkHealth(): Promise<{ healthy: boolean; reason?: string }> {
+    try {
+      await this.connect();
+      return { healthy: true };
+    } catch (err) {
+      this.logger?.error?.('[IndexedDBDatabaseClient] Health check failed:', err);
+      return { healthy: false, reason: (err as Error).message };
+    }
+  }
+
+  /**
+   * 重置内部状态和缓存（软重置）
+   */
+  async reset(): Promise<void> {
+    this.cacheClear();
+    this.initialized = false;
+    this.logger?.info?.('[IndexedDBDatabaseClient] reset: 缓存和状态已重置');
+  }
+
+  /**
    * 释放所有资源，适配 Registry 热插拔/销毁
    */
   async dispose(): Promise<void> {
+    this.logger.info('[IndexedDBDatabaseClient] dispose: 开始释放资源');
     await this.disconnect();
+    this.logger.info('[IndexedDBDatabaseClient] dispose: 已断开 IndexedDB 连接');
     // 清理缓存、关闭句柄等（如有）
     this.initialized = false;
     this.db = {};
+    this.logger.info('[IndexedDBDatabaseClient] dispose: 状态已重置，资源释放完毕');
   }
 
   getType(): string {

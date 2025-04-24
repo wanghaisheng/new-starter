@@ -78,10 +78,29 @@ export class MockHybridDatabaseClient extends BaseDatabaseClient implements IDat
    * 释放所有资源，适配 Registry 热插拔/销毁
    */
   async dispose(): Promise<void> {
+    const logger = this.logger || console;
+    logger.info?.('[MockHybridDatabaseClient] dispose: 开始释放资源');
     if (typeof this.client.disconnect === 'function') {
       await this.client.disconnect();
+      logger.info?.('[MockHybridDatabaseClient] dispose: 已断开 mock client 连接');
     }
     // 清理 mock 数据、缓存等（如有）
+    logger.info?.('[MockHybridDatabaseClient] dispose: 资源释放完毕');
+  }
+
+  /**
+   * 重置内部状态和缓存（软重置）
+   */
+  async reset(): Promise<void> {
+    this.cacheClear();
+    this.logger?.info?.('[MockHybridDatabaseClient] reset: 缓存和状态已重置');
+  }
+
+  /**
+   * 健康检查：mock 环境恒为健康
+   */
+  async checkHealth(): Promise<{ healthy: boolean; reason?: string }> {
+    return { healthy: true };
   }
 
   // ===================== IDataService & BaseDatabaseClient required methods =====================

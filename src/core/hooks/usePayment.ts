@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
-import type { Product, PurchaseResult, Subscription, IPaymentService } from '@/core/services/business/payment/types/payment-service';
+import type {  IPaymentService } from '@/core/services/business/payment/types/payment-service';
 import { PaymentServiceRegistry } from '@/core/services/business/payment/registry/payment-service-registry';
+import type { Product, PurchaseResult, Subscription } from '@/core/lib/db/types/payment.types';
 
 // 支持环境变量自动适配不同支付服务类型（如 revenuecat/capacitor-purchases/stripe/wechat）
 const getPaymentServiceType = () => {

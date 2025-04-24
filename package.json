@@ -47,7 +47,9 @@
     "cap:android": "pnpx cap open android",
     "cap:ios": "pnpx cap open ios",
     "deploy:dev": "echo '部署到开发环境'",
-    "deploy:prod": "echo '部署到生产环境'"
+    "deploy:prod": "echo '部署到生产环境'",
+    "gen:repository-map": "tsx scripts/gen-repository-map.ts",
+    "gen:schema-from-types": "tsx scripts/gen-schema-from-types.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",
@@ -94,7 +96,6 @@
     "framer-motion": "^12.6.2",
     "idb": "^8.0.2",
     "jeep-sqlite": "^2.8.0",
-    "jest-environment-jsdom": "^29.7.0",
     "kysely": "^0.27.6",
     "mysql2": "^3.14.0",
     "next": "^15.0.0",
@@ -106,7 +107,8 @@
     "rxjs": "^7.8.2",
     "sql.js": "^1.13.0",
     "tailwind-merge": "^3.1.0",
-    "ts-node": "^10.9.2",
+    "ts-error": "^1.0.6",
+    "ts-morph": "^25.0.1",
     "typeorm": "^0.3.21",
     "winston": "^3.17.0",
     "zustand": "^5.0.3"
@@ -128,13 +130,15 @@
     "@testing-library/react-hooks": "^8.0.1",
     "@testing-library/user-event": "^14.6.1",
     "@types/glob": "^8.1.0",
-    "@types/jest": "^29.5.14",
     "@types/lru-cache": "^7.10.10",
     "@types/node": "^20.17.28",
+    "@types/pino": "^7.0.5",
     "@types/react": "^18.2.0",
     "@types/sql.js": "^1.4.9",
     "@types/testing-library__jest-dom": "^6.0.0",
+    "@vitest/coverage-c8": "^0.33.0",
     "@vitest/coverage-v8": "^3.0.9",
+    "@vitest/ui": "^3.1.2",
     "autoprefixer": "^10.4.16",
     "cross-env": "^7.0.3",
     "drizzle-kit": "^0.30.6",
@@ -142,14 +146,15 @@
     "eslint-config-next": "^15.0.0",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-no-relative-import-paths": "^1.5.3",
-    "jest": "^29.7.0",
     "jest-junit": "^16.0.0",
     "jsdom": "^26.0.0",
     "node-fetch": "2",
+    "pino": "^9.6.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
-    "ts-jest": "^29.3.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
     "typescript": "^5.3.3",
-    "vitest": "^3.0.9"
+    "vitest": "^3.1.2"
   }
 }

@@ -1,5 +1,5 @@
 // ConfigService 实现
-import { IConfigAdapter } from '../types/config-adapter.types';
+import { IConfigAdapter } from '../types/config-adapter';
 import { CONFIG_KEYS, ConfigKey } from '../config-keys';
 import { ConfigSchema } from '../config-types';
 
@@ -59,27 +59,39 @@ export class ConfigService {
   unsubscribe(key: string, cb: ConfigChangeCallback) {
     this.listeners.get(key)?.delete(cb);
   }
+
   private notify(key: string, newValue: any, oldValue: any) {
     this.listeners.get(key)?.forEach(cb => cb(newValue, oldValue));
   }
 
-  // 支持运行时变量热更新（如远程配置变更自动生效）
-  async refresh() {
+  /**
+   * 刷新配置，支持刷新单个 key 或全部 keys。
+   * 
+   * @param key 要刷新的 key，如果不传则刷新所有 key。
+   */
+  async refresh(key?: string) {
     if (typeof this.adapter.refresh === 'function') {
-      // 只通过 get 方法访问所有 key，避免类型隐患
-      const keys = Object.keys(CONFIG_KEYS);
-      const oldSnapshot: Record<string, any> = {};
-      keys.forEach(key => {
-        oldSnapshot[key] = this.get(key);
-      });
-      await this.adapter.refresh();
-      // 检查所有 key 是否有变更，逐一通知
-      keys.forEach(key => {
+      if (key) {
+        const oldValue = this.get(key);
+        await this.adapter.refresh(key);
         const newValue = this.get(key);
-        if (oldSnapshot[key] !== newValue) {
-          this.notify(key, newValue, oldSnapshot[key]);
+        if (oldValue !== newValue) {
+          this.notify(key, newValue, oldValue);
         }
-      });
+      } else {
+        const keys = Object.keys(CONFIG_KEYS);
+        const oldSnapshot: Record<string, any> = {};
+        keys.forEach(k => {
+          oldSnapshot[k] = this.get(k);
+        });
+        await this.adapter.refresh();
+        keys.forEach(k => {
+          const newValue = this.get(k);
+          if (oldSnapshot[k] !== newValue) {
+            this.notify(k, newValue, oldSnapshot[k]);
+          }
+        });
+      }
     }
   }
 }

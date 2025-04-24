@@ -1,36 +1,29 @@
 // winston-adapter.ts
-import { createLogger, format, transports } from 'winston';
-import { LogLevel } from '@/core/services/infrastructure/logger/types/logger-types';
-import { ILoggerService } from '@/core/services/infrastructure/types';
+import winston, { Logger as WinstonLogger, LoggerOptions } from 'winston';
+import { LogLevel, ILoggerService, InfrastructureServiceType, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
 
-const { combine, timestamp, json, colorize, simple } = format;
-const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-const loggerTransports: any[] = [
-  new transports.Console({
-    format: combine(colorize(), simple())
-  })
-];
-if (!isBrowser) {
-  loggerTransports.push(
-    new transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new transports.File({ filename: 'logs/combined.log' })
-  );
-}
-
-export function createWinstonLogger(level: LogLevel = 'INFO') {
-  return createLogger({
-    level: level.toLowerCase(),
-    format: combine(timestamp(), json()),
-    transports: loggerTransports
-  });
-}
-
+/**
+ * Winston 日志适配器，兼容 ILoggerService，支持多 transport、格式化、动态 level。
+ * 支持扩展输出目标（如文件/远程）、格式化等高级特性。
+ */
 export class WinstonLoggerAdapter implements ILoggerService {
   private static instance: WinstonLoggerAdapter;
-  private logger: any;
+  private logger: WinstonLogger;
+  private initialized = false;
+  private level: LogLevel = 'INFO';
 
   private constructor() {
-    this.logger = createWinstonLogger();
+    const options: LoggerOptions = {
+      level: this.level.toLowerCase(),
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.printf(({ level, message, timestamp, ...meta }) => {
+          return `${timestamp} [${level}]: ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
+        })
+      ),
+      transports: [new winston.transports.Console()]
+    };
+    this.logger = winston.createLogger(options);
   }
 
   static getInstance() {
@@ -40,19 +33,51 @@ export class WinstonLoggerAdapter implements ILoggerService {
     return WinstonLoggerAdapter.instance;
   }
 
-  debug(...args: any[]): void {
-    this.logger.debug(...args);
+  async initialize(): Promise<void> {
+    this.initialized = true;
   }
 
-  info(...args: any[]): void {
-    this.logger.info(...args);
+  async dispose(): Promise<void> {
+    this.initialized = false;
   }
 
-  warn(...args: any[]): void {
-    this.logger.warn(...args);
+  isInitialized(): boolean {
+    return this.initialized;
   }
 
-  error(...args: any[]): void {
-    this.logger.error(...args);
+  setLevel(level: LogLevel): void {
+    this.level = level;
+    this.logger.level = level.toLowerCase();
+  }
+
+  debug(message: string, ...args: any[]): void {
+    this.logger.debug(message, ...args);
+  }
+
+  info(message: string, ...args: any[]): void {
+    this.logger.info(message, ...args);
+  }
+
+  warn(message: string, ...args: any[]): void {
+    this.logger.warn(message, ...args);
+  }
+
+  error(message: string, ...args: any[]): void {
+    this.logger.error(message, ...args);
+  }
+
+  getServiceType(): InfrastructureServiceType {
+    return InfrastructureServiceType.LOGGER;
+  }
+
+  getConfig(): InfrastructureServiceConfig {
+    return { id: 'winston-logger', type: 'logger', level: this.level };
+  }
+
+  /**
+   * 支持创建子 logger，实现 context 级别日志隔离
+   */
+  createChildLogger(meta: Record<string, any>): WinstonLogger {
+    return this.logger.child(meta);
   }
 }

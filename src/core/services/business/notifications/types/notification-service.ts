@@ -1,4 +1,4 @@
-import type { Notification } from '@/core/lib/db/types/notification';
+import type { Notification } from '@/core/lib/db/types/notification.types';
 
 // Adapter 层接口
 export interface INotificationAdapter {

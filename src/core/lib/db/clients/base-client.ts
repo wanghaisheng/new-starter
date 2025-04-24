@@ -1,31 +1,39 @@
-import { IBaseDatabaseClient, IDatabaseTransaction } from '@/core/lib/db/interfaces';
-import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError } from '@/core/lib/db/types/database.types';
+console.log('base-client loaded');
+
+import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError } from '@/core/lib/db/types/database';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
-import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
-import { DatabaseErrorCode, createDatabaseError } from '@/core/lib/db/errors/database-error';
+import { DatabaseErrorCode, createDatabaseError } from '@/core/lib/db/types/database-error';
+import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
+import type { ILoggerService } from '@/core/services/infrastructure/logger';
 
 /**
  * 数据库客户端抽象基类
- * 实现了 IBaseDatabaseClient 接口的基本框架
+ * 
  * @template T 实体类型，默认为 BaseEntity
  */
-export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
+export abstract class BaseClient {
   protected initialized = false;
   protected transactionActive = false;
   protected eventListeners: Map<DatabaseEvent, Function[]> = new Map();
-  protected logger: DatabaseLogger;
-  
+
+  protected logger: ILoggerService;
+
   constructor() {
-    this.logger = getDatabaseLogger(this.constructor.name);
+    // 通过注册表获取 logger 实例
+    this.logger = getLoggerService();
   }
   
   // 生命周期方法
   abstract initialize(): Promise<void>;
   abstract close(): Promise<void>;
   abstract clear(): Promise<void>;
-  
+
+  // 连接管理
+  abstract connect(): Promise<void>;
+  abstract disconnect(): Promise<void>;
+
   // 通用数据访问接口
-  abstract findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null>;
+  abstract findById(tableName: string, id: string): Promise<BaseEntity | null>;
   abstract findAll(tableName: string, filter?: Record<string, any>): Promise<BaseEntity[]>;
   abstract create(tableName: string, data: BaseEntity): Promise<BaseEntity>;
   abstract update(tableName: string, id: string, data: Partial<BaseEntity>): Promise<void>;
@@ -72,11 +80,11 @@ export abstract class BaseClient implements IBaseDatabaseClient<BaseEntity> {
    * @param data 实体数据
    * @returns 添加时间戳后的实体数据
    */
-  protected addTimestamps<T extends BaseEntity>(data: Partial<T>): Partial<T> {
-    const now = new Date();
+  protected addTimestamps(data: Partial<BaseEntity>): Partial<BaseEntity> {
+    const now = new Date().toISOString();
     return {
       ...data,
-      createdAt: data.createdAt || now,
+      createdAt: typeof data.createdAt === 'string' ? data.createdAt : now,
       updatedAt: now,
     };
   }

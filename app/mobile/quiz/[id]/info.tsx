@@ -5,21 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonInput, IonItem, IonLabel, IonRadioGroup, IonRadio, IonToast } from "@ionic/react";
 import { useQuizService } from '@/core/hooks/useQuizService';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
-
-// 八字信息表单字段类型
-interface BaziInfo {
-  birthDate: string;
-  birthTime: string;
-  birthPlace: string;
-  gender: "male" | "female";
-}
+import { Quiz } from '@/core/lib/db/types/quiz.types';
 
 export default function TestInfoFormPage() {
   useRequireAuth();
   const router = useRouter();
   const params = useSearchParams();
   const quizId = params.get("id") ?? "";
-  const [info, setInfo] = useState<BaziInfo>({
+  const [info, setInfo] = useState<Quiz>({
     birthDate: "",
     birthTime: "",
     birthPlace: "",
@@ -42,7 +35,7 @@ export default function TestInfoFormPage() {
     checkQuizType();
   }, [quizId, router, quizService]);
 
-  const handleChange = (field: keyof BaziInfo, value: string) => {
+  const handleChange = (field: keyof Quiz, value: string) => {
     setInfo((prev) => ({ ...prev, [field]: value }));
   };
 

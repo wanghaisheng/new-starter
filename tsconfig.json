@@ -38,7 +38,7 @@
       "@db/interfaces/*": ["./src/core/lib/db/interfaces/*"],
       "@db/test/*": ["./src/core/lib/db/test/*"],
       "@/src/*": ["./src/*"],
-      "@/src/providers": ["./src/providers/index.ts", "./src/providers"]
+      "@/src/providers": ["./src/providers/index.ts"]
     }
   },
   "include": [

@@ -1,46 +1,60 @@
-import { useState } from 'react';
+import type { OnboardStep } from '@/core/lib/db/types/onboard.types';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useToast } from '@/core/hooks/useToast';
+import { OnboardServiceRegistry } from '@/core/services/business/onboard/registry/onboard-service-registry';
 
-export interface OnboardStep {
-  title: string;
-  desc: string;
-  image: string;
-}
-
-const steps: OnboardStep[] = [
-  {
-    title: '遇见更好的自己',
-    desc: '基于八字、性格、兴趣的智能推荐，开启你的专属缘分之旅',
-    image: '/assets/onboard-1.png',
-  },
-  {
-    title: '安全真实的社区',
-    desc: '实名认证+专业审核，保护你的每一次心动',
-    image: '/assets/onboard-2.png',
-  },
-  {
-    title: '高效精准的匹配',
-    desc: '多维画像，科学算法，帮你找到最合适的TA',
-    image: '/assets/onboard-3.png',
-  },
-];
-
-export function useOnboard() {
+export function useOnboard(options?: { locale?: string; abTestGroup?: string; platform?: string }) {
+  const [steps, setSteps] = useState<OnboardStep[]>([]);
   const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<null | { type: string; message: string }>(null);
+  const [empty, setEmpty] = useState(false);
   const router = useRouter();
   const { triggerToast } = useToast();
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    setError(null);
+    OnboardServiceRegistry.getDefaultService()
+      .getSteps(options)
+      .then(data => {
+        if (!isMounted) return;
+        setSteps(data);
+        setEmpty(data.length === 0);
+      })
+      .catch(e => {
+        if (!isMounted) return;
+        setError({ type: 'fetch', message: e?.message || '获取引导内容失败' });
+        setEmpty(true);
+        triggerToast(e?.message || '获取引导内容失败');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [options, triggerToast]);
 
   const next = () => {
     if (step < steps.length - 1) setStep(step + 1);
     else router.replace('/mobile/subscribe');
   };
+  const prev = () => {
+    if (step > 0) setStep(step - 1);
+  };
 
   return {
-    step,
-    setStep,
     steps,
+    step,
+    loading,
+    error,
+    empty,
     next,
+    prev,
+    setStep
   };
 }

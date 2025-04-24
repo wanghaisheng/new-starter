@@ -1,22 +1,44 @@
 // 皮肤商城配置类型定义
 import { BaseEntity } from './base-entity';
 
-export interface SkinItem extends BaseEntity {
+/**
+ * 皮肤/主题主类型
+ */
+export interface Skin extends BaseEntity {
+  id: string;
   name: string;
-  image: string;
-  isActive: boolean;
-  price?: number;
-  currency?: string;
-  unlockLevel?: number;
+  previewUrl: string;
+  status: 'active' | 'inactive' | string;
+  createdAt: string;
+  updatedAt: string;
+  ext: Record<string, any>;
+}
+
+/**
+ * 皮肤/主题聚合类型
+ */
+export interface SkinStats {
+  total: number;
+  active: number;
+  inactive: number;
+  ext: Record<string, any>;
+}
+
+/**
+ * 皮肤/主题创建类型
+ */
+export interface SkinCreate {
+  name: string;
+  previewUrl: string;
   ext?: Record<string, any>;
 }
 
-export interface SkinConfig {
-  id: string;
-  createdAt: string;
-  version: string;
-  items: SkinItem[];
-  updatedAt: string;
-  updatedBy: string;
-  metadata?: Record<string, any>;
+/**
+ * 皮肤/主题更新类型
+ */
+export interface SkinUpdate {
+  name?: string;
+  previewUrl?: string;
+  status?: 'active' | 'inactive' | string;
+  ext?: Record<string, any>;
 }

@@ -1,7 +1,7 @@
 // src/core/services/data/utils/extractDatabaseConfig.ts
 
 import { DataServiceConfig } from '../types';
-import type { DatabaseConfig } from '@/core/lib/db/types/database.types';
+import type { DatabaseConfig } from '@/core/lib/db/types/database';
 
 // 为每种 adapter 明确类型，提升类型安全
 // 可根据实际项目类型定义进一步完善

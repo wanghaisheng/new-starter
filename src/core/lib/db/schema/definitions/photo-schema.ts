@@ -1,27 +1,26 @@
-import { schemaRegistry, TableSchema } from '@/core/lib/db/schema/index';
-import { ColumnType } from '@/core/lib/db/schema/types';
+import { TableSchema, ColumnType } from '../types';
+import { schemaRegistry } from '../index';
 
-/**
- * 照片表结构定义
- * 定义照片实体的数据库结构
- */
-const photoSchema: TableSchema = {
+export const photoSchema: TableSchema = {
   name: 'photos',
   columns: [
-    { name: 'id', type: ColumnType.STRING, primaryKey: true, notNull: true },
-    { name: 'url', type: ColumnType.STRING, notNull: true },
-    { name: 'order', type: ColumnType.NUMBER, notNull: true, defValue: 0 },
-    { name: 'isMain', type: ColumnType.BOOLEAN, notNull: true, defValue: false },
+    { name: 'id', type: ColumnType.STRING, notNull: true, primaryKey: true },
+    { name: 'createdAt', type: ColumnType.STRING, notNull: true },
+    { name: 'updatedAt', type: ColumnType.STRING, notNull: true },
     { name: 'userId', type: ColumnType.STRING, notNull: true },
-    { name: 'caption', type: ColumnType.TEXT },
-    { name: 'tags', type: ColumnType.JSON, defValue: '[]' },
-    { name: 'createdAt', type: ColumnType.DATE, notNull: true, defValue: () => new Date() },
-    { name: 'updatedAt', type: ColumnType.DATE, notNull: true, defValue: () => new Date() },
+    { name: 'url', type: ColumnType.STRING, notNull: true },
+    { name: 'thumbnailUrl', type: ColumnType.STRING, notNull: false },
+    { name: 'isAvatar', type: ColumnType.BOOLEAN, notNull: false },
+    { name: 'isMain', type: ColumnType.BOOLEAN, notNull: false },
+    { name: 'order', type: ColumnType.NUMBER, notNull: false },
+    { name: 'caption', type: ColumnType.STRING, notNull: false },
+    { name: 'tags', type: ColumnType.JSON, notNull: false },
+    { name: 'status', type: ColumnType.STRING, notNull: false },
+    { name: 'ext', type: ColumnType.JSON, notNull: false }
   ],
   indexes: [
-    { name: 'idx_photos_user', columns: ['userId'] },
-    { name: 'idx_photos_is_main', columns: ['isMain'] },
-    { name: 'idx_photos_order', columns: ['order'] },
+    { name: 'pk_id', columns: ["id"], unique: true },
+    { name: 'idx_userId', columns: ["userId"], unique: true }
   ]
 };
 

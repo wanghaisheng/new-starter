@@ -1,5 +1,5 @@
 // remote-config-adapter.ts
-import { IConfigAdapter } from '../types/config-adapter.types';
+import { IConfigAdapter } from '../types/config-adapter';
 
 export class RemoteConfigAdapter implements IConfigAdapter {
   private store: Record<string, any> = {};

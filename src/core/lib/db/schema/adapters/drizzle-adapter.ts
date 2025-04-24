@@ -75,11 +75,11 @@ export class DrizzleSchemaAdapter {
       columnDef = columnDef.unique();
     }
     
-    if (column.defaultValue !== undefined) {
-      if (typeof column.defaultValue === 'function') {
-        columnDef = columnDef.default(sql`${column.defaultValue()}`);
+    if (column.defValue !== undefined) {
+      if (typeof column.defValue === 'function') {
+        columnDef = columnDef.default(sql`${column.defValue()}`);
       } else {
-        columnDef = columnDef.default(column.defaultValue);
+        columnDef = columnDef.default(column.defValue);
       }
     }
     
@@ -91,57 +91,47 @@ export class DrizzleSchemaAdapter {
    * @param schemas 表结构列表
    * @returns 迁移 SQL 语句
    */
-  static generateMigrationSQL(schemas: TableSchema[]): string {
-    let sql = '';
-    
-    // 为每个表生成创建表的 SQL
+  static generateMigrationSQL(schemas: TableSchema[]): string[] {
+    const sqls: string[] = [];
     schemas.forEach(schema => {
-      sql += `-- 创建 ${schema.name} 表\n`;
-      sql += `CREATE TABLE IF NOT EXISTS ${schema.name} (\n`;
-      
+      // 对表名和索引名做转义，防止连字符等特殊字符导致 SQL 错误
+      const tableName = /[^a-zA-Z0-9_]/.test(schema.name) ? `"${schema.name}"` : schema.name;
+      let sql = `CREATE TABLE IF NOT EXISTS ${tableName} (
+`;
       // 列定义
       const columnDefs = schema.columns.map(column => {
         let def = `  ${column.name} ${this.getSQLiteType(column.type)}`;
-        
         if (column.primaryKey) {
           def += ' PRIMARY KEY';
         }
-        
         if (column.notNull) {
           def += ' NOT NULL';
         }
-        
         if (column.unique) {
           def += ' UNIQUE';
         }
-        
-        if (column.defaultValue !== undefined) {
-          def += ` DEFAULT ${this.formatDefaultValue(column.defaultValue)}`;
+        if (column.defValue !== undefined) {
+          def += ` DEFAULT ${this.formatDefaultValue(column.defValue)}`;
         }
-        
         if (column.references) {
           def += ` REFERENCES ${column.references.table}(${column.references.column})`;
         }
-        
         return def;
       });
-      
-      sql += columnDefs.join(',\n');
-      
-      // 索引定义
+      sql += columnDefs.join('\n,');
+      sql += '\n);';
+      sqls.push(sql);
+      // 生成索引 SQL
       if (schema.indexes && schema.indexes.length > 0) {
-        sql += ',\n';
-        const indexDefs = schema.indexes.map(index => {
-          let def = `  ${index.unique ? 'UNIQUE ' : ''}INDEX ${index.name} ON ${schema.name} (${index.columns.join(', ')})`;
-          return def;
-        });
-        sql += indexDefs.join(',\n');
+        for (const index of schema.indexes) {
+          const indexName = /[^a-zA-Z0-9_]/.test(index.name) ? `"${index.name}"` : index.name;
+          const indexTable = tableName;
+          const unique = index.unique ? 'UNIQUE ' : '';
+          sqls.push(`CREATE ${unique}INDEX IF NOT EXISTS ${indexName} ON ${indexTable} (${index.columns.join(', ')});`);
+        }
       }
-      
-      sql += '\n);\n\n';
     });
-    
-    return sql;
+    return sqls;
   }
   
   /**

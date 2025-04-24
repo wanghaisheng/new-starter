@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import type { ISettingService } from '@/core/services/business/user/types/setting-service';
-import { SettingService } from '@/core/services/business/user/service/setting-service';
-import type { User, UserPreferences } from '@/core/lib/db/types/user';
-import type { PrivacySettings, NotificationSettings, SecuritySettings } from '@/core/lib/db/types/settings';
+import { SettingService, SettingServiceRegistry } from '@/core/services/business/user/service/setting-service';
+import type { User, UserPreferences } from '@/core/lib/db/types/user.types';
+import type { PrivacySettings, NotificationSettings, SecuritySettings } from '@/core/lib/db/types/settings.types';
 import { useToast } from './useToast';
 
 // TODO: Replace direct SettingService instantiation with Registry if/when available
@@ -14,8 +14,8 @@ export function useSetting(userId: string) {
   const [theme, setTheme] = useState<any>(null); // Replace 'any' with a Theme type if available
   const { triggerToast } = useToast();
 
-  // For now, instantiate directly; ideally use a registry for consistency
-  const service: ISettingService = new SettingService();
+  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
+  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
 
   const updateTheme = useCallback(
     async (themeValue: any) => {
@@ -58,8 +58,8 @@ export function useLanguageSetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [language, setLanguage] = useState<string>('en');
   const { triggerToast } = useToast();
-  // 依赖 SettingService（可后续切换为 Registry 获取实例）
-  const service: ISettingService = new SettingService();
+  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
+  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
 
   // 加载语言设置（可扩展为实际后端获取）
   const loadLanguage = useCallback(async (user?: User) => {
@@ -116,7 +116,8 @@ export function useContactSetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [contact, setContact] = useState<User | null>(null);
   const { triggerToast } = useToast();
-  const service: ISettingService = new SettingService();
+  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
+  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
 
   const loadContact = useCallback(async (user?: User) => {
     if (!user) return;
@@ -170,7 +171,8 @@ export function useDiscoverySetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const { triggerToast } = useToast();
-  const service: ISettingService = new SettingService();
+  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
+  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
 
   const loadDiscovery = useCallback(async (user?: User) => {
     if (!user) return;
@@ -224,7 +226,8 @@ export function usePrivacySetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [privacy, setPrivacy] = useState<PrivacySettings | null>(null);
   const { triggerToast } = useToast();
-  const service: ISettingService = new SettingService();
+  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
+  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
 
   const defaultPrivacy: PrivacySettings = {
     showProfileToEveryone: true,
@@ -306,7 +309,8 @@ export function useNotificationSetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [notification, setNotification] = useState<NotificationSettings | null>(null);
   const { triggerToast } = useToast();
-  const service: ISettingService = new SettingService();
+  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
+  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
 
   const defaultNotification: NotificationSettings = {
     newMatches: true,
@@ -382,7 +386,8 @@ export function useSecuritySetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [security, setSecurity] = useState<SecuritySettings | null>(null);
   const { triggerToast } = useToast();
-  const service: ISettingService = new SettingService();
+  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
+  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
 
   const defaultSecurity: SecuritySettings = {
     twoFactorEnabled: false,

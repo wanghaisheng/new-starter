@@ -71,12 +71,12 @@ export class DataServiceRegistry {
     // 1. 释放旧实例资源（如有）
     const oldInst = this.instances.get(key);
     if (oldInst && typeof oldInst.dispose === 'function') {
+      this.logger.info(`[DataServiceRegistry] switchAdapter: 释放旧实例资源: ${key}`);
       try {
-        this.logger.info(`[DataServiceRegistry] switchAdapter: 释放旧实例资源: ${key}`);
         await oldInst.dispose();
       } catch (err) {
-        this.logger.error(`[DataServiceRegistry] switchAdapter: 释放资源异常: ${key}, error: ${err}`);
-        // 资源释放异常不阻断新实例切换
+        this.logger.error(`[DataServiceRegistry] switchAdapter: 释放资源异常: ${key} - ${(err as Error).message}`);
+        throw err;
       }
     }
     // 2. 注销旧实例
@@ -91,5 +91,50 @@ export class DataServiceRegistry {
     this.instances.set(key, newInst);
     this.logger.info(`[DataServiceRegistry] switchAdapter: 新实例已初始化: ${key}`);
     return newInst;
+  }
+
+  /**
+   * 重建服务实例：销毁旧实例并重新初始化新实例（适用于账号切换、配置变更等场景）
+   */
+  static async rebuild(key: string): Promise<IDataService | undefined> {
+    this.logger.info(`[DataServiceRegistry] rebuild: 开始重建服务实例: ${key}`);
+    await this.dispose(key);
+    const factory = this.registry.get(key);
+    if (!factory) {
+      this.logger.warn(`[DataServiceRegistry] rebuild: 未找到工厂: ${key}`);
+      return undefined;
+    }
+    const newInst = factory();
+    if (typeof newInst.initialize === 'function') {
+      await newInst.initialize();
+    }
+    this.instances.set(key, newInst);
+    this.logger.info(`[DataServiceRegistry] rebuild: 新实例已初始化: ${key}`);
+    return newInst;
+  }
+
+  /**
+   * 重置服务实例（软重置）：调用实例 reset 方法（如有），不销毁对象，可用于清理缓存/状态
+   */
+  static async reset(key: string): Promise<void> {
+    const inst = this.instances.get(key);
+    if (inst && typeof (inst as any).reset === 'function') {
+      this.logger.info(`[DataServiceRegistry] reset: 调用 reset: ${key}`);
+      await (inst as any).reset();
+      this.logger.info(`[DataServiceRegistry] reset: 状态已重置: ${key}`);
+    } else {
+      this.logger.info(`[DataServiceRegistry] reset: 未实现 reset 方法: ${key}`);
+    }
+  }
+
+  /**
+   * 健康检查：调用实例的 checkHealth 方法
+   */
+  static async checkHealth(key: string): Promise<{ healthy: boolean; reason?: string }> {
+    const inst = this.instances.get(key);
+    if (inst && typeof inst.checkHealth === 'function') {
+      return await inst.checkHealth();
+    }
+    return { healthy: false, reason: 'No checkHealth implemented' };
   }
 }

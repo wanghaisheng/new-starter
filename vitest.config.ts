@@ -17,17 +17,16 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom', // 切换为 jsdom 以支持依赖 DOM 的 React hooks 测试
+    environment: 'jsdom', // 兼容 React/DOM 测试
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
       reportsDirectory: './coverage',
     },
-    // 支持 src/core/hooks/__tests__/*.smoke.test.ts 及其它 src/**/*.test/spec/smoke.test.ts
     include: [
-      'testing/unit/**/*.test.ts',
-      'testing/unit/**/*.spec.ts',
-      'testing/unit/**/*.smoke.test.ts',
+      'testing/**/*.test.ts',
+      'testing/**/*.spec.ts',
+      'testing/**/*.smoke.test.ts',
       'src/**/*.test.{ts,tsx}',
       'src/**/*.spec.{ts,tsx}',
       'src/**/*.smoke.test.{ts,tsx}'

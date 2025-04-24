@@ -1,6 +1,6 @@
 // 用户相关类型定义
 import { BaseEntity } from './base-entity';
-import { Location } from './location';
+import { Location } from './location.types';
 import { Photo } from './photo.types';
 import { QuizType, QuizTypeKey } from './quiz.types';
 
@@ -31,7 +31,7 @@ export interface User extends BaseEntity {
   avatar?: string;
   
   /** 出生日期 */
-  birthDate: Date;
+  birthDate: string;
   
   /** 出生时辰（用于八字） */
   birthTime?: string;
@@ -76,25 +76,6 @@ export interface User extends BaseEntity {
   /** 安全设置 */
   securitySettings?: SecuritySettings;
   
-  /** 测试和匹配相关信�?*/
-  matching: {
-    /** 已完成的测试类型ID列表 */
-    completedTests: string[];
-    
-    /** 测试权重设置 */
-    quizWeights: {
-      [K in QuizTypeKey]?: number;
-    };
-    
-    /** 各类测试的最新结�?*/
-    quizResults: {
-      [K in QuizTypeKey]?: {
-        score: number;
-        details: any; // 具体类型由QuizResult.details定义
-        lastUpdated: string;
-      };
-    };
-  };
   
   /** 是否已验证账�?*/
   isVerified: boolean;
@@ -138,6 +119,9 @@ export interface User extends BaseEntity {
    * MBTI（十六型人格）类�?   * 例如�?INTJ"�?ENFP" �?   * 用于智能匹配、兴趣画像等业务场景
    */
   mbti?: string;
+
+  /** 扩展字段 */
+  ext?: Record<string, any>;
 }
 
 /**
@@ -175,81 +159,69 @@ export interface UserPreferences {
 
   // 兼容旧字�?  darkMode?: boolean;
   accentColor?: string;
+
+  /** 扩展字段 */
+  ext?: Record<string, any>;
 }
 
-/**
- * 通知设置接口
- */
+// 用户通知设置
 export interface NotificationSettings {
-  /** 新匹配通知 */
   newMatches: boolean;
-  
-  /** 匹配消息通知 */
   matchMessages: boolean;
-  
-  /** 个人资料浏览通知 */
   profileViews: boolean;
-  
-  /** 个人资料点赞通知 */
   profileLikes: boolean;
-  
-  /** 应用更新通知 */
   appUpdates: boolean;
-  
-  /** 促销活动通知 */
   promotions: boolean;
+  // 可扩展字段
+  [key: string]: any;
 }
 
-/**
- * 隐私设置接口
- */
+// 用户隐私设置
 export interface PrivacySettings {
-  /** 是否向所有人显示个人资料 */
   showProfileToEveryone: boolean;
-  
-  /** 是否显示在线状�?*/
   showOnlineStatus: boolean;
-  
-  /** 是否显示最后活跃时�?*/
   showLastActive: boolean;
-  
-  /** 是否在发现页面显�?*/
   showInDiscovery: boolean;
-  
-  /** 是否显示距离信息 */
   showDistance: boolean;
-  
-  /** 是否允许数据收集 */
   allowDataCollection: boolean;
-  
-  /** 是否允许个性化广告 */
   allowPersonalizedAds: boolean;
-
-  /** 是否向匹配用户显示邮�?*/
   showEmailToMatches: boolean;
-
-  /** 是否向匹配用户显示电�?*/
   showPhoneToMatches: boolean;
-
-  /** 是否允许分享个人资料 */
   allowProfileSharing: boolean;
+  // 可扩展字段
+  [key: string]: any;
+}
+
+// 用户安全设置
+export interface SecuritySettings {
+  twoFactorEnabled: boolean;
+  emailNotifications: boolean;
+  loginAlerts: boolean;
+  // 可扩展字段
+  [key: string]: any;
 }
 
 /**
- * 安全设置接口
+ * 用户创建类型
  */
-export interface SecuritySettings {
-  /** 是否启用双因素认�?*/
-  twoFactorEnabled: boolean;
-  /** 是否启用邮件通知 */
-  emailNotifications: boolean;
-  /** 是否启用登录提醒 */
-  loginAlerts: boolean;
+export interface UserCreate {
+  name: string;
+  email: string;
+  phone?: string;
+  birthDate: string;
+  ext?: Record<string, any>;
 }
 
-// --- 以下类型已独立为单文件定�?---
-// Match 相关类型请见 ./match.ts
-// Message 相关类型请见 ./message.ts
+/**
+ * 用户更新类型
+ */
+export interface UserUpdate {
+  name?: string;
+  email?: string;
+  phone?: string;
+  birthDate?: string;
+  ext?: Record<string, any>;
+}
 
 /**
  * 用户创建接口
@@ -260,7 +232,7 @@ export interface CreateUserData {
   googleId?: string;
   name: string;
   nickname?: string;
-  birthDate: Date;
+  birthDate: string;
   birthTime?: string;
   gender: 'male' | 'female' | 'other';
   bio?: string;
@@ -270,6 +242,9 @@ export interface CreateUserData {
   privacySettings?: PrivacySettings;
   preferences?: UserPreferences;
   notificationSettings?: NotificationSettings;
+
+  /** 扩展字段 */
+  ext?: Record<string, any>;
 }
 
 /**
@@ -287,11 +262,24 @@ export interface UpdateUserData {
   privacySettings?: PrivacySettings;
   preferences?: UserPreferences;
   notificationSettings?: NotificationSettings;
-  matching?: {
-    testWeights?: {
-      [K in QuizTypeKey]?: number;
-    };
-  };
   isVerified?: boolean;
   status?: 'active' | 'inactive' | 'suspended';
+
+  /** 扩展字段 */
+  ext?: Record<string, any>;
 }
+
+/**
+ * 用户聚合统计类型
+ * 用于报表、分析等场景
+ */
+export interface UserStats {
+  total: number;
+  active: number;
+  suspended: number;
+  ext: Record<string, any>;
+}
+
+// --- 以下类型已独立为单文件定�?---
+// Match 相关类型请见 ./match.ts
+// Message 相关类型请见 ./message.ts

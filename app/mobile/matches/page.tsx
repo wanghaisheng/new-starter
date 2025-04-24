@@ -4,17 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
-import { User } from '@/core/lib/db/types/user';
+import { Match, User } from '@/core/lib/db/types';
 import { useMatches } from '@/core/hooks/useMatches';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
-
-interface Match {
-  users: string[];
-  id: string;
-}
 
 export default function MatchesPage() {
   useRequireAuth();

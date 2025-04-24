@@ -69,6 +69,39 @@
 - 支持标准的数据库事件（如初始化、关闭、错误等）
 - 事件监听器注册返回取消函数
 
+## 目录结构与组织规范（2025-04-23 更新）
+
+### 推荐组织方式：按“存储/服务类型”分目录
+
+所有 client 以其**底层数据库/服务类型**为一级目录（如 indexeddb、sqlite、supabase、turso、mock 等），每种类型下可细分不同实现（如原生、drizzle、kysely等）：
+
+```
+clients/
+  indexeddb/
+    indexeddb-client.ts
+  sqlite/
+    sqlite-client.ts                # 原生 SQLite 实现
+    drizzle-sqlite-client.ts        # Drizzle ORM for SQLite
+    kysely-sqlite-client.ts         # Kysely ORM for SQLite
+  supabase/
+    supabase-client.ts
+  turso/
+    turso-client.ts                 # Turso (云端 SQLite)
+  mock/
+    mock-database-client.ts
+  base-client.ts
+```
+
+- **adapter 层通过注入具体 client 实例**，如 `SQLiteClient`、`DrizzleSQLiteClient`、`SupabaseClient`，业务代码无感知。
+- 如需支持新的 ORM/访问技术，仅需在对应类型目录下新增实现。
+- 认证服务相关数据（如 users/sessions/tokens 等）也应按此规范实现 adapter 和 client。
+
+### 拓展建议
+- 若未来支持更多云服务（如 neon、planetscale、dynamodb），可直接新增同级目录。
+- 若某类 client 仅用于特定平台或环境，建议注释说明。
+
+> 这样组织既保证了业务适配性、可扩展性，也方便团队协作和后期维护。
+
 ## 可用的客户端实现
 
 本模块提供了以下数据库客户端实现：
@@ -292,3 +325,40 @@ await mockIndexedDb.reset();
 3. 支持批量操作以减少网络往返
 4. 实现指标收集，帮助识别性能瓶颈
 
+---
+
+## Kysely/Drizzle SQLiteClient 实战问题与最佳实践总结
+
+本节总结了在基于 Kysely/Drizzle 构建 SQLiteClient 过程中遇到的主要问题及通用解决方案，适用于后续构建其他类型数据库 client（如 Postgres、MySQL、MongoDB 等）。
+
+### 1. 类型自动转换与兼容性
+- **问题**：SQLite 仅支持 number/string/bigint/Buffer/null，ORM 传递 boolean/date/json/array 等复杂类型会报类型错误。
+- **解决**：在 client 层统一做类型兜底转换（如 boolean→0/1，date→ISO 字符串，json→stringify），并加日志辅助调试。
+
+### 2. Schema 映射与查找
+- **问题**：运行时无法直接依赖 ORM 表对象拿到 schema，查找 schema 失败。
+- **解决**：构造 client 时传入所有 TableSchema 数组，维护 name→schema 的独立映射。
+
+### 3. 测试数据唯一性约束
+- **问题**：测试中多次插入 mock 数据，唯一索引字段（如 email/phone）冲突。
+- **解决**：明确所有唯一性字段，测试用例中分配唯一值，必要时打印所有唯一字段辅助排查。
+
+### 4. ORM API 差异与调用方式
+- **问题**：不同 ORM 生成的表对象结构不同，字段未必有 .eq/.count() 等方法。
+- **解决**：Drizzle 推荐用 sql`column = ${value}` 方式表达 where 条件，多条件用 reduce/AND 组合。
+
+### 5. SQL 生成与特殊字符处理
+- **问题**：表名/字段名含特殊字符（如连字符 -），自动建表时报 SQL 语法错误。
+- **解决**：SQL 生成时对含特殊字符的表名/字段名加双引号（"table-name"）。
+
+### 6. 依赖导入与 API 兼容
+- **问题**：部分 drizzle-orm 适配器未导出 sql，错误导入导致 sql is not a function。
+- **解决**：sql 应始终从 drizzle-orm 主包导入，查阅文档确认 API 变化。
+
+### 7. 其它通用建议
+- 关键环节加详细日志，便于调试。
+- 每个测试用例前清理数据库，保证测试隔离。
+- 构造 client 时参数必传，避免 undefined/null 传播。
+- 类型转换、schema 查找、SQL 生成等建议抽象为独立方法，便于扩展。
+
+> 这些经验高度适用于构建 Postgres、MySQL、MongoDB 等数据库 client。核心思想是：**类型安全、schema 明确、唯一性保障、API 兼容、调试可追溯**。

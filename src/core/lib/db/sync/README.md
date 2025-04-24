@@ -94,7 +94,7 @@ SYNC_CONFLICT_RESOLUTION=server-wins
 ```typescript
 import { SyncManager } from 'src/core/lib/db/sync/sync-manager';
 import { createNetworkManager } from 'src/core/lib/network/network-manager';
-import { DatabaseClient } from 'src/core/lib/db/types/database.types';
+import { DatabaseClient } from 'src/core/lib/db/types/';
 
 // 创建数据库客户端（示例）
 const dbClient = createDatabaseClient();

@@ -7,7 +7,7 @@ export function useAvatarUpload() {
   const [uploadError, setUploadError] = useState<Error | null>(null);
   const { triggerToast } = useToast();
   // 推荐 hooks 场景统一用 provider 获取实例
-  const userService = UserServiceRegistry.getProvider()();
+  const userService = UserServiceRegistry.getInstance().getProvider()();
 
   // 推荐：直接更新用户资料的头像字段
   const uploadAvatar = async (userId: string, avatarUrl: string) => {

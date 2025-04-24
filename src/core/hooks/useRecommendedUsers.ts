@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { MatchServiceRegistry } from '@/core/services/business/match/registry/match-service-registry';
-import type { User } from '@/core/lib/db/types/user';
+import type { User } from '@/core/lib/db/types/user.types';
 import { useToast } from './useToast';
 
 function isProfileCompleted(user: User | null): boolean {
@@ -20,7 +20,7 @@ function isMatchPreferenceSet(user: User | null): boolean {
 export function useRecommendedUsers(currentUser: User | null) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<null | { type: string; message: string }>(null);
   const [empty, setEmpty] = useState(false);
   const { triggerToast } = useToast();
   const matchServiceRef = useRef<any>(null);
@@ -40,17 +40,17 @@ export function useRecommendedUsers(currentUser: User | null) {
       let data: User[] = [];
       if (!currentUser || !isProfileCompleted(currentUser) || !isQuizCompleted(currentUser) || !isMatchPreferenceSet(currentUser)) {
         // 新用户或未完善资料，走随机推荐
-        data = await matchServiceRef.current.matchUsers(currentUser?.id || '', { useRandom: true, limit: 20 });
+        data = await matchServiceRef.current.matchUsers(currentUser?.id || '', { useRandom: true, limit: 20 }, undefined);
       } else {
         // 已完善资料，按偏好/AI推荐
-        data = await matchServiceRef.current.matchUsers(currentUser.id, { limit: 20 });
+        data = await matchServiceRef.current.matchUsers(currentUser.id, { limit: 20 }, undefined);
       }
       setUsers(data);
       setEmpty(!data || data.length === 0);
     } catch (err: any) {
-      setError(err.message);
+      setError({ type: 'fetch', message: err?.message || '获取推荐用户失败' });
       setEmpty(true);
-      triggerToast(err.message);
+      triggerToast(err?.message || '获取推荐用户失败');
     } finally {
       setLoading(false);
     }

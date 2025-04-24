@@ -1,4 +1,4 @@
-import type { BaseEntity, DatabaseConfig, DatabaseEngine, SyncConfig } from '@/core/lib/db/types/database.types';
+import type { BaseEntity, DatabaseConfig, DatabaseEngine, SyncConfig } from '@/core/lib/db/types/database';
 import { IService, ServiceConfig } from '@/core/services/types';
 
 // 数据服务通用查询结果
@@ -75,6 +75,10 @@ export interface IDataService extends IService {
   getConfig(): ServiceConfig;
   on?(event: string, handler: (...args: any[]) => void): void;
   off?(event: string, handler: (...args: any[]) => void): void;
+  /**
+   * 健康检查：返回健康状态及原因
+   */
+  checkHealth?(): Promise<{ healthy: boolean; reason?: string }>;
 }
 
 // 数据服务工厂接口

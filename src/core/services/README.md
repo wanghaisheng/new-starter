@@ -772,7 +772,7 @@ import type { DatabaseBatchOperation } from '@/core/lib/db/types';
 
 - 如需全部类型命名空间：
 ```typescript
-import * as DatabaseTypes from '@/core/lib/db/types/database.types';
+import * as DatabaseTypes from '@/core/lib/db/types/';
 ```
 
 > 这样可确保类型唯一、schema 变更自动同步、避免重复维护和类型漂移。

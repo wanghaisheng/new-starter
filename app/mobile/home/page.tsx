@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
 import { User } from '@/core/lib/db/types/user';
+import { Photo } from '@/core/lib/db/types/photo';
+import { Match } from '@/core/lib/db/types/match';
 import { useAuth } from '@/core/hooks/useAuth';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
@@ -12,16 +14,6 @@ import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useMatches } from '@/core/hooks/useMatches';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 import { useRecommendedUsers } from '@/core/hooks/useRecommendedUsers';
-
-// Add type definition for Photo
-interface Photo {
-  url: string;
-  id: string;
-}
-
-interface Match {
-  users: string[];
-}
 
 // Add utility function to calculate age from birthDate
 const calculateAge = (birthDate: Date): number => {

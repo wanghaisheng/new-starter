@@ -1,6 +1,5 @@
-import type { IDatabaseClient } from '@/core/lib/db/interfaces';
-import type { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database.types';
-import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
+import type { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database';
+import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database-error';
 import { Logger } from '@/core/lib/utils/logger';
 import { Pool, PoolClient } from 'pg';
 
@@ -19,7 +18,7 @@ export interface PostgresConfig {
 /**
  * PostgreSQL数据库客户端
  */
-export class PostgresClient implements IDatabaseClient {
+export class PostgresClient {
   private pool: Pool;
   private config: PostgresConfig;
   private logger: Logger;
@@ -44,13 +43,16 @@ export class PostgresClient implements IDatabaseClient {
 
   public async connect(): Promise<void> {
     if (!this.initialized) {
-      await this.initialize();
+      await this.pool.connect();
+      this.initialized = true;
     }
   }
 
   public async disconnect(): Promise<void> {
-    await this.pool.end();
-    this.initialized = false;
+    if (this.initialized) {
+      await this.pool.end();
+      this.initialized = false;
+    }
   }
 
   public async initialize(): Promise<void> {
@@ -102,7 +104,7 @@ export class PostgresClient implements IDatabaseClient {
     }
   }
 
-  public async findById<T>(collection: string, id: string): Promise<T | null> {
+  public async findById(tableName: string, id: string): Promise<BaseEntity | null> {
     if (!this.initialized) {
       throw new DatabaseError(
         'Client not initialized',
@@ -112,12 +114,12 @@ export class PostgresClient implements IDatabaseClient {
 
     try {
       const result = await this.pool.query(
-        `SELECT * FROM "${collection}" WHERE id = $1`,
+        `SELECT * FROM "${tableName}" WHERE id = $1`,
         [id]
       );
-      return result.rows[0] as T || null;
+      return result.rows[0] || null;
     } catch (error) {
-      this.logger.error(`Failed to find record by id ${id} in collection ${collection}:`, error);
+      this.logger.error(`Failed to find record by id ${id} in collection ${tableName}:`, error);
       throw new DatabaseError(
         `Failed to find record by id ${id}`,
         DatabaseErrorCode.OPERATION_FAILED,
@@ -126,7 +128,7 @@ export class PostgresClient implements IDatabaseClient {
     }
   }
 
-  public async findAll<T>(collection: string, filter?: Record<string, any>): Promise<T[]> {
+  public async findAll(tableName: string, filter?: Record<string, any>): Promise<BaseEntity[]> {
     if (!this.initialized) {
       throw new DatabaseError(
         'Client not initialized',
@@ -135,7 +137,7 @@ export class PostgresClient implements IDatabaseClient {
     }
 
     try {
-      let sql = `SELECT * FROM "${collection}"`;
+      let sql = `SELECT * FROM "${tableName}"`;
       const values: any[] = [];
       let paramCount = 1;
       
@@ -148,9 +150,9 @@ export class PostgresClient implements IDatabaseClient {
       }
 
       const result = await this.pool.query(sql, values);
-      return result.rows as T[];
+      return result.rows;
     } catch (error) {
-      this.logger.error(`Failed to find records in collection ${collection}:`, error);
+      this.logger.error(`Failed to find records in collection ${tableName}:`, error);
       throw new DatabaseError(
         'Failed to find records',
         DatabaseErrorCode.OPERATION_FAILED,
@@ -159,7 +161,7 @@ export class PostgresClient implements IDatabaseClient {
     }
   }
 
-  public async create<T>(collection: string, data: Partial<T>): Promise<T> {
+  public async create(tableName: string, data: BaseEntity): Promise<BaseEntity> {
     if (!this.initialized) {
       throw new DatabaseError(
         'Client not initialized',
@@ -173,13 +175,13 @@ export class PostgresClient implements IDatabaseClient {
       const values = Object.values(data);
 
       const result = await this.pool.query(
-        `INSERT INTO "${collection}" (${columns}) VALUES (${placeholders}) RETURNING *`,
+        `INSERT INTO "${tableName}" (${columns}) VALUES (${placeholders}) RETURNING *`,
         values
       );
 
-      return result.rows[0] as T;
+      return result.rows[0];
     } catch (error) {
-      this.logger.error(`Failed to create record in collection ${collection}:`, error);
+      this.logger.error(`Failed to create record in collection ${tableName}:`, error);
       throw new DatabaseError(
         'Failed to create record',
         DatabaseErrorCode.OPERATION_FAILED,
@@ -188,7 +190,7 @@ export class PostgresClient implements IDatabaseClient {
     }
   }
 
-  public async update<T>(collection: string, id: string, data: Partial<T>): Promise<T> {
+  public async update(tableName: string, id: string, data: Partial<BaseEntity>): Promise<void> {
     if (!this.initialized) {
       throw new DatabaseError(
         'Client not initialized',
@@ -200,14 +202,12 @@ export class PostgresClient implements IDatabaseClient {
       const updates = Object.entries(data).map(([key, _], i) => `"${key}" = $${i + 1}`).join(', ');
       const values = [...Object.values(data), id];
 
-      const result = await this.pool.query(
-        `UPDATE "${collection}" SET ${updates} WHERE id = $${values.length} RETURNING *`,
+      await this.pool.query(
+        `UPDATE "${tableName}" SET ${updates} WHERE id = $${values.length}`,
         values
       );
-
-      return result.rows[0] as T;
     } catch (error) {
-      this.logger.error(`Failed to update record ${id} in collection ${collection}:`, error);
+      this.logger.error(`Failed to update record ${id} in collection ${tableName}:`, error);
       throw new DatabaseError(
         'Failed to update record',
         DatabaseErrorCode.OPERATION_FAILED,
@@ -216,7 +216,7 @@ export class PostgresClient implements IDatabaseClient {
     }
   }
 
-  public async delete(collection: string, id: string): Promise<boolean> {
+  public async delete(tableName: string, id: string): Promise<void> {
     if (!this.initialized) {
       throw new DatabaseError(
         'Client not initialized',
@@ -225,13 +225,12 @@ export class PostgresClient implements IDatabaseClient {
     }
 
     try {
-      const result = await this.pool.query(
-        `DELETE FROM "${collection}" WHERE id = $1`,
+      await this.pool.query(
+        `DELETE FROM "${tableName}" WHERE id = $1`,
         [id]
       );
-      return (result.rowCount ?? 0) > 0;
     } catch (error) {
-      this.logger.error(`Failed to delete record ${id} from collection ${collection}:`, error);
+      this.logger.error(`Failed to delete record ${id} from collection ${tableName}:`, error);
       throw new DatabaseError(
         'Failed to delete record',
         DatabaseErrorCode.OPERATION_FAILED,
@@ -240,7 +239,7 @@ export class PostgresClient implements IDatabaseClient {
     }
   }
 
-  public async query<T>(collection: string, options: QueryOptions): Promise<QueryResult<T>> {
+  public async query(tableName: string, options: QueryOptions): Promise<QueryResult<BaseEntity>> {
     if (!this.initialized) {
       throw new DatabaseError(
         'Client not initialized',
@@ -249,7 +248,7 @@ export class PostgresClient implements IDatabaseClient {
     }
 
     try {
-      let sql = `SELECT * FROM "${collection}"`;
+      let sql = `SELECT * FROM "${tableName}"`;
       const values: any[] = [];
       let paramCount = 1;
 
@@ -278,15 +277,15 @@ export class PostgresClient implements IDatabaseClient {
       }
 
       const result = await this.pool.query(sql, values);
-      const count = await this.count(collection, options.where);
+      const count = await this.count(tableName, options.where);
 
       return {
-        data: result.rows as T[],
+        data: result.rows,
         total: count,
         hasMore: options.limit ? result.rows.length >= options.limit : false
       };
     } catch (error) {
-      this.logger.error(`Failed to execute query on collection ${collection}:`, error);
+      this.logger.error(`Failed to execute query on collection ${tableName}:`, error);
       throw new DatabaseError(
         'Failed to execute query',
         DatabaseErrorCode.QUERY_ERROR,
@@ -295,7 +294,7 @@ export class PostgresClient implements IDatabaseClient {
     }
   }
 
-  public async count(collection: string, filter?: Record<string, any>): Promise<number> {
+  public async count(tableName: string, filter?: Record<string, any>): Promise<number> {
     if (!this.initialized) {
       throw new DatabaseError(
         'Client not initialized',
@@ -304,7 +303,7 @@ export class PostgresClient implements IDatabaseClient {
     }
 
     try {
-      let sql = `SELECT COUNT(*) as count FROM "${collection}"`;
+      let sql = `SELECT COUNT(*) as count FROM "${tableName}"`;
       const values: any[] = [];
       let paramCount = 1;
       
@@ -319,7 +318,7 @@ export class PostgresClient implements IDatabaseClient {
       const result = await this.pool.query(sql, values);
       return parseInt(result.rows[0].count);
     } catch (error) {
-      this.logger.error(`Failed to count records in collection ${collection}:`, error);
+      this.logger.error(`Failed to count records in collection ${tableName}:`, error);
       throw new DatabaseError(
         'Failed to count records',
         DatabaseErrorCode.QUERY_ERROR,
@@ -393,7 +392,7 @@ export class PostgresClient implements IDatabaseClient {
     }
   }
 
-  public async batch<T>(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
+  public async batch(tableName: string, operations: BatchOperation<BaseEntity>[]): Promise<void> {
     if (!this.initialized) {
       throw new DatabaseError(
         'Client not initialized',
@@ -408,7 +407,7 @@ export class PostgresClient implements IDatabaseClient {
         switch (operation.type) {
           case 'add':
           case 'put':
-            await this.create(tableName, operation.data as Partial<T>);
+            await this.create(tableName, operation.data);
             break;
           case 'delete':
             await this.delete(tableName, (operation.data as any).id);
@@ -448,4 +447,4 @@ export class PostgresClient implements IDatabaseClient {
       );
     }
   }
-} 
+}

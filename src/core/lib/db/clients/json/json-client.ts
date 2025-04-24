@@ -1,5 +1,5 @@
-import { IDatabaseClient, DatabaseConfig } from '@/core/lib/db/interfaces';
-import { QueryOptions, QueryResult } from '@/core/lib/db/types/database.types';
+// import { IDatabaseClient, DatabaseConfig } from '@/core/lib/db/interfaces';
+import { QueryOptions, QueryResult } from '@/core/lib/db/types/database';
 import fs from 'fs/promises';
 
 /**
@@ -14,9 +14,15 @@ export class JsonDatabaseClient implements IDatabaseClient {
   }
 
   async connect(): Promise<void> {
-    await this.loadFromFile();
+    // JSON 文件存储无需显式连接
+    return Promise.resolve();
   }
-  async disconnect(): Promise<void> {}
+
+  async disconnect(): Promise<void> {
+    // JSON 文件存储无需显式断开
+    return Promise.resolve();
+  }
+
   async initialize(): Promise<void> { await this.loadFromFile(); }
   async close(): Promise<void> {}
   async clear(): Promise<void> { this.data = {}; await this.saveToFile(); }
@@ -29,38 +35,55 @@ export class JsonDatabaseClient implements IDatabaseClient {
       this.data = {};
     }
   }
+
   private async saveToFile() {
     await fs.writeFile(this.filePath, JSON.stringify(this.data, null, 2), 'utf8');
   }
 
-  async query<T>(collection: string, query: QueryOptions): Promise<QueryResult<T>> {
+  async query(collection: string, query: QueryOptions): Promise<QueryResult<BaseEntity>> {
     const items = this.data[collection] ?? [];
-    return { items } as QueryResult<T>;
+    return { items } as QueryResult<BaseEntity>;
   }
-  async findById<T>(collection: string, id: string): Promise<T | null> {
-    return (this.data[collection] ?? []).find((item: any) => item.id === id) ?? null;
+
+  async findById(collection: string, id: string): Promise<BaseEntity | null> {
+    return (this.data[collection] ?? []).find((item: BaseEntity) => item.id === id) ?? null;
   }
-  async findAll<T>(collection: string): Promise<T[]> {
+
+  async findAll(collection: string): Promise<BaseEntity[]> {
     return this.data[collection] ?? [];
   }
-  async create<T>(collection: string, data: Partial<T>): Promise<T> {
+
+  async create(collection: string, data: BaseEntity): Promise<BaseEntity> {
+    const now = new Date().toISOString();
+    const entity: BaseEntity = {
+      ...data,
+      createdAt: data.createdAt || now,
+      updatedAt: now,
+    };
     if (!this.data[collection]) this.data[collection] = [];
-    const id = (data as any).id || Math.random().toString(36).slice(2);
-    const item = { ...data, id };
+    const id = entity.id || Math.random().toString(36).slice(2);
+    const item = { ...entity, id };
     this.data[collection].push(item);
     await this.saveToFile();
-    return item as T;
+    return item;
   }
-  async update<T>(collection: string, id: string, data: Partial<T>): Promise<T> {
-    const idx = (this.data[collection] ?? []).findIndex((item: any) => item.id === id);
+
+  async update(collection: string, id: string, data: Partial<BaseEntity>): Promise<BaseEntity> {
+    const now = new Date().toISOString();
+    const idx = (this.data[collection] ?? []).findIndex((item: BaseEntity) => item.id === id);
     if (idx === -1) throw new Error('Not found');
-    this.data[collection][idx] = { ...this.data[collection][idx], ...data };
+    this.data[collection][idx] = {
+      ...this.data[collection][idx],
+      ...data,
+      updatedAt: now,
+    };
     await this.saveToFile();
     return this.data[collection][idx];
   }
+
   async delete(collection: string, id: string): Promise<boolean> {
     const before = (this.data[collection] ?? []).length;
-    this.data[collection] = (this.data[collection] ?? []).filter((item: any) => item.id !== id);
+    this.data[collection] = (this.data[collection] ?? []).filter((item: BaseEntity) => item.id !== id);
     await this.saveToFile();
     return (this.data[collection].length < before);
   }

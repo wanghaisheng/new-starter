@@ -7,14 +7,7 @@ import { useQuizzes } from '@/core/hooks/useQuiz';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 import { IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonList, IonItem, IonLabel, IonBadge, IonIcon } from '@ionic/react';
 import { timeOutline, checkmarkCircle, hourglassOutline } from 'ionicons/icons';
-
-// Extended Quiz with status field for UI purposes
-interface QuizWithStatus {
-  id: string;
-  title: string;
-  description: string;
-  status: 'completed' | 'inProgress' | 'notStarted';
-}
+import { Quiz } from '@/core/lib/db/types/quiz.types';
 
 export default function TestTypesPage() {
   useRequireAuth();
@@ -27,7 +20,7 @@ export default function TestTypesPage() {
     router.push(`/mobile/quiz/${quizId}`);
   };
 
-  const getStatusIcon = (status: QuizWithStatus['status']) => {
+  const getStatusIcon = (status: Quiz['status']) => {
     switch (status) {
       case 'completed':
         return checkmarkCircle;
@@ -38,7 +31,7 @@ export default function TestTypesPage() {
     }
   };
 
-  const getStatusColor = (status: QuizWithStatus['status']) => {
+  const getStatusColor = (status: Quiz['status']) => {
     switch (status) {
       case 'completed':
         return 'success';

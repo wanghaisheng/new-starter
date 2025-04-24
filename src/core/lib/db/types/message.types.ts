@@ -1,49 +1,52 @@
-// 消息相关类型定义
 import { BaseEntity } from './base-entity';
 
 /**
- * 消息实体接口
- * 表示用户之间的通信消息
- * 
- * @description
- * 表示Dating App中用户之间的消息通信，支持文本和图片消息类型
- * 包含消息状态追踪和发�?接收者信�? */
+ * 消息实体类型
+ */
 export interface Message extends BaseEntity {
-  /** 发送者用户ID */
+  id: string;
   senderId: string;
-  
-  /** 接收者用户ID */
   receiverId: string;
-  
-  /** 消息内容 */
   content: string;
-  
-  /** 消息类型 */
-  type: string;
-  
-  /** 消息状�?*/
-  status: string;
-  
-  /** 额外扩展字段 */
+  type: 'text' | 'image' | 'audio' | 'video' | string;
+  status: 'sent' | 'delivered' | 'read' | 'failed';
+  createdAt: string;
+  updatedAt: string;
+  conversationId: string;
+  ext: Record<string, any>;
+}
+
+/**
+ * 消息会话聚合类型
+ * 用于消息列表、聚合展示等场景
+ */
+export interface MessageThread {
+  threadId: string;
+  participants: string[];
+  lastMessage: Message;
+  unreadCount: number;
+  ext: Record<string, any>;
+}
+
+/**
+ * 消息创建类型（用于发送消息）
+ */
+export interface CreateMessageData {
+  conversationId: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  type: 'text' | 'image';
+  mediaUrl?: string;
   ext?: Record<string, any>;
 }
 
 /**
- * 消息创建接口
- * 用于创建新消息时的数据类�? */
-export interface CreateMessageData {
-  matchId: string;
-  senderId: string;
-  receiverId: string;
-  content: string;
-  type?: 'text' | 'image';
-}
-
-/**
- * 消息更新接口
- * 用于更新消息时的数据类型
+ * 消息更新类型（用于编辑消息）
  */
 export interface UpdateMessageData {
-  status?: 'sent' | 'delivered' | 'read';
   content?: string;
+  type?: 'text' | 'image';
+  mediaUrl?: string;
+  ext?: Record<string, any>;
 }

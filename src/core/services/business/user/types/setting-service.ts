@@ -1,5 +1,5 @@
-import { User } from '@/core/lib/db/types/user';
-import { PrivacySettings, NotificationSettings, SecuritySettings } from '@/core/lib/db/types/settings';
+import type { User } from '@/core/lib/db/types/user.types';
+import type { PrivacySettings, NotificationSettings, SecuritySettings } from '@/core/lib/db/types/settings.types';
 
 export interface ISettingService {
   updateAccount(data: Partial<User>): Promise<User>;

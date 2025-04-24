@@ -14,7 +14,6 @@ export type { FirebaseConfig } from './firebase-config';
 export { getFirebaseConfig } from './firebase-env-config';
 
 // 导出辅助类
-export { FirebaseAuthService } from './firebase-auth';
 export { FirebasePermissionsService } from './firebase-permissions';
 export { FirebaseSyncService } from './firebase-sync';
 export { FirebaseConflictService } from './firebase-conflict';

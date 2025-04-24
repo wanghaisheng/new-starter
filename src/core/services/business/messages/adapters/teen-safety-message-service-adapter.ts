@@ -23,6 +23,16 @@ export class TeenSafetyMessageServiceAdapter implements IMessageAdapter {
     return this.base.getConversationMessages(conversationId);
   }
 
+  async getConversationMessages(params: { conversationId: string; page?: number; pageSize?: number }): Promise<Message[]> {
+    if ('page' in params || 'pageSize' in params) {
+      // 若底层支持分页，可调用分页方法，否则降级为全部获取
+      // 这里假设 base 有 getMessagesByPage
+      return (this.base as any).getMessagesByPage?.(params.conversationId, params.page ?? 1, params.pageSize ?? 20)
+        ?? this.base.getConversationMessages(params.conversationId);
+    }
+    return this.base.getConversationMessages(params.conversationId);
+  }
+
   async sendMessage(data: CreateMessageData): Promise<Message> {
     // 夜间限制（示例：22:00-7:00禁止发送）
     const now = new Date();

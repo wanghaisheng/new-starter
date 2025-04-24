@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageServiceRegistry } from '@/core/services/business/messages/registry/message-service-registry';
-import type { Message } from '@/core/lib/db/types/message';
-import type { CreateMessageData, UpdateMessageData } from '@/core/lib/db/types/message';
+import type { Message, CreateMessageData, UpdateMessageData } from '@/core/lib/db/types/message.types';
 import type { IMessageService } from '@/core/services/business/messages/types/message-service';
 import { useToast } from './useToast';
 
@@ -10,11 +9,13 @@ export interface UseMessagesResult {
   loading: boolean;
   error: null | { type: string; message: string };
   empty: boolean;
-  fetchMessages: (page?: number, pageSize?: number) => Promise<void>;
+  fetchMessages: (params?: { page?: number; pageSize?: number }) => Promise<void>;
   sendMessage: (data: CreateMessageData) => Promise<Message>;
   updateMessage: (messageId: string, data: UpdateMessageData) => Promise<Message>;
   deleteMessage: (messageId: string) => Promise<void>;
   reloadMessages: () => Promise<void>;
+  fetchError?: { message: string } | null;
+  sendError?: { message: string } | null;
 }
 
 export function useMessages(conversationId: string): UseMessagesResult {
@@ -60,12 +61,16 @@ export function useMessages(conversationId: string): UseMessagesResult {
     }
   }, [triggerToast]);
 
-  const fetchMessages = useCallback(async (page?: number, pageSize?: number) => {
+  const fetchMessages = useCallback(async (params?: { page?: number; pageSize?: number }) => {
     setLoading(true);
     setError(null);
     try {
       if (!serviceRef.current) throw new Error('服务未初始化');
-      const msgs = await serviceRef.current.getMessages(conversationId, page || pageRef.current, pageSize || pageSizeRef.current);
+      const msgs = await serviceRef.current.getConversationMessages({
+        conversationId,
+        page: params?.page || pageRef.current,
+        pageSize: params?.pageSize || pageSizeRef.current,
+      });
       setMessages(msgs);
       setEmpty(msgs.length === 0);
     } catch (err: any) {
@@ -83,7 +88,7 @@ export function useMessages(conversationId: string): UseMessagesResult {
     setError(null);
     try {
       if (!serviceRef.current) throw new Error('服务未初始化');
-      const msg = await serviceRef.current.createMessage({ ...data, conversationId });
+      const msg = await serviceRef.current.sendMessage({ ...data, conversationId });
       await fetchMessages();
       return msg;
     } catch (err: any) {
@@ -145,5 +150,7 @@ export function useMessages(conversationId: string): UseMessagesResult {
     updateMessage,
     deleteMessage,
     reloadMessages,
+    fetchError: error?.type === 'fetch' ? error : null,
+    sendError: error?.type === 'send' ? error : null,
   };
 }

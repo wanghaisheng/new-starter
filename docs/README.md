@@ -81,6 +81,36 @@
 - [工具与脚本（tools）](./guides/tools/README.md)
   - [自动化工具](./guides/tools/automation/README.md)
 
+## 文档 guides 目录结构总览
+
+docs/guides/ 采用主题分区，每个分区均有 README.md 作为权威入口，详细目录如下：
+
+- architecture/        # 架构设计（数据库、服务、API等）
+  - database/         # 数据库架构与实现
+  - services/         # 服务层架构
+- best-practices/     # 各主题最佳实践
+  - database/         # 数据库最佳实践
+  - performance/      # 性能优化
+  - security/         # 安全实践
+- deployment/         # 部署与运维
+  - web/              # Web端部署
+  - mobile/           # 移动端部署
+  - ci-cd/            # CI/CD自动化
+- development/        # 开发流程、API、前后端等
+  - frontend/         # 前端开发
+  - backend/          # 后端开发
+  - setup/            # 初始化与环境
+  - workflow/         # 工作流
+- testing/            # 测试与质量保障
+  - integration/      # 集成测试
+  - unit/             # 单元测试
+  - e2e/              # 端到端测试
+- tools/              # 工具与脚本
+
+**建议：**
+- 各主题详细内容请优先查阅 guides/README.md 及分区 README.md。
+- guides 下所有分区均有独立导航入口，便于快速定位所需文档。
+
 ## 规范说明
 
 - 每个 guides 主题目录下 README.md 为唯一权威入口，所有详细内容归档到子文档并在主文档导航中引用。
@@ -313,46 +343,6 @@ UI组件层 (Components)
 
 #### 脚本与环境
 - [Windows兼容性注意事项](./guides/lessons/bash/windows-compatibility.md) - 在Windows环境下开发时的兼容性问题和解决方案
-
-## 模板文档
-
-- [应用发布工作流程](./guides/app-release-workflow.md) - 从开发完成到应用发布的完整流程
-- [项目开发工作流程](./guides/project-development-workflow.md) - 项目开发的完整工作流程
-- [UI素材管理指南](./guides/ui-assets-management.md) - UI设计稿素材管理的最佳实践
-- [功能任务计划模板](./templates/feature-task-plan-template.md) - 功能任务计划模板
-- [任务计划模板](./templates/task-plan-template.md) - 通用任务计划模板
-- [原型到资源转换](./templates/prototype-to-assets.md) - 原型到资源的转换流程
-- [脚本生成器模板](./templates/script-generator-template.md) - 脚本生成器模板
-
-## 脚本工具
-
-### 项目初始化与环境设置
-- [项目初始化脚本](./bash-scripts/init-project.sh) - 自动化项目初始化流程
-- [最小环境检查](./bash-scripts/check-minimal-env.sh) - 检查开发环境是否满足最低要求
-- [环境检查脚本](./bash-scripts/check-environment.sh) - 全面检查开发环境配置
-- [Python环境设置](./bash-scripts/setup-python-env.sh) - 配置Python开发环境
-- [依赖安装脚本](./bash-scripts/install-dependencies.sh) - 自动安装项目依赖
-
-### Git与版本控制
-- [Git仓库初始化](./bash-scripts/init-git-repo.sh) - 初始化Git仓库并配置
-- [代码提交脚本](./bash-scripts/commit-code.sh) - 标准化代码提交流程
-- [项目状态检查](./bash-scripts/check-project-status.sh) - 检查项目当前开发状态
-
-### 发布与部署
-- [准备发布脚本](./bash-scripts/prepare-release.sh) - 准备应用发布
-- [发布脚本](./bash-scripts/release.sh) - 执行应用发布流程
-- [回滚脚本](./bash-scripts/rollback.sh) - 在发布失败时回滚到先前版本
-
-### 文档与任务管理
-- [文档索引创建](./bash-scripts/create-docs-index.sh) - 自动生成文档索引
-- [任务脚本生成](./bash-scripts/generate-task-scripts.sh) - 根据模板生成任务脚本
-- [任务计划转换](./bash-scripts/convert-task-plan.sh) - 将任务计划转换为执行脚本
-- [任务执行脚本](./bash-scripts/execute-task.sh) - 执行预定义的任务
-
-### 数据与同步
-- [更新Trae规则](./bash-scripts/update-trae-rules.sh) - 更新API模拟规则
-- [加载Trae规则](./bash-scripts/load-trae-rules.sh) - 加载预定义的API模拟规则
-- [同步指南](./bash-scripts/sync-guidelines.sh) - 数据同步指南和自动化工具
 
 ## 任务计划与进度
 

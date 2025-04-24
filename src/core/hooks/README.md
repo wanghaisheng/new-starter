@@ -2,6 +2,67 @@
 
 本目录用于存放所有非业务数据流相关的 React hooks，例如 UI 适配、动画、事件监听、工具函数等。此类 hooks 不依赖服务层，可被任意页面/组件复用。
 
+---
+
+# 业务数据流 hooks 统一规范（2025 修订）
+
+## 1. 服务实例获取与依赖注入
+- 所有业务 hooks 必须通过 Registry 获取服务实例，禁止直接调用 Factory/Service。
+- Registry 负责服务实例唯一性、mock/remote/hybrid 多环境治理与自动降级。
+- hooks 内部严禁出现 `ServiceFactory.createService`、`new XxxService` 等直连代码。
+- 推荐使用 `Registry.getInstance().getProvider()` 或 `getDefaultService()`。
+
+## 2. 返回结构与状态命名规范
+- 所有 hooks 返回值**必须统一**包含：
+  - `loading`（全局加载中）
+  - `empty`（空状态）
+  - `error` 字段（如 fetchError、updateError、deleteError、actionError 等，类型为 `{ type: string; message: string } | null`）
+  - 相关操作方法（如 fetch/update/delete/submit 等）
+- 页面/组件应直接根据不同 error 字段精准渲染操作级错误提示。
+- error 字段禁止为 string/any，必须为对象且细分类型。
+- 推荐所有 hooks 的 error 结构为 `{ type: string; message: string } | null`，便于前端统一处理。
+
+## 3. hooks 设计原则
+- **解耦 UI 与服务层**：hooks 封装服务调用，组件只需关心数据与交互。
+- **统一状态管理**：自动处理 loading、error、data、重试、网络状态等，无需重复造轮子。
+- **环境无关**：底层服务通过工厂/适配器模式自动切换，hooks 层无需关心。
+- **高复用性**：业务 hooks 可组合、可扩展，支持跨页面/组件复用。
+
+## 4. 典型用法示例
+
+### useUser
+```tsx
+const { user, updateUser, loading, updateError } = useUser();
+await updateUser({ name: '新昵称' });
+if (updateError) showToast(updateError.message);
+```
+
+### useMatches
+```tsx
+const { matches, updateMatch, updateError } = useMatches(userId);
+await updateMatch(matchId, { status: 'accepted' });
+if (updateError) showToast(updateError.message);
+```
+
+### useTranslations
+```tsx
+const { loading, error, empty, data, fetch } = useTranslations(['welcome', 'logout'], 'zh');
+if (error) return <ErrorView msg={error.message} />;
+```
+
+## 5. 反例
+- 禁止 hooks error 字段为 string/number/any。
+- 禁止页面/组件直接 try/catch service 抛出的 string/number。
+- 禁止直接通过 ServiceFactory/Service 获取实例。
+
+## 6. 组合与扩展
+- 支持 hooks 组合（如 useUser + useAuth），提升复用性。
+- 支持自动降级到 mock service，适配测试/开发环境。
+
+---
+
+> 以上为 2025 年 hooks 服务实例获取与状态输出一致性整改规范。所有新/重构 hooks 请严格参照执行。详细用法与最佳实践请参考各 hooks 文件注释及 `docs/guides/best-practices/hooks-error-handling.md`。
+
 ## 设计规范
 - 不涉及业务服务、数据流，仅做 UI/工具/适配。
 - 命名统一 useXxx。
@@ -138,7 +199,3 @@ await updateMessage(messageId, { content: '新内容' });
 如需扩展业务 hooks，务必遵循上述范式，详见各 hooks 文件注释及示例。
 
 ---
-
-> 以上为 2025 年 hooks error 细分与统一返回最佳实践。所有新/重构 hooks 请严格参照执行。
-
-如需更多典型用法或页面端最佳实践，可补充具体场景。

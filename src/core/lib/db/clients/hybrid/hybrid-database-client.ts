@@ -1,12 +1,15 @@
 // 移除无用的旧 NetworkService 引入
 // import { NetworkService } from '@/core/services/data/network-service';
 import { BaseSyncClient } from '@/core/lib/db/clients/sync/base-sync-client';
-import { IDatabaseClient, IBaseDatabaseClient } from '@/core/lib/db/interfaces';
-import { HybridDatabaseConfig, SyncConfig, QueryOptions, QueryResult, SyncStrategy, BatchOperation } from '@/core/lib/db/types/database.types';
-import { DatabaseError } from '@/core/lib/db/errors/database-error';
+import { BaseClient } from '@/core/lib/db/clients/base-client';
+// import { IDatabaseClient, IBaseDatabaseClient } from '@/core/lib/db/interfaces';
+import { HybridDatabaseConfig, SyncConfig, QueryOptions, QueryResult, SyncStrategy, BatchOperation } from '@/core/lib/db/types/database';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { getNetworkManager } from '@/core/services/infrastructure/network/registry/network-registry';
 import type { NetworkStatus as AppNetworkStatus } from '@/core/services/infrastructure/network/network-manager';
+import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database-error';
+import type { DatabaseLogger } from '@/core/lib/db/types/database-logger';
+import { getDatabaseLogger } from '@/core/lib/db/types/database-logger';
 
 // 明确本地 EntityWithId 类型
 // 保证 pendingSync 类型兼容 BaseEntity[]
@@ -39,11 +42,11 @@ type EntityWithId = BaseEntity & { id: string };
  * const hybridClient = new HybridDatabaseClient(config);
  * await hybridClient.initialize();
  */
-export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseClient {
-  protected localClient: IDatabaseClient;
-  protected remoteClient: IDatabaseClient;
+export class HybridDatabaseClient extends BaseSyncClient {
+  protected localClient: BaseClient;
+  protected remoteClient: BaseClient;
   protected syncStrategy: SyncStrategy;
-  private initialized: boolean = false;
+  protected initialized: boolean = false;
   protected isOnline: boolean = true;
   // 保证 pendingSync 类型与父类一致
   protected pendingSync: Map<string, BaseEntity[]> = new Map();
@@ -282,54 +285,61 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
 
   // 实现 IDatabaseClient 接口的必要方法
 
-  async findById<T>(collection: string, id: string): Promise<T | null> {
+  async findById(tableName: string, id: string): Promise<BaseEntity | null> {
     this.checkInitialized();
-    return this.localClient.findById<T>(collection, id);
-  }
-
-  async findAll<T>(collection: string, filter?: Record<string, any>): Promise<T[]> {
-    this.checkInitialized();
-    const result = await this.localClient.findAll(collection, filter);
-    return result as unknown as T[];
-  }
-
-  async create<T>(collection: string, data: Partial<T>): Promise<T> {
-    this.checkInitialized();
-    const result = await this.localClient.create<T>(collection, data);
-    
-    // 根据表名添加到相应的待同步列表
-    await this.addToPendingSync(collection, result as unknown as BaseEntity);
-    
-    return result;
-  }
-
-  async update<T>(collection: string, id: string, data: Partial<T>): Promise<T> {
-    this.checkInitialized();
-    const result = await this.localClient.update<T>(collection, id, data);
-    
-    // 获取完整数据并添加到待同步列表
-    const fullData = await this.localClient.findById<T>(collection, id);
-    if (fullData) {
-      await this.addToPendingSync(collection, fullData as unknown as BaseEntity);
+    // 优先本地查找，若无则查远程
+    let entity = await this.localClient.findById(tableName, id);
+    if (!entity && this.remoteClient) {
+      entity = await this.remoteClient.findById(tableName, id);
     }
-    
+    return entity;
+  }
+
+  async findAll(tableName: string, filter?: Record<string, any>): Promise<BaseEntity[]> {
+    this.checkInitialized();
+    // 合并本地和远程数据
+    const localList = await this.localClient.findAll(tableName, filter);
+    let remoteList: BaseEntity[] = [];
+    if (this.remoteClient) {
+      remoteList = await this.remoteClient.findAll(tableName, filter);
+    }
+    // 简单去重合并
+    const map = new Map<string, BaseEntity>();
+    for (const item of [...localList, ...remoteList]) {
+      map.set(item.id, item);
+    }
+    return Array.from(map.values());
+  }
+
+  async create(collection: string, data: BaseEntity): Promise<BaseEntity> {
+    this.checkInitialized();
+    const result = await this.localClient.create(collection, data);
+    // 根据表名添加到相应的待同步列表
+    await this.addToPendingSync(collection, result);
     return result;
   }
 
-  async delete(collection: string, id: string): Promise<boolean> {
+  async update(collection: string, id: string, data: Partial<BaseEntity>): Promise<void> {
     this.checkInitialized();
-    const result = await this.localClient.delete(collection, id);
-    
+    await this.localClient.update(collection, id, data);
+    // 获取完整数据并添加到待同步列表
+    const fullData = await this.localClient.findById(collection, id);
+    if (fullData) {
+      await this.addToPendingSync(collection, fullData);
+    }
+  }
+
+  async delete(collection: string, id: string): Promise<void> {
+    this.checkInitialized();
+    await this.localClient.delete(collection, id);
     // 添加到待删除同步列表
     await this.addToPendingSync(`deleted${collection.charAt(0).toUpperCase() + collection.slice(1)}`, { id });
-    
-    return result;
   }
 
-  async query<T>(collection: string, query: any): Promise<QueryResult<T>> {
+  async query(collection: string, query: any): Promise<QueryResult<BaseEntity>> {
     this.checkInitialized();
     const result = await this.localClient.query(collection, query);
-    return result as unknown as QueryResult<T>;
+    return result;
   }
 
   async count(collection: string, filter?: Record<string, any>): Promise<number> {
@@ -343,19 +353,13 @@ export class HybridDatabaseClient extends BaseSyncClient implements IDatabaseCli
   }
 
   async connect(): Promise<void> {
-    this.checkInitialized();
     await this.localClient.connect();
-    if (this.remoteClient) {
-      await this.remoteClient.connect();
-    }
+    await this.remoteClient.connect();
   }
 
   async disconnect(): Promise<void> {
-    if (!this.initialized) return;
     await this.localClient.disconnect();
-    if (this.remoteClient) {
-      await this.remoteClient.disconnect();
-    }
+    await this.remoteClient.disconnect();
   }
 
   async beginTransaction(): Promise<void> {

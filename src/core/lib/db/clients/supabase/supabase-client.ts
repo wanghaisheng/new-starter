@@ -1,5 +1,5 @@
 import type { IDatabaseClient } from '@/core/lib/db/interfaces';
-import type { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database.types';
+import type { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database';
 import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
 import { Logger } from '@/core/lib/utils/logger';
 
@@ -19,7 +19,7 @@ export class SupabaseClient implements IDatabaseClient {
   private client: any;
   private config: SupabaseConfig;
   private logger: Logger;
-  private initialized: boolean = false;
+  protected initialized: boolean = false;
   private transaction: any = null;
 
   constructor(config: SupabaseConfig) {

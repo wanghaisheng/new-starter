@@ -15,5 +15,5 @@
 export { HybridDatabaseClient } from './hybrid-database-client';
 
 // Re-export types that might be useful when working with the hybrid client
-import { HybridDatabaseConfig, SyncConfig } from '@/core/lib/db/types/database.types';
+import { HybridDatabaseConfig, SyncConfig } from '@/core/lib/db/types/database';
 export type { HybridDatabaseConfig, SyncConfig }; 

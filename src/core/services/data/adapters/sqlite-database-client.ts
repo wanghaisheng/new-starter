@@ -37,9 +37,13 @@ export class SqliteDatabaseClient extends BaseDatabaseClient {
    * 释放所有资源，适配 Registry 热插拔/销毁
    */
   async dispose(): Promise<void> {
+    const logger = (this as any).logger || console;
+    logger.info?.('[SqliteDatabaseClient] dispose: 开始释放资源');
     await this.disconnect();
+    logger.info?.('[SqliteDatabaseClient] dispose: 已断开数据库连接');
     // 清理缓存、关闭句柄等（如有）
     this.initialized = false;
+    logger.info?.('[SqliteDatabaseClient] dispose: 状态已重置，资源释放完毕');
   }
 
   async clear(): Promise<void> {
@@ -138,5 +142,27 @@ export class SqliteDatabaseClient extends BaseDatabaseClient {
 
   off(event: string, handler: (...args: any[]) => void): void {
     // No-op for compatibility
+  }
+
+  /**
+   * 健康检查：尝试连接数据库，返回健康状态
+   */
+  async checkHealth(): Promise<{ healthy: boolean; reason?: string }> {
+    try {
+      await this.connect();
+      return { healthy: true };
+    } catch (err) {
+      this.logger?.error?.('[SqliteDatabaseClient] Health check failed:', err);
+      return { healthy: false, reason: (err as Error).message };
+    }
+  }
+
+  /**
+   * 重置内部状态和缓存（软重置）
+   */
+  async reset(): Promise<void> {
+    this.cacheClear();
+    this.initialized = false;
+    this.logger?.info?.('[SqliteDatabaseClient] reset: 缓存和状态已重置');
   }
 }

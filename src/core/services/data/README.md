@@ -193,4 +193,74 @@ await DataInitializationService.initialize({
 - 初始化服务、数据服务、仓储层需具备 mock/本地/云端等多环境下的自动化测试用例，便于 CI/CD 和质量保障。
 
 ---
-{{ ... }}
+## 四、健康检查与异常上报机制
+
+### 1. 能力说明
+- 各 Adapter 实现 `checkHealth()` 方法，返回 `{ healthy: boolean, reason?: string }`，用于连接状态、schema 检查等。
+- 注册表（DataServiceRegistry）统一暴露 `checkHealth(key)` 静态方法，可对任意已注册服务实例进行健康检查。
+- 健康检查结果可用于 UI 状态展示、监控告警、自动降级等。
+
+### 2. 典型用法
+```typescript
+const health = await DataServiceRegistry.checkHealth('main');
+if (!health.healthy) {
+  // 触发降级、提示用户或自动恢复
+}
+```
+
+### 3. 扩展建议
+- Adapter 可根据实际需求扩展健康检查内容（如 schema 版本、数据同步状态等）。
+- 建议在 hooks 层、监控系统中集成健康检查结果。
+
+---
+## 五、mock 自动降级与多环境切换
+
+### 1. 能力说明
+- 工厂/注册表根据环境变量、配置或运行时检测，自动选择 mock、本地、云端等最合适的 Adapter。
+- 支持开发、测试、离线、生产容灾等多阶段的 mock 降级与切换。
+
+### 2. 典型用法
+```typescript
+// 注册表注册时自动选择 mock 或真实服务
+DataServiceRegistry.register('user', () => {
+  if (isMockEnv()) return new MockHybridDatabaseClient();
+  if (isOfflineEnv()) return new IndexedDBDatabaseClient(...);
+  return new SupabaseClient(...);
+});
+```
+- hooks 层/页面无需感知底层数据源，直接通过注册表获取实例。
+
+### 3. 配置驱动与降级策略
+- 推荐所有环境变量、配置项集中管理，禁止硬编码。
+- 支持运行时健康检查失败时自动 fallback 到 mock。
+
+---
+## 六、自动化测试与回归保障
+
+### 1. 覆盖范围
+- 覆盖注册表/工厂/适配器全链路，支持多环境、多 provider、mock/真实服务切换等场景。
+- 健康检查、生命周期管理、mock 降级等核心能力均有自动化测试。
+
+### 2. 运行方式
+```bash
+npx jest src/core/services/data/registry/data-service-registry.full.test.ts
+```
+
+---
+## 七、FAQ与最佳实践
+
+### Q1: 如何扩展新 Adapter/provider？
+- 实现对应 Adapter，继承 BaseDatabaseClient 并实现 IDataService 接口。
+- 在工厂注册新 Adapter，配置环境变量即可切换。
+
+### Q2: mock 降级如何实现？
+- 通过工厂/注册表自动检测环境，选择 mock 适配器。
+- 支持运行时健康检查失败时自动降级。
+
+### Q3: hooks/仓储层如何获取服务实例？
+- 均通过 DataServiceRegistry.get(key) 获取，禁止直接 new。
+
+### Q4: 健康检查结果如何集成到 UI/监控？
+- 可在 hooks/useEffect 中定期调用 checkHealth，异常时触发 toast、弹窗或埋点。
+
+---

@@ -1,6 +1,5 @@
-import { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/match';
-import { User } from '@/core/lib/db/types/user';
-
+import type { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/match.types';
+import type { User } from '@/core/lib/db/types/user.types';
 /**
  * 匹配服务 Adapter 接口
  * 仅实现基础数据访问、与外部 API 的适配，不包含聚合/业务编排逻辑

@@ -1,7 +1,7 @@
 /**
  * Firebase 客户端配置
  */
-import { DatabaseConfig } from '@/core/lib/db/types/database.types';
+import { DatabaseConfig } from '@/core/lib/db/types/database';
 import { FirebaseOptions } from 'firebase/app';
 
 /**

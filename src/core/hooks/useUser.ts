@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { UserServiceRegistry } from '@/core/services/business/user/registry/user-service-registry';
-import type { User } from '@/core/lib/db/types/user';
+import type { User } from '@/core/lib/db/types/user.types';
 import { useToast } from './useToast';
 import type { IUserService } from '@/core/services/business/user/types/user-service';
 

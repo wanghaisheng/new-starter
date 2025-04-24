@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageServiceRegistry } from '@/core/services/business/messages/registry/message-service-registry';
-import type { Message } from '@/core/lib/db/types/message';
+import type { Message } from '@/core/lib/db/types/message.types';
 import { useToast } from './useToast';
 
 // 消息/会话服务接口类型定义
@@ -19,12 +19,15 @@ export interface Conversation {
   // 可扩展更多会话属性
 }
 
+/**
+ * error 字段结构统一为 { type: string; message: string } | null
+ */
 export interface UseConversationsResult {
   conversations: Conversation[];
   loading: boolean;
-  fetchError: Error | null;
-  markError: Error | null;
-  deleteError: Error | null;
+  fetchError: { type: string; message: string } | null;
+  markError: { type: string; message: string } | null;
+  deleteError: { type: string; message: string } | null;
   fetchConversations: (userId: string) => Promise<void>;
   markConversationRead: (conversationId: string) => Promise<void>;
   deleteConversation: (conversationId: string) => Promise<void>;
@@ -33,15 +36,23 @@ export interface UseConversationsResult {
 export function useConversations(userId: string): UseConversationsResult {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<Error | null>(null);
-  const [markError, setMarkError] = useState<Error | null>(null);
-  const [deleteError, setDeleteError] = useState<Error | null>(null);
+  const [fetchError, setFetchError] = useState<{ type: string; message: string } | null>(null);
+  const [markError, setMarkError] = useState<{ type: string; message: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<{ type: string; message: string } | null>(null);
   const { triggerToast } = useToast();
   // 类型约束：MessageService 类型
   const serviceRef = useRef<IConversationService | null>(null);
 
   useEffect(() => {
-    const type = process.env.NEXT_PUBLIC_MESSAGE_SERVICE_TYPE || (process.env.NODE_ENV === 'development' ? 'mock' : 'remote');
+    const allowedTypes = ['mock', 'remote', 'hybrid'] as const;
+    type MessageServiceType = typeof allowedTypes[number];
+    let type: MessageServiceType = 'remote';
+    const envType = process.env.NEXT_PUBLIC_MESSAGE_SERVICE_TYPE;
+    if (allowedTypes.includes(envType as MessageServiceType)) {
+      type = envType as MessageServiceType;
+    } else if (process.env.NODE_ENV === 'development') {
+      type = 'mock';
+    }
     // 强类型：只允许 IMessageService，若无则置为 null
     const provider = MessageServiceRegistry.getInstance().getProvider(type);
     serviceRef.current = provider ? provider() : null;
@@ -58,7 +69,7 @@ export function useConversations(userId: string): UseConversationsResult {
       // 简单聚合为会话列表（实际可根据业务调整）
       const convMap = new Map<string, Conversation>();
       for (const msg of messages) {
-        const cid = msg.matchId;
+        const cid = msg.conversationId;
         if (!convMap.has(cid)) {
           convMap.set(cid, {
             id: cid,
@@ -77,7 +88,7 @@ export function useConversations(userId: string): UseConversationsResult {
       setConversations(Array.from(convMap.values()));
     } catch (err) {
       const error = err instanceof Error ? err : new Error('获取会话失败');
-      setFetchError(error);
+      setFetchError({ type: 'fetch', message: error.message });
       triggerToast(error.message);
     } finally {
       setLoading(false);
@@ -94,7 +105,7 @@ export function useConversations(userId: string): UseConversationsResult {
       ));
     } catch (err) {
       const error = err instanceof Error ? err : new Error('标记会话已读失败');
-      setMarkError(error);
+      setMarkError({ type: 'mark', message: error.message });
       triggerToast(error.message);
       throw error;
     }
@@ -109,7 +120,7 @@ export function useConversations(userId: string): UseConversationsResult {
       triggerToast('会话已删除');
     } catch (err) {
       const error = err instanceof Error ? err : new Error('删除会话失败');
-      setDeleteError(error);
+      setDeleteError({ type: 'delete', message: error.message });
       triggerToast(error.message);
       throw error;
     }

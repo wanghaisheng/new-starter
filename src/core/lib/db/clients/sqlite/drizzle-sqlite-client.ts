@@ -90,16 +90,12 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
         }
       }
       if (typeStr === 'boolean') {
-        row[col.name] = value === true ? 1 : 0;
+        const val = row[col.name];
+        row[col.name] = val === true || val === 1 || val === '1' || val === 'true' || val === 'TRUE' ? 1 : 0;
       } else if (typeStr === 'datetime' || typeStr === 'date') {
         row[col.name] = value instanceof Date ? value.toISOString() : value;
       } else if (typeStr === 'json') {
-        // 保证所有 JSON 类型字段都存为标准对象的 JSON 字符串
-        let obj = value;
-        if (typeof value === 'string') {
-          try { obj = JSON.parse(value); } catch { obj = value; }
-        }
-        row[col.name] = JSON.stringify(obj ?? {});
+        row[col.name] = JSON.stringify(value || {});
       }
       // 检查 SQLite 支持的类型
       const finalVal = row[col.name];
@@ -134,23 +130,15 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
            col.type === ColumnType.JSON ? 'json' : '')
           : '');
       if (typeStr === 'boolean') {
-        parsed[col.name] = row[col.name] === 1 || row[col.name] === true;
+        const val = row[col.name];
+        parsed[col.name] = val === 1 || val === '1' || val === true || val === 'true' || val === 'TRUE';
       } else if (typeStr === 'datetime' || typeStr === 'date') {
         if (row[col.name]) parsed[col.name] = new Date(row[col.name]).toISOString();
       } else if (typeStr === 'json') {
-        // 只要不是对象都 parse，保证返回对象类型
-        if (typeof row[col.name] === 'string') {
-          try {
-            // 兼容已是对象的字符串（如 '"foo"'），以及标准 JSON
-            const parsedVal = JSON.parse(row[col.name]);
-            parsed[col.name] = typeof parsedVal === 'string' ? JSON.parse(parsedVal) : parsedVal;
-          } catch {
-            parsed[col.name] = row[col.name];
-          }
-        } else if (typeof row[col.name] === 'object' && row[col.name] !== null) {
-          parsed[col.name] = row[col.name];
-        } else {
-          parsed[col.name] = undefined;
+        try {
+          parsed[col.name] = JSON.parse(row[col.name] || '{}');
+        } catch (e) {
+          parsed[col.name] = {};
         }
       }
     }
@@ -173,10 +161,10 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
         const cond = options.where[key];
         const colSchema = schema?.columns.find(col => col.name === key);
         if (colSchema?.type === ColumnType.JSON && Array.isArray(cond)) {
-          // 支持交集（AND），所有 tag 都必须匹配，直接拼接 LIKE '%val%'，避免参数爆炸
-          for (const val of cond) {
-            query = query.where(sql`${sql.raw('"' + key + '"')} LIKE '%${val}%'`);
-          }
+          const conditions = cond.map(tag => 
+            sql`json_array_length(json_extract(${sql.identifier(key)}, '$')) > 0 AND json_extract(${sql.identifier(key)}, '$') LIKE ${'%"' + tag + '"%'}`
+          );
+          query = query.where(sql`(${sql.join(conditions, sql` AND `)})`);
           continue;
         }
         if (cond && typeof cond === 'object' && !Array.isArray(cond)) {
@@ -204,12 +192,12 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
     if (options?._limit) query = query.limit(options._limit);
     if (options?._offset) query = query.offset(options._offset);
     if (options?._orderBy) {
-      // 只允许字母、数字、下划线、空格、逗号、ASC/DESC，防止注入
-      if (!/^[\w\s,]+( ASC| DESC)?$/i.test(options._orderBy)) {
-        throw new Error('Invalid _orderBy value: ' + options._orderBy);
+      const [column, direction] = options._orderBy.split(' ');
+      const schema = this.schemas.find(s => s.name === tableName);
+      if (!schema?.columns.find(c => c.name === column)) {
+        throw new Error(`Invalid column name: ${column}`);
       }
-      // 用字符串字面量包裹列名，防止被当做列名参数
-      query = query.orderBy(sql.raw('"' + options._orderBy + '"'));
+      query = query.orderBy(sql`${sql.identifier(column)} ${direction === 'DESC' ? sql`DESC` : sql`ASC`}`);
     }
     const result = await query.all();
     const parsed = Array.isArray(result) ? result.map(row => this.parseRow(tableName, row)) : [];

@@ -18,6 +18,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom', // 兼容 React/DOM 测试
+    setupFiles: ['src/test/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

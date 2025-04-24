@@ -3,9 +3,12 @@
  */
 export interface IBaseRepository<T> {
   findById(id: string): Promise<T | null>;
-  findAll(filter?: Partial<T>): Promise<T[]>;
+  findAll(filter?: Partial<T>, options?: { limit?: number; offset?: number; orderBy?: string }): Promise<T[]>;
   create(entity: T): Promise<T>;
   update(id: string, updates: Partial<T>): Promise<T | null>;
   delete(id: string): Promise<boolean>;
-  // 可扩展通用方法，如分页、批量操作等
+  createMany?(entities: T[]): Promise<T[]>;
+  updateMany?(ids: string[], updates: Partial<T>): Promise<number>;
+  deleteMany?(ids: string[]): Promise<number>;
+  query?(filter?: Partial<T>, options?: { limit?: number; offset?: number; orderBy?: string }): Promise<T[]>;
 }

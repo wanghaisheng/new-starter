@@ -1,6 +1,6 @@
 import { IUserRepository } from '../types/user-repository.types';
 import { User } from '@/core/lib/db/types/user.types';
-import { SQLiteClient } from '@/core/lib/db/clients/sqlite/sqlite-client';
+import { DrizzleSQLiteClient } from '@/core/lib/db/clients/sqlite/drizzle-sqlite-client';
 import { BaseSQLiteRepository } from './base-sqlite-repository';
 
 /**
@@ -9,17 +9,17 @@ import { BaseSQLiteRepository } from './base-sqlite-repository';
  * - 可按需扩展 user 专属方法
  */
 export class UserRepositorySQLite extends BaseSQLiteRepository<User> implements IUserRepository {
-  constructor(client: SQLiteClient) {
+  constructor(client: DrizzleSQLiteClient<User>) {
     super(client, 'users');
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const results = await this.client.query(this.table, { where: { email } });
-    return (results.items && results.items[0]) ? (results.items[0] as User) : null;
+    const results = await this.client.query('users', { where: { email } });
+    return (results.items && results.items[0]) ? results.items[0] : null;
   }
 
   async findByPhone(phone: string): Promise<User | null> {
-    const results = await this.client.query(this.table, { where: { phone } });
-    return (results.items && results.items[0]) ? (results.items[0] as User) : null;
+    const results = await this.client.query('users', { where: { phone } });
+    return (results.items && results.items[0]) ? results.items[0] : null;
   }
 }

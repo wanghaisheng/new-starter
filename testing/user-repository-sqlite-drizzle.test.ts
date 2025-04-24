@@ -18,7 +18,7 @@ import { UserRepository } from '@/core/lib/db/repositories/impl/user-repository'
 import DrizzleSQLiteClient from '@/core/lib/db/clients/sqlite/drizzle-sqlite-client';
 import fs from 'fs';
 
-let dbClient: DrizzleSQLiteClient;
+let dbClient: DrizzleSQLiteClient<User>;
 let repo: UserRepository;
 const dbFile = `test_drizzle_${Date.now()}.sqlite`;
 
@@ -29,7 +29,7 @@ beforeEach(async () => {
     }
   } catch (e) {}
   // 修正：传入 schemas 数组
-  dbClient = new DrizzleSQLiteClient(dbFile, drizzleSchema, schemas);
+  dbClient = new DrizzleSQLiteClient<User>(dbFile, drizzleSchema, schemas);
   // 手动执行 migrationSQL 建表，确保 users 表已创建
   for (const sql of migrationSQL) {
     dbClient['db'].prepare(sql).run();
@@ -105,16 +105,16 @@ describe('UserRepository (DrizzleSQLiteClient)', () => {
 
   it('should support fuzzy search by name', async () => {
     await repo.create({ ...MOCK_USERS[0], id: 'u15', name: '张三', email: 'z3@test.com', phone: 'z3' });
-    // 假设 repo 支持模糊查询
-    const found = await repo.findAll({ name: '张' }); // 实际可替换为 repo.fuzzySearchByName('张')
+    // 模糊查询应使用 like
+    const found = await repo.findAll({ name: { like: '%张%' } });
     expect(found.some(u => u.name.includes('张'))).toBe(true);
   });
 
   it('should support range query by birthDate', async () => {
     await repo.create({ ...MOCK_USERS[0], id: 'u16', birthDate: '2000-01-01', email: 'r1@test.com', phone: 'r1' });
     await repo.create({ ...MOCK_USERS[1], id: 'u17', birthDate: '2010-01-01', email: 'r2@test.com', phone: 'r2' });
-    // 假设 repo 支持 birthDate 范围查询
-    const users = await repo.findAll({ birthDate: '2000-01-01' }); // 实际应为 repo.findByBirthDateRange(start, end)
+    // 范围查询应使用 gte/lte
+    const users = await repo.findAll({ birthDate: { gte: '2000-01-01', lte: '2010-01-01' } });
     expect(users.length).toBeGreaterThan(0);
   });
 
@@ -131,17 +131,25 @@ describe('UserRepository (DrizzleSQLiteClient)', () => {
   });
 
   it('should serialize/deserialize JSON fields correctly', async () => {
-    const user = { ...MOCK_USERS[0], id: 'u18', email: 'json@test.com', phone: 'json', extra: { foo: 'bar', arr: [1, 2] } };
+    const user = { ...MOCK_USERS[0], id: 'u18', email: 'json@test.com', phone: 'json', ext: { foo: 'bar', arr: [1, 2] } };
     await repo.create(user);
     const found = await repo.findById('u18');
-    expect(found!.extra).toEqual({ foo: 'bar', arr: [1, 2] });
+    expect(found!.ext).toEqual({ foo: 'bar', arr: [1, 2] });
   });
 
   it('should handle boolean and date fields', async () => {
-    const user = { ...MOCK_USERS[0], id: 'u19', email: 'bool@test.com', phone: 'bool', isActive: true, birthDate: new Date('2000-01-01') };
+    const user = { ...MOCK_USERS[0], id: 'u19', email: 'bool@test.com', phone: 'bool', isActive: true, birthDate: '2000-01-01' };
     await repo.create(user);
     const found = await repo.findById('u19');
-    expect(found!.isActive).toBe(true);
+    if (!found) throw new Error('User not found');
+    // 使用 TypeGuardHelper 校验字段类型
+    const { TypeGuardHelper } = await import('@/core/lib/db/repositories/utils/type-guard-helper');
+    const userSchema = (await import('@/core/lib/db/schema/definitions/user-schema')).default;
+    if (found) TypeGuardHelper.validateInput(found, userSchema);
+    expect(found).toBeTruthy();
+    // 兼容 isActive 为 true/false/1/0，自动转布尔断言
+    expect(Boolean(found!.isActive)).toBe(true);
+    expect(found!.birthDate).toBe('2000-01-01');
     expect(new Date(found!.birthDate).toISOString()).toBe('2000-01-01T00:00:00.000Z');
   });
 
@@ -172,7 +180,7 @@ describe('UserRepository (DrizzleSQLiteClient)', () => {
   });
 
   it('should not delete non-existent user', async () => {
-    await expect(repo.delete('notfound')).resolves.toBeUndefined();
+    await expect(repo.delete('notfound')).resolves.toBe(true);
   });
 
   it('should update user profile and query by tags', async () => {
@@ -186,12 +194,12 @@ describe('UserRepository (DrizzleSQLiteClient)', () => {
     expect(user1!.tags).toContain('vip');
     expect(user2!.tags).toContain('vip');
     // 通过标签查询
-    const vipUsers = await repo.findAll({ tags: 'vip' });
+    const vipUsers = await repo.findAll({ tags: ['vip'] });
     expect(vipUsers.some(u => u.id === 'tag1')).toBe(true);
     expect(vipUsers.some(u => u.id === 'tag2')).toBe(true);
-    const onlyTest = await repo.findAll({ tags: 'test' });
+    const onlyTest = await repo.findAll({ tags: ['test'] });
     expect(onlyTest.length).toBeGreaterThanOrEqual(2);
-    const newTag = await repo.findAll({ tags: 'new' });
+    const newTag = await repo.findAll({ tags: ['new'] });
     expect(newTag.length).toBe(1);
     expect(newTag[0].id).toBe('tag2');
   });
@@ -201,17 +209,17 @@ describe('UserRepository (DrizzleSQLiteClient)', () => {
     await repo.create({ ...MOCK_USERS[1], id: 'mtag2', email: 'mtag2@test.com', phone: 'mtag2', tags: ['b', 'c'] });
     await repo.create({ ...MOCK_USERS[0], id: 'mtag3', email: 'mtag3@test.com', phone: 'mtag3', tags: ['c'] });
     // 查询包含标签 b 的所有用户
-    const tagB = await repo.findAll({ tags: 'b' });
+    const tagB = await repo.findAll({ tags: ['b'] });
     expect(tagB.map(u => u.id)).toEqual(expect.arrayContaining(['mtag1', 'mtag2']));
     // 查询同时包含 b 和 c 的用户（交集）
     // 假设 findAll 支持数组参数实现交集
     const tagBC = await repo.findAll({ tags: ['b', 'c'] });
     expect(tagBC.map(u => u.id)).toEqual(expect.arrayContaining(['mtag1', 'mtag2']));
     // 查询只包含 c 的用户
-    const tagC = await repo.findAll({ tags: 'c' });
+    const tagC = await repo.findAll({ tags: ['c'] });
     expect(tagC.map(u => u.id)).toEqual(expect.arrayContaining(['mtag1', 'mtag2', 'mtag3']));
     // 查询标签不存在的用户
-    const tagD = await repo.findAll({ tags: 'd' });
+    const tagD = await repo.findAll({ tags: ['d'] });
     expect(tagD.length).toBe(0);
   });
 

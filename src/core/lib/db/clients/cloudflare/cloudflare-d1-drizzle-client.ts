@@ -2,14 +2,16 @@ import { eq, and, or, sql } from 'drizzle-orm';
 import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
 
 import { BaseClient } from '@/core/lib/db/clients/base-client';
-import { DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
-import { IDatabaseClient, IDatabaseTransaction } from '@/core/lib/db/interfaces';
+import { DatabaseErrorCode } from '@/core/lib/db/types/database-error';
 import { drizzleSchema } from '@/core/lib/db/schema/drizzle-schema';
 import { User, Match, Message } from '@/core/lib/db/types';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database';
 
 import { CloudflareD1Config, D1Database, D1Result } from './cloudflare-d1-config';
+
+import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
+import type { ILoggerService } from '@/core/services/infrastructure/logger';
 
 // Drizzle ORM 导入
 
@@ -23,7 +25,7 @@ declare global {
  * Cloudflare D1 数据库客户端
  * 用于 Cloudflare Workers 环境的 D1 数据库
  */
-export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
+export class CloudflareD1Client<T extends BaseEntity> extends BaseClient implements IDatabaseClient<T> {
   private d1: D1Database | null = null;
   private dbName: string;
   private dbVersion: number;
@@ -31,10 +33,13 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
   // Drizzle ORM 实例
   private drizzleDB: DrizzleD1Database<any> | null = null;
 
+  protected logger: ILoggerService;
+
   constructor(private config: CloudflareD1Config) {
     super();
     this.dbName = config.name || 'app-database';
     this.dbVersion = config.version || 1;
+    this.logger = getLoggerService();
   }
 
   async initialize(): Promise<void> {
@@ -103,7 +108,7 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
   }
 
   // 通用数据访问方法
-  async findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null> {
+  async findById(tableName: string, id: string): Promise<T | null> {
     this.checkInitialized();
     
     try {
@@ -116,16 +121,16 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
           .where(eq(table.id as any, id))
           .get();
         
-        return result ? this.processResult<T>(result) : null;
+        return result ? this.processResult(result) : null;
       }
       
       // 回退到原生 SQL 查询
-      const results = await this.executeRawQuery<T>(
+      const results = await this.executeRawQuery(
         `SELECT * FROM ${tableName} WHERE id = ?`,
         [id]
       );
       
-      return results.length > 0 ? this.processResult<T>(results[0]) : null;
+      return results.length > 0 ? this.processResult(results[0]) : null;
     } catch (error) {
       this.logger.error(`查询失败 (${tableName}/${id})`, error);
       throw this.createError(
@@ -136,7 +141,7 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async findAll<T extends BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
+  async findAll(tableName: string, filter?: Record<string, any>): Promise<T[]> {
     this.checkInitialized();
     
     try {
@@ -156,7 +161,7 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
         }
         
         const results = await query.all();
-        return results.map(result => this.processResult<T>(result));
+        return results.map(result => this.processResult(result));
       }
       
       // 回退到原生 SQL 查询
@@ -177,8 +182,8 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
         }
       }
       
-      const results = await this.executeRawQuery<T>(queryStr, params);
-      return results.map(result => this.processResult<T>(result));
+      const results = await this.executeRawQuery(queryStr, params);
+      return results.map(result => this.processResult(result));
     } catch (error) {
       this.logger.error(`查询失败 (${tableName})`, error);
       throw this.createError(
@@ -189,7 +194,7 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async create<T extends BaseEntity>(tableName: string, data: T): Promise<T> {
+  async create(tableName: string, data: T): Promise<T> {
     this.checkInitialized();
     
     // 确保有 ID
@@ -231,12 +236,12 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async update<T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void> {
+  async update(tableName: string, id: string, data: Partial<T>): Promise<void> {
     this.checkInitialized();
     
     try {
       // 先获取现有数据
-      const existing = await this.findById<T>(tableName, id);
+      const existing = await this.findById(tableName, id);
       if (!existing) {
         throw this.createError(
           DatabaseErrorCode.NOT_FOUND,
@@ -309,7 +314,7 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async query<T extends BaseEntity>(
+  async query(
     tableName: string,
     options: QueryOptions
   ): Promise<QueryResult<T>> {
@@ -362,7 +367,7 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
         const results = await query.all();
         
         return {
-          data: results.map(result => this.processResult<T>(result)),
+          data: results.map(result => this.processResult(result)),
           total,
           hasMore: options.limit ? total > (options.offset || 0) + options.limit : false
         };
@@ -408,10 +413,10 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
         }
       }
       
-      const results = await this.executeRawQuery<T>(queryStr, params);
+      const results = await this.executeRawQuery(queryStr, params);
       
       return {
-        data: results.map(result => this.processResult<T>(result)),
+        data: results.map(result => this.processResult(result)),
         total,
         hasMore: options.limit ? total > (options.offset || 0) + options.limit : false
       };
@@ -524,7 +529,7 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async transaction<T>(callback: (tx: IDatabaseTransaction) => Promise<T>): Promise<T> {
+  async transaction(callback: (tx: IDatabaseTransaction) => Promise<any>): Promise<any> {
     this.checkInitialized();
     
     if (!this.d1) {
@@ -535,14 +540,14 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
     }
 
     const transactionWrapper: IDatabaseTransaction = {
-      findById: async <U extends BaseEntity>(tableName: string, id: string) => this.findById<U>(tableName, id),
-      findAll: async <U extends BaseEntity>(tableName: string, filter?: Record<string, any>) => this.findAll<U>(tableName, filter),
-      create: async <U extends BaseEntity>(tableName: string, data: U) => this.create(tableName, data),
-      update: async <U extends BaseEntity>(tableName: string, id: string, data: Partial<U>) => this.update(tableName, id, data),
+      findById: async (tableName: string, id: string) => this.findById(tableName, id),
+      findAll: async (tableName: string, filter?: Record<string, any>) => this.findAll(tableName, filter),
+      create: async (tableName: string, data: T) => this.create(tableName, data),
+      update: async (tableName: string, id: string, data: Partial<T>) => this.update(tableName, id, data),
       delete: async (tableName: string, id: string) => this.delete(tableName, id),
-      query: async <U extends BaseEntity>(tableName: string, options: QueryOptions) => this.query<U>(tableName, options),
-      batch: async <U extends BaseEntity>(tableName: string, operations: BatchOperation<U>[]) => this.batch(tableName, operations),
-      executeRawQuery: async <U>(query: string, params?: any[]) => this.executeRawQuery<U>(query, params),
+      query: async (tableName: string, options: QueryOptions) => this.query(tableName, options),
+      batch: async (tableName: string, operations: BatchOperation<T>[]) => this.batch(tableName, operations),
+      executeRawQuery: async (query: string, params?: any[]) => this.executeRawQuery(query, params),
       count: async (tableName: string, filter?: Record<string, any>) => this.count(tableName, filter)
     };
 
@@ -557,7 +562,7 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
     }
   }
 
-  async batch<T extends BaseEntity>(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
+  async batch(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
     this.checkInitialized();
     
     if (operations.length === 0) {
@@ -652,40 +657,40 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
   }
 
   // IDatabaseClient 接口实现
-  async findUsers(query?: any): Promise<User[]> {
-    return this.findAll<User>('users', query);
+  async findUsers(query?: any): Promise<T[]> {
+    return this.findAll('users', query);
   }
 
-  async findMatches(query?: any): Promise<Match[]> {
-    return this.findAll<Match>('matches', query);
+  async findMatches(query?: any): Promise<T[]> {
+    return this.findAll('matches', query);
   }
 
-  async findMessages(query?: any): Promise<Message[]> {
-    return this.findAll<Message>('messages', query);
+  async findMessages(query?: any): Promise<T[]> {
+    return this.findAll('messages', query);
   }
 
-  async createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
-    return this.create<User>('users', data as User);
+  async createUser(data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+    return this.create('users', data as T);
   }
 
-  async createMatch(data: Omit<Match, 'id' | 'createdAt' | 'updatedAt'>): Promise<Match> {
-    return this.create<Match>('matches', data as Match);
+  async createMatch(data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+    return this.create('matches', data as T);
   }
 
-  async createMessage(data: Omit<Message, 'id' | 'createdAt' | 'updatedAt'>): Promise<Message> {
-    return this.create<Message>('messages', data as Message);
+  async createMessage(data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+    return this.create('messages', data as T);
   }
 
-  async updateUser(id: string, data: Partial<User>): Promise<void> {
-    await this.update<User>('users', id, data);
+  async updateUser(id: string, data: Partial<T>): Promise<void> {
+    await this.update('users', id, data);
   }
 
-  async updateMatch(id: string, data: Partial<Match>): Promise<void> {
-    await this.update<Match>('matches', id, data);
+  async updateMatch(id: string, data: Partial<T>): Promise<void> {
+    await this.update('matches', id, data);
   }
 
-  async updateMessage(id: string, data: Partial<Message>): Promise<void> {
-    await this.update<Message>('messages', id, data);
+  async updateMessage(id: string, data: Partial<T>): Promise<void> {
+    await this.update('messages', id, data);
   }
 
   async deleteUser(id: string): Promise<void> {
@@ -716,7 +721,7 @@ export class CloudflareD1Client extends BaseClient implements IDatabaseClient {
   }
   
   // 处理数据库结果
-  private processResult<T>(result: any): T {
+  private processResult(result: any): T {
     if (!result) return result;
     
     const processed = { ...result };

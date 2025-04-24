@@ -207,9 +207,107 @@ import '@/styles/global.css';
    - 本地数据库阶段：实现本地持久化
    - 生产环境阶段：支持云端和离线存储
 
-### 2.4 数据库开发流程
+### 2.4 数据库架构与实现指南
 
-### 2.4 数据库开发流程
+#### 2.4.1 架构概述
+
+项目采用分层架构，支持多环境数据存储和同步，所有类型统一出口，底层实现高内聚、强解耦：
+
+```
+src/core/lib/db/
+├── clients/          # 数据库客户端实现（底层连接与原生 API 封装）
+│   ├── capacitor-sqlite/  # 移动端 SQLite 封装
+│   ├── indexeddb/        # Web 端 IndexedDB 封装
+│   ├── mock/             # Mock 环境实现
+│   └── base-client.ts    # 客户端抽象基类
+├── repositories/     # 数据访问层，聚合/复用 clients，实现业务数据访问
+│   ├── adapters/     # 各数据源适配器，命名唯一明确
+│   ├── registry/     # 仓储注册表，集中管理所有实例
+│   └── factory/      # 工厂方法，自动注入 client 并注册
+├── schema/           # 数据模型定义
+└── types/            # 类型定义，唯一类型出口和入口
+```
+
+> **架构原则：**
+> - clients/ 仅封装原生连接与基础操作，不含业务逻辑。
+> - repositories/ 负责业务相关的数据访问逻辑，adapter 命名必须唯一且直接反映底层实现类型（禁止 local/cloud 等模糊命名）。
+> - types/ 目录为唯一类型出口，所有类型定义与导出均通过 types/index.ts。
+> - 数据服务聚合层已迁移至 db 目录外，db 仅聚焦底层存储与类型。
+
+#### 2.4.2 存储类型与配置
+
+- 所有数据库类型通过 `types/.ts` 中常量统一管理。
+- 支持 memory、indexeddb、sqlite、supabase、firebase 等多种类型，环境变量动态切换。
+- 离线/在线类型分别受 SUPPORTED_STORAGE_TYPES、SUPPORTED_OFFLINE_STORAGE_TYPES 控制。
+- 配置加载与校验由 config-loader.ts 统一实现。
+
+#### 2.4.3 仓储适配器命名规范（重要！）
+
+- adapter 文件名和类名必须唯一且无歧义，直接反映其数据源/实现类型：
+  - ✅ `user-repository-mock.ts` / `UserRepositoryMock`
+  - ✅ `user-repository-indexeddb.ts` / `UserRepositoryIndexedDB`
+  - ✅ `user-repository-sqlite.ts` / `UserRepositorySQLite`
+  - ✅ `user-repository-supabase.ts` / `UserRepositorySupabase`
+  - ✅ `user-repository-firebase.ts` / `UserRepositoryFirebase`
+  - ✅ `user-repository-hybrid.ts` / `UserRepositoryHybrid`
+- 禁止使用"local"、"cloud"等模糊命名！
+- 适配器均实现统一接口 `IBaseRepository<T>`，通过依赖注入持有 client。
+
+#### 2.4.4 工厂/注册表自动选择策略
+
+- 工厂/注册表根据 ENV_STAGE、DATA_MODE、providerType 自动选择和注册对应实现。
+- 业务层/页面/服务 hooks 只通过注册表获取仓储实例，禁止直连工厂或具体实现。
+
+**选择示例：**
+
+```typescript
+import { UserRepositoryMock } from './repositories/adapters/user-repository-mock';
+import { UserRepositoryIndexedDB } from './repositories/adapters/user-repository-indexeddb';
+import { UserRepositorySupabase } from './repositories/adapters/user-repository-supabase';
+import { RepositoryRegistry } from './repositories/registry';
+
+const envStage = process.env.ENV_STAGE;
+const dataMode = process.env.DATA_MODE;
+
+let userRepo;
+if (envStage === 'mock') {
+  userRepo = new UserRepositoryMock();
+} else if (envStage === 'local' && dataMode === 'offline-only') {
+  userRepo = new UserRepositoryIndexedDB(/* IndexedDBClient */);
+} else if (dataMode === 'online-only') {
+  userRepo = new UserRepositorySupabase(/* SupabaseClient */);
+} else if (dataMode === 'hybrid') {
+  // TODO: 实现 hybrid adapter
+  // userRepo = new UserRepositoryHybrid(...);
+  userRepo = new UserRepositorySupabase(/* fallback */);
+} else {
+  userRepo = new UserRepositoryMock();
+}
+RepositoryRegistry.register('user', userRepo);
+```
+
+#### 2.4.5 类型统一出口和入口
+
+- 所有数据库相关类型（如 StorageType、DatabaseConfig、实体类型等）都在 `types/` 目录集中定义与导出，唯一入口为 `types/index.ts`。
+- 保证全局类型一致性，避免命名冲突，便于 IDE 智能提示和维护。
+
+#### 2.4.6 平台特定实现（离线/在线存储分离）
+
+##### 2.4.6.1 离线存储（本地优先，断网可用）
+- Web 平台：优先 IndexedDB 适配器（如 user-repository-indexeddb.ts）
+- 移动端：优先 SQLite 适配器（如 user-repository-sqlite.ts）
+- mock 环境：优先内存 mock 适配器（如 user-repository-mock.ts）
+- 离线存储适配器需保证断网时可用、支持本地事务、后续可与云端同步
+
+##### 2.4.6.2 在线存储（云端为主，需联网）
+- 推荐 Supabase、Firebase、Postgres 等云端适配器（如 user-repository-supabase.ts、user-repository-firebase.ts）
+- 生产/开发环境优先云端适配器，保证数据一致性、实时性和备份能力
+- 在线存储适配器需支持多端同步、权限控制、云端事务等
+
+##### 2.4.6.3 混合/同步模式
+- hybrid 适配器（如 user-repository-hybrid.ts）支持本地与云端自动同步/切换，兼顾离线可用与云端一致性
+
+#### 2.4.7 数据库开发流程
 
 数据库开发遵循渐进式流程，从Mock数据到生产环境数据库。这三个阶段构成了一个连续的开发流程，理想情况下，只需通过切换环境变量即可在不同阶段间无缝切换，而无需修改业务代码。
 
@@ -248,7 +346,7 @@ import '@/styles/global.css';
      - 优化同步性能
 
 4. **环境切换**
-   
+   ```bash
    # 开发环境（Mock数据）
    bun run dev
    
@@ -258,13 +356,13 @@ import '@/styles/global.css';
    # 生产环境
    bun run build
    bun run start
+   ```
 
 5. **数据库工厂**
    - 实现统一的数据库客户端工厂
    - 根据环境和平台选择合适的存储方案
    - 提供一致的数据库操作接口
    - 实现优雅降级策略，确保配置不完整时能回退到基础功能
-
 
 6. **测试要求**
    - 编写单元测试覆盖数据库操作
@@ -276,7 +374,8 @@ import '@/styles/global.css';
    - 实现访问控制
    - 定期数据备份
    - 监控异常访问
-详细流程请参考[数据库开发工作流程](./docs/templates/database-development-workflow.md)文档。
+
+详细流程请参考[数据库开发工作流程](./docs/templates/database-development-workflow.md)文档。更多数据库架构与实现细节可查阅[数据库架构文档](./docs/guides/architecture/database/README.md)。
 
 ### 2.5 API 调用
 
@@ -766,6 +865,223 @@ export function createDatabaseClient(engine: DatabaseEngine) {
     // 其他数据库实现...
   }
 }
+```
+
+### 数据预加载服务
+
+为了优化移动应用性能和提供离线支持，项目实现了数据预加载服务，用于在应用启动或网络恢复时预先加载常用数据。
+
+#### 预加载服务架构
+
+```
+src/core/services/data/preload/
+├── data-preload-service.ts   # 预加载服务核心实现
+├── types.ts                  # 类型定义
+└── usage-example.ts          # 使用示例
+```
+
+#### 配置选项
+
+```typescript
+// 预加载配置示例
+const preloadConfig: DataPreloadConfig = {
+  enabled: true,                          // 是否启用预加载
+  preloadTables: ['users', 'messages'],   // 需预加载的表（可使用字符串或配置对象）
+  maxRecordsPerTable: 20,                 // 每个表最大预加载记录数
+  autoPreloadInterval: 5 * 60 * 1000,     // 自动预加载间隔（毫秒）
+  cacheTTL: 15 * 60 * 1000,               // 缓存过期时间（毫秒）
+  maxCacheTables: 20,                     // 最大缓存表数量
+  preloadOnNetworkReconnect: true,        // 网络恢复时是否自动预加载
+  cacheKeyPrefix: 'preload_'              // 缓存键前缀
+};
+```
+
+#### 高级表配置
+
+```typescript
+// 使用高级配置对象定义预加载表
+const preloadConfig: DataPreloadConfig = {
+  enabled: true,
+  preloadTables: [
+    'simple_table',                       // 简单字符串配置
+    { 
+      name: 'users',                      // 表名
+      priority: 1,                        // 加载优先级（数字越小越优先）
+      maxRecords: 50,                     // 表特定的最大记录数
+      cacheTTL: 30 * 60 * 1000            // 表特定的缓存过期时间
+    },
+    { 
+      name: 'messages', 
+      priority: 2,                        // 优先级较低，会在users表之后加载
+      maxRecords: 100
+    }
+  ],
+  // 其他全局配置...
+};
+```
+
+#### 使用示例
+
+```typescript
+// 初始化预加载服务
+const hybrid = new HybridDatabaseClient({ /* 配置选项 */ });
+const preloadService = DataPreloadService.getInstance(hybrid, preloadConfig);
+
+// 手动触发预加载
+preloadService.preloadAll();
+
+// 获取预加载数据
+const users = preloadService.getCachedData('users');
+
+// 获取带状态的预加载结果
+const result = preloadService.getPreloadResult('users');
+console.log(result.status);  // 'idle' | 'preloading' | 'success' | 'error'
+console.log(result.data);    // 预加载的数据
+console.log(result.error);   // 如果有错误
+console.log(result.updatedAt); // 上次更新时间戳
+
+// 监听预加载事件
+preloadService.on('preload:start', ({ table }) => {
+  console.log(`开始预加载表: ${table}`);
+});
+
+preloadService.on('preload:success', ({ table, data }) => {
+  console.log(`表 ${table} 预加载成功，获取到 ${data.length} 条记录`);
+});
+
+preloadService.on('network:online', () => {
+  console.log('网络已恢复连接');
+});
+```
+
+#### 网络感知与自动预加载
+
+预加载服务集成了网络状态监控，可以在网络恢复时自动刷新数据：
+
+```typescript
+// 网络状态变化处理
+preloadService.on('network:online', () => {
+  // 网络恢复时的UI更新
+  showToast('网络已连接');
+});
+
+preloadService.on('network:offline', () => {
+  // 网络断开时的UI更新
+  showToast('网络已断开，使用缓存数据');
+});
+```
+
+#### 缓存管理
+
+```typescript
+// 清除特定表的缓存
+preloadService.clearCache('users');
+
+// 清除所有缓存
+preloadService.clearCache();
+
+// 刷新特定表的缓存
+preloadService.refreshCache('users');
+
+// 监听缓存过期事件
+preloadService.on('cache:expired', ({ table, reason }) => {
+  console.log(`表 ${table} 的缓存已过期，原因: ${reason || 'TTL到期'}`);
+});
+```
+
+### 网络管理服务
+
+项目实现了网络管理服务，用于监控网络状态变化并提供统一的网络状态API。该服务与数据预加载服务紧密集成，支持在网络恢复时自动刷新数据。
+
+#### 网络管理服务架构
+
+```
+src/core/services/infrastructure/network/
+├── network-manager.ts       # 网络管理器核心实现
+└── types.ts                # 类型定义
+```
+
+#### 基本用法
+
+```typescript
+// 导入网络管理器工厂函数
+import { createNetworkManager } from '@/core/services/infrastructure/network/network-manager';
+
+// 创建网络管理器实例
+const networkManager = createNetworkManager();
+
+// 检查当前网络状态
+const isConnected = networkManager.isConnected();
+console.log('当前网络状态:', isConnected ? '在线' : '离线');
+
+// 监听网络连接事件
+networkManager.onConnect(() => {
+  console.log('网络已连接');
+  // 执行网络恢复后的操作，如刷新数据
+  refreshData();
+});
+
+// 监听网络断开事件
+networkManager.onDisconnect(() => {
+  console.log('网络已断开');
+  // 执行网络断开后的操作，如显示离线提示
+  showOfflineNotification();
+});
+```
+
+#### 与数据服务集成
+
+网络管理服务设计为可与各种数据服务集成，特别是与数据预加载服务的集成示例：
+
+```typescript
+// 在数据预加载服务中集成网络管理
+class DataPreloadService {
+  private networkManager: NetworkManager;
+  
+  constructor() {
+    this.networkManager = createNetworkManager();
+    
+    // 监听网络恢复事件
+    this.networkManager.onConnect(() => {
+      if (this.config.preloadOnNetworkReconnect) {
+        // 网络恢复时自动预加载数据
+        this.preloadAll();
+      }
+    });
+    
+    // 监听网络断开事件
+    this.networkManager.onDisconnect(() => {
+      // 可以在这里执行网络断开时的特殊处理
+      this.emit('network:offline');
+    });
+  }
+}
+```
+
+#### 高级用法
+
+网络管理服务支持更多高级功能，如网络类型检测和连接质量监控：
+
+```typescript
+// 检查网络类型（需要在移动端环境）
+const networkType = await networkManager.getNetworkType();
+console.log('当前网络类型:', networkType); // 'wifi', 'cellular', 'none', 等
+
+// 监听网络类型变化
+networkManager.onNetworkTypeChange((type) => {
+  console.log('网络类型已变更为:', type);
+  
+  // 根据网络类型调整应用行为
+  if (type === 'wifi') {
+    // 在WiFi环境下可以执行更多数据同步
+    syncLargeData();
+  } else if (type === 'cellular') {
+    // 在蜂窝网络下减少数据使用
+    enableDataSavingMode();
+  }
+});
+```
+```
 ```
 
 ## 4. UI组件规范 (Ionic + Tailwind)

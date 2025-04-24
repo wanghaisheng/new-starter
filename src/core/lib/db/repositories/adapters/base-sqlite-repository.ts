@@ -1,28 +1,26 @@
 // 通用 SQLite 仓储基类，适用于所有实体
-import { SQLiteClient } from '@/core/lib/db/clients/sqlite/sqlite-client';
-import { BaseEntity, QueryResult } from '@/core/lib/db/types/database';
+import { DrizzleSQLiteClient } from '@/core/lib/db/clients/sqlite/drizzle-sqlite-client';
+import { BaseEntity } from '@/core/lib/db/types/database';
 
 export abstract class BaseSQLiteRepository<T extends BaseEntity> {
-  protected client: SQLiteClient;
+  protected client: DrizzleSQLiteClient<T>;
   protected table: string;
 
-  constructor(client: SQLiteClient, table: string) {
+  constructor(client: DrizzleSQLiteClient<T>, table: string) {
     this.client = client;
     this.table = table;
   }
 
   async findById(id: string): Promise<T | null> {
-    const result = await this.client.findById(this.table, id);
-    return result as T || null;
+    return this.client.findById(this.table, id);
   }
 
   async findAll(): Promise<T[]> {
-    const result = await this.client.findAll(this.table);
-    return result as T[];
+    return this.client.findAll(this.table);
   }
 
   async create(data: T): Promise<T> {
-    return (await this.client.create(this.table, data)) as T;
+    return this.client.create(this.table, data);
   }
 
   async update(id: string, data: Partial<T>): Promise<T | null> {

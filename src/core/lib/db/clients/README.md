@@ -327,6 +327,36 @@ await mockIndexedDb.reset();
 
 ---
 
+## 泛型化数据访问接口的最佳实践
+
+### 1. 为什么要泛型化？
+- 通过为 BaseClient 的 findById、findAll、create、update、query 等方法添加泛型参数，调用时可指定返回对象的具体类型（如 User、Member 等），保证类型安全和智能提示。
+- 避免所有表操作都返回 BaseEntity，减少类型断言和类型丢失。
+
+### 2. 典型接口定义
+```ts
+abstract findById<T = BaseEntity>(tableName: string, id: string): Promise<T | null>;
+abstract findAll<T = BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]>;
+abstract create<T = BaseEntity>(tableName: string, data: T): Promise<T>;
+abstract update<T = BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+abstract query<T = BaseEntity>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
+```
+
+### 3. 调用示例
+```ts
+// 查询 users 表，返回 User 类型
+const user = await client.findById<User>('users', 'u1');
+const users = await client.findAll<User>('users', { gender: 'male' });
+const result = await client.query<User>('users', { where: { email: 'foo@test.com' } });
+// result.items: User[]
+```
+
+### 4. 推荐实践
+- repository/service 层应优先传入具体类型参数，保证全链路类型安全。
+- 只有极特殊场景才用 BaseEntity 兜底。
+
+---
+
 ## Kysely/Drizzle SQLiteClient 实战问题与最佳实践总结
 
 本节总结了在基于 Kysely/Drizzle 构建 SQLiteClient 过程中遇到的主要问题及通用解决方案，适用于后续构建其他类型数据库 client（如 Postgres、MySQL、MongoDB 等）。

@@ -19,28 +19,43 @@
 
 ```
 src/core/lib/db/repositories/
-├── base-repository.ts                # 通用抽象基类
-├── mock-repository.ts                # 通用 mock 基类
-├── registry/                         # 注册表子目录（注册、获取、动态切换仓储实例）
-│   └── repository-registry.ts
-├── factory/                          # 工厂方法子目录（标准化创建仓储实例）
-│   └── repository-factory.ts
-├── adapters/                         # 适配器子目录（多数据源实现）
-│   ├── user-repository-mock.ts
-│   ├── user-repository-indexeddb.ts
-│   ├── user-repository-sqlite.ts
-│   ├── user-repository-supabase.ts
-│   ├── user-repository-firebase.ts
-│   ├── user-repository-hybrid.ts
-│   └── README.md
-├── user-repository.ts                # 具体实体仓储（真实实现）
-├── user-mock-repository.ts           # 具体实体 mock 仓储
-└── ...（其他实体/Mock/扩展）
+├── adapters/                   # 适配器层：不同数据源的仓储适配实现
+│   ├── base-indexeddb-repository.ts   # IndexedDB 仓储基类
+│   ├── base-sqlite-repository.ts      # SQLite 仓储基类
+│   ├── user-repository-indexeddb.ts   # User 的 IndexedDB 仓储
+│   ├── user-repository-sqlite.ts      # User 的 SQLite 仓储
+│   └── README.md                      # 适配器实现说明
+├── factory/                    # 工厂层：仓储实例标准化创建
+│   ├── auto-register-adapters.ts      # 自动注册所有适配器
+│   └── repository-factory.ts          # 工厂方法注册/获取
+├── impl/                       # 真实实现层：面向业务的仓储实现
+│   ├── base-repository.ts             # 通用仓储基类（业务主入口）
+│   ├── mock-repository.ts             # 通用 mock 仓储基类
+│   ├── user-mock-repository.ts        # User 的 mock 仓储
+│   └── user-repository.ts             # User 的主仓储实现
+├── registry/                   # 注册表层：集中注册/获取/切换仓储实例
+│   ├── repository-map.ts              # 仓储类型映射
+│   └── repository-registry.ts         # 注册表核心逻辑
+├── types/                      # 类型定义层：所有仓储相关类型
+│   ├── base-repository.types.ts       # 仓储通用类型
+│   ├── user-repository.types.ts       # User 仓储类型
+│   └── README.md                      # 类型使用说明
+├── utils/                      # 仓储工具方法
+│   └── type-guard-helper.ts           # 类型守卫辅助
+├── REPO-GENERATION-PLAN.md     # 仓储自动生成/迁移规划
+├── README.md                   # 本说明文档
 ```
 
-- **registry/**：集中管理所有仓储注册与获取逻辑，暴露注册表 API。
-- **factory/**：封装所有仓储工厂方法，便于扩展和复用。
-- **adapters/**：每类数据源实现独立适配器，文件/类命名需直接体现底层实现（如 mock、indexeddb、sqlite、supabase、firebase、hybrid 等）。
+### 结构说明与职责划分
+- **adapters/**：每种数据源有独立适配器基类和实体适配器，命名需体现底层实现（如 indexeddb、sqlite 等）。所有适配器实现统一接口，便于切换和扩展。
+- **factory/**：统一管理所有仓储实例的创建和自动注册，支持插件化、自动降级。
+- **impl/**：主业务仓储实现层，直接服务于业务代码。基类和实体仓储均采用类级泛型，保证类型安全。
+- **registry/**：负责仓储的注册、获取和动态切换，支持多环境自动适配。
+- **types/**：集中管理仓储相关的所有类型定义，便于类型安全和 IDE 智能提示。
+- **utils/**：存放仓储相关的工具方法和类型守卫。
+- **REPO-GENERATION-PLAN.md**：用于自动生成和迁移仓储的规划和脚本说明。
+
+> ⚠️ 命名规范：禁止“local”“cloud”等模糊命名，所有适配器/实现需明确标注底层数据源类型。
 
 ---
 
@@ -287,38 +302,85 @@ const userRepo = getRepository('user', providerType, ...args);
 
 ---
 
-## ⚠️ 常见问题与最佳实践：Repository 查询结果类型一致性
+## 十、日期字段（如 birthDate）的设计与最佳实践
 
-### 背景
-在多数据库实现（如 Kysely/SQLite、Mock、IndexedDB 等）下，Repository 层的查询方法（如 `findByEmail`）常因底层 client/query 返回结构不一致导致类型断裂、运行时分支混乱，甚至出现查到数据但返回 null 的问题。
+### 1. Schema 层
+- 日期字段统一用 `ColumnType.STRING`，存储为 ISO 8601 格式字符串（如 `"2000-01-01"` 或 `"2000-01-01T00:00:00.000Z"`）。
+- 这样便于排序、查询和跨数据库兼容。
 
-### 典型问题
-- 某些 client.query 返回 `{ items: T[] }`，某些直接返回 `T[]`，导致 Repository 代码需兼容多种返回结构。
-- 这会引发类型判断分支、测试用例难以通过、调试困难等问题。
-
-### 最佳实践与修复方案
-1. **强制所有 client/query 方法统一返回 `{ items: T[] }` 结构，无论查到什么都不直接返回数组。**
-2. **Repository 查询方法（如 `findByEmail`）只判断 `results.items`，无需兼容数组分支。**
-3. **如有历史代码或第三方库返回数组，建议在 Repository 内部做一次结构转换。**
-4. **测试用例中如遇“expected null to be truthy”且明明有数据，优先检查 query 返回结构和 repository 判断逻辑。**
-
-### 参考修复代码
-```typescript
-// client.query 统一返回
-return { items: Array.isArray(rows) ? rows : (rows ? [rows] : []) };
-
-// repository 查询方法
-async findByEmail(email: string): Promise<User | null> {
-  const results = await this.client.query(this.table, { where: { email } });
-  if (results && Array.isArray(results.items) && results.items.length > 0) {
-    return results.items[0];
+### 2. TypeScript types 层
+- 类型声明统一为 `string`，如：
+  ```ts
+  export interface User {
+    birthDate: string; // ISO 日期字符串
+    // ...
   }
-  return null;
-}
-```
+  ```
 
-### 结论
-- 类型一致性是 Repository 层健壮性和可维护性的基础，建议所有新实现/重构都采用统一返回结构。
-- 如遇类型相关疑难杂症，优先排查 client/query 与 repository 的契约。
+### 3. 仓储（Repository）层
+- 入库前：如果收到 `Date` 类型，自动转为字符串（如 `date.toISOString().slice(0, 10)`）。
+- 出库后：直接返回字符串，业务/前端需要时再转为 `Date`。
+- 推荐在 `prepareRow` 等方法中自动处理类型转换，保证类型安全和一致性。
+
+### 4. 页面与 hooks 层
+- 获取到的 `birthDate` 为字符串，若需 JS Date 对象可 `new Date(user.birthDate)`。
+- 表单提交时，若组件返回的是 `Date` 类型，需转字符串后再存入数据库。
+- 示例：
+  ```ts
+  // 详情展示
+  const birthDateObj = new Date(user.birthDate);
+  
+  // 表单提交
+  const handleSubmit = (form) => {
+    const birthDateStr = form.birthDate instanceof Date
+      ? form.birthDate.toISOString().slice(0, 10)
+      : form.birthDate;
+    repo.update(user.id, { ...form, birthDate: birthDateStr });
+  };
+  ```
+
+### 5. 总结
+- Schema 用 `STRING`，types 用 `string`，repo 层自动类型转换，前端统一用字符串存取，涉及 JS Date 时临时转换。
 
 ---
+
+## 十一、仓储类的类级泛型定义与最佳实践
+
+### 1. 为什么用类级泛型？
+- 仓储基类（如 `BaseRepository<T>`、`BaseSQLiteRepository<T>`、`BaseIndexedDBRepository<T>`）采用类级泛型，保证每个仓储只服务于一种实体类型，类型链路清晰且类型安全。
+- 这样所有 CRUD 方法都自动推断为该实体类型，无需每个方法再声明泛型参数，避免类型断裂。
+- 业务仓储如 `UserRepository extends BaseRepository<User>`，类型推断和 IDE 智能提示最优。
+
+### 2. 推荐定义方式
+```ts
+export abstract class BaseRepository<T extends BaseEntity> {
+  protected client: BaseClient<T>;
+  protected table: string;
+  constructor(client: BaseClient<T>, table: string) {
+    this.client = client;
+    this.table = table;
+  }
+  async findById(id: string): Promise<T | null> { ... }
+  async create(data: T): Promise<T> { ... }
+  // ... 其它方法同理
+}
+
+// 业务仓储
+export class UserRepository extends BaseRepository<User> { ... }
+```
+
+### 3. 不推荐的做法
+- 不建议在每个方法上再加方法级泛型（如 `findById<U>(id: string): Promise<U | null>`），除非仓储真的需要服务多种类型。
+- 绝大多数业务仓储“一类仓储只服务一种实体类型”，类级泛型即可满足全部类型安全需求。
+
+### 4. 适用范围
+- 适用于所有基于实体的仓储（如 User、Order、Message 等），无论是 SQLite、IndexedDB 还是其它后端存储。
+- 适配器、Client 也建议采用类级泛型，保证全链路类型推断。
+
+### 5. 相关代码示例和迁移建议
+- 见 `/src/core/lib/db/repositories/impl/base-repository.ts`、`adapters/base-sqlite-repository.ts`、`adapters/base-indexeddb-repository.ts` 等。
+- 若需迁移旧代码，只需将父类和子类的泛型参数链路统一为类级泛型即可。
+
+---
+
+```

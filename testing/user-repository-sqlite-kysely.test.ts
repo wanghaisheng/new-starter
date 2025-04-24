@@ -6,7 +6,7 @@ import { UserRepository } from '@/core/lib/db/repositories/impl/user-repository'
 import KyselySQLiteClient from '@/core/lib/db/clients/sqlite/kysely-sqlite-client';
 import fs from 'fs';
 
-let dbClient: KyselySQLiteClient;
+let dbClient: KyselySQLiteClient<User>;
 let repo: UserRepository;
 const dbFile = `test_kysely_${Date.now()}.sqlite`;
 
@@ -19,9 +19,9 @@ beforeEach(async () => {
   } catch (e) {
     // 忽略 busy 错误
   }
-  dbClient = new KyselySQLiteClient(dbFile, [userSchema]);
+  dbClient = new KyselySQLiteClient<User>(dbFile, [userSchema]);
   await dbClient.initialize();
-  repo = new UserRepository(dbClient, userSchema);
+  repo = new UserRepository(dbClient);
 });
 
 describe('UserRepository (KyselySQLiteClient)', () => {

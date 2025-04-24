@@ -11,7 +11,7 @@ import type { ILoggerService } from '@/core/services/infrastructure/logger';
  * 
  * @template T 实体类型，默认为 BaseEntity
  */
-export abstract class BaseClient {
+export abstract class BaseClient<T extends BaseEntity> {
   protected initialized = false;
   protected transactionActive = false;
   protected eventListeners: Map<DatabaseEvent, Function[]> = new Map();
@@ -33,14 +33,14 @@ export abstract class BaseClient {
   abstract disconnect(): Promise<void>;
 
   // 通用数据访问接口
-  abstract findById(tableName: string, id: string): Promise<BaseEntity | null>;
-  abstract findAll(tableName: string, filter?: Record<string, any>): Promise<BaseEntity[]>;
-  abstract create(tableName: string, data: BaseEntity): Promise<BaseEntity>;
-  abstract update(tableName: string, id: string, data: Partial<BaseEntity>): Promise<void>;
+  abstract findById(tableName: string, id: string): Promise<T | null>;
+  abstract findAll(tableName: string, filter?: Record<string, any>): Promise<T[]>;
+  abstract create(tableName: string, data: T): Promise<T>;
+  abstract update(tableName: string, id: string, data: Partial<T>): Promise<void>;
   abstract delete(tableName: string, id: string): Promise<void>;
   
   // 高级查询接口
-  abstract query(tableName: string, options: QueryOptions): Promise<QueryResult<BaseEntity>>;
+  abstract query(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
   abstract count(tableName: string, filter?: Record<string, any>): Promise<number>;
   
   // 事务支持

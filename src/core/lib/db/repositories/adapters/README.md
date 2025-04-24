@@ -147,4 +147,37 @@ async update(id: string, data: Partial<T>): Promise<T | null> {
 
 ---
 
+## 泛型化 client 适配说明（2025-04-24 更新）
+
+> 自 2025-04 起，所有数据库 client（如 IndexedDBClient、DrizzleSQLiteClient、CloudflareD1Client 等）已全面泛型化，adapter 层应直接传递类型参数，无需在调用时再手动指定泛型。
+
+### 适配器调用参数示例
+
+```typescript
+import { User } from '@/core/lib/db/types/user.types';
+import { IndexedDBClient } from '@/core/lib/db/clients/indexeddb/indexeddb-client';
+import { DrizzleSQLiteClient } from '@/core/lib/db/clients/sqlite/drizzle-sqlite-client';
+import { UserRepositoryIndexedDB } from './user-repository-indexeddb';
+import { UserRepositorySQLite } from './user-repository-sqlite';
+
+// ✅ 推荐：client 实例化时直接带类型参数
+const indexedDBClient = new IndexedDBClient<User>();
+const userRepoIndexedDB = new UserRepositoryIndexedDB(indexedDBClient);
+
+const sqliteClient = new DrizzleSQLiteClient<User>();
+const userRepoSQLite = new UserRepositorySQLite(sqliteClient);
+
+// Cloudflare D1
+import { CloudflareD1Client } from '@/core/lib/db/clients/cloudflare/cloudflare-d1-drizzle-client';
+const d1Client = new CloudflareD1Client<User>();
+// 假设有 UserRepositoryD1
+// const userRepoD1 = new UserRepositoryD1(d1Client);
+```
+
+- 所有仓储适配器（如 UserRepositorySQLite）构造参数直接传入泛型化后的 client 实例，无需显式传递类型参数。
+- 业务调用时自动获得完整类型推断，无需再在方法调用中显式 <User>。
+- 适配器基类（如 BaseSQLiteRepository、BaseIndexedDBRepository）也已同步泛型化。
+
+---
+
 > 详细环境与服务模式说明见 docs/guides/environment-modes.md、docs/guides/service-modes.md。

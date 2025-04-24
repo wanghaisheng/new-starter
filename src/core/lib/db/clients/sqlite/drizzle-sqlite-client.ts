@@ -12,7 +12,7 @@ import { TableSchema } from '@/core/lib/db/schema/types';
  * DrizzleSQLiteClient: 基于 drizzle-orm 的 SQLite Client
  * 用于自动建表、基础 CRUD，兼容 TableSchema
  */
-export class DrizzleSQLiteClient extends BaseClient {
+export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
   private db: any;
   private drizzleDb: ReturnType<typeof drizzle>;
   private tables: Record<string, any>;
@@ -63,7 +63,7 @@ export class DrizzleSQLiteClient extends BaseClient {
   }
 
   // 类型兜底转换，参考 kysely-sqlite-client，实现 boolean/date/json 等字段的自动转换
-  private prepareRow<T>(tableName: string, data: Partial<T>): Partial<T> {
+  private prepareRow(tableName: string, data: Partial<T>): Partial<T> {
     const schema = this.schemasByName[tableName];
     if (!schema) {
       console.error('[DrizzleSQLiteClient.prepareRow] Schema not found for tableName:', tableName, '| schemasByName keys:', Object.keys(this.schemasByName));
@@ -94,8 +94,12 @@ export class DrizzleSQLiteClient extends BaseClient {
       } else if (typeStr === 'datetime' || typeStr === 'date') {
         row[col.name] = value instanceof Date ? value.toISOString() : value;
       } else if (typeStr === 'json') {
-        // 只要不是字符串，全部 JSON.stringify
-        row[col.name] = typeof value === 'string' ? value : JSON.stringify(value ?? {});
+        // 保证所有 JSON 类型字段都存为标准对象的 JSON 字符串
+        let obj = value;
+        if (typeof value === 'string') {
+          try { obj = JSON.parse(value); } catch { obj = value; }
+        }
+        row[col.name] = JSON.stringify(obj ?? {});
       }
       // 检查 SQLite 支持的类型
       const finalVal = row[col.name];
@@ -116,70 +120,182 @@ export class DrizzleSQLiteClient extends BaseClient {
     return row as Partial<T>;
   }
 
-  async create<T extends BaseEntity>(tableName: string, data: T): Promise<T> {
-    const row = this.prepareRow(tableName, data);
-    Object.entries(row).forEach(([k, v]) => {
-      console.log(`[DrizzleSQLiteClient.create][after prepareRow] ${String(k)}:`, v, 'type:', typeof v, '| isArray:', Array.isArray(v), '| constructor:', v && v.constructor ? v.constructor.name : 'null');
-    });
-    await this.drizzleDb.insert(this.tables[tableName]).values(row).run();
-    return data;
-  }
-
-  async update<T extends BaseEntity>(tableName: string, id: string, data: Partial<T>): Promise<void> {
-    await this.drizzleDb.update(this.tables[tableName])
-      .set(this.prepareRow(tableName, data))
-      .where(sql`id = ${id}`)
-      .run();
-  }
-
-  async findById<T extends BaseEntity>(tableName: string, id: string): Promise<T | null> {
-    const rows = await this.drizzleDb.select().from(this.tables[tableName]).where(sql`id = ${id}`).all();
-    return rows[0] || null;
-  }
-
-  async findAll<T extends BaseEntity>(tableName: string, filter?: Partial<T>): Promise<T[]> {
-    let query = this.drizzleDb.select().from(this.tables[tableName]);
-    if (filter) {
-      const conditions = Object.entries(filter)
-        .map(([key, value]) => sql`${sql.raw(key)} = ${value}`)
-        .reduce((prev, curr) => prev ? sql`${prev} AND ${curr}` : curr, undefined);
-      if (conditions) {
-        query = query.where(conditions);
+  // 新增：查询后类型自动转换
+  private parseRow(tableName: string, row: any): T {
+    const schema = this.schemasByName[tableName];
+    if (!schema) return row;
+    const parsed: Record<string, any> = { ...row };
+    for (const col of schema.columns) {
+      let typeStr = typeof col.type === 'string' ? col.type :
+        (typeof col.type === 'number' ?
+          (col.type === ColumnType.BOOLEAN ? 'boolean' :
+           col.type === ColumnType.DATETIME ? 'datetime' :
+           col.type === ColumnType.DATE ? 'date' :
+           col.type === ColumnType.JSON ? 'json' : '')
+          : '');
+      if (typeStr === 'boolean') {
+        parsed[col.name] = row[col.name] === 1 || row[col.name] === true;
+      } else if (typeStr === 'datetime' || typeStr === 'date') {
+        if (row[col.name]) parsed[col.name] = new Date(row[col.name]).toISOString();
+      } else if (typeStr === 'json') {
+        // 只要不是对象都 parse，保证返回对象类型
+        if (typeof row[col.name] === 'string') {
+          try {
+            // 兼容已是对象的字符串（如 '"foo"'），以及标准 JSON
+            const parsedVal = JSON.parse(row[col.name]);
+            parsed[col.name] = typeof parsedVal === 'string' ? JSON.parse(parsedVal) : parsedVal;
+          } catch {
+            parsed[col.name] = row[col.name];
+          }
+        } else if (typeof row[col.name] === 'object' && row[col.name] !== null) {
+          parsed[col.name] = row[col.name];
+        } else {
+          parsed[col.name] = undefined;
+        }
       }
     }
-    return await query.all();
+    return parsed as T;
   }
 
-  async delete(tableName: string, id: string): Promise<void> {
-    await this.drizzleDb.delete(this.tables[tableName]).where(sql`id = ${id}`).run();
-  }
-
-  async query(tableName: string, options: any): Promise<{ items: any[] }> {
-    let query = this.drizzleDb.select().from(this.tables[tableName]);
+  /**
+   * 通用查询，支持 =、in、like、gt、lt 等操作符，自动类型转换，支持分页排序
+   * 示例：
+   *   await client.query(table, { where: { email: { eq: 'a@test.com' }, age: { gt: 18 }, tags: { in: ['vip', 'svip'] }, name: { like: '%张%' } }, _limit: 10, _offset: 0, _orderBy: 'id DESC' })
+   */
+  async query(tableName: string, options: any): Promise<{ items: T[]; data?: T[] }> {
+    this.checkInitialized();
+    const table = this.tables[tableName];
+    if (!table) throw new Error(`Table not found: ${tableName}`);
+    let query: any = this.drizzleDb.select().from(table);
     if (options?.where) {
-      const conditions = Object.entries(options.where)
-        .map(([key, value]) => sql`${sql.raw(key)} = ${value}`)
-        .reduce((prev, curr) => prev ? sql`${prev} AND ${curr}` : curr, undefined);
-      if (conditions) {
-        query = query.where(conditions);
+      const schema = this.schemasByName[tableName];
+      for (const key in options.where) {
+        const cond = options.where[key];
+        const colSchema = schema?.columns.find(col => col.name === key);
+        if (colSchema?.type === ColumnType.JSON && Array.isArray(cond)) {
+          // 支持交集（AND），所有 tag 都必须匹配，直接拼接 LIKE '%val%'，避免参数爆炸
+          for (const val of cond) {
+            query = query.where(sql`${sql.raw('"' + key + '"')} LIKE '%${val}%'`);
+          }
+          continue;
+        }
+        if (cond && typeof cond === 'object' && !Array.isArray(cond)) {
+          // 支持 in、like、gt、lt、eq
+          if (cond.in) {
+            query = query.where(sql`${sql.raw('"' + key + '"')} in ${cond.in}`);
+          } else if (cond.like) {
+            query = query.where(sql`${sql.raw('"' + key + '"')} like ${cond.like} COLLATE NOCASE`);
+          } else if (cond.gt !== undefined) {
+            query = query.where(sql`${sql.raw('"' + key + '"')} > ${cond.gt}`);
+          } else if (cond.gte !== undefined) {
+            query = query.where(sql`${sql.raw('"' + key + '"')} >= ${cond.gte}`);
+          } else if (cond.lt !== undefined) {
+            query = query.where(sql`${sql.raw('"' + key + '"')} < ${cond.lt}`);
+          } else if (cond.lte !== undefined) {
+            query = query.where(sql`${sql.raw('"' + key + '"')} <= ${cond.lte}`);
+          } else if (cond.eq !== undefined) {
+            query = query.where(sql`${sql.raw('"' + key + '"')} = ${cond.eq}`);
+          }
+        } else {
+          query = query.where(sql`${sql.raw('"' + key + '"')} = ${cond}`);
+        }
       }
     }
-    const items = await query.all();
-    return { items };
+    if (options?._limit) query = query.limit(options._limit);
+    if (options?._offset) query = query.offset(options._offset);
+    if (options?._orderBy) {
+      // 只允许字母、数字、下划线、空格、逗号、ASC/DESC，防止注入
+      if (!/^[\w\s,]+( ASC| DESC)?$/i.test(options._orderBy)) {
+        throw new Error('Invalid _orderBy value: ' + options._orderBy);
+      }
+      // 用字符串字面量包裹列名，防止被当做列名参数
+      query = query.orderBy(sql.raw('"' + options._orderBy + '"'));
+    }
+    const result = await query.all();
+    const parsed = Array.isArray(result) ? result.map(row => this.parseRow(tableName, row)) : [];
+    return { items: parsed };
+  }
+
+  /**
+   * 通用 findAll，支持复杂条件
+   */
+  async findAll(tableName: string, filter?: Record<string, any>): Promise<T[]> {
+    return (await this.query(tableName, { where: filter })).items;
+  }
+
+  async findById(tableName: string, id: string): Promise<T | null> {
+    this.checkInitialized();
+    const table = this.tables[tableName];
+    if (!table) throw new Error(`Table not found: ${tableName}`);
+    const result = await this.drizzleDb.select().from(table).where(sql`id = ${id}`).all();
+    return Array.isArray(result) && result.length > 0 ? (result[0] as T) : null;
+  }
+
+  async create(tableName: string, data: T): Promise<T> {
+    this.checkInitialized();
+    const table = this.tables[tableName];
+    if (!table) throw new Error(`Table not found: ${tableName}`);
+    const row = this.prepareRow(tableName, data as any);
+    await this.drizzleDb.insert(table).values(row).run();
+    return row as T;
+  }
+
+  async update(tableName: string, id: string, data: Partial<T>): Promise<void> {
+    this.checkInitialized();
+    const table = this.tables[tableName];
+    if (!table) throw new Error(`Table not found: ${tableName}`);
+    const row = this.prepareRow(tableName, data as any);
+    const result = await this.drizzleDb.update(table).set(row).where(sql`id = ${id}`).run();
+    if (!result || result.changes === 0) {
+      throw new Error(`Update failed: ${tableName} id=${id} not found`);
+    }
+  }
+
+  /**
+   * 删除指定 id 的记录，幂等：不存在也不抛错
+   */
+  async delete(tableName: string, id: string): Promise<void> {
+    const result = await this.drizzleDb.delete(this.tables[tableName]).where(sql`id = ${id}`).run();
+    // 幂等删除：即使没找到也不抛错，直接 resolve
+    // if (result.changes === 0) throw new Error(`Delete failed: user ${id} not found`);
+    return;
+  }
+
+  async batch(tableName: string, operations: any[]): Promise<void> {
+    for (const op of operations) {
+      if (op.type === 'insert') await this.create(tableName, op.data);
+      if (op.type === 'update') await this.update(tableName, op.id, op.data);
+      if (op.type === 'delete') await this.delete(tableName, op.id);
+    }
+  }
+
+  async executeRawQuery<R = any>(query: string, params?: any[]): Promise<R[]> {
+    return this.db.prepare(query).all(params);
   }
 
   async count(tableName: string, filter?: Record<string, any>): Promise<number> {
-    let query = this.drizzleDb.select({ count: sql`count(*)` }).from(this.tables[tableName]);
+    let query: any = this.drizzleDb.select({ count: sql`count(*)` }).from(this.tables[tableName]);
     if (filter) {
-      const conditions = Object.entries(filter)
-        .map(([key, value]) => sql`${sql.raw(key)} = ${value}`)
-        .reduce((prev, curr) => prev ? sql`${prev} AND ${curr}` : curr, undefined);
-      if (conditions) {
-        query = query.where(conditions);
+      for (const key in filter) {
+        query = query.where(sql`${sql.raw('"' + key + '"')} = ${filter[key]}`);
       }
     }
     const res = await query.all();
-    return res[0]?.count ?? 0;
+    return Number(res[0]?.count ?? 0);
+  }
+
+  /**
+   * 支持事务操作
+   */
+  async transaction<R>(fn: (tx: this) => Promise<R>): Promise<R> {
+    // drizzle-orm transaction 支持
+    return await this.drizzleDb.transaction(async (tx) => {
+      // 用 tx 构造一个新的 client 实例，复用 schema/tables
+      const txClient = new DrizzleSQLiteClient<T>('tx', this.tables, this.schemas);
+      (txClient as any).drizzleDb = tx;
+      (txClient as any).db = this.db;
+      return await fn(txClient as this);
+    });
   }
 
   async beginTransaction(): Promise<void> {
@@ -193,18 +309,6 @@ export class DrizzleSQLiteClient extends BaseClient {
 
   async rollbackTransaction(): Promise<void> {
     this.transactionActive = false;
-  }
-
-  async batch(tableName: string, operations: any[]): Promise<void> {
-    for (const op of operations) {
-      if (op.type === 'insert') await this.create(tableName, op.data);
-      if (op.type === 'update') await this.update(tableName, op.id, op.data);
-      if (op.type === 'delete') await this.delete(tableName, op.id);
-    }
-  }
-
-  async executeRawQuery<R = any>(query: string, params?: any[]): Promise<R[]> {
-    return this.db.prepare(query).all(params);
   }
 }
 

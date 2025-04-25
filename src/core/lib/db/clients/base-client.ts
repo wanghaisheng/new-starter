@@ -2,7 +2,7 @@ console.log('base-client loaded');
 
 import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
-import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
+import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 import type { ILoggerService } from '@/core/services/infrastructure/logger';
 
 /**
@@ -25,7 +25,7 @@ export abstract class BaseClient<
 
   constructor() {
     // 通过注册表获取 logger 实例
-    this.logger = getLoggerService();
+    this.logger = LoggerService.getInstance();
   }
   
   // 生命周期方法

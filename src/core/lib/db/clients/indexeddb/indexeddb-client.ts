@@ -1,11 +1,13 @@
 console.log('IndexedDBClient loaded');
 import { openDB, IDBPDatabase } from 'idb';
 import { QueryOptions, QueryResult, BatchOperation, StorageStats, BaseEntity, DatabaseConfig, OfflineStorageConfig } from '@/core/lib/db/types/database';
-import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database';
+import { DatabaseError } from '@/core/lib/db/types/database';
+import {  DatabaseErrorCode } from '@/core/lib/db/types/common';
 import { BaseClient } from '@/core/lib/db/clients/base-client';
 import { schemaRegistry } from '@/core/lib/db/schema/schema-registry-singleton';
-import { TableSchema } from '@/core/lib/db/schema/types';
 import { ClientRegistry } from '@/core/services/data/adapters/client-registry';
+import { ColumnType } from '@/core/lib/db/types/common';
+import { TableSchema } from '@/core/lib/db/types/database';
 
 /**
  * 优化版 IndexedDB 数据库客户端

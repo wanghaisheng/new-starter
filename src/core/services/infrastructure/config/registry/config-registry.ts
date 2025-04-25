@@ -4,7 +4,8 @@ import { EnvConfigAdapter } from '@/core/services/infrastructure/config/adapters
 import { MockConfigAdapter } from '@/core/services/infrastructure/config/adapters/mock-config-adapter';
 import { RemoteConfigAdapter } from '@/core/services/infrastructure/config/adapters/remote-config-adapter';
 import { IConfigAdapter } from '@/core/services/infrastructure/config/types/config-adapter';
-import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
+// 移除 logger 相关依赖，防止循环依赖
+// import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 import { parseEnum } from '@/core/services/infrastructure/config/parse-enum';
 
 // 可扩展 provider 类型枚举
@@ -65,12 +66,12 @@ export function detectProvider(): ConfigProviderType {
  */
 export function registerConfigAdapter(name: string, factory: () => IConfigAdapter) {
   if (configAdapterRegistry[name]) {
-    getLoggerService().warn(`[ConfigRegistry] Adapter '${name}' 已注册，将被覆盖`);
+    // getLoggerService().warn(`[ConfigRegistry] Adapter '${name}' 已注册，将被覆盖`);
   }
   configAdapterRegistry[name] = factory;
-  const logger = getLoggerService();
-  logger.info(`[ConfigRegistry] Registered new config adapter: ${name}`);
-  logger.debug(`[ConfigRegistry] Adapter factory:`, factory);
+  // const logger = getLoggerService();
+  // logger.info(`[ConfigRegistry] Registered new config adapter: ${name}`);
+  // logger.debug(`[ConfigRegistry] Adapter factory:`, factory);
 }
 
 /**
@@ -78,7 +79,7 @@ export function registerConfigAdapter(name: string, factory: () => IConfigAdapte
  */
 export function getAvailableConfigAdapters(): string[] {
   const adapters = Object.keys(configAdapterRegistry);
-  getLoggerService().debug(`[ConfigRegistry] Available adapters: ${adapters.join(', ')}`);
+  // getLoggerService().debug(`[ConfigRegistry] Available adapters: ${adapters.join(', ')}`);
   return adapters;
 }
 
@@ -88,23 +89,23 @@ export function getAvailableConfigAdapters(): string[] {
  */
 export function getConfigService(provider?: ConfigProviderType): ConfigService {
   const resolvedProvider = provider || detectProvider();
-  const logger = getLoggerService();
+  // const logger = getLoggerService();
   if (!instance || resolvedProvider !== lastProvider) {
     const adapterFactory = configAdapterRegistry[resolvedProvider] || configAdapterRegistry[ConfigProviderType.DEFAULT];
-    logger.warn(`[ConfigService] Provider change detected: ${lastProvider ?? 'undefined'} -> ${resolvedProvider}`);
+    // logger.warn(`[ConfigService] Provider change detected: ${lastProvider ?? 'undefined'} -> ${resolvedProvider}`);
     instance = ConfigService.getInstance(adapterFactory());
     lastProvider = resolvedProvider;
-    logger.info(`[ConfigService] Using provider: ${resolvedProvider}`);
-    logger.debug(`[ConfigService] Provider factory:`, adapterFactory);
+    // logger.info(`[ConfigService] Using provider: ${resolvedProvider}`);
+    // logger.debug(`[ConfigService] Provider factory:`, adapterFactory);
     if (!configAdapterRegistry[resolvedProvider]) {
-      logger.error(`[ConfigService] Unknown provider: ${resolvedProvider}, fallback to default.`);
+      // logger.error(`[ConfigService] Unknown provider: ${resolvedProvider}, fallback to default.`);
     }
     if (typeof window !== 'undefined') {
       // 控制台提示当前 provider，便于调试
       // @ts-ignore
       if ((window as any).__CONFIG_DEBUG__ || process.env.NODE_ENV !== 'production') {
         // eslint-disable-next-line no-console
-        console.info(`[ConfigService] 当前 provider: ${resolvedProvider}`);
+        // console.info(`[ConfigService] 当前 provider: ${resolvedProvider}`);
       }
     }
   }

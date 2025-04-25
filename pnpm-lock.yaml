@@ -122,9 +122,6 @@ importers:
       dns:
         specifier: ^0.2.2
         version: 0.2.2
-      drizzle-orm:
-        specifier: ^0.41.0
-        version: 0.41.0(@libsql/client@0.15.4)(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.11.13)(@types/sql.js@1.4.9)(better-sqlite3@11.9.1)(gel@2.0.2)(kysely@0.27.6)(mysql2@3.14.0)(pg@8.14.1)(sql.js@1.13.0)
       fake-indexeddb:
         specifier: ^6.0.0
         version: 6.0.0
@@ -241,7 +238,7 @@ importers:
         specifier: ^7.10.10
         version: 7.10.10
       '@types/node':
-        specifier: ^20.17.28
+        specifier: ^20.17.30
         version: 20.17.30
       '@types/pino':
         specifier: ^7.0.5
@@ -259,7 +256,7 @@ importers:
         specifier: ^0.33.0
         version: 0.33.0(vitest@3.1.2)
       '@vitest/coverage-v8':
-        specifier: ^3.0.9
+        specifier: ^3.1.2
         version: 3.1.2(vitest@3.1.2)
       '@vitest/ui':
         specifier: ^3.1.2
@@ -273,6 +270,9 @@ importers:
       drizzle-kit:
         specifier: ^0.30.6
         version: 0.30.6
+      drizzle-orm:
+        specifier: ^0.41.0
+        version: 0.41.0(@libsql/client@0.15.4)(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.11.13)(@types/sql.js@1.4.9)(better-sqlite3@11.9.1)(gel@2.0.2)(kysely@0.27.6)(mysql2@3.14.0)(pg@8.14.1)(sql.js@1.13.0)
       eslint:
         specifier: ^8.56.0
         version: 8.57.1

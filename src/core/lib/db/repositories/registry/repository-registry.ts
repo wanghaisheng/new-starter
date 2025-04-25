@@ -2,8 +2,9 @@
  * 仓储注册表：集中注册与获取所有仓储实例，支持多实现/多环境自动切换
  */
 import { getConfigService } from '@/core/services/infrastructure/config/registry/config-registry';
-import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
+import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 import { DataMode } from '@/core/lib/db/types/database';
+import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
 // 如有更多实体仓储，依次引入
 
 // 自动注册所有适配器工厂（由脚本自动生成，保证所有实体适配器都被 import 并注册）
@@ -139,7 +140,6 @@ class RepositoryRegistry {
     logger?: any;
   } = {}) {
     // 动态引入数据服务注册表，避免循环依赖
-    const { DataServiceRegistry } = require('@/core/services/data/registry/data-service-registry');
     const dataService = DataServiceRegistry.get('default');
     // 获取所有已注册实体 key（类型断言保证类型安全）
     const keys = require('../factory/repository-factory').RepositoryFactoryRegistry.getAvailableKeys() as RepositoryKey[];

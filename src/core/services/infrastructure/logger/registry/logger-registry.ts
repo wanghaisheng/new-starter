@@ -4,7 +4,9 @@ import { LoggerService } from '../service/logger-service';
 import { MockLoggerAdapter } from '../adapters/mock-adapter';
 import { WinstonLoggerAdapter } from '../adapters/winston-adapter';
 import { PinoLoggerAdapter } from '../adapters/pino-adapter';
-import { configService } from '@/core/services/infrastructure/config';
+
+// 移除对 configService 的顶层 import，改为函数内部 require 懒加载
+// import { configService } from '@/core/services/infrastructure/config';
 
 // 插件注册工厂
 const loggerAdapterRegistry: Record<string, () => ILoggerService> = {
@@ -39,8 +41,17 @@ let lastProvider: string | undefined;
  * - 支持 runtime 切换 logger provider，自动重建实例
  * - 仅通过注册表暴露，禁止直接 new/adapter/factory
  * - 支持插件注册工厂，便于后续扩展
+ *
+ * ⚠️ 注意：动态 import，返回 Promise<ILoggerService>
+ * ⚠️ 需在入口 await initConfig() 后再调用本方法
  */
-export function getLoggerService(): ILoggerService {
+export async function getLoggerService(): Promise<ILoggerService> {
+  // 调试：打印调用栈，定位谁在 import 阶段调用 getLoggerService
+  console.error('[DEBUG] getLoggerService called');
+  console.error(new Error('[DEBUG] getLoggerService stack trace').stack);
+  // 动态 import，支持 alias，彻底消除路径和循环依赖问题
+  const { getConfigService } = await import('@/core/services/infrastructure/config');
+  const configService = getConfigService();
   const loggerProvider = String(configService.get('LOGGER_PROVIDER'));
   if (!instance || loggerProvider !== lastProvider) {
     const factory = loggerAdapterRegistry[loggerProvider] || loggerAdapterRegistry['default'];

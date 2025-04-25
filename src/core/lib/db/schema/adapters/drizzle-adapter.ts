@@ -1,7 +1,9 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, blob } from 'drizzle-orm/sqlite-core';
 
-import { TableSchema, ColumnDefinition } from '@/core/lib/db/schema/index';
+// import { TableSchema, ColumnDefinition } from '@/core/lib/db/schema/index';
+import {ColumnType} from '../../types/common'
+import { TableSchema, ColumnDefinition } from '../../types/database';
 
 /**
  * Drizzle ORM 适配器
@@ -95,12 +97,16 @@ export class DrizzleSchemaAdapter {
     const sqls: string[] = [];
     schemas.forEach(schema => {
       // 对表名和索引名做转义，防止连字符等特殊字符导致 SQL 错误
-      const tableName = /[^a-zA-Z0-9_]/.test(schema.name) ? `"${schema.name}"` : schema.name;
+      const quoteIdentifier = (name: string): string => {
+        // 若表名含有特殊字符（如连字符），加双引号
+        return /[^a-zA-Z0-9_]/.test(name) ? `"${name}"` : name;
+      }
+      const tableName = quoteIdentifier(schema.name);
       let sql = `CREATE TABLE IF NOT EXISTS ${tableName} (
 `;
       // 列定义
       const columnDefs = schema.columns.map(column => {
-        let def = `  ${column.name} ${this.getSQLiteType(column.type)}`;
+        let def = `  ${quoteIdentifier(column.name)} ${this.getSQLiteType(column.type)}`;
         if (column.primaryKey) {
           def += ' PRIMARY KEY';
         }
@@ -114,7 +120,7 @@ export class DrizzleSchemaAdapter {
           def += ` DEFAULT ${this.formatDefaultValue(column.defValue)}`;
         }
         if (column.references) {
-          def += ` REFERENCES ${column.references.table}(${column.references.column})`;
+          def += ` REFERENCES ${quoteIdentifier(column.references.table)}(${quoteIdentifier(column.references.column)})`;
         }
         return def;
       });
@@ -124,10 +130,10 @@ export class DrizzleSchemaAdapter {
       // 生成索引 SQL
       if (schema.indexes && schema.indexes.length > 0) {
         for (const index of schema.indexes) {
-          const indexName = /[^a-zA-Z0-9_]/.test(index.name) ? `"${index.name}"` : index.name;
+          const indexName = quoteIdentifier(index.name);
           const indexTable = tableName;
           const unique = index.unique ? 'UNIQUE ' : '';
-          sqls.push(`CREATE ${unique}INDEX IF NOT EXISTS ${indexName} ON ${indexTable} (${index.columns.join(', ')});`);
+          sqls.push(`CREATE ${unique}INDEX IF NOT EXISTS ${indexName} ON ${indexTable} (${index.columns.map(quoteIdentifier).join(', ')});`);
         }
       }
     });

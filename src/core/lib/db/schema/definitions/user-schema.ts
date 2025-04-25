@@ -1,4 +1,5 @@
-import { TableSchema, ColumnType } from '../types';
+import { TableSchema } from '../../types/database';
+import {ColumnType} from '../../types/common'
 import { schemaRegistry } from '../index';
 
 export const userSchema: TableSchema = {

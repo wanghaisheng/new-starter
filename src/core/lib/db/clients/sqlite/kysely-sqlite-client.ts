@@ -1,6 +1,7 @@
 import { Kysely, SqliteDialect } from 'kysely';
 import Database from 'better-sqlite3';
-import { TableSchema, ColumnType } from '@/core/lib/db/schema/types';
+import { TableSchema } from '@/core/lib/db/types/database';
+import { ColumnType } from '@/core/lib/db/types/common';
 import type { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { BaseClient } from '@/core/lib/db/clients/base-client';
 import { ClientRegistry } from '@/core/services/data/adapters/client-registry';

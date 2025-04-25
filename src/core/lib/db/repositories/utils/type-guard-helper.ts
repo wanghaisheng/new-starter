@@ -3,7 +3,8 @@
  * 支持日期、布尔、JSON 等字段类型的自动归一和校验
  * 可被各仓储实现复用
  */
-import { TableSchema, ColumnType } from '@/core/lib/db/schema/types';
+import { TableSchema } from '@/core/lib/db/types/database';
+import { ColumnType } from '@/core/lib/db/types/common';
 
 export class TypeGuardHelper {
   /**

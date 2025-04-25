@@ -8,6 +8,7 @@ export class EnvConfigAdapter implements IConfigAdapter {
   private store: Record<string, any> = {};
 
   async initialize() {
+    console.log('EnvConfigAdapter.initialize', process.env[CONFIG_KEYS.LOGGER_PROVIDER]);
     ENV_KEYS.forEach(key => {
       if (typeof process !== 'undefined' && process.env && process.env[key] !== undefined) {
         this.store[key] = process.env[key];

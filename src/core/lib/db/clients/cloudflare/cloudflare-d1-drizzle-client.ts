@@ -10,7 +10,7 @@ import { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/d
 
 import { CloudflareD1Config, D1Database, D1Result } from './cloudflare-d1-config';
 
-import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
+import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 import type { ILoggerService } from '@/core/services/infrastructure/logger';
 
 // Drizzle ORM 导入

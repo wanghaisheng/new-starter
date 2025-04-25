@@ -5,8 +5,8 @@ import type { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { drizzleSchema } from '@/core/lib/db/schema/drizzle-schema';
 import { migrationSQL } from '@/core/lib/db/schema/drizzle-schema';
 import { BaseClient } from '@/core/lib/db/clients/base-client';
-import { ColumnType } from '@/core/lib/db/schema/types';
-import { TableSchema } from '@/core/lib/db/schema/types';
+import { ColumnType } from '@/core/lib/db/types/common';
+import { TableSchema } from '@/core/lib/db/types/database';
 import { ClientRegistry } from '@/core/services/data/adapters/client-registry';
 
 /**

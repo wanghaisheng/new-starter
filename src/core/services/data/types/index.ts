@@ -176,9 +176,9 @@ export interface IDataService<T extends BaseEntity> {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   clear(): Promise<void>;
-  findOne(tableName: string, id: string): Promise<T | null>;
+  findById(tableName: string, id: string): Promise<T | null>;
   query(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
-  insert(tableName: string, data: Partial<T>): Promise<T>;
+  create(tableName: string, data: T): Promise<T>;
   update(tableName: string, id: string, data: Partial<T>): Promise<void>;
   delete(tableName: string, id: string): Promise<void>;
   beginTransaction(): Promise<void>;
@@ -204,8 +204,8 @@ export interface IDataService<T extends BaseEntity> {
   off?: <E extends IDataServiceEvent>(event: E, listener: IDataServiceEventListenerMap[E]) => void;
 
   findAll?(tableName: string, filter?: Record<string, any>): Promise<T[]>;
-  get(key: string): Promise<any>;
-  set(key: string, value: any): Promise<void>;
+  get?(key: string): Promise<any>;
+  set?(key: string, value: any): Promise<void>;
 
   /** 健康检查，返回健康状态和原因 */
   checkHealth?: () => Promise<{ healthy: boolean; reason?: string }>;

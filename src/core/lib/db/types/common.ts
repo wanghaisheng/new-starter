@@ -59,26 +59,16 @@ export enum AuthType {
   MOCK = 'mock',
 }
 
-// ---- 认证服务类型 ----
-export enum AuthServiceType {
-  FIREBASE = 'firebase',
-  NEXTAUTH = 'nextauth',
-  BETTERAUTH = 'betterauth',
-}
-
-// ---- 环境变量相关枚举 ----
-export enum NodeEnv {
-  DEVELOPMENT = 'development',
-  PRODUCTION = 'production',
-  TEST = 'test',
-}
-
-// ---- 环境阶段相关枚举 ----
-export enum EnvStage {
-  MOCK = 'mock',
-  LOCAL = 'local',
-  DEV = 'dev',
-  PROD = 'prod',
+// ---- 列类型 ----
+export enum ColumnType {
+  STRING = 'string',
+  NUMBER = 'number',
+  BOOLEAN = 'boolean',
+  DATE = 'date',
+  DATETIME = 'datetime',
+  TEXT = 'text',
+  JSON = 'json',
+  BLOB = 'blob',
 }
 
 // ---- 同步与冲突相关 ----
@@ -145,18 +135,6 @@ export enum HybridStrategy {
   ONLINE_FIRST = 'online-first',
   OFFLINE_FIRST = 'offline-first',
   MANUAL = 'manual',
-}
-
-// ---- 列定义与表结构相关枚举 ----
-export enum ColumnType {
-  STRING = 'string',
-  NUMBER = 'number',
-  BOOLEAN = 'boolean',
-  DATE = 'date',
-  DATETIME = 'datetime',
-  TEXT = 'text',
-  JSON = 'json',
-  BLOB = 'blob',
 }
 
 // ---- 查询相关 ----
@@ -300,4 +278,26 @@ export enum PaymentServiceType {
 // ---- 测验服务类型 ----
 export enum QuizServiceType {
   MOCK = 'mock',
+}
+
+// ---- 认证服务类型 ----
+export enum AuthServiceType {
+  FIREBASE = 'firebase',
+  NEXTAUTH = 'nextauth',
+  BETTERAUTH = 'betterauth',
+}
+
+// ---- 环境变量相关枚举 ----
+export enum NodeEnv {
+  DEVELOPMENT = 'development',
+  PRODUCTION = 'production',
+  TEST = 'test',
+}
+
+// ---- 环境阶段相关枚举 ----
+export enum EnvStage {
+  MOCK = 'mock',
+  LOCAL = 'local',
+  DEV = 'dev',
+  PROD = 'prod',
 }

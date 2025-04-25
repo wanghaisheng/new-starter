@@ -23,6 +23,11 @@ export class ConfigService {
     return ConfigService.instance;
   }
 
+  // 仅测试用：重置单例实例
+  static __test_resetInstance() {
+    ConfigService.instance = undefined as any;
+  }
+
   async initialize() {
     if (!this.initialized) {
       await this.adapter.initialize();

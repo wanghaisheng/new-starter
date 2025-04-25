@@ -1,5 +1,22 @@
 // logger-types.ts
-import { InfrastructureServiceConfig, InfrastructureServiceType } from '@/core/services/infrastructure/types';
+
+// === 原基础设施类型迁移自 types.ts ===
+export type InfrastructureServiceType =
+  | 'logger'
+  | 'database'
+  | 'cache'
+  | 'queue'
+  | 'storage'
+  | 'config'
+  | 'metrics'
+  | 'tracing'
+  | 'other';
+
+export interface InfrastructureServiceConfig {
+  type: InfrastructureServiceType;
+  name?: string;
+  [key: string]: any;
+}
 
 export enum LogLevelEnum {
   ERROR = 0,
@@ -9,10 +26,6 @@ export enum LogLevelEnum {
 }
 
 export type LogLevel = keyof typeof LogLevelEnum;
-
-// 关键：用 export type { ... } re-export type（isolatedModules 兼容）
-export type { InfrastructureServiceConfig };
-export { InfrastructureServiceType };
 
 // 只在此处唯一声明 ILoggerService，避免与 types.ts 冲突
 export interface ILoggerService {

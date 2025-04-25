@@ -31,5 +31,11 @@ const { status, isConnected, isLimited, isProxy, isOffline } = useNetworkStatus(
 - registry 层自动切换实现，无需业务层关心
 - 支持自动降级到 mock/浏览器实现
 
+## 环境变量与配置项
+
+- 推荐通过 `NEXT_PUBLIC_NETWORK_PROVIDER` 或 `NETWORK_PROVIDER` 控制网络适配器选择（如 mock/browser/capacitor/native）
+- NetworkFactory 会自动按“参数 > 配置服务 > 环境变量 > 默认”优先级推理 provider
+- 统一通过配置服务访问：`configService.get('NETWORK_PROVIDER')`
+
 ## 测试
 见 __tests__/network-manager.test.ts

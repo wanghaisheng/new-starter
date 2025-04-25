@@ -1,9 +1,10 @@
 // config/index.ts
 import { createConfigAdapter } from './factory/config-factory';
 import { ConfigService } from './service/config-service';
+import type { IConfigAdapter } from './types/config-adapter';
 
 let configService: ConfigService | undefined;
-let configAdapter: any;
+let configAdapter: IConfigAdapter | undefined;
 
 /**
  * 异步初始化 configService 和 configAdapter
@@ -40,4 +41,12 @@ export function getConfigService() {
 export function getConfigAdapter() {
   if (!configAdapter) throw new Error('ConfigAdapter not initialized, call initConfig() first.');
   return configAdapter;
+}
+
+/**
+ * （可选）测试环境重置，避免污染
+ */
+export function resetConfig() {
+  configService = undefined;
+  configAdapter = undefined;
 }

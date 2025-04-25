@@ -1,6 +1,6 @@
 // core/services/init.ts
 // 全局服务初始化入口，保证只初始化一次
-import { getLoggerService } from './infrastructure/logger/registry/logger-registry';
+import { getLoggerService, setLoggerService, createDefaultLogger, createLoggerFromConfig } from './infrastructure/logger/registry/logger-registry';
 import { getErrorService } from './infrastructure/error/registry/error-registry';
 import { getNetworkManager } from './infrastructure/network/registry/network-registry';
 import { UserServiceRegistry } from './business/user/registry/user-service-registry';
@@ -26,8 +26,6 @@ if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 't
   registerCoreSchemas();
 }
 
-// ...如有更多 registry，按需补充
-
 let initialized = false;
 
 /**
@@ -37,23 +35,42 @@ let initialized = false;
 export async function initializeCoreServices() {
   if (initialized) return;
   initialized = true;
-  // 基础设施服务
-  getLoggerService();
+
+  // 1. 先创建默认日志服务，保证后续日志不丢失
+  let logger = createDefaultLogger();
+  setLoggerService(logger);
+  logger.info('[init] 启动核心服务初始化...');
+
+  // 2. 配置服务优先初始化，确保配置变量可用
+  const configService = getConfigService();
+  try {
+    if (typeof configService.initialize === 'function') {
+      await configService.initialize();
+      logger.info('[init] 配置服务初始化完成');
+    }
+  } catch (e) {
+    logger.error('[init] 配置服务初始化失败', e);
+  }
+
+  // 3. 根据配置重载日志服务（如有需要）
+  const loggerConfig = configService.get?.('logger') || {};
+  const newLogger = createLoggerFromConfig(loggerConfig);
+  if (newLogger) {
+    setLoggerService(newLogger);
+    logger = newLogger;
+    logger.info('[init] 日志服务已根据配置重载');
+  }
+
+  // 4. 其它基础设施服务
   getErrorService();
   getNetworkManager();
 
-  // 1. 配置服务优先初始化，确保配置变量可用
-  const configService = getConfigService();
-  if (typeof configService.initialize === 'function') {
-    await configService.initialize();
-  }
-
-  // 2. 数据服务初始化（内部自动读取配置服务，无需外部传参）
+  // 5. 数据服务初始化（内部自动读取配置服务，无需外部传参）
   const dataService = DataServiceRegistry.get('default');
   await dataService?.initialize?.();
-  console.log('[DataService] 初始化完成');
+  logger.info('[init] DataService 初始化完成');
 
-  // 业务服务（全部通过 Registry 单例获取，禁止 Factory 直连）
+  // 6. 业务服务（全部通过 Registry 单例获取，禁止 Factory 直连）
   UserServiceRegistry.getInstance();
   AuthServiceRegistry.getInstance();
   if (!dataService) {
@@ -80,18 +97,5 @@ export async function initializeCoreServices() {
   QuizServiceRegistry.getInstance();
   imageServiceRegistry.createService('mock'); // 如需其他类型可调整
 
-  createEmailService();
-
-  // 自动注入 mock 多语言内容（开发/测试环境专用，生产可移除）
-  if (process.env.NODE_ENV !== 'production') {
-    try {
-      const { insertMockTranslations } = await import('../../../scripts/mock/translations-mock-data');
-      await insertMockTranslations();
-      // 可加日志
-      console.log('[i18n] Mock translations initialized');
-    } catch (e) {
-      console.warn('[i18n] Mock translations initialization failed:', e);
-    }
-  }
-  // ...如有更多服务，按需补充
+  logger.info('[init] 核心服务全部初始化完成');
 }

@@ -1,4 +1,12 @@
 // network-types.ts
+
+export type NetworkProviderType = 'mock' | 'browser' | 'capacitor' | 'default' | string;
+
+export interface NetworkConfig {
+  provider?: NetworkProviderType;
+  [key: string]: any;
+}
+
 export type NetworkStatus = 'online' | 'offline';
 
 export type NetworkStatusListener = (status: NetworkStatus) => void;

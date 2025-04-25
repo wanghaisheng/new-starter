@@ -1,9 +1,9 @@
 // ConfigRegistry: 插件化注册表 + 工厂 + 适配器架构，符合服务设计规范
-import { ConfigService } from '@/core/services/infrastructure/config/service/config-service';
 import { EnvConfigAdapter } from '@/core/services/infrastructure/config/adapters/env-config-adapter';
 import { MockConfigAdapter } from '@/core/services/infrastructure/config/adapters/mock-config-adapter';
 import { RemoteConfigAdapter } from '@/core/services/infrastructure/config/adapters/remote-config-adapter';
 import { IConfigAdapter } from '@/core/services/infrastructure/config/types/config-adapter';
+import { ConfigService } from '../service/config-service';
 // 移除 logger 相关依赖，防止循环依赖
 // import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 import { parseEnum } from '@/core/services/infrastructure/config/parse-enum';
@@ -27,9 +27,6 @@ const configAdapterRegistry: Record<string, () => IConfigAdapter> = {
   // 'consul': () => new ConsulConfigAdapter(),
   // ...
 };
-
-let instance: ConfigService | undefined;
-let lastProvider: ConfigProviderType | undefined;
 
 /**
  * 导出 detectProvider 以支持插件化工厂等外部调用
@@ -78,38 +75,17 @@ export function registerConfigAdapter(name: string, factory: () => IConfigAdapte
  * 获取所有已注册的 config adapter 名称。
  */
 export function getAvailableConfigAdapters(): string[] {
-  const adapters = Object.keys(configAdapterRegistry);
-  // getLoggerService().debug(`[ConfigRegistry] Available adapters: ${adapters.join(', ')}`);
-  return adapters;
+  return Object.keys(configAdapterRegistry);
 }
 
 /**
- * 获取全局唯一 ConfigService 实例，支持 provider 热切换和插件式扩展。
- * @param provider 配置源类型（env/mock/remote/default），如不传则自动检测。
+ * 获取指定 provider 的 config adapter 实例。
+ * @param provider 配置源类型（env/mock/remote/default）
  */
-export function getConfigService(provider?: ConfigProviderType): ConfigService {
-  const resolvedProvider = provider || detectProvider();
-  // const logger = getLoggerService();
-  if (!instance || resolvedProvider !== lastProvider) {
-    const adapterFactory = configAdapterRegistry[resolvedProvider] || configAdapterRegistry[ConfigProviderType.DEFAULT];
-    // logger.warn(`[ConfigService] Provider change detected: ${lastProvider ?? 'undefined'} -> ${resolvedProvider}`);
-    instance = ConfigService.getInstance(adapterFactory());
-    lastProvider = resolvedProvider;
-    // logger.info(`[ConfigService] Using provider: ${resolvedProvider}`);
-    // logger.debug(`[ConfigService] Provider factory:`, adapterFactory);
-    if (!configAdapterRegistry[resolvedProvider]) {
-      // logger.error(`[ConfigService] Unknown provider: ${resolvedProvider}, fallback to default.`);
-    }
-    if (typeof window !== 'undefined') {
-      // 控制台提示当前 provider，便于调试
-      // @ts-ignore
-      if ((window as any).__CONFIG_DEBUG__ || process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        // console.info(`[ConfigService] 当前 provider: ${resolvedProvider}`);
-      }
-    }
-  }
-  return instance!;
+export function getAdapter(provider?: ConfigProviderType | string) {
+  const name = provider ? String(provider) : ConfigProviderType.DEFAULT;
+  const factory = configAdapterRegistry[name];
+  return factory ? factory() : undefined;
 }
 
 /**
@@ -117,8 +93,9 @@ export function getConfigService(provider?: ConfigProviderType): ConfigService {
  * @param provider provider 名称
  */
 export function createConfigService(provider: ConfigProviderType): ConfigService {
-  const adapterFactory = configAdapterRegistry[provider] || configAdapterRegistry[ConfigProviderType.DEFAULT];
-  return ConfigService.getInstance(adapterFactory());
+  const adapter = getAdapter(provider) || getAdapter(ConfigProviderType.DEFAULT);
+  if (!adapter) throw new Error(`[ConfigRegistry] 无法获取 provider: ${provider} 的适配器实例`);
+  return ConfigService.getInstance(adapter);
 }
 
 /**

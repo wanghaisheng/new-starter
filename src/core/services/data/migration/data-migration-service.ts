@@ -1,5 +1,6 @@
 import { HybridDatabaseClient } from '../adapters/hybrid-database-client';
 
+// 表迁移配置类型
 export interface TableMigrationConfig {
   name: string;
   mapping?: Record<string, string>;
@@ -7,6 +8,7 @@ export interface TableMigrationConfig {
   transform?: (row: any) => any;
 }
 
+// 迁移日志类型
 export type MigrationLog = {
   timestamp: number;
   table: string;
@@ -15,6 +17,7 @@ export type MigrationLog = {
   status: 'info' | 'error';
 };
 
+// 迁移进度类型
 export type MigrationProgress = {
   table: string;
   total: number;
@@ -29,6 +32,7 @@ export type MigrationProgress = {
   cancelled?: boolean;
 };
 
+// 全局进度类型
 export type GlobalProgress = {
   totalTables: number;
   finishedTables: number;
@@ -37,9 +41,13 @@ export type GlobalProgress = {
   status: 'running' | 'paused' | 'cancelled' | 'success' | 'error';
 };
 
+// 迁移回调类型
 export type MigrationCallback = (progress: MigrationProgress) => void;
+
+// 日志回调类型
 export type MigrationLogCallback = (log: MigrationLog) => void;
 
+// 数据迁移配置类型
 export interface DataMigrationConfig {
   source: HybridDatabaseClient;
   target: HybridDatabaseClient;
@@ -60,6 +68,7 @@ export interface DataMigrationConfig {
   onCancel?: () => void;
 }
 
+// 主服务类
 export class DataMigrationService {
   private config: DataMigrationConfig;
   private progress: Record<string, MigrationProgress> = {};
@@ -92,6 +101,7 @@ export class DataMigrationService {
     });
     this.updateGlobalProgress();
   }
+
   public resume(cb?: MigrationCallback) {
     this.paused = false;
     this.config.tables.forEach(table => {
@@ -103,6 +113,7 @@ export class DataMigrationService {
     });
     this.updateGlobalProgress();
   }
+
   public cancel() {
     this.cancelled = true;
     this.paused = false;
@@ -146,20 +157,20 @@ export class DataMigrationService {
     cb?.(progress);
     try {
       await this.config.beforeBatch?.(table, this.lastBatchIndex[table]);
-      let data = await this.config.source.query(table);
+      // 兼容 HybridDatabaseClient.query 的 options 参数
+      let data = await this.config.source.query(table, {});
       // 过滤
-      if (tableCfg.filter) data = data.filter(tableCfg.filter);
+      if (tableCfg.filter) data = data.filter((row: any) => tableCfg.filter!(row));
       // 字段映射+转换
       if (tableCfg.mapping || tableCfg.transform) {
-        data = data.map(row => {
+        data = data.map((row: any) => {
           let mapped = row;
           if (tableCfg.mapping) {
-            mapped = {};
-            for (const k in tableCfg.mapping) {
-              mapped[tableCfg.mapping[k]] = row[k];
-            }
+            mapped = Object.fromEntries(Object.entries(row).map(([k, v]) => [tableCfg.mapping![k] || k, v]));
           }
-          if (tableCfg.transform) mapped = tableCfg.transform(mapped);
+          if (tableCfg.transform) {
+            mapped = tableCfg.transform(mapped);
+          }
           return mapped;
         });
       }
@@ -221,19 +232,18 @@ export class DataMigrationService {
       if (this.config.verify) {
         progress.status = 'verifying';
         cb?.({ ...progress });
-        let src = await this.config.source.query(table);
-        let tgt = await this.config.target.query(table);
-        if (tableCfg.filter) src = src.filter(tableCfg.filter);
+        let src = await this.config.source.query(table, {});
+        let tgt = await this.config.target.query(table, {});
+        if (tableCfg.filter) src = src.filter((row: any) => tableCfg.filter!(row));
         if (tableCfg.mapping || tableCfg.transform) {
-          src = src.map(row => {
+          src = src.map((row: any) => {
             let mapped = row;
             if (tableCfg.mapping) {
-              mapped = {};
-              for (const k in tableCfg.mapping) {
-                mapped[tableCfg.mapping[k]] = row[k];
-              }
+              mapped = Object.fromEntries(Object.entries(row).map(([k, v]) => [tableCfg.mapping![k] || k, v]));
             }
-            if (tableCfg.transform) mapped = tableCfg.transform(mapped);
+            if (tableCfg.transform) {
+              mapped = tableCfg.transform(mapped);
+            }
             return mapped;
           });
         }
@@ -278,6 +288,7 @@ export class DataMigrationService {
   public getLogs(): MigrationLog[] {
     return this.logs;
   }
+
   public getFailedData(table: string): any[] {
     return this.failedData[table];
   }
@@ -293,10 +304,12 @@ export class DataMigrationService {
     this.logs.push(entry);
     this.config.onLog?.(entry);
   }
+
   private getTableConfig(table: string): TableMigrationConfig {
     const found = this.config.tables.find(t => (typeof t === 'string' ? t === table : t.name === table));
     return typeof found === 'string' ? { name: found } : found!;
   }
+
   private updateGlobalProgress() {
     this.config.onGlobalProgress?.(this.getGlobalProgress());
   }

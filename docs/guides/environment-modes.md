@@ -24,6 +24,9 @@
   - `NEXT_PUBLIC_DATA_MODE=online|offline|hybrid`  // 服务层运行模式，详见 [service-modes.md](./service-modes.md)
   - `NEXT_PUBLIC_ONLINE_DB_PROVIDER`、`NEXT_PUBLIC_OFFLINE_DB_PROVIDER` // 数据服务 provider
   - `NEXT_PUBLIC_PLATFORM=web|mobile`
+  - `CACHE_STRATEGY=memory/localstorage/redis`  // 多级缓存策略，决定缓存层级与实现
+  - `OFFLINE_FALLBACK=true/false`  // 断网自动切换，启用 hybrid/offline fallback
+  - `EXPIRY_STRATEGY=none/ttl/lru`  // 失效策略，缓存/数据过期处理方式
   - 其它如 `API_BASE_URL`、`DB_URL`、`LOG_LEVEL` 等环境相关变量
 - 各环境下可有专属的 `.env.mock`、`.env.local`、`.env.dev`、`.env.prod` 配置文件
 - 所有 key 推荐集中在 config-keys.ts，禁止业务代码硬编码

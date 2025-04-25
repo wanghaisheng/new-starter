@@ -188,8 +188,61 @@
 
 > ⚠️ 若类型或 mock 数据中出现新字段，务必同步补充到 schema，否则 SQLite 建表/插入会报错。
 
+## 表结构注册与多端适配
+
+本模块支持多端（离线/在线/混合）数据库表结构的统一声明、注册和动态适配，核心机制如下：
+
+### 1. 单一 TableSchema 声明 + 差异注解
+- 推荐所有表结构采用单一 TableSchema 声明，通过 `onlyFor: 'offline' | 'online'` 等注解区分字段或索引的适用端。
+- 保证同步字段的交集兼容，差异字段仅在指定端生效。
+
+### 2. schemaRegistry 动态注册与分组获取
+- 所有表结构需通过 schemaRegistry 统一注册和管理。
+- 支持按存储类型（offline/online/hybrid）动态注册、分组获取和过滤表结构。
+- 典型用法：
+  ```ts
+  import { schemaRegistry } from './schema-registry';
+  import { offlineSchemas, onlineSchemas } from './definitions';
+  
+  // 离线环境注册
+  offlineSchemas.forEach(schema => schemaRegistry.register(schema));
+  // 在线环境注册
+  onlineSchemas.forEach(schema => schemaRegistry.register(schema));
+  // 获取当前端适用表结构
+  const schemas = schemaRegistry.getAllSchemas('offline');
+  ```
+
+### 3. 表结构初始化的最佳实践
+- 各 client 初始化时，遍历 schemaRegistry.getAllSchemas()，自动建表、升级和创建索引。
+- 支持特殊字符表名（如 member-growth-tasks），自动加双引号，兼容 SQLite 等后端。
+- 多端同步场景下，Hybrid/Sync client 可用同一 schema 声明，分别过滤字段，保证同步兼容。
+
+### 4. 版本管理与演进
+- 通过 version-manager.ts、versions.ts 管理数据库结构的演进和升级语句。
+- 每次 schema 变更需同步维护版本定义，确保升级安全。
+
 ## 实体数据转换说明
 
 - entity-converter.ts 支持 DATETIME/JSON 字段的自动类型转换：
   - DATETIME 字段自动转为 Date 实例
   - JSON 字段自动 parse 为对象
+
+## 参考示例
+
+```ts
+// 典型 TableSchema 声明
+export const memberSchema: TableSchema = {
+  name: 'member',
+  columns: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'nickname', type: 'string' },
+    { name: 'localCacheFlag', type: 'boolean', onlyFor: 'offline' },
+    { name: 'remoteSyncId', type: 'string', onlyFor: 'online' },
+  ],
+  indexes: [
+    { name: 'idx_nickname', columns: ['nickname'] }
+  ]
+};
+```
+
+如需扩展多端 schema 管理、复杂迁移、字段映射等场景，请参考本目录内相关实现。

@@ -1,19 +1,22 @@
-import { IDataService } from '../types';
+ import type { IDataService } from '../types';
+import type { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 
 /**
  * 数据服务注册表：支持服务注册、获取和注销。
  * 日志增强：所有注册、获取、注销、销毁操作均记录日志，便于排查问题。
+ *
+ * 类型安全：所有实例类型统一为 IDataService<BaseEntity>
  */
 export class DataServiceRegistry {
-  private static registry: Map<string, () => IDataService> = new Map();
-  private static instances: Map<string, IDataService> = new Map();
+  private static registry: Map<string, () => IDataService<BaseEntity>> = new Map();
+  private static instances: Map<string, IDataService<BaseEntity>> = new Map();
   private static logger = LoggerService.getInstance();
 
   /**
    * 注册服务工厂，支持懒加载
    */
-  static register(key: string, factoryOrInstance: IDataService | (() => IDataService)) {
+  static register(key: string, factoryOrInstance: IDataService<BaseEntity> | (() => IDataService<BaseEntity>)) {
     if (typeof factoryOrInstance === 'function') {
       this.logger.info(`[DataServiceRegistry] 注册工厂: ${key}`);
       this.registry.set(key, factoryOrInstance);
@@ -26,7 +29,7 @@ export class DataServiceRegistry {
   /**
    * 获取服务实例，首次调用时懒加载
    */
-  static get(key: string): IDataService | undefined {
+  static get(key: string): IDataService<BaseEntity> | undefined {
     if (this.instances.has(key)) {
       this.logger.info(`[DataServiceRegistry] 命中实例缓存: ${key}`);
       return this.instances.get(key);
@@ -59,58 +62,9 @@ export class DataServiceRegistry {
    * 注销服务
    */
   static unregister(key: string) {
-    this.logger.info(`[DataServiceRegistry] 注销服务: ${key}`);
     this.registry.delete(key);
     this.instances.delete(key);
-  }
-
-  /**
-   * 热切换服务实例，自动释放旧资源并初始化新实例
-   */
-  static async switchAdapter(key: string, factory: () => IDataService) {
-    // 1. 释放旧实例资源（如有）
-    const oldInst = this.instances.get(key);
-    if (oldInst && typeof oldInst.dispose === 'function') {
-      this.logger.info(`[DataServiceRegistry] switchAdapter: 释放旧实例资源: ${key}`);
-      try {
-        await oldInst.dispose();
-      } catch (err) {
-        this.logger.error(`[DataServiceRegistry] switchAdapter: 释放资源异常: ${key} - ${(err as Error).message}`);
-        throw err;
-      }
-    }
-    // 2. 注销旧实例
-    this.instances.delete(key);
-    // 3. 注册新工厂并懒加载新实例
-    this.logger.info(`[DataServiceRegistry] switchAdapter: 注册新工厂并懒加载: ${key}`);
-    this.registry.set(key, factory);
-    const newInst = factory();
-    if (typeof newInst.initialize === 'function') {
-      await newInst.initialize();
-    }
-    this.instances.set(key, newInst);
-    this.logger.info(`[DataServiceRegistry] switchAdapter: 新实例已初始化: ${key}`);
-    return newInst;
-  }
-
-  /**
-   * 重建服务实例：销毁旧实例并重新初始化新实例（适用于账号切换、配置变更等场景）
-   */
-  static async rebuild(key: string): Promise<IDataService | undefined> {
-    this.logger.info(`[DataServiceRegistry] rebuild: 开始重建服务实例: ${key}`);
-    await this.dispose(key);
-    const factory = this.registry.get(key);
-    if (!factory) {
-      this.logger.warn(`[DataServiceRegistry] rebuild: 未找到工厂: ${key}`);
-      return undefined;
-    }
-    const newInst = factory();
-    if (typeof newInst.initialize === 'function') {
-      await newInst.initialize();
-    }
-    this.instances.set(key, newInst);
-    this.logger.info(`[DataServiceRegistry] rebuild: 新实例已初始化: ${key}`);
-    return newInst;
+    this.logger.info(`[DataServiceRegistry] 已注销服务: ${key}`);
   }
 
   /**

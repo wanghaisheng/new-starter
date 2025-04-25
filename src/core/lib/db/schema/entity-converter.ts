@@ -1,6 +1,6 @@
 import { BaseEntity, CreateEntityData, UpdateEntityData, DatabaseRecord } from '@/core/lib/db/types/base-entity';
 
-import { TableSchema, ColumnType } from './types';
+import { TableSchema, ColumnType } from '../types/database';
 
 export class EntityConverter<T extends BaseEntity> {
   constructor(private readonly schema: TableSchema) {}

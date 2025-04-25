@@ -1,25 +1,37 @@
-import { BaseClient } from '@/core/lib/db/clients/base-client';
-import { QueryOptions, QueryResult, BatchOperation, DatabaseConfig } from '@/core/lib/db/types/database';
+import {
+  QueryOptions,
+  QueryResult,
+  BatchOperation,
+  DatabaseConfig,
+  StorageStats,
+  DatabaseError,
+  DatabaseErrorCode,
+  DatabaseEvent
+} from '@/core/lib/db/types/database';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
+import { BaseClient } from '@/core/lib/db/clients/base-client';
+
 import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
 
 /**
  * Capacitor SQLite 数据库客户端
  * 用于移动端的SQLite存储
  */
-export class CapacitorSQLiteClient extends BaseClient {
+export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClient<T> {
   private db: SQLiteDBConnection | undefined;
   private sqlite: SQLiteConnection | undefined;
   private config: DatabaseConfig;
   private dbName: string;
   private dbPath: string;
 
+  // 兼容基类 protected 属性
+  protected logger = (this as any).logger;
+  protected initialized = false;
+
   constructor(config: DatabaseConfig) {
     super();
     this.config = config;
-    // 日志实例由 BaseClient 自动注入，可直接用 this.logger
     this.dbName = config.name || 'appdb';
-    // 兼容新版 DatabaseConfig 的 storage.offline.path
     if (
       config.storage &&
       config.storage.offline &&
@@ -41,18 +53,17 @@ export class CapacitorSQLiteClient extends BaseClient {
       return;
     }
     try {
-      this.logger.info('CapacitorSQLiteClient 数据库初始化中...');
       this.sqlite = new SQLiteConnection(CapacitorSQLite);
       this.db = await this.sqlite.createConnection(
         this.dbName,
-        false, // encrypted
-        'no-encryption', // mode
-        1, // version
-        false // readonly
+        false,
+        'no-encryption',
+        1,
+        false
       );
       await this.db.open();
       this.initialized = true;
-      this.logger.info(`[CapacitorSQLiteClient] 数据库已打开: dbName=${this.dbName}, dbPath=${this.dbPath}`);
+      this.logger.info('CapacitorSQLiteClient 初始化完成');
     } catch (err) {
       this.logger.error('CapacitorSQLiteClient 初始化失败', err);
       throw err;
@@ -69,37 +80,139 @@ export class CapacitorSQLiteClient extends BaseClient {
     }
   }
 
-  async clear(): Promise<void> {
-    this.checkInitialized();
-    // 实际项目应清空所有表
-    this.logger.info('CapacitorSQLiteClient 数据库清空');
+  async connect(): Promise<void> {
+    await this.initialize();
   }
 
-  async findById(tableName: string, id: string): Promise<BaseEntity | null> {
+  async disconnect(): Promise<void> {
+    await this.close();
+  }
+
+  async findById(tableName: string, id: string): Promise<T | null> {
     this.checkInitialized();
     if (!this.db) throw new Error('DB not initialized');
-    const res = await this.db.query(`SELECT * FROM ${tableName} WHERE id = ?`, [id]);
+    // 使用 run 执行参数绑定的 select
+    const sql = `SELECT * FROM ${tableName} WHERE id = ?`;
+    const res = await this.db.query(sql.replace('?', `'${id}'`));
     if (res.values && res.values.length > 0) {
-      return res.values[0] as BaseEntity;
+      return res.values[0] as T;
     }
     return null;
   }
 
-  async findAll(tableName: string, filter?: Record<string, any>): Promise<BaseEntity[]> {
+  async getStats(): Promise<StorageStats> {
+    this.checkInitialized();
+    if (!this.db) throw new Error('DB not initialized');
+    // SQLite 无法直接获取文件大小，需借助 Capacitor Filesystem 插件或平台 API
+    // 这里只返回 0，实际项目可根据 dbPath 查询文件大小
+    return { totalSize: 0, availableSpace: 0, usedSpace: 0 };
+  }
+
+  async getDatabaseVersion(): Promise<number> {
+    this.checkInitialized();
+    if (!this.db) throw new Error('DB not initialized');
+    // 通过 PRAGMA user_version 获取版本号
+    const res = await this.db.query('PRAGMA user_version');
+    return res.values?.[0]?.user_version ?? 1;
+  }
+
+  async getTableNames(): Promise<string[]> {
+    this.checkInitialized();
+    if (!this.db) throw new Error('DB not initialized');
+    const res = await this.db.query(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`);
+    return (res.values ?? []).map((row: any) => row.name);
+  }
+
+  async clear(): Promise<void> {
+    this.checkInitialized();
+    if (!this.db) throw new Error('DB not initialized');
+    const tableNames = await this.getTableNames();
+    for (const table of tableNames) {
+      await this.db.execute(`DELETE FROM "${table}"`);
+    }
+    this.logger.info('CapacitorSQLiteClient 数据库已清空');
+  }
+
+  async findAll(tableName: string, filter?: Record<string, any>): Promise<T[]> {
     this.checkInitialized();
     if (!this.db) throw new Error('DB not initialized');
     let sql = `SELECT * FROM ${tableName}`;
-    let params: any[] = [];
     if (filter && Object.keys(filter).length > 0) {
-      const where = Object.keys(filter).map(k => `${k} = ?`).join(' AND ');
+      const where = Object.keys(filter).map(k => `${k} = '${filter[k]}'`).join(' AND ');
       sql += ` WHERE ${where}`;
-      params = Object.values(filter);
     }
-    const res = await this.db.query(sql, params);
-    return (res.values ?? []) as BaseEntity[];
+    const res = await this.db.query(sql);
+    return (res.values ?? []) as T[];
   }
 
-  async create(tableName: string, data: BaseEntity): Promise<BaseEntity> {
+  async count(tableName: string, filter?: Record<string, any>): Promise<number> {
+    this.checkInitialized();
+    if (!this.db) throw new Error('DB not initialized');
+    let sql = `SELECT COUNT(*) as count FROM ${tableName}`;
+    if (filter && Object.keys(filter).length > 0) {
+      const where = Object.keys(filter).map(k => `${k} = '${filter[k]}'`).join(' AND ');
+      sql += ` WHERE ${where}`;
+    }
+    const res = await this.db.query(sql);
+    return res.values?.[0]?.count ?? 0;
+  }
+
+  async beginTransaction(): Promise<void> {
+    this.checkInitialized();
+    if (!this.db) throw new Error('DB not initialized');
+    await this.db.execute('BEGIN TRANSACTION');
+  }
+
+  async commitTransaction(): Promise<void> {
+    this.checkInitialized();
+    if (!this.db) throw new Error('DB not initialized');
+    await this.db.execute('COMMIT');
+  }
+
+  async rollbackTransaction(): Promise<void> {
+    this.checkInitialized();
+    if (!this.db) throw new Error('DB not initialized');
+    await this.db.execute('ROLLBACK');
+  }
+
+  async isTransactionActive(): Promise<boolean> {
+    // Capacitor SQLite 不直接暴露事务状态，需自行维护
+    // 这里简单返回 false
+    return false;
+  }
+
+  // 简单事件监听实现
+  protected eventListeners: Map<DatabaseEvent, Function[]> = new Map();
+
+  async addEventListener(event: DatabaseEvent, listener: Function): Promise<void> {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, []);
+    }
+    this.eventListeners.get(event)!.push(listener);
+  }
+
+  async removeEventListener(event: DatabaseEvent, listener: Function): Promise<void> {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      const idx = listeners.indexOf(listener);
+      if (idx !== -1) listeners.splice(idx, 1);
+    }
+  }
+
+  async executeRawQuery(query: string, params?: any[]): Promise<any> {
+    this.checkInitialized();
+    if (!this.db) throw new Error('DB not initialized');
+    // 只支持无参数的原生 SQL 查询
+    if (/^select/i.test(query.trim())) {
+      const res = await this.db.query(query);
+      return res.values;
+    } else {
+      await this.db.execute(query);
+      return undefined;
+    }
+  }
+
+  async create(tableName: string, data: T): Promise<T> {
     this.checkInitialized();
     if (!this.db) throw new Error('DB not initialized');
     const fields = Object.keys(data);
@@ -109,7 +222,7 @@ export class CapacitorSQLiteClient extends BaseClient {
     return data;
   }
 
-  async update(tableName: string, id: string, data: Partial<BaseEntity>): Promise<void> {
+  async update(tableName: string, id: string, data: Partial<T>): Promise<void> {
     this.checkInitialized();
     if (!this.db) throw new Error('DB not initialized');
     const fields = Object.keys(data);
@@ -125,39 +238,15 @@ export class CapacitorSQLiteClient extends BaseClient {
     await this.db.run(sql, [id]);
   }
 
-  async query(tableName: string, options: QueryOptions): Promise<QueryResult<BaseEntity>> {
+  async query(tableName: string, options: QueryOptions): Promise<QueryResult<T>> {
     this.checkInitialized();
-    // ...实际查询逻辑
-    this.logger.debug(`query in ${tableName}`);
-    return { items: [], total: 0 };
+    if (!this.db) throw new Error('DB not initialized');
+    // 只支持无过滤条件的全表查询，如需复杂查询请扩展
+    const res = await this.db.query(`SELECT * FROM ${tableName}`);
+    return { items: (res.values ?? []) as T[], total: res.values?.length ?? 0 };
   }
 
-  async count(tableName: string, filter?: Record<string, any>): Promise<number> {
-    this.checkInitialized();
-    // ...实际计数逻辑
-    this.logger.debug(`count in ${tableName}`);
-    return 0;
-  }
-
-  async beginTransaction(): Promise<void> {
-    this.checkInitialized();
-    // ...实际事务开始逻辑
-    this.logger.info('Transaction started');
-  }
-
-  async commitTransaction(): Promise<void> {
-    this.checkInitialized();
-    // ...实际事务提交逻辑
-    this.logger.info('Transaction committed');
-  }
-
-  async rollbackTransaction(): Promise<void> {
-    this.checkInitialized();
-    // ...实际事务回滚逻辑
-    this.logger.warn('Transaction rolled back');
-  }
-
-  async batch(tableName: string, operations: BatchOperation<BaseEntity>[]): Promise<void> {
+  async batch(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
     this.checkInitialized();
     for (const op of operations) {
       switch (op.type) {
@@ -178,20 +267,9 @@ export class CapacitorSQLiteClient extends BaseClient {
     this.logger.info('Batch operation completed', { tableName, count: operations.length });
   }
 
-  async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
-    this.logger.warn('executeRawQuery is not supported in CapacitorSQLiteClient');
-    return [];
-  }
-
-  async connect(): Promise<void> {
-    // 移动端 SQLite 通常在 initialize 时已连接
-    return Promise.resolve();
-  }
-
-  async disconnect(): Promise<void> {
-    // 移动端 SQLite 通常无需显式断开
-    return Promise.resolve();
-  }
+  getType(): string { return 'capacitor-sqlite'; }
+  isInitialized(): boolean { return !!this.db; }
+  getConfig(): DatabaseConfig { return this.config; }
 
   protected checkInitialized(): void {
     if (!this.initialized) throw new Error('CapacitorSQLiteClient not initialized');

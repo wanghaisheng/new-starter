@@ -10,7 +10,6 @@
 // 数据库/ORM 相关
 export const DB_KEYS = {
   NEXT_PUBLIC_DB_URL: 'NEXT_PUBLIC_DB_URL',
-  NEXT_PUBLIC_DATABASE_ENV: 'NEXT_PUBLIC_DATABASE_ENV',
   // 废弃：NEXT_PUBLIC_DATABASE_PROVIDER、NEXT_PUBLIC_ONLINE_DB、NEXT_PUBLIC_OFFLINE_DB、NEXT_PUBLIC_OFFLINE_DB_TYPE、NEXT_PUBLIC_MOCK_DB_MODE、NEXT_PUBLIC_MOCK_SQLITE_FILE
   // 新推荐变量：
   NEXT_PUBLIC_ONLINE_DB_PROVIDER: 'NEXT_PUBLIC_ONLINE_DB_PROVIDER',
@@ -94,7 +93,36 @@ export const GENERAL_KEYS = {
   GITHUB_RAW_BASE: 'GITHUB_RAW_BASE',
   TG_BOT_TOKEN: 'TG_BOT_TOKEN',
   TG_CHAT_ID: 'TG_CHAT_ID',
+  CACHE_STRATEGY: 'CACHE_STRATEGY',
+  OFFLINE_FALLBACK: 'OFFLINE_FALLBACK',
+  EXPIRY_STRATEGY: 'EXPIRY_STRATEGY',
+  SYNC_ENTITY_TYPES: 'SYNC_ENTITY_TYPES', // 需同步的表名，逗号分隔
 };
+
+// 配置中心相关
+export const CONFIG_CENTER_KEYS = {
+  NEXT_PUBLIC_CONFIG_WS_URL: 'NEXT_PUBLIC_CONFIG_WS_URL',
+  NEXT_PUBLIC_CONFIG_SSE_URL: 'NEXT_PUBLIC_CONFIG_SSE_URL',
+  NEXT_PUBLIC_CONFIG_CONSUL_URL: 'NEXT_PUBLIC_CONFIG_CONSUL_URL',
+};
+
+// 配置服务 provider 类型（枚举，已迁移至 common.ts）
+export { ConfigProviderType } from '@/core/lib/db/types/common';
+
+// 已废弃对象写法，仅兼容保留（如无使用可删除）
+// export const CONFIG_PROVIDER_TYPES = {
+//   ENV: 'env',
+//   MOCK: 'mock',
+//   REMOTE: 'remote',
+//   DEFAULT: 'default',
+//   // 可扩展 localfile/consul/etcd/ssm
+// } as const;
+//
+// export type ConfigProviderTypeKey = keyof typeof CONFIG_PROVIDER_TYPES;
+// export type ConfigProviderTypeValue = typeof CONFIG_PROVIDER_TYPES[ConfigProviderTypeKey];
+
+import type { ConfigSchema } from './config-types';
+export type ConfigKey = keyof ConfigSchema;
 
 // 合并导出
 export const CONFIG_KEYS = {
@@ -103,6 +131,6 @@ export const CONFIG_KEYS = {
   ...STORAGE_KEYS,
   ...PUSH_KEYS,
   ...GENERAL_KEYS,
+  ...CONFIG_CENTER_KEYS,
+  NEXT_PUBLIC_ENTITY_TYPES: 'NEXT_PUBLIC_ENTITY_TYPES',
 };
-
-export type ConfigKey = keyof typeof CONFIG_KEYS;

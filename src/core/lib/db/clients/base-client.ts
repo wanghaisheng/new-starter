@@ -1,20 +1,25 @@
 console.log('base-client loaded');
 
-import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError } from '@/core/lib/db/types/database';
+import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
-import { DatabaseErrorCode, createDatabaseError } from '@/core/lib/db/types/database-error';
 import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
 import type { ILoggerService } from '@/core/services/infrastructure/logger';
 
 /**
- * 数据库客户端抽象基类
+ * 数据库客户端抽象基类（支持类型安全事件系统）
  * 
  * @template T 实体类型，默认为 BaseEntity
+ * @template L 事件监听器映射，默认为 any，强烈建议子类显式指定
+ * @template E 事件类型，默认为 string
  */
-export abstract class BaseClient<T extends BaseEntity> {
+export abstract class BaseClient<
+  T = any,
+  L extends Record<E, (...args: any[]) => any> = any,
+  E extends string | symbol = string
+> {
   protected initialized = false;
   protected transactionActive = false;
-  protected eventListeners: Map<DatabaseEvent, Function[]> = new Map();
+  protected eventListeners: Map<E, Set<L[E]>> = new Map();
 
   protected logger: ILoggerService;
 
@@ -126,59 +131,63 @@ export abstract class BaseClient<T extends BaseEntity> {
    * @returns 数据库错误对象
    */
   protected createError(code: DatabaseErrorCode | string, message: string, details?: any): DatabaseError {
-    const error = createDatabaseError(code, message, details);
+    const error = { code, message, details } as DatabaseError;
     
     // 记录错误信息
     this.logger.error(message, { code, details });
     
-    // 触发错误事件
-    this.emit('error', { code, message, details });
+    // 触发错误事件（参数类型为 DatabaseError）
+    this.emit('error' as E, ...([error] as Parameters<L[E]>));
     
     return error;
   }
 
   /**
-   * 添加事件监听器
+   * 类型安全事件注册
    * @param event 事件类型
    * @param listener 监听器函数
    * @returns 取消监听的函数
    */
-  public on(event: DatabaseEvent, listener: Function): () => void {
+  public on<K extends E>(event: K, listener: L[K]): () => void {
     if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, []);
+      this.eventListeners.set(event, new Set());
     }
-    
-    this.eventListeners.get(event)!.push(listener);
-    this.logger.debug(`注册事件监听器: ${event}`);
-    
-    return () => {
-      const listeners = this.eventListeners.get(event) || [];
-      const index = listeners.indexOf(listener);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-        this.logger.debug(`移除事件监听器: ${event}`);
-      }
-    };
+    this.eventListeners.get(event)!.add(listener);
+    return () => this.off(event, listener);
   }
-  
+
   /**
-   * 触发事件
+   * 移除事件监听器
    * @param event 事件类型
-   * @param data 事件数据
+   * @param listener 监听器函数
    */
-  protected emit(event: DatabaseEvent, data?: any): void {
-    const listeners = this.eventListeners.get(event) || [];
-    
-    if (listeners.length > 0) {
-      this.logger.debug(`触发事件: ${event}`, { listenerCount: listeners.length });
-    }
-    
-    for (const listener of listeners) {
-      try {
-        listener(event, data);
-      } catch (error) {
-        this.logger.error(`事件监听器错误: ${event}`, error);
-      }
-    }
+  public off<K extends E>(event: K, listener: L[K]): void {
+    this.eventListeners.get(event)?.delete(listener);
   }
+
+  /**
+   * 内部触发事件
+   * @param event 事件类型
+   * @param args 事件参数
+   */
+  protected emit<K extends E>(event: K, ...args: Parameters<L[K]>) {
+    this.eventListeners.get(event)?.forEach((listener) => {
+      (listener as any)(...args);
+    });
+  }
+
+  /**
+   * 获取当前客户端类型（如 indexeddb/sqlite/supabase 等）
+   */
+  public abstract getType(): string;
+
+  /**
+   * 判断客户端是否已初始化
+   */
+  public abstract isInitialized(): boolean;
+
+  /**
+   * 获取底层配置对象
+   */
+  public abstract getConfig(): any;
 }

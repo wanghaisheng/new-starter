@@ -1,25 +1,26 @@
 import { BaseClient } from '@/core/lib/db/clients/base-client';
-import type { IDataService, DataServiceConfig } from '../types';
+import type { IDataService, DataServiceConfig, IDataServiceEvent, IDataServiceEventListenerMap } from '../types';
 import type { BaseEntity } from '@/core/lib/db/types/base-entity';
 import type { QueryOptions, QueryResult } from '@/core/lib/db/types/database';
 import type { DatabaseEvent } from '@/core/lib/db/types/database';
 
 // 事件与缓存机制基类，继承底层 BaseClient
-export abstract class BaseDatabaseClient<T extends BaseEntity = BaseEntity> extends BaseClient<T> implements IDataService {
+export abstract class BaseDatabaseClient<T extends BaseEntity = BaseEntity>
+  extends BaseClient<
+    T,
+    IDataServiceEventListenerMap,
+    IDataServiceEvent
+  > implements IDataService<T> {
   private cacheEnabled = false;
   private cache = new Map<string, any>();
 
   constructor(config?: DataServiceConfig) {
     super();
-    if (config?.cache) this.cacheEnabled = true;
-  }
-
-  // 事件API，兼容父类签名
-  on(event: DatabaseEvent, listener: Function): () => void {
-    return super.on(event, listener);
-  }
-  off(event: DatabaseEvent, listener: Function): void {
-    super.off(event, listener);
+    // 推荐：根据 cacheProvider 或 cacheStrategy 判断是否启用内存缓存
+    const options = config?.services?.data?.options;
+    if (options?.cacheProvider === 'memory' || options?.cacheStrategy === 'memory') {
+      this.cacheEnabled = true;
+    }
   }
 
   // 缓存包装
@@ -56,6 +57,15 @@ export abstract class BaseDatabaseClient<T extends BaseEntity = BaseEntity> exte
   abstract isInitialized(): boolean;
   abstract getConfig(): any;
   abstract initialize(config?: DataServiceConfig): Promise<void>;
+
+  async get(key: string): Promise<any> {
+    // 默认内存缓存实现
+    return this.cache.get(key);
+  }
+
+  async set(key: string, value: any): Promise<void> {
+    this.cache.set(key, value);
+  }
 
   // 可选销毁
   async dispose(): Promise<void> {

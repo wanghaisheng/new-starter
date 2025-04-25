@@ -3,12 +3,28 @@
  */
 import { getConfigService } from '@/core/services/infrastructure/config/registry/config-registry';
 import { getLoggerService } from '@/core/services/infrastructure/logger/registry/logger-registry';
+import { DataMode } from '@/core/lib/db/types/database';
 // 如有更多实体仓储，依次引入
 
 // 自动注册所有适配器工厂（由脚本自动生成，保证所有实体适配器都被 import 并注册）
 import '../factory/auto-register-adapters';
 // 自动引入 RepositoryMap 类型声明（由脚本自动生成，保证类型安全）
 import { RepositoryKey, RepositoryMap } from './repository-map';
+
+function parseDataMode(modeStr?: string): DataMode {
+  switch (modeStr) {
+    case 'offline':
+    case 'offline-only':
+      return DataMode.OFFLINE;
+    case 'online':
+    case 'online-only':
+      return DataMode.ONLINE;
+    case 'hybrid':
+      return DataMode.HYBRID;
+    default:
+      return DataMode.ONLINE;
+  }
+}
 
 class RepositoryRegistry {
   private registry = new Map<RepositoryKey, any>();
@@ -43,7 +59,7 @@ class RepositoryRegistry {
    */
   autoRegisterRepository(entityKey: string, options: {
     envStage?: string;
-    dataMode?: string;
+    dataMode?: DataMode;
     platform?: string;
     configService?: ReturnType<typeof getConfigService>;
     clientMap?: {
@@ -57,12 +73,12 @@ class RepositoryRegistry {
     const config = options?.configService || this.configService;
     const logger = this.logger;
     const env = options?.envStage || config.get('ENV_STAGE') || process.env.ENV_STAGE || 'local';
-    const mode = options?.dataMode || config.get('DATA_MODE') || process.env.DATA_MODE || 'online-only';
+    const mode = options?.dataMode ?? parseDataMode(config.get('DATA_MODE') || process.env.DATA_MODE);
     const platform = options?.platform || config.get('PLATFORM') || process.env.PLATFORM || 'web';
     logger.info(`[RepositoryRegistry] Auto register ${entityKey} repository, env=${env}, mode=${mode}, platform=${platform}`);
 
     // 优先 mock
-    if (env === 'mock' || mode === 'offline-mock') {
+    if (env === 'mock' || mode === DataMode.OFFLINE) {
       try {
         const MockRepoClass = require(`../impl/${entityKey}-mock-repository`).default;
         this.register(entityKey as any, new MockRepoClass(options?.clientMap?.mock));
@@ -110,27 +126,34 @@ class RepositoryRegistry {
   }
 
   /**
-   * 批量自动注册所有仓储（自动遍历所有实体 key）
-   * options: 传递 clientMap、envStage、dataMode、platform 等参数
+   * 批量自动注册所有仓储（自动遍历所有实体 key，优先支持数据服务自动注入，类型安全）
+   * options: 支持 clientMap、envStage、dataMode、platform、configService、logger
+   * 推荐统一调用本方法，自动完成所有仓储与数据服务的注册与解耦
    */
   autoRegisterAll(options: {
     envStage?: string;
-    dataMode?: string;
+    dataMode?: DataMode;
     platform?: string;
     configService?: ReturnType<typeof getConfigService>;
-    clientMap?: {
-      [key: string]: any;
-    };
-  }) {
-    // 维护所有实体 key 列表（可自动生成或手动维护）
-    const entityKeys: string[] = ['user']; // 后续补充 'photo', 'match', ...
-    for (const key of entityKeys) {
-      this.autoRegisterRepository(key, {
-        ...options,
-        clientMap: options.clientMap || {},
-      });
+    clientMap?: Partial<RepositoryMap>;
+    logger?: any;
+  } = {}) {
+    // 动态引入数据服务注册表，避免循环依赖
+    const { DataServiceRegistry } = require('@/core/services/data/registry/data-service-registry');
+    const dataService = DataServiceRegistry.get('default');
+    // 获取所有已注册实体 key（类型断言保证类型安全）
+    const keys = require('../factory/repository-factory').RepositoryFactoryRegistry.getAvailableKeys() as RepositoryKey[];
+    for (const key of keys) {
+      const factory = require('../factory/repository-factory').RepositoryFactoryRegistry.getFactory(key);
+      // 优先 clientMap，其次统一 dataService
+      const client = (options.clientMap as Partial<Record<RepositoryKey, any>>)?.[key] || dataService;
+      if (factory && client) {
+        this.register(key, factory({ client }));
+      } else {
+        (options.logger || this.logger).warn?.(`[RepositoryRegistry] autoRegisterAll: factory/client missing for key '${key}'`);
+      }
     }
-    this.logger.info(`[RepositoryRegistry] All repositories auto-registered: ${entityKeys.join(', ')}`);
+    (options.logger || this.logger).info?.(`[RepositoryRegistry] All repositories auto-registered: ${keys.join(', ')}`);
   }
 
   /**

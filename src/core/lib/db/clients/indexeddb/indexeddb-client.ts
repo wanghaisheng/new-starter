@@ -1,10 +1,11 @@
 console.log('IndexedDBClient loaded');
 import { openDB, IDBPDatabase } from 'idb';
 import { QueryOptions, QueryResult, BatchOperation, StorageStats, BaseEntity, DatabaseConfig, OfflineStorageConfig } from '@/core/lib/db/types/database';
-import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database-error';
+import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database';
 import { BaseClient } from '@/core/lib/db/clients/base-client';
 import { schemaRegistry } from '@/core/lib/db/schema/schema-registry-singleton';
 import { TableSchema } from '@/core/lib/db/schema/types';
+import { ClientRegistry } from '@/core/services/data/adapters/client-registry';
 
 /**
  * 优化版 IndexedDB 数据库客户端
@@ -15,7 +16,7 @@ import { TableSchema } from '@/core/lib/db/schema/types';
  * 3. 支持批量操作
  * 4. 支持索引查询
  */
-export class IndexedDBClient<T extends BaseEntity> extends BaseClient {
+export class IndexedDBClient<T extends BaseEntity> extends BaseClient<T> {
   private db: IDBPDatabase | null = null;
   private config: DatabaseConfig;
   private cache: Map<string, Map<string, T>> = new Map();
@@ -321,7 +322,39 @@ export class IndexedDBClient<T extends BaseEntity> extends BaseClient {
       usedSpace: 0
     };
   }
+
+  /**
+   * 获取当前客户端类型（如 indexeddb/sqlite/supabase 等）
+   */
+  public getType(): string {
+    return 'indexeddb';
+  }
+
+  /**
+   * 判断客户端是否已初始化
+   */
+  public isInitialized(): boolean {
+    return !!this.db && this.initialized;
+  }
+
+  /**
+   * 获取底层配置对象
+   */
+  public getConfig(): any {
+    return {
+      db: this.db,
+      config: this.config,
+      cache: this.cache,
+      queryCache: this.queryCache,
+      cacheTimeout: this.cacheTimeout,
+      enableQueryCache: this.enableQueryCache,
+      enableEntityCache: this.enableEntityCache,
+    };
+  }
 }
+
+// 注册到全局注册表
+ClientRegistry.register('indexeddb', 'native', IndexedDBClient);
 
 export async function getStorageStats(dbName: string): Promise<StorageStats> {
   // 这里只能估算 IndexedDB 空间，通常无法直接获取物理大小

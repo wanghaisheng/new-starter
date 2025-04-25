@@ -41,17 +41,17 @@ export async function initializeCoreServices() {
   getLoggerService();
   getErrorService();
   getNetworkManager();
+
+  // 1. 配置服务优先初始化，确保配置变量可用
+  const configService = getConfigService();
+  if (typeof configService.initialize === 'function') {
+    await configService.initialize();
+  }
+
+  // 2. 数据服务初始化（内部自动读取配置服务，无需外部传参）
   const dataService = DataServiceRegistry.get('default');
-  await dataService?.initialize?.(); // 确保库表初始化
+  await dataService?.initialize?.();
   console.log('[DataService] 初始化完成');
-  // if (process.env.NODE_ENV !== 'production' && dataService?.loadMockData) {
-    // try {
-      // await dataService.loadMockData();
-      // console.log('[DataService] Mock 数据已加载');
-    // } catch (e) {
-      // console.warn('[DataService] Mock 数据加载失败:', e);
-    // }
-  // }
 
   // 业务服务（全部通过 Registry 单例获取，禁止 Factory 直连）
   UserServiceRegistry.getInstance();
@@ -59,12 +59,17 @@ export async function initializeCoreServices() {
   if (!dataService) {
     throw new Error('[init] dataService 未初始化，MatchServiceRegistry 依赖 dataService！');
   }
-  // 获取配置服务单例
-  const configService = getConfigService();
-  // 获取配置
+  // 可选：订阅全局配置变更事件
+  // configService.subscribe?.('matchServiceOptions', (val) => { ... });
+
+  // 获取配置并初始化业务服务
   const matchServiceOptions = configService.get('matchServiceOptions');
-  // 推荐方式：注册并获取实例
-  const matchService = MatchServiceRegistry.getInstance().createService('remote', 'default', dataService, matchServiceOptions);
+  const matchService = MatchServiceRegistry.getInstance().createService(
+    'remote',
+    'default',
+    dataService,
+    matchServiceOptions
+  );
   NotificationServiceRegistry.getInstance();
   PaymentServiceRegistry.getInstance();
   BluetoothServiceRegistry.getInstance();

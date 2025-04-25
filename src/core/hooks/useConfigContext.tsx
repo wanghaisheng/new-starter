@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { ConfigRegistry } from '@/core/services/infrastructure/config/registry/config-registry';
+import { configEventBus } from '@/core/services/infrastructure/config/events/config-events';
+import { getConfigService } from '@/core/services/infrastructure/config/registry/config-registry';
 import type { ConfigKey } from '@/core/services/infrastructure/config/config-keys';
 
 interface ConfigContextValue {
@@ -12,7 +13,7 @@ interface ConfigContextValue {
 const ConfigContext = createContext<ConfigContextValue | undefined>(undefined);
 
 export function ConfigProvider({ keys, children }: { keys: ConfigKey[]; children: ReactNode }) {
-  const configService = ConfigRegistry.getInstance();
+  const configService = getConfigService();
   const [config, setConfig] = useState<Record<string, any>>(() => {
     const initial: Record<string, any> = {};
     keys.forEach(key => {
@@ -24,22 +25,26 @@ export function ConfigProvider({ keys, children }: { keys: ConfigKey[]; children
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // 批量订阅
-    const handlers: Record<string, (val: any) => void> = {};
+    // 批量订阅 configEventBus
+    const handlers: Record<string, (changedKey: string, val: any) => void> = {};
     keys.forEach(key => {
-      handlers[key] = (newVal: any) => setConfig(prev => ({ ...prev, [key]: newVal }));
-      configService.subscribe(key, handlers[key]);
+      handlers[key] = (changedKey, newVal) => {
+        if (changedKey === key) setConfig(prev => ({ ...prev, [key]: newVal }));
+      };
+      configEventBus.on(key, handlers[key]);
     });
     return () => {
-      keys.forEach(key => configService.unsubscribe(key, handlers[key]));
+      keys.forEach(key => configEventBus.off(key, handlers[key]));
     };
-  }, [keys, configService]);
+  }, [keys]);
 
   const refresh = async () => {
     setLoading(true);
     setError(null);
     try {
-      await configService.refresh();
+      if (typeof configService.refresh === 'function') {
+        await configService.refresh();
+      }
       const updated: Record<string, any> = {};
       keys.forEach(key => {
         updated[key] = configService.get(key);
@@ -61,6 +66,6 @@ export function ConfigProvider({ keys, children }: { keys: ConfigKey[]; children
 
 export function useConfigContext() {
   const ctx = useContext(ConfigContext);
-  if (!ctx) throw new Error('useConfigContext must be used within a ConfigProvider');
+  if (!ctx) throw new Error('useConfigContext 必须在 <ConfigProvider> 内部使用');
   return ctx;
 }

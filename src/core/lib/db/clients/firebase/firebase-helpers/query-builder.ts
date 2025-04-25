@@ -22,7 +22,8 @@ import {
   QueryOptions, 
   ExtendedQueryOptions, 
   SortDirection, 
-  QueryFilter 
+  QueryFilter,
+  QueryOperator
 } from '@/core/lib/db/types/database';
 import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 
@@ -150,27 +151,22 @@ export class FirebaseQueryBuilder {
    */
   private mapOperator(operator: string): WhereFilterOp {
     switch (operator) {
-      case '==':
-      case '$eq':
+      case QueryOperator.EQ:
         return '==';
-      case '!=':
-      case '$ne':
+      case QueryOperator.NEQ:
+      case QueryOperator.NE:
         return '!=';
-      case '>':
-      case '$gt':
+      case QueryOperator.GT:
         return '>';
-      case '>=':
-      case '$gte':
+      case QueryOperator.GTE:
         return '>=';
-      case '<':
-      case '$lt':
+      case QueryOperator.LT:
         return '<';
-      case '<=':
-      case '$lte':
+      case QueryOperator.LTE:
         return '<=';
-      case '$in':
+      case QueryOperator.IN:
         return 'in';
-      case '$contains':
+      case QueryOperator.CONTAINS:
         return 'array-contains';
       default:
         this.logger.warn(`未知的操作符: ${operator}，默认使用 ==`);
@@ -185,33 +181,33 @@ export class FirebaseQueryBuilder {
    */
   private mapFilterOperator(operator: string): WhereFilterOp {
     switch (operator) {
-      case '==':
+      case QueryOperator.EQ:
       case '=':
       case 'eq':
         return '==';
-      case '!=':
+      case QueryOperator.NEQ:
+      case QueryOperator.NE:
       case 'ne':
-      case 'neq':
         return '!=';
-      case '>':
+      case QueryOperator.GT:
       case 'gt':
         return '>';
-      case '>=':
+      case QueryOperator.GTE:
       case 'gte':
         return '>=';
-      case '<':
+      case QueryOperator.LT:
       case 'lt':
         return '<';
-      case '<=':
+      case QueryOperator.LTE:
       case 'lte':
         return '<=';
-      case 'array-contains':
+      case QueryOperator.CONTAINS:
       case 'contains':
         return 'array-contains';
       case 'array-contains-any':
       case 'containsAny':
         return 'array-contains-any';
-      case 'in':
+      case QueryOperator.IN:
         return 'in';
       case 'not-in':
       case 'notIn':

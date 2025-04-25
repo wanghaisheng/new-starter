@@ -19,11 +19,13 @@ type SqliteOpts = {
   name?: string;
   location?: string;
   encryption?: boolean;
+  tables?: Record<string, any>;
 };
 
 type DrizzleOpts = {
   url?: string;
   schema?: string;
+  tables?: Record<string, any>;
 };
 
 /**
@@ -31,9 +33,12 @@ type DrizzleOpts = {
  * 根据 DataServiceConfig 适配不同数据库 client 的 config
  */
 export function extractDatabaseConfig(config: DataServiceConfig): DatabaseConfig | any {
-  const { adapter, options } = config.services.data;
+  const { onlineProvider, offlineProvider, options } = config.services.data;
 
-  switch (adapter) {
+  // 优先判断 offlineProvider，其次判断 onlineProvider
+  const provider = offlineProvider || onlineProvider;
+
+  switch (provider) {
     case 'indexeddb': {
       const idbOpts = (options?.indexeddb ?? {}) as IndexedDBOpts;
       return {
@@ -53,7 +58,7 @@ export function extractDatabaseConfig(config: DataServiceConfig): DatabaseConfig
         engine: 'sqlite',
         location: sqliteOpts.location,
         encryption: sqliteOpts.encryption,
-        tables: {}, // 你可根据业务实际传递
+        tables: sqliteOpts.tables ?? {},
       };
     }
     case 'drizzle': {
@@ -62,9 +67,17 @@ export function extractDatabaseConfig(config: DataServiceConfig): DatabaseConfig
         url: drizzleOpts.url,
         schema: drizzleOpts.schema,
         engine: 'drizzle',
+        // 自动为含特殊字符的表名加双引号，兼容 SQLite
+        tables: drizzleOpts.tables
+          ? Object.fromEntries(Object.entries(drizzleOpts.tables).map(([k, v]) => [
+              /[-\s]/.test(k) ? `"${k}"` : k,
+              v
+            ]))
+          : undefined,
       };
     }
+    // 其它 provider 可继续扩展
     default:
-      throw new Error(`Unsupported adapter: ${adapter}`);
+      throw new Error(`Unsupported provider: ${provider}`);
   }
 }

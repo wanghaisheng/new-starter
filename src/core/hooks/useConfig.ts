@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { configEventBus } from '@/core/services/infrastructure/config/events/config-events';
 import { getConfigService } from '@/core/services/infrastructure/config/registry/config-registry';
 import type { ConfigKey } from '@/core/services/infrastructure/config/config-keys';
 
@@ -20,12 +21,15 @@ export function useConfig<K extends ConfigKey = ConfigKey>(key?: K, providerType
     if (!key) return;
     setValue(configService.get(key));
     setEmpty(configService.get(key) == null || configService.get(key) === '');
-    const handler = (newVal: any) => {
-      setValue(newVal);
-      setEmpty(newVal == null || newVal === '');
+    // 订阅 configEventBus，provider 切换/全局变更均可响应
+    const handler = (changedKey: string, newVal: any) => {
+      if (changedKey === key) {
+        setValue(newVal);
+        setEmpty(newVal == null || newVal === '');
+      }
     };
-    configService.subscribe(key, handler);
-    return () => configService.unsubscribe(key, handler);
+    configEventBus.on(key, handler);
+    return () => configEventBus.off(key, handler);
   }, [key, providerType]);
 
   // 支持手动刷新（如远程配置变更）

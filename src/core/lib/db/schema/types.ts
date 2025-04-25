@@ -29,6 +29,7 @@ export interface ColumnDefinition {
     table: string;
     column: string;
   };
+  onlyFor?: 'offline' | 'online';
 }
 
 /**
@@ -38,6 +39,7 @@ export interface IndexDefinition {
   name: string;
   columns: string[];
   unique?: boolean;
+  onlyFor?: 'offline' | 'online';
 }
 
 /**

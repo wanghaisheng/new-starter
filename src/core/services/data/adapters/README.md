@@ -16,173 +16,182 @@
 | NEXT_PUBLIC_DB_ORM              | ORM 类型                   | drizzle/prisma/none   |
 | NEXT_PUBLIC_ONLINE_DB_PROVIDER  | 线上数据库 provider        | supabase/sqlite/...   |
 | NEXT_PUBLIC_OFFLINE_DB_PROVIDER | 离线数据库 provider        | indexeddb/sqlite/...  |
+| CACHE_STRATEGY                | memory/localstorage/redis   | 多级缓存策略，决定缓存层级与实现          |
+| OFFLINE_FALLBACK              | true/false                  | 断网自动切换，启用 hybrid/offline fallback |
+| EXPIRY_STRATEGY               | none/ttl/lru                | 失效策略，缓存/数据过期处理方式           |
+| SYNC_ENTITY_TYPES             | string（逗号分隔表名，如 `users,orders,logs`） | users,orders,logs |
 
-## 适配器类型规划
-
-- **MockDatabaseServiceAdapter**：用于 mock 环境和测试，基于 FakeIndexedDB、内存、JSON 文件等。
-- **SqliteDatabaseServiceAdapter**：本地 SQLite 数据库适配。
-- **SupabaseDatabaseServiceAdapter**：云端 Supabase 数据库适配。
-- **IndexedDBDatabaseServiceAdapter**：浏览器 IndexedDB 适配。
-- **HybridDatabaseServiceAdapter**：聚合本地（IndexedDB/SQLite）与云端（Supabase/SQLite）能力，支持断网切换、同步。
-- **AdvancedHybridDatabaseServiceAdapter**：多级缓存、自动同步、失效策略等高级场景。
+> **说明：2025-04**
+> 目前已为高级特性（如多级缓存、断网自动切换、失效策略等）增加了专用环境变量，详见上表。适配器如 AdvancedHybridDatabaseServiceAdapter 可通过这些变量实现自动化能力开关与策略配置，所有变量均已在 config-types.ts、config-keys.ts 及文档同步声明。
 
 ## 阶段性适配器规划与演进说明
 
 为适配产品和团队在不同阶段的需求，建议按以下三阶段进行适配器设计和演进：
 
 ### 阶段一：本地 Mock/IndexedDB/SQLite（0-1，开发和离线场景）
-- 实现 MockDatabaseServiceAdapter、IndexedDBDatabaseServiceAdapter、SqliteDatabaseServiceAdapter。
+- 实现 MockDatabaseClient、SqliteDatabaseClient。
 - 适用于 mock、本地开发、断网等场景，无需后端依赖，接口快速迭代。
 - 支持本地存储、内存 mock、自动化测试。
 
 ### 阶段二：本地+远程同步（1-10，成长/试运营）
 - 增加 HybridDatabaseServiceAdapter，聚合本地（IndexedDB/SQLite）与远程（Supabase/Firebase）能力。
-- 支持断网容灾：断网时自动切换本地，联网后自动同步数据。
+- **数据同步正是阶段二适配器的核心目标**，通过本地与远程聚合、断网自动切换与同步调度，满足成长/试运营阶段的多端数据一致性与可靠性需求。
 - 实现基础的本地变更队列、同步调度，后续可增强冲突检测与解决。
 - 工厂/注册表根据环境变量自动切换 hybrid 适配器，无需业务层关心底层细节。
+- **同步能力推荐基于 src/core/lib/db/clients/sync/base-sync-client.ts 实现**：适配器可组合或继承 BaseSyncClient，专注于同步调度、变更队列、断网容灾、冲突解决等核心特性，提升多端一致性和可靠性。
 
 ### 阶段三：远程数据库/集中式服务为主（10-100，规模化/生产）
 - 以 SupabaseDatabaseServiceAdapter、FirebaseDatabaseServiceAdapter 等远程适配器为主。
 - 支持多端数据一致性、弹性扩容和高可用。
 - 可保留本地降级/缓存能力，断网时自动降级到 hybrid/local。
-- 配置服务统一管理 provider/adapter，确保环境切换自动化和类型安全。
 
-> 阶段性适配器策略有助于团队从本地开发、mock、离线体验平滑演进到支持多端同步、弹性扩容和大规模生产，建议每一阶段的适配器均保持单一职责、易于扩展和组合。
+## 复合型（聚合型/横切型）适配器类型与能力说明
 
-## HybridDatabaseServiceAdapter 的定位与协作说明
+根据 progressive-adapter-strategy.md 和环境变量配置，当前和未来支持的复合型适配器类型及其能力总结如下：
 
-### 为什么要单独有 HybridDatabaseServiceAdapter？
-- **职责单一**：简单适配器（如 IndexedDB/Sqlite/Supabase）只负责单一 provider 的数据操作，接口纯粹，易维护。
-- **聚合与编排**：HybridAdapter 专注于“本地+远程”聚合、断网切换、自动同步、冲突解决等高级策略，这些是单一适配器无法胜任的。
-- **解耦与可扩展性**：HybridAdapter 内部组合和调用本地/远程适配器，便于替换和扩展底层实现。
+### 1. Hybrid（本地+远程混合适配器）
+- **核心能力**：组合本地（IndexedDB/SQLite）与远程（Supabase/Firebase 等）client，支持断网切换、本地变更队列、自动同步。
+- **典型变量**：
+  - `NEXT_PUBLIC_ONLINE_DB_PROVIDER`
+  - `NEXT_PUBLIC_OFFLINE_DB_PROVIDER`
+  - `OFFLINE_FALLBACK`
+- **场景**：PWA、移动端、需要离线可用和多端同步的业务。
 
-### 协作方式
-- HybridAdapter **内部组合**本地适配器（如 IndexedDB/Sqlite）和远程适配器（如 Supabase/Firebase）。
-- 数据操作时，HybridAdapter 根据网络状态等自动路由到本地或远程。
-- 同步时，HybridAdapter 负责本地变更队列、远程同步、冲突检测，底层读写由简单适配器完成。
+### 2. AdvancedHybrid（多级缓存/复杂同步/冲突解决）
+- **核心能力**：
+  - 支持三层分明的多级缓存与存储：
+    1. **1级缓存 memoryCache**：由 cache provider（如 memory、localStorage、sessionStorage、redis-cache 等）决定，纯内存/易失，极致性能，仅用于热点数据加速，允许失效和丢弃。
+    2. **2级主离线存储 offlineStore**：由 offline provider（如 IndexedDB、SQLite、Redis 持久化等）决定，**必须持久化**，断网可用，是 SyncManager 的同步对象，所有本地变更、待同步队列都落地在这里。
+    3. **3级远程存储 onlineClient**：由 online provider（如 Supabase、Firebase、Cloud SQLite、Turso 等）决定，保证全局数据一致性。
+  - **SyncManager 只负责 offlineStore <-> onlineClient 的同步**，memoryCache 不参与同步。
+  - **networkManager 监听网络状态**，自动触发同步与主存切换。
+  - 支持失效策略（TTL/LRU）、批量同步、同步进度上报、断网降级等高级能力。
+  - **cache-to-cache 能力（多端/多进程缓存一致性，2025+）**：
+    - 支持 BroadcastChannel（浏览器）、localStorage event 或进程间通信（Node）实现 memoryCache 的多端广播与监听。
+    - 变更 memoryCache 时自动广播，收到广播后刷新本地缓存。
+    - 便于多 tab、worker、移动端等多实例场景下缓存一致性。
+  - **典型用法与文档**：详见 [`advanced-hybrid-database-client.md`](./advanced-hybrid-database-client.md)
+- **典型变量**：
+  - `NEXT_PUBLIC_ONLINE_DB_PROVIDER`
+  - `NEXT_PUBLIC_OFFLINE_DB_PROVIDER`
+  - `CACHE_STRATEGY` 或 `cacheProvider`
+  - `OFFLINE_FALLBACK`
+  - `EXPIRY_STRATEGY`
+- **场景**：PWA、移动端、需要极致性能与断网容灾、数据一致性的复杂业务。
+- **设计原则**：
+  - 各 provider 来源独立，不混用配置。
+  - memoryCache 仅作加速缓存，offlineStore 为本地主存，onlineClient 为远端主库。
+  - SyncManager 只认 offlineStore，不会操作 memoryCache。
+  - cache-to-cache 能力推荐直接在 AdvancedHybridDatabaseClient 内实现广播/监听，SyncManager 无需感知。
 
-**示例伪代码：**
-```ts
-class HybridDatabaseServiceAdapter {
-  constructor(localAdapter, remoteAdapter) { ... }
-  async create(data) {
-    if (isOffline()) {
-      return this.localAdapter.create(data);
-    } else {
-      await this.localAdapter.create(data);
-      return this.syncToRemote();
-    }
-  }
-}
+### 3. MockHybrid（Mock+本地/远程聚合，测试/演练用）
+- **核心能力**：组合 mock、本地和远程能力，支持开发、测试、演练环境的灵活切换。
+- **典型变量**：
+  - `NEXT_PUBLIC_DATA_MODE=mock`
+- **场景**：前后端并行开发、自动化测试、CI/CD。
+
+### 4. CustomCompositeAdapter（自定义横切/聚合能力）
+- **核心能力**：可扩展组合任意 provider（如 D1+Turso+Supabase）、多种缓存/日志/队列等横切能力。
+- **典型变量**：根据实际业务自定义 provider 变量（如 `NEXT_PUBLIC_D1_DB_URL`、`NEXT_PUBLIC_TURSO_DB_TOKEN` 等）。
+- **场景**：业务特殊需求、跨多云/多数据源聚合。
+
+### 复合型适配器的能力横切点
+- **断网自动降级**（`OFFLINE_FALLBACK`）：远程不可用时自动切换本地，恢复后自动同步。
+- **多级缓存**（`CACHE_STRATEGY`、`NEXT_PUBLIC_CACHE_PROVIDER`）：memory + local db + cloud。
+- **同步调度/冲突检测**：聚合型适配器负责统一调度和冲突解决。
+- **横切扩展**：如日志、埋点、加密、审计等都可通过复合型适配器统一管理。
+
+### 工厂/注册表支持
+- 通过环境变量动态组合适配器（如 hybrid/advanced-hybrid）。
+- 支持 fallback、缓存策略、同步策略等配置驱动的横切能力。
+- 业务层始终通过统一接口访问，底层切换透明。
+
+如需扩展新的聚合/横切能力，建议以单一职责和组合优先为原则，保持适配器体系的可维护性和可扩展性。
+
+## 适配器类型规划（2025 最新）
+
+为满足多阶段业务需求与技术演进，当前适配器体系分为如下类型：
+
+- **Mock/Sqlite/IndexedDB Client**：推荐直接复用底层 client（如 `MockDatabaseClient`、`SqliteDatabaseClient`、`IndexedDBClient`），无需在数据服务适配器中再包一层壳。
+- **SupabaseDatabaseServiceAdapter**：云端 Supabase 适配器，支持实时同步与云端存储。
+- **FirebaseDatabaseServiceAdapter**：云端 Firebase 适配器，支持实时同步与云端存储。
+- **HybridDatabaseServiceAdapter**：本地（IndexedDB/SQLite）与远程（Supabase/Firebase）聚合，支持断网切换、同步、冲突检测。
+- **AdvancedHybridDatabaseServiceAdapter**：在 Hybrid 基础上增强多级缓存、同步调度、失效策略、复杂冲突解决等。
+
+> **说明：**
+> 自 2025 年起，Mock、Sqlite、IndexedDB 等本地/单一 provider 推荐直接用 `src/core/lib/db/clients/` 下的底层 client，无需在数据服务适配器层再维护 `MockDatabaseServiceAdapter`、`SqliteDatabaseServiceAdapter`、`IndexedDBDatabaseServiceAdapter` 等壳。聚合型适配器可直接组合底层 client，结构更简洁、维护成本更低。
+
+如需支持更多 provider（如 D1、Turso、TiDB），可扩展对应适配器。
+
+## 适配器分层与职责说明
+
+### 1. 单一 Provider 适配器
+- **Mock/Sqlite/IndexedDB 等**：
+  - 只负责与单一数据库或 provider 的 CRUD、事务、连接等交互。
+  - 推荐直接用底层 client，无需再包一层壳。
+  - 实现统一的 `IDataService` 或 `BaseClient` 接口，便于业务层和聚合适配器透明调用。
+  - 适用于本地开发、纯离线、纯云端等单场景。
+
+### 2. 聚合型/高级适配器
+- **HybridDatabaseServiceAdapter**：
+  - 组合本地和远程适配器，聚合多种 provider。
+  - 负责断网切换、自动同步、本地变更队列、基础冲突检测。
+  - 适用于成长/试运营阶段，满足一定的多端一致性和容灾需求。
+- **AdvancedHybridDatabaseServiceAdapter**：
+  - 在 Hybrid 基础上，增强多级缓存、同步调度、失效策略、复杂冲突解决等。
+  - 支持三层缓存（memoryCache、offlineStore、onlineClient），详见上文。
+  - 支持 cache-to-cache 多端缓存一致性能力（2025+）。
+  - 推荐参考 [`advanced-hybrid-database-client.md`](./advanced-hybrid-database-client.md) 获取详细架构与用法说明。
+
+### 3. 分层协作原则
+- 所有适配器和底层 client 均实现统一 `IDataService` 或 `BaseClient` 接口。
+- 工厂/注册表根据配置动态组合、切换实例，业务层无需关心底层实现。
+- 聚合型适配器内部可灵活组合任意 provider，只需保证接口一致。
+
+## SYNC_ENTITY_TYPES 环境变量
+
+- **类型**：string（逗号分隔表名，如 `users,orders,logs`）
+- **作用**：指定需要同步的本地表/实体类型，通常用于离线优先或多端数据同步场景。
+- **示例**：
+  ```env
+  SYNC_ENTITY_TYPES=users,orders,logs
+  ```
+- **说明**：仅当启用 SyncManager 或类似离线同步机制时生效。未配置时，默认同步所有支持的表。
+
+## 推荐目录结构（聚合型/复合型适配器主导）
+
+```text
+src/core/services/data/
+├── adapters/               # 仅聚合型/复合型适配器（Hybrid、AdvancedHybrid、MockHybrid、CustomCompositeAdapter等）
+│   ├── hybrid-database-client.ts
+│   ├── advanced-hybrid-database-client.ts
+│   ├── mock-hybrid-database-client.ts
+│   ├── custom-composite-adapter.ts           # 如有自定义横切/多provider聚合
+│   └── README.md
+├── factory/                # 数据服务工厂，动态组合底层client与聚合适配器
+│   └── data-service-factory.ts
+├── registry/               # 全局注册表，统一管理数据服务实例
+│   └── data-service-registry.ts
+├── types/                  # 类型定义，DataServiceConfig、IDataService等
+│   └── index.ts
+├── utils/                  # 工具函数，如配置提取、同步辅助等
+│   └── extractDatabaseConfig.ts
+└── ...                     # 其它扩展目录
+
+# 底层 client 统一放在 lib/db/clients 下
+src/core/lib/db/clients/
+├── indexeddb/indexeddb-client.ts
+├── sqlite/sqlite-database-client.ts
+├── supabase/supabase-client.ts
+├── firebase/firebase-client.ts
+├── ...
 ```
 
-### 如何区分用哪个适配器？
-- 由工厂/注册表根据环境变量（如 `NEXT_PUBLIC_DATA_MODE`）自动选择：
-  - `offline` → 本地适配器（IndexedDB/Sqlite）
-  - `online`  → 远程适配器（Supabase/Firebase）
-  - `hybrid`  → HybridAdapter（内部组合本地+远程）
-- 业务层无需手动区分，统一通过工厂产物拿到数据服务即可。
-
-> HybridAdapter 是为“离线可用+自动同步+断网容灾”场景而设计，聚合和编排本地/远程适配器，极大提升 PWA 等多端应用的用户体验和数据安全。
-
-## AdvancedHybridDatabaseServiceAdapter 的定位与协作说明
-
-### 为什么要有 AdvancedHybridDatabaseServiceAdapter？
-- **更高级的聚合与优化**：在 HybridAdapter 的基础上，AdvancedHybridAdapter 增加多级缓存、自动同步调度、失效策略、批量同步、冲突自动合并等高级能力。
-- **应对复杂业务与高并发场景**：适用于数据量大、端多、同步冲突复杂、需要高性能和高可用的生产环境。
-
-### 协作方式
-- AdvancedHybridAdapter 内部依然组合本地/远程等简单适配器，并可能组合多个缓存层（如内存缓存+本地数据库+远程云端）。
-- 负责更智能的同步调度、缓存失效、批量同步、自动合并冲突等。
-- 业务层依然只通过统一接口访问，无需关心底层多级缓存和同步细节。
-
-**示例伪代码：**
-```ts
-class AdvancedHybridDatabaseServiceAdapter {
-  constructor(memoryCache, localAdapter, remoteAdapter) { ... }
-  async get(key) {
-    if (this.memoryCache.has(key)) {
-      return this.memoryCache.get(key);
-    }
-    const local = await this.localAdapter.get(key);
-    if (local) {
-      this.memoryCache.set(key, local);
-      return local;
-    }
-    const remote = await this.remoteAdapter.get(key);
-    if (remote) {
-      this.localAdapter.set(key, remote);
-      this.memoryCache.set(key, remote);
-      return remote;
-    }
-    return null;
-  }
-  // ...更多高级同步与失效策略
-}
-```
-
-### 如何区分用哪个？
-- 依然由工厂/注册表根据环境变量（如 `NEXT_PUBLIC_DATA_MODE=advanced-hybrid`）自动选择。
-- 业务层无需手动区分，统一通过工厂产物拿到数据服务即可。
-
-> AdvancedHybridAdapter 适用于需要多级缓存、高性能同步、复杂冲突解决的高级场景，是面向大规模生产和高可用 PWA 的最佳实践。
-
-## 工厂/注册表推荐用法
-
-建议通过工厂或注册表模式，根据环境变量自动选择和实例化合适的数据服务适配器。例如：
-
-```ts
-function createDataServiceAdapter(config: DataServiceConfig): IDataService {
-  const stage = process.env.NEXT_PUBLIC_ENV_STAGE;
-  const onlineProvider = process.env.NEXT_PUBLIC_ONLINE_DB_PROVIDER;
-  const offlineProvider = process.env.NEXT_PUBLIC_OFFLINE_DB_PROVIDER;
-
-  if (stage === 'mock') {
-    return new MockDatabaseServiceAdapter(config);
-  }
-  if (onlineProvider && offlineProvider) {
-    return new HybridDatabaseServiceAdapter(config);
-  }
-  if (onlineProvider === 'supabase') {
-    return new SupabaseDatabaseServiceAdapter(config);
-  }
-  if (offlineProvider === 'indexeddb') {
-    return new IndexedDBDatabaseServiceAdapter(config);
-  }
-  // ...更多分支
-  throw new Error('No valid data service adapter found for current environment');
-}
-```
-
-## 目录结构建议（2025 推荐实践）
-
-为支持多 provider、多实现方式、多 ORM 适配器的长期演进，建议采用“分子目录聚合结构”：
-
-```
-src/core/services/data/adapters/
-  mock/
-    memory.ts                // 基于内存的 mock 实现
-    json.ts                  // 基于 JSON 文件的 mock 实现
-    fakeindexeddb.ts         // 基于 fake-indexeddb 的 mock 实现
-    index.ts                 // 聚合导出，工厂/注册表只依赖该入口
-  sqlite/
-    drizzle.ts               // Drizzle ORM 实现
-    typeorm.ts               // TypeORM 实现
-    index.ts
-  supabase/
-    index.ts
-  hybrid/
-    index.ts
-  advanced-hybrid/
-    index.ts
-  ...（其它 provider 按需扩展）
-```
-
-- 每种 provider/adapter 独立目录，便于扩展和维护。
-- index.ts 聚合导出，工厂/注册表只依赖统一入口，业务层无需关心底层实现。
-- 支持多端、多 ORM、长期演进和团队协作场景。
-
-> 旧的“全部平铺”结构已不推荐，建议逐步迁移到分子目录聚合结构。
+> **说明：**
+> - 适配器层只保留聚合型/复合型适配器，单一 provider 直接用 lib/db/clients 下的底层 client。
+> - 工厂层负责根据环境变量/配置动态组合底层 client 与聚合型适配器。
+> - 注册表层负责全局唯一实例管理、懒加载与日志。
+> - 类型层统一定义所有配置和接口，便于类型安全和自动补全。
 
 ## 参考
 - [环境变量说明](../../../docs/guides/environment-variables.md)

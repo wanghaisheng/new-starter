@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import { TableSchema, ColumnType } from '@/core/lib/db/schema/types';
 import type { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { BaseClient } from '@/core/lib/db/clients/base-client';
+import { ClientRegistry } from '@/core/services/data/adapters/client-registry';
 
 /**
  * KyselySQLiteClient: 基于 Kysely 的 SQLite Client，自动建表，类型安全，兼容你的 TableSchema
@@ -185,6 +186,34 @@ export class KyselySQLiteClient<T extends BaseEntity> extends BaseClient<T> {
   }
 
   // --- End of BaseClient required methods ---
+
+  /**
+   * 获取当前客户端类型（如 indexeddb/sqlite/supabase 等）
+   */
+  public getType(): string {
+    return 'kysely-sqlite';
+  }
+
+  /**
+   * 判断客户端是否已初始化
+   */
+  public isInitialized(): boolean {
+    return !!this.db;
+  }
+
+  /**
+   * 获取底层配置对象
+   */
+  public getConfig(): any {
+    return {
+      db: this.db,
+      sqliteDb: this.sqliteDb,
+      schemas: this.schemas,
+    };
+  }
 }
+
+// 注册到全局注册表
+ClientRegistry.register('sqlite', 'kysely', KyselySQLiteClient);
 
 export default KyselySQLiteClient;

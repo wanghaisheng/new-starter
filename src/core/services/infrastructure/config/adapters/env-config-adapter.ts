@@ -1,21 +1,8 @@
 // env-config-adapter.ts
 import { IConfigAdapter } from '../types/config-adapter';
+import { CONFIG_KEYS } from '../config-keys';
 
-const ENV_KEYS = [
-  'ENV_STAGE',
-  'API_BASE_URL',
-  'DATA_MODE',
-  'PROVIDER_TYPE',
-  'MOCK_DB_MODE',
-  'ONLINE_DB',
-  'OFFLINE_DB',
-  'LOG_LEVEL',
-  'FEATURE_FLAG',
-  'BRAND',
-  'SYNC_AUTO_ON_CONNECT',
-  'SYNC_INTERVAL',
-  'SYNC_CONFLICT_RESOLUTION',
-];
+const ENV_KEYS = Object.values(CONFIG_KEYS);
 
 export class EnvConfigAdapter implements IConfigAdapter {
   private store: Record<string, any> = {};
@@ -24,6 +11,9 @@ export class EnvConfigAdapter implements IConfigAdapter {
     ENV_KEYS.forEach(key => {
       if (typeof process !== 'undefined' && process.env && process.env[key] !== undefined) {
         this.store[key] = process.env[key];
+      } else if (typeof window !== 'undefined' && (window as any)[key] !== undefined) {
+        // 支持浏览器端通过 window 注入
+        this.store[key] = (window as any)[key];
       }
     });
   }
@@ -31,4 +21,7 @@ export class EnvConfigAdapter implements IConfigAdapter {
   set<T = any>(key: string, value: T) { this.store[key] = value; }
   has(key: string): boolean { return key in this.store; }
   remove(key: string) { delete this.store[key]; }
+  async refresh(key?: string): Promise<void> {
+    // 环境变量不支持运行时刷新，直接返回
+  }
 }

@@ -4,7 +4,6 @@ console.log('base-entity loaded');
  * 基础实体类型
  * 所有数据库实体都应该继承这个类
  */
-import { SyncableEntity } from './sync-flags';
 
 export interface BaseEntity {
   id: string;

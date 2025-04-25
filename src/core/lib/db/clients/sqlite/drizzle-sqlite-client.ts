@@ -7,6 +7,7 @@ import { migrationSQL } from '@/core/lib/db/schema/drizzle-schema';
 import { BaseClient } from '@/core/lib/db/clients/base-client';
 import { ColumnType } from '@/core/lib/db/schema/types';
 import { TableSchema } from '@/core/lib/db/schema/types';
+import { ClientRegistry } from '@/core/services/data/adapters/client-registry';
 
 /**
  * DrizzleSQLiteClient: 基于 drizzle-orm 的 SQLite Client
@@ -298,6 +299,35 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
   async rollbackTransaction(): Promise<void> {
     this.transactionActive = false;
   }
+
+  /**
+   * 获取当前客户端类型（如 indexeddb/sqlite/supabase 等）
+   */
+  public getType(): string {
+    return 'drizzle-sqlite';
+  }
+
+  /**
+   * 判断客户端是否已初始化
+   */
+  public isInitialized(): boolean {
+    return !!this.initialized;
+  }
+
+  /**
+   * 获取底层配置对象
+   */
+  public getConfig(): any {
+    return {
+      db: this.db,
+      drizzleDb: this.drizzleDb,
+      tables: this.tables,
+      schemas: this.schemas,
+    };
+  }
 }
+
+// 注册到全局注册表
+ClientRegistry.register('sqlite', 'drizzle', DrizzleSQLiteClient);
 
 export default DrizzleSQLiteClient;

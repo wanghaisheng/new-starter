@@ -26,7 +26,7 @@ export * as SimulatorTypes from './simulator';
 export type { BatchOperation as DatabaseBatchOperation } from './database';
 
 // 新增导出
-export * from './database-error';
+// export * from './database-error';
 export * from './database-logger';
 
 /**

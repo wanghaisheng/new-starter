@@ -101,10 +101,12 @@ export class DataPreloadService {
     this.emit('preload:start', { table });
     try {
       const max = cfg.maxRecords || this.config.maxRecordsPerTable || 100;
-      const data = await this.hybrid.query(table, { limit: max });
-      this.cache.set(table, { data, timestamp: Date.now() }); // 成功时不写 error 字段
+      const rawResult = await this.hybrid.query(table, { limit: max });
+      const dataArray = Array.isArray(rawResult) ? rawResult
+        : (rawResult?.rows ?? rawResult?.data ?? []);
+      this.cache.set(table, { data: dataArray, timestamp: Date.now() }); // 成功时不写 error 字段
       this.preloadStatus[table] = 'success';
-      this.emit('preload:success', { table, data });
+      this.emit('preload:success', { table, data: dataArray });
       cb?.(table, 'success');
     } catch (e) {
       this.cache.set(table, { data: [], timestamp: Date.now(), error: e }); // 失败时写 error 字段

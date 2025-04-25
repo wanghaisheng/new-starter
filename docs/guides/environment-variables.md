@@ -22,6 +22,9 @@
 |-------------------------------|-------------------------|-------------------------------------------|
 | NEXT_PUBLIC_CACHE_PROVIDER    | redis/localstorage      | 缓存实现类型                              |
 | NEXT_PUBLIC_TEMP_CACHE_PROVIDER | memory/redis/localstorage | 临时/会话型缓存实现类型               |
+| CACHE_STRATEGY                | memory/localstorage/redis   | 多级缓存策略，决定缓存层级与实现          |
+| OFFLINE_FALLBACK              | true/false                  | 断网自动切换，启用 hybrid/offline fallback |
+| EXPIRY_STRATEGY               | none/ttl/lru                | 失效策略，缓存/数据过期处理方式           |
 
 ### 3. 文件存储配置
 
@@ -430,6 +433,18 @@ switch (userServiceType) {
 
 ---
 
+## SYNC_ENTITY_TYPES
+
+- **类型**：string（逗号分隔表名，如 `users,orders,logs`）
+- **作用**：指定需要同步的本地表/实体类型，通常用于离线优先或多端数据同步场景。
+- **示例**：
+  ```env
+  SYNC_ENTITY_TYPES=users,orders,logs
+  ```
+- **说明**：仅当启用 SyncManager 或类似离线同步机制时生效。未配置时，默认同步所有支持的表。
+
+---
+
 ## NEXT_PUBLIC_DB_ORM 及相关变量详解
 
 `NEXT_PUBLIC_DB_ORM` 用于指定应用数据库的 ORM/访问层类型，是实现不同数据库访问策略的核心配置。它与 `DATABASE_PROVIDER` 协同，支持不同数据库类型和访问模式。
@@ -634,5 +649,3 @@ switch (dbOrm) {
 - 充分利用配置服务，提升代码健壮性与可维护性。
 
 ---
-
-```

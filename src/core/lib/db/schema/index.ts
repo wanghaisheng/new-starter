@@ -8,7 +8,6 @@ import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 // import { DatabaseVersion } from '@/core/lib/db/types/'; // 已无此导出，注释掉
 
 import { registerCoreSchemas } from './core-schemas';
-import { registerOfflineSchemas } from './offline-schemas';
 import { schemaRegistry } from './schema-registry-singleton';
 import { TableConverter } from './table-converter';
 import { DatabaseType, TableSchema, ColumnDefinition, IndexDefinition, ISchemaRegistry } from './types';
@@ -56,7 +55,6 @@ export const versionManager = VersionManager.getInstance();
  * 确保所有表结构都已注册
  */
 export function initializeSchemas(): void {
-  registerOfflineSchemas();
   if (registerCoreSchemas.length === 1) {
     registerCoreSchemas();
   } else {

@@ -1,8 +1,7 @@
 // core/services/init.ts
 // 全局服务初始化入口，保证只初始化一次
-import { getLoggerService, setLoggerService, createDefaultLogger, createLoggerFromConfig } from './infrastructure/logger/registry/logger-registry';
-import { getErrorService } from './infrastructure/error/registry/error-registry';
-import { getNetworkManager } from './infrastructure/network/registry/network-registry';
+import { setLoggerService, createDefaultLogger, createLoggerFromConfig } from './infrastructure/logger/registry/logger-registry';
+import { DataServiceRegistry } from './data/registry/data-service-registry';
 import { UserServiceRegistry } from './business/user/registry/user-service-registry';
 import { AuthServiceRegistry } from './business/auth/registry/auth-service-registry';
 import { MatchServiceRegistry } from './business/match/registry/match-service-registry';
@@ -16,12 +15,13 @@ import { NFCServiceRegistry } from './business/phone/nfc/registry/nfc-service-re
 import { SensorServiceRegistry } from './business/phone/sensor/registry/sensor-service-registry';
 import { QuizServiceRegistry } from './business/quiz/registry/quiz-service-registry';
 import { imageServiceRegistry } from './business/image/registry/image-service-registry';
-import { DataServiceRegistry } from './data/registry/data-service-registry';
-import { getConfigService } from './infrastructure/config/registry/config-registry';
-import { createEmailService } from './infrastructure/email';
+import { getEmailService } from './infrastructure/email/registry/email-registry';
 import { registerCoreSchemas } from '@/core/lib/db/schema/core-schemas';
+import { createConfigService, ConfigProviderType } from './infrastructure/config/registry/config-registry';
+// network
+import { NetworkRegistry } from './infrastructure/network/registry/network-registry';
+import { getErrorService } from './infrastructure/error/registry/error-registry';
 
-// 仅主程序环境注册所有核心表结构，测试环境请手动注册需要的 schema
 if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'test') {
   registerCoreSchemas();
 }
@@ -36,14 +36,15 @@ export async function initializeCoreServices() {
   if (initialized) return;
   initialized = true;
 
-  // 1. 先创建默认日志服务，保证后续日志不丢失
+  // 1. 日志服务
   let logger = createDefaultLogger();
   setLoggerService(logger);
   logger.info('[init] 启动核心服务初始化...');
 
-  // 2. 配置服务优先初始化，确保配置变量可用
-  const configService = getConfigService();
+  // 2. 配置服务
+  let configService;
   try {
+    configService = createConfigService(ConfigProviderType.DEFAULT); // 使用枚举类型
     if (typeof configService.initialize === 'function') {
       await configService.initialize();
       logger.info('[init] 配置服务初始化完成');
@@ -52,50 +53,63 @@ export async function initializeCoreServices() {
     logger.error('[init] 配置服务初始化失败', e);
   }
 
-  // 3. 根据配置重载日志服务（如有需要）
-  const loggerConfig = configService.get?.('logger') || {};
-  const newLogger = createLoggerFromConfig(loggerConfig);
-  if (newLogger) {
-    setLoggerService(newLogger);
-    logger = newLogger;
-    logger.info('[init] 日志服务已根据配置重载');
+  // 3. 重载日志服务
+  try {
+    const loggerConfig = configService?.get?.('logger') || {};
+    const newLogger = createLoggerFromConfig(loggerConfig);
+    if (newLogger) {
+      setLoggerService(newLogger);
+      logger = newLogger;
+      logger.info('[init] 日志服务已根据配置重载');
+    }
+  } catch (e) {
+    logger.error('[init] 日志服务重载失败', e);
   }
 
   // 4. 其它基础设施服务
-  getErrorService();
-  getNetworkManager();
+  try { getErrorService(); } catch (e) { logger.warn('[init] getErrorService 失败', e); }
+  try { NetworkRegistry.getAdapter('default'); } catch (e) { logger.warn('[init] NetworkRegistry 失败', e); }
 
-  // 5. 数据服务初始化（内部自动读取配置服务，无需外部传参）
-  const dataService = DataServiceRegistry.get('default');
-  await dataService?.initialize?.();
-  logger.info('[init] DataService 初始化完成');
+  // 5. 数据服务
+  let dataService;
+  try {
+    dataService = DataServiceRegistry.get('default');
+    await dataService?.initialize?.();
+    logger.info('[init] DataService 初始化完成');
+  } catch (e) {
+    logger.error('[init] DataService 初始化失败', e);
+  }
 
-  // 6. 业务服务（全部通过 Registry 单例获取，禁止 Factory 直连）
-  UserServiceRegistry.getInstance();
-  AuthServiceRegistry.getInstance();
+  // 6. 业务服务
+  try { UserServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] UserServiceRegistry 失败', e); }
+  try { AuthServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] AuthServiceRegistry 失败', e); }
+  try { MessageServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] MessageServiceRegistry 失败', e); }
+  try { NotificationServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] NotificationServiceRegistry 失败', e); }
+  try { PaymentServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] PaymentServiceRegistry 失败', e); }
+  try { BluetoothServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] BluetoothServiceRegistry 失败', e); }
+  try { CameraServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] CameraServiceRegistry 失败', e); }
+  try { LocationServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] LocationServiceRegistry 失败', e); }
+  try { NFCServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] NFCServiceRegistry 失败', e); }
+  try { SensorServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] SensorServiceRegistry 失败', e); }
+  try { QuizServiceRegistry.getInstance(); } catch (e) { logger.warn('[init] QuizServiceRegistry 失败', e); }
+  try { imageServiceRegistry.createService('mock'); } catch (e) { logger.warn('[init] imageServiceRegistry 失败', e); }
+
   if (!dataService) {
     throw new Error('[init] dataService 未初始化，MatchServiceRegistry 依赖 dataService！');
   }
-  // 可选：订阅全局配置变更事件
-  // configService.subscribe?.('matchServiceOptions', (val) => { ... });
 
-  // 获取配置并初始化业务服务
-  const matchServiceOptions = configService.get('matchServiceOptions');
-  const matchService = MatchServiceRegistry.getInstance().createService(
-    'remote',
-    'default',
-    dataService,
-    matchServiceOptions
-  );
-  NotificationServiceRegistry.getInstance();
-  PaymentServiceRegistry.getInstance();
-  BluetoothServiceRegistry.getInstance();
-  CameraServiceRegistry.getInstance();
-  LocationServiceRegistry.getInstance();
-  NFCServiceRegistry.getInstance();
-  SensorServiceRegistry.getInstance();
-  QuizServiceRegistry.getInstance();
-  imageServiceRegistry.createService('mock'); // 如需其他类型可调整
+  // 7. MatchService 依赖配置和数据服务
+  try {
+    const matchServiceOptions = configService?.get?.('matchServiceOptions');
+    MatchServiceRegistry.getInstance().createService(
+      'remote',
+      'default',
+      dataService,
+      matchServiceOptions
+    );
+  } catch (e) {
+    logger.error('[init] MatchServiceRegistry 初始化失败', e);
+  }
 
   logger.info('[init] 核心服务全部初始化完成');
 }

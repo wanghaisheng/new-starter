@@ -1,82 +1,110 @@
-import type { IUserAdapter, IUserService, UserServiceType, UserServiceOptions } from '@/core/services/business/user/types/user-service';
-import { UserServiceFactory } from '../factory/user-service-factory';
+import type { IUserRepository } from '@/core/lib/db/repositories/types/user-repository.types';
+import type { IUserService } from '../types/user-service';
+import type { User } from '@/core/lib/db/types/user.types';
+import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
+import { UserRepository } from '@/core/lib/db/repositories/impl/user-repository';
 
 export class UserService implements IUserService {
-  private adapter: IUserAdapter;
+  private userRepo: IUserRepository;
+  private dataService: any;
 
-  constructor(type: UserServiceType = 'mock', options: UserServiceOptions = {}) {
-    this.adapter = UserServiceFactory.getAdapter(type, options) ?? UserServiceFactory.getAdapter('mock')!;
+  constructor() {
+    this.dataService = DataServiceRegistry.get('default');
+    if (!this.dataService) throw new Error('[UserService] DataServiceRegistry default 实例未注册');
+    this.userRepo = new UserRepository(this.dataService);
   }
 
-  async getCurrentUser(): Promise<any> {
-    return this.adapter.getCurrentUser();
+  async getCurrentUser(): Promise<User | null> {
+    return await this.userRepo.findById('current');
   }
 
-  async getUserById(userId: string): Promise<any> {
-    return this.adapter.getUserById(userId);
+  async getUserById(id: string): Promise<User | null> {
+    return await this.userRepo.findById(id);
   }
 
-  async updateUserProfile(userId: string, updates: any): Promise<any> {
-    return this.adapter.updateUserProfile(userId, updates);
+  async updateUserProfile(id: string, updates: Partial<User>): Promise<User> {
+    const updated = await this.userRepo.update(id, updates);
+    if (!updated) throw new Error('User not found');
+    return updated;
   }
 
-  async saveCurrentUser(user: any): Promise<void> {
-    return this.adapter.saveCurrentUser(user);
+  async saveCurrentUser(user: User): Promise<void> {
+    await this.userRepo.update(user.id, user);
   }
 
-  async getUsers(): Promise<any[]> {
-    return this.adapter.getUsers();
+  async getUsers(): Promise<User[]> {
+    return await this.userRepo.findAll();
   }
 
-  async saveUsers(users: any[]): Promise<void> {
-    return this.adapter.saveUsers(users);
+  async saveUsers(users: User[]): Promise<void> {
+    for (const user of users) {
+      await this.userRepo.update(user.id, user);
+    }
   }
 
-  async createUser(user: any): Promise<any> {
-    return this.adapter.createUser(user);
+  async createUser(user: Partial<User>): Promise<User> {
+    const created = await this.userRepo.create(user as User);
+    if (!created) throw new Error('User create failed');
+    return created;
   }
 
-  async updateUser(userId: string, updates: any): Promise<any> {
-    return this.adapter.updateUser(userId, updates);
+  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+    const updated = await this.userRepo.update(id, updates);
+    if (!updated) throw new Error('User not found');
+    return updated;
   }
 
   async syncOfflineProfileUpdates(): Promise<number> {
-    return this.adapter.syncOfflineProfileUpdates();
+    // 如无实现可返回 0 或抛未实现异常
+    return 0;
   }
 
-  async deleteUser(userId: string): Promise<void> {
-    return this.adapter.deleteUser(userId);
+  async deleteUser(id: string): Promise<void> {
+    await this.userRepo.delete(id);
   }
 
-  async getUsersByIds(userIds: string[]): Promise<any[]> {
-    return this.adapter.getUsersByIds(userIds);
+  async getUsersByIds(ids: string[]): Promise<User[]> {
+    const users: User[] = [];
+    for (const id of ids) {
+      const user = await this.userRepo.findById(id);
+      if (user) users.push(user);
+    }
+    return users;
   }
 
-  async createMatch(userIds: string[]): Promise<any> {
-    return this.adapter.createMatch(userIds);
+  async createMatch(ids: string[]): Promise<any> {
+    throw new Error('Not implemented');
   }
 
-  async getMatches(userId: string, options?: any): Promise<any[]> {
-    return this.adapter.getMatches(userId, options);
+  async getMatches(id: string, options?: any): Promise<any[]> {
+    return [];
   }
 
   async deleteMatch(matchId: string): Promise<void> {
-    return this.adapter.deleteMatch(matchId);
+    throw new Error('Not implemented');
   }
 
-  async getRecommendedUsers(options?: any): Promise<any[]> {
-    return this.adapter.getRecommendedUsers(options);
+  async getRecommendedUsers(options?: any): Promise<User[]> {
+    return [];
   }
 
   async sendMessage(matchId: string, senderId: string, receiverId: string, content: string, type?: string): Promise<any> {
-    return this.adapter.sendMessage(matchId, senderId, receiverId, content, type);
+    throw new Error('Not implemented');
   }
 
   async markMessageAsRead(messageId: string): Promise<any> {
-    return this.adapter.markMessageAsRead(messageId);
+    throw new Error('Not implemented');
   }
 
-  async getUsersByTags?(tags: string[]): Promise<any[]> {
-    return this.adapter.getUsersByTags ? this.adapter.getUsersByTags(tags) : [];
+  async getUsersByTags?(tags: string[]): Promise<User[]> {
+    return [];
+  }
+
+  async getUserByEmail(email: string): Promise<User | null> {
+    return await this.userRepo.findByEmail(email);
+  }
+
+  async getUserByPhone(phone: string): Promise<User | null> {
+    return await this.userRepo.findByPhone(phone);
   }
 }

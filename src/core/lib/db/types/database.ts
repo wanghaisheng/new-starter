@@ -423,3 +423,32 @@ export function createDatabaseError(
   if (details) error.details = details;
   return error;
 }
+
+
+export interface AppError {
+  code: string; // 错误码
+  type: 'network' | 'permission' | 'validation' | 'server' | 'unknown';
+  message: string;
+  cause?: any;
+}
+
+export interface AsyncState<T, E = AppError> {
+  loading: boolean;
+  error?: E;
+  empty: boolean;
+  data?: T;
+}
+
+export interface BatchResult<T> {
+  success: boolean;
+  results: T[];
+  errors?: AppError[];
+}
+export interface PageResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+} 
+
+

@@ -3,50 +3,10 @@
 /**
  * BaseEntity 约束：所有仓储实体必须包含基础字段
  */
-export interface BaseEntity {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
-/**
- * 标准分页结果类型
- */
-export interface PageResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
 
-/**
- * 标准批量操作结果类型
- */
-export interface BatchResult<T> {
-  success: boolean;
-  results: T[];
-  errors?: AppError[];
-}
+import { BaseEntity } from './base-entity';
 
-/**
- * 结构化异常类型
- */
-export interface AppError {
-  code: string; // 错误码
-  type: 'network' | 'permission' | 'validation' | 'server' | 'unknown';
-  message: string;
-  cause?: any;
-}
-
-/**
- * 标准异步状态类型（用于 hooks 返回）
- */
-export interface AsyncState<T, E = AppError> {
-  loading: boolean;
-  error?: E;
-  empty: boolean;
-  data?: T;
-}
 
 /**
  * 通用仓储接口，所有实体仓储必须实现

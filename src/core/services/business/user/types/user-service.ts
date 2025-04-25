@@ -9,19 +9,19 @@ export interface IUserAdapter {
   /** 获取当前用户 */
   getCurrentUser(): Promise<User | null>;
   /** 按 ID 获取用户 */
-  getUserById(userId: string): Promise<User | null>;
+  getUserById(id: string): Promise<User | null>;
   /** 更新用户资料（支持 tags/profile 字段） */
-  updateUserProfile(userId: string, updates: Partial<User>): Promise<User>;
+  updateUserProfile(id: string, updates: Partial<User>): Promise<User>;
   saveCurrentUser(user: User): Promise<void>;
   getUsers(): Promise<User[]>;
   saveUsers(users: User[]): Promise<void>;
   createUser(user: Partial<User>): Promise<User>;
-  updateUser(userId: string, updates: Partial<User>): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User>;
   syncOfflineProfileUpdates(): Promise<number>;
-  deleteUser(userId: string): Promise<void>;
-  getUsersByIds(userIds: string[]): Promise<User[]>;
-  createMatch(userIds: string[]): Promise<any>;
-  getMatches(userId: string, options?: any): Promise<any[]>;
+  deleteUser(id: string): Promise<void>;
+  getUsersByIds(ids: string[]): Promise<User[]>;
+  createMatch(ids: string[]): Promise<any>;
+  getMatches(id: string, options?: any): Promise<any[]>;
   deleteMatch(matchId: string): Promise<void>;
   getRecommendedUsers(options?: any): Promise<User[]>;
   sendMessage(matchId: string, senderId: string, receiverId: string, content: string, type?: string): Promise<any>;

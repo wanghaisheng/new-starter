@@ -119,15 +119,77 @@ describe('UserRepository (DrizzleSQLiteClient)', () => {
   });
 
   it('should support sorting and pagination', async () => {
-    for (let i = 0; i < 10; i++) {
-      await repo.create({ ...MOCK_USERS[0], id: `p${i}`, email: `p${i}@test.com`, phone: `p${i}` });
+    // Create test users with different names and ages
+    const testUsers = [
+      { ...MOCK_USERS[0], id: 'user1', name: 'Alice', age: 25, email: 'alice@test.com', phone: 'phone1' },
+      { ...MOCK_USERS[0], id: 'user2', name: 'Bob', age: 30, email: 'bob@test.com', phone: 'phone2' },
+      { ...MOCK_USERS[0], id: 'user3', name: 'Charlie', age: 20, email: 'charlie@test.com', phone: 'phone3' },
+      { ...MOCK_USERS[0], id: 'user4', name: 'David', age: 35, email: 'david@test.com', phone: 'phone4' },
+      { ...MOCK_USERS[0], id: 'user5', name: 'Eve', age: 28, email: 'eve@test.com', phone: 'phone5' }
+    ];
+
+    // Create all users
+    for (const user of testUsers) {
+      // birthDate 字段强制为字符串，防止类型错误
+      if (user.birthDate && typeof user.birthDate !== 'string') {
+        user.birthDate = String(user.birthDate);
+      }
+      // isOnline 字段强制为布尔值，防止类型错误
+      if (user.isOnline === undefined || user.isOnline === null) {
+        user.isOnline = true;
+      }
+      await repo.create(user);
     }
-    // 假设 repo 支持排序和分页
-    const page1 = await repo.findAll({ _limit: 5, _offset: 0, _orderBy: 'id' });
-    const page2 = await repo.findAll({ _limit: 5, _offset: 5, _orderBy: 'id' });
-    expect(page1.length).toBe(5);
-    expect(page2.length).toBe(5);
-    expect(page1[0].id < page2[0].id).toBe(true);
+
+    // Test sorting by name (ascending)
+    const sortedByName = await repo.findAll({ _orderBy: 'name ASC' });
+    expect(sortedByName.map(u => u.name)).toEqual(['Alice', 'Bob', 'Charlie', 'David', 'Eve']);
+
+    // Test sorting by name (descending)
+    const sortedByNameDesc = await repo.findAll({ _orderBy: 'name DESC' });
+    expect(sortedByNameDesc.map(u => u.name)).toEqual(['Eve', 'David', 'Charlie', 'Bob', 'Alice']);
+
+    // Test sorting by age (ascending)
+    const sortedByAge = await repo.findAll({ _orderBy: 'age ASC' });
+    expect(sortedByAge.map(u => u.age)).toEqual([20, 25, 28, 30, 35]);
+
+    // Test pagination with limit
+    const firstPage = await repo.findAll({ _limit: 2 });
+    expect(firstPage.length).toBe(2);
+
+    // Test pagination with offset
+    const secondPage = await repo.findAll({ _limit: 2, _offset: 2 });
+    expect(secondPage.length).toBe(2);
+
+    // Test pagination with sorting
+    const sortedPage = await repo.findAll({ 
+      _limit: 2, 
+      _offset: 0, 
+      _orderBy: 'age DESC' 
+    });
+    expect(sortedPage.length).toBe(2);
+    expect(sortedPage[0].age).toBe(35); // David
+    expect(sortedPage[1].age).toBe(30); // Bob
+
+    // Test pagination with sorting and offset
+    const nextSortedPage = await repo.findAll({ 
+      _limit: 2, 
+      _offset: 2, 
+      _orderBy: 'age DESC' 
+    });
+    expect(nextSortedPage.length).toBe(2);
+    expect(nextSortedPage[0].age).toBe(28); // Eve
+    expect(nextSortedPage[1].age).toBe(25); // Alice
+
+    // Test invalid sort field
+    await expect(repo.findAll({ _orderBy: 'invalidField ASC' }))
+      .rejects.toThrow();
+
+    // Test invalid pagination parameters
+    await expect(repo.findAll({ _limit: -1 }))
+      .rejects.toThrow();
+    await expect(repo.findAll({ _offset: -1 }))
+      .rejects.toThrow();
   });
 
   it('should serialize/deserialize JSON fields correctly', async () => {
@@ -138,19 +200,48 @@ describe('UserRepository (DrizzleSQLiteClient)', () => {
   });
 
   it('should handle boolean and date fields', async () => {
-    const user = { ...MOCK_USERS[0], id: 'u19', email: 'bool@test.com', phone: 'bool', isActive: true, birthDate: '2000-01-01' };
+    // Create a user with boolean and date fields
+    const user = {
+      ...MOCK_USERS[0],
+      id: 'bool_date_test',
+      email: 'bool_date@test.com',
+      phone: 'bool_date',
+      isOnline: true,
+      birthDate: '2000-01-01',
+      createdAt: new Date().toISOString()
+    };
+
+    // Create the user
     await repo.create(user);
-    const found = await repo.findById('u19');
-    if (!found) throw new Error('User not found');
-    // 使用 TypeGuardHelper 校验字段类型
-    const { TypeGuardHelper } = await import('@/core/lib/db/repositories/utils/type-guard-helper');
-    const userSchema = (await import('@/core/lib/db/schema/definitions/user-schema')).default;
-    if (found) TypeGuardHelper.validateInput(found, userSchema);
+
+    // Find the user and verify boolean field
+    const found = await repo.findById('bool_date_test');
     expect(found).toBeTruthy();
-    // 兼容 isActive 为 true/false/1/0，自动转布尔断言
-    expect(Boolean(found!.isActive)).toBe(true);
+    expect(found!.isOnline).toBe(true);
+
+    // Verify date field is properly stored and retrieved
     expect(found!.birthDate).toBe('2000-01-01');
     expect(new Date(found!.birthDate).toISOString()).toBe('2000-01-01T00:00:00.000Z');
+
+    // Update boolean field to false
+    await repo.update('bool_date_test', { isOnline: false });
+    const updated = await repo.findById('bool_date_test');
+    expect(updated!.isOnline).toBe(false);
+
+    // Update date field
+    const newDate = '2001-01-01';
+    await repo.update('bool_date_test', { birthDate: newDate });
+    const dateUpdated = await repo.findById('bool_date_test');
+    expect(dateUpdated!.birthDate).toBe(newDate);
+    expect(new Date(dateUpdated!.birthDate).toISOString()).toBe('2001-01-01T00:00:00.000Z');
+
+    // Test with different boolean values
+    const booleanValues = [true, false, 1, 0, 'true', 'false'];
+    for (const value of booleanValues) {
+      await repo.update('bool_date_test', { isOnline: value as boolean});
+      const result = await repo.findById('bool_date_test');
+      expect(Boolean(result!.isOnline)).toBe(Boolean(value));
+    }
   });
 
   it('should not find deleted user', async () => {

@@ -277,3 +277,27 @@ if (featureFlags?.betaQuiz) {
 - 适配产品不同阶段需求，支持渐进式演进。
 
 ---
+
+## PWA 架构下的渐进式适配器实践
+
+渐进式适配器策略与 PWA（Progressive Web App）架构天然契合，可实现多端一致性、离线能力与渐进增强：
+
+- **全生命周期适配**：
+  - 开发阶段可用本地 mock/provider，支持热重载、断网模拟与本地缓存，提升前端开发体验。
+  - 测试阶段可动态切换 provider，模拟多端同步、离线恢复、冲突解决。
+  - 生产阶段通过远程/混合 provider，结合 Service Worker 实现离线缓存、数据同步、实时推送等能力。
+
+- **核心变量联动**：
+  - 结合 `NEXT_PUBLIC_NODE_ENV`、`NEXT_PUBLIC_ENV_STAGE`、`NEXT_PUBLIC_DATA_MODE`、`NEXT_PUBLIC_PLATFORM` 等环境变量，自动切换不同 provider 及运行模式。
+  - 配置服务统一管理所有 provider/adapter，保证多端/PWA 下的配置一致性与安全性。
+
+- **PWA 特有能力**：
+  - Service Worker 支持静态资源与数据缓存，断网可用，自动同步。
+  - IndexedDB/SQLite 等本地存储方案与远程 provider 组合，支持混合/渐进式数据管理。
+  - 支持推送、消息实时性、前后台同步、渐进式增强等。
+
+- **最佳实践**：
+  - 所有 hooks、服务、适配器均应支持 provider 自动切换与热更新，适配 PWA 场景下的离线、同步、缓存、冲突解决等需求。
+  - 强调类型安全、配置服务统一入口、环境变量全链路同步，降低多端维护复杂度。
+
+> 渐进式适配器策略为 PWA 应用的多端适配、离线体验、数据一致性与弹性扩展提供了坚实基础，是现代前端架构的推荐模式。

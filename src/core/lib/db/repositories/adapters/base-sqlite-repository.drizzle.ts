@@ -2,7 +2,7 @@
 import { DrizzleSQLiteClient } from '@/core/lib/db/clients/sqlite/drizzle-sqlite-client';
 import { BaseEntity } from '@/core/lib/db/types/database';
 
-export abstract class BaseSQLiteRepository<T extends BaseEntity> {
+export abstract class BaseDrizzleSQLiteRepository<T extends BaseEntity> {
   protected client: DrizzleSQLiteClient<T>;
   protected table: string;
 

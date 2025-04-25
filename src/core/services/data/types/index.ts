@@ -1,14 +1,8 @@
-import type { BaseEntity, DatabaseConfig, DatabaseEngine, SyncConfig } from '@/core/lib/db/types/database';
-import { IService, ServiceConfig } from '@/core/services/types';
-
-// 数据服务通用查询结果
-export interface QueryResult<T> {
-  data: T[];
-  total: number;
-}
+import type { QueryOptions, QueryResult } from '@/core/lib/db/types/database';
+import type { BaseEntity } from '@/core/lib/db/types/base-entity';
 
 // 数据服务配置
-export interface DataServiceConfig extends ServiceConfig {
+export interface DataServiceConfig {
   services: {
     data: {
       adapter: 'firebase' | 'mock' | 'sqlite' | 'indexeddb' | 'drizzle';
@@ -34,54 +28,27 @@ export interface DataServiceConfig extends ServiceConfig {
           autoSave?: boolean;
           encryptionKey?: string;
         };
-        drizzle?: {
-          url: string;
-          schema?: string;
-        };
       };
     };
-  } & ServiceConfig['services'];
-  cache?: boolean;
-  encryption?: {
-    enabled: boolean;
-    key: string;
-    fields?: string[];
   };
 }
 
-// 数据服务接口
-export interface IDataService extends IService {
-  initialize(config?: ServiceConfig): Promise<void>;
-  dispose(): Promise<void>;
+export interface IDataService<T extends BaseEntity = BaseEntity> {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   clear(): Promise<void>;
-  query<T>(tableName: string, options?: any): Promise<T[]>;
-  findOne<T extends { id: string }>(tableName: string, id: string): Promise<T | null>;
-  insert<T extends { id: string }>(tableName: string, data: Partial<T>): Promise<T>;
-  update<T extends { id: string }>(tableName: string, id: string, data: Partial<T>): Promise<T | null>;
+  findOne(tableName: string, id: string): Promise<T | null>;
+  query(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
+  insert(tableName: string, data: Partial<T>): Promise<T>;
+  update(tableName: string, id: string, data: Partial<T>): Promise<void>;
   delete(tableName: string, id: string): Promise<void>;
   beginTransaction(): Promise<void>;
   commitTransaction(): Promise<void>;
   rollbackTransaction(): Promise<void>;
-  batch<T>(tableName: string, operations: Array<{
-    type: 'insert' | 'update' | 'delete';
-    data?: T | Partial<T>;
-    id?: string;
-  }>): Promise<void>;
-  executeRawQuery<T>(query: string, params?: any[]): Promise<T[]>;
+  batch(tableName: string, operations: any[]): Promise<void>;
+  executeRawQuery<R>(query: string, params?: any[]): Promise<R[]>;
   getType(): string;
   isInitialized(): boolean;
-  getConfig(): ServiceConfig;
-  on?(event: string, handler: (...args: any[]) => void): void;
-  off?(event: string, handler: (...args: any[]) => void): void;
-  /**
-   * 健康检查：返回健康状态及原因
-   */
-  checkHealth?(): Promise<{ healthy: boolean; reason?: string }>;
-}
-
-// 数据服务工厂接口
-export interface IDataServiceFactory {
-  createService(config: DataServiceConfig): IDataService;
+  getConfig(): any;
+  initialize(config?: any): Promise<void>;
 }

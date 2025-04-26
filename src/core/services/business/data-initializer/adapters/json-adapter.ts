@@ -1,6 +1,5 @@
 import { IDataInitializerAdapter } from '../types/data-initializer-adapter';
 import { IDatabaseClient } from '@/core/lib/db/interfaces';
-import { createDatabaseClient } from '@/core/lib/db/clients/factory';
 import { existsSync } from 'fs';
 
 export class JsonDataInitializerAdapter implements IDataInitializerAdapter {
@@ -8,7 +7,7 @@ export class JsonDataInitializerAdapter implements IDataInitializerAdapter {
   private filePath: string;
 
   constructor(private config: any) {
-    this.dbClient = createDatabaseClient('mock', config);
+    this.dbClient = config.dbClient;
     this.filePath = config.jsonFilePath || './mock-data.json';
   }
 

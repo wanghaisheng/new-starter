@@ -140,6 +140,32 @@ export interface QueryOptions {
   filter?: Record<string, any>;
 }
 
+export function parseQueryOptions(
+  input?: {
+    where?: any;
+    orderBy?: string | { field: string; direction: SortDirection };
+    limit?: number;
+    offset?: number;
+    [key: string]: any;
+  }
+): QueryOptions {
+  if (!input) return {};
+  let orderByObj: { field: string; direction: SortDirection } | undefined;
+  if (typeof input.orderBy === 'string') {
+    const [field, dir] = input.orderBy.split(':');
+    orderByObj = { field, direction: dir === 'desc' ? SortDirection.DESC : SortDirection.ASC };
+  } else if (input.orderBy) {
+    orderByObj = input.orderBy;
+  }
+  return {
+    where: input.where,
+    orderBy: orderByObj,
+    limit: input.limit,
+    offset: input.offset,
+    filter: input.filter,
+  };
+}
+
 export interface QueryResult<T> {
   items: T[];
   total?: number; // 可选，支持分页/统计
@@ -450,5 +476,3 @@ export interface PageResult<T> {
   page: number;
   pageSize: number;
 } 
-
-

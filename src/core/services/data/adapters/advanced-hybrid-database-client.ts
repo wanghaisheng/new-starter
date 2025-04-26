@@ -126,24 +126,24 @@ export class AdvancedHybridDatabaseClient extends HybridDatabaseClient implement
       return this.memoryCache.getCache(collection, id) as BaseEntity;
     }
     // 2. 查本地缓存
-    const local = await this.offlineStore.findOne(collection, id);
+    const local = await this.offlineStore.findById(collection, id);
     if (local) return local;
     // 3. 查在线数据库
-    if (this.onlineClient && typeof this.onlineClient.findOne === 'function') {
-      return this.onlineClient.findOne(collection, id);
+    if (this.onlineClient && typeof this.onlineClient.findById === 'function') {
+      return this.onlineClient.findById(collection, id);
     }
     return null;
   }
 
   // 多级缓存写
-  async insert(collection: string, data: Partial<BaseEntity>): Promise<BaseEntity> {
-    // 插入到本地和内存缓存
-    const localRes = await this.offlineStore.insert(collection, data);
+  async insert(collection: string, data: BaseEntity): Promise<BaseEntity> {
+    const localRes = await this.offlineStore.create(collection, data);
+    if (!localRes.id) throw new Error('Entity id is missing after create');
     this.memoryCache.setCache(collection, localRes.id, localRes);
     this.broadcastCacheUpdate(collection, localRes.id, 'set', localRes);
     // 异步同步到在线数据库
-    if (this.onlineClient && typeof this.onlineClient.insert === 'function') {
-      this.onlineClient.insert(collection, localRes).catch(() => {});
+    if (this.onlineClient && typeof this.onlineClient.create === 'function') {
+      this.onlineClient.create(collection, localRes).catch(() => {});
     }
     return localRes;
   }
@@ -152,7 +152,7 @@ export class AdvancedHybridDatabaseClient extends HybridDatabaseClient implement
     // 先更新本地
     await this.offlineStore.update(collection, id, data);
     // 重新获取更新后的实体
-    const localRes = await this.offlineStore.findOne(collection, id);
+    const localRes = await this.offlineStore.findById(collection, id);
     if (localRes) {
       this.memoryCache.setCache(collection, id, localRes);
       this.broadcastCacheUpdate(collection, id, 'set', localRes);
@@ -313,6 +313,68 @@ export class AdvancedHybridDatabaseClient extends HybridDatabaseClient implement
       }
       return false;
     });
+  }
+
+  async createMany(tableName: string, data: BaseEntity[]): Promise<BaseEntity[]> {
+    // 批量写入 memoryCache、offlineStore，异步同步到 onlineClient
+    const results: BaseEntity[] = [];
+    for (const entity of data) {
+      // memoryCache
+      if (this.memoryCache && typeof this.memoryCache.setCache === 'function') {
+        await this.memoryCache.setCache(tableName, entity.id, entity);
+      }
+      // offlineStore
+      await this.offlineStore.create(tableName, entity);
+      results.push(entity);
+      // 异步同步到 onlineClient
+      if (this.onlineClient && typeof this.onlineClient.create === 'function') {
+        this.onlineClient.create(tableName, entity).catch(() => {});
+      }
+      this.broadcastCacheUpdate?.(tableName, entity.id, 'set', entity);
+    }
+    return results;
+  }
+
+  async updateMany(tableName: string, ids: string[], updates: Partial<BaseEntity>): Promise<number> {
+    let count = 0;
+    for (const id of ids) {
+      // memoryCache
+      if (this.memoryCache && typeof this.memoryCache.getCache === 'function') {
+        const entity = await this.memoryCache.getCache(tableName, id);
+        if (entity) {
+          const updated = { ...entity, ...updates };
+          await this.memoryCache.setCache(tableName, id, updated);
+          this.broadcastCacheUpdate?.(tableName, id, 'set', updated);
+        }
+      }
+      // offlineStore
+      await this.offlineStore.update(tableName, id, updates);
+      // 异步同步到 onlineClient
+      if (this.onlineClient && typeof this.onlineClient.update === 'function') {
+        this.onlineClient.update(tableName, id, updates).catch(() => {});
+      }
+      count++;
+    }
+    return count;
+  }
+
+  async deleteMany(tableName: string, ids: string[]): Promise<number> {
+    let count = 0;
+    for (const id of ids) {
+      // memoryCache
+      if (this.memoryCache && typeof (this.memoryCache as any).removeCache === 'function') {
+        await (this.memoryCache as any).removeCache(tableName, id);
+        this.broadcastCacheUpdate?.(tableName, id, 'delete');
+      }
+      // offlineStore
+      await this.offlineStore.delete(tableName, id);
+      // 异步同步到 onlineClient
+      if (this.onlineClient && typeof this.onlineClient.delete === 'function') {
+        this.onlineClient.delete(tableName, id).catch(() => {});
+      }
+      count++;
+    }
+    return count;
   }
 
   // 事件监听标准化

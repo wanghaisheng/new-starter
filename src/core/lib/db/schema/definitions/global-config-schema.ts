@@ -1,7 +1,9 @@
-import { TableSchema, ColumnType } from '../types';
+import { TableSchema } from '../../types/database';
+import {ColumnType} from '../../types/common'
+
 import { schemaRegistry } from '../index';
 
-export const global-configSchema: TableSchema = {
+export const globalConfigSchema: TableSchema = {
   name: 'global-configs',
   columns: [
     { name: 'key', type: ColumnType.STRING, notNull: true },
@@ -14,6 +16,6 @@ export const global-configSchema: TableSchema = {
   ]
 };
 
-schemaRegistry.register(global-configSchema);
+schemaRegistry.register(globalConfigSchema);
 
-export default global-configSchema;
+export default globalConfigSchema;

@@ -172,7 +172,7 @@ export interface IDataServiceEventListenerMap {
 
 export type IDataServiceEvent = keyof IDataServiceEventListenerMap;
 
-export interface IDataService<T extends BaseEntity> {
+export interface IDataService<T extends BaseEntity = any> {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   clear(): Promise<void>;
@@ -191,6 +191,19 @@ export interface IDataService<T extends BaseEntity> {
   getConfig(): any;
   initialize(config?: any): Promise<void>;
   dispose?(): Promise<void>;
+
+  /**
+   * 批量创建（可重写为高性能实现，默认循环调用 create）
+   */
+  createMany?(tableName: string, data: T[]): Promise<T[]>;
+  /**
+   * 批量更新（可重写为高性能实现，默认循环调用 update）
+   */
+  updateMany?(tableName: string, ids: string[], updates: Partial<T>): Promise<number>;
+  /**
+   * 批量删除（可重写为高性能实现，默认循环调用 delete）
+   */
+  deleteMany?(tableName: string, ids: string[]): Promise<number>;
 
   /**
    * 事件订阅：监听数据服务事件（类型安全）。

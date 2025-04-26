@@ -1,7 +1,9 @@
-import { TableSchema, ColumnType } from '../types';
+import { TableSchema } from '../../types/database';
+import {ColumnType} from '../../types/common'
+
 import { schemaRegistry } from '../index';
 
-export const member-growthSchema: TableSchema = {
+export const memberGrowthSchema: TableSchema = {
   name: 'member-growths',
   columns: [
     { name: 'id', type: ColumnType.STRING, notNull: true, primaryKey: true },
@@ -18,6 +20,6 @@ export const member-growthSchema: TableSchema = {
   ]
 };
 
-schemaRegistry.register(member-growthSchema);
+schemaRegistry.register(memberGrowthSchema);
 
-export default member-growthSchema;
+export default memberGrowthSchema;

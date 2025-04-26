@@ -3,7 +3,7 @@ import { HybridDatabaseClient } from '../adapters/hybrid-database-client';
 import { AdvancedHybridDatabaseClient } from '../adapters/advanced-hybrid-database-client';
 import { MockHybridDatabaseClient } from '../adapters/mock-hybrid-database-client';
 import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
-import { configService } from '@/core/services/infrastructure/config';
+import { getAdapter } from '@/core/services/infrastructure/config/registry/config-registry';
 import { parseEnum } from '@/core/services/infrastructure/config/parse-enum';
 import type { ConfigSchema } from '@/core/services/infrastructure/config/config-types';
 import { ClientRegistry } from '../adapters/client-registry';
@@ -15,23 +15,34 @@ import {
   EnvStage,
   // 如需其它枚举可继续引入
 } from '@/core/lib/db/types/common';
-import { getNetworkManager } from '@/core/services/infrastructure/network/registry/network-registry';
 import { SyncManager } from '@/core/services/data/sync/sync-manager';
 import type { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { buildSyncManagerOptions } from './sync-manager-options-factory';
 import type { BaseSyncClient } from '@/core/services/data/sync/base-sync-client';
+import { DataServiceRegistry } from '../registry/data-service-registry';
+import { createNetworkManager } from '@/core/services/infrastructure/network/network-manager';
+
+// 程序启动后优先初始化配置服务，并输出日志
+const logger = LoggerService.getInstance();
+logger.info('[DataServiceFactory] 初始化配置服务...');
+const configService = getAdapter('configService'); // 或 ConfigService.getInstance()
+logger.info('[DataServiceFactory] 配置服务已初始化');
+if (!configService) {
+  throw new Error('[DataServiceFactory] configService 未注册或初始化失败');
+}
+const safeConfigService = configService!;
 
 function getDatabaseOptions(adapter: string): any {
   // 统一从配置服务获取所有数据服务相关变量
   switch (adapter) {
     case 'sqlite':
       return {
-        name: configService.get('NEXT_PUBLIC_SQLITE_DB_NAME') || 'app.db',
-        location: configService.get('NEXT_PUBLIC_SQLITE_DB_LOCATION'),
+        name: safeConfigService.get('NEXT_PUBLIC_SQLITE_DB_NAME') || 'app.db',
+        location: safeConfigService.get('NEXT_PUBLIC_SQLITE_DB_LOCATION'),
       };
     case 'indexeddb':
       return {
-        dbName: configService.get('NEXT_PUBLIC_INDEXEDDB_NAME') || 'app-indexeddb',
+        dbName: safeConfigService.get('NEXT_PUBLIC_INDEXEDDB_NAME') || 'app-indexeddb',
       };
     default:
       return {};
@@ -44,6 +55,13 @@ function getDatabaseOptions(adapter: string): any {
 function createBaseClient(config: DataServiceConfig): IDataService<BaseEntity> {
   const provider = config.services.data.onlineProvider ?? 'unknown-provider';
   const orm = config.services.data.orm || 'native';
+  const key = `${provider}:${orm}`;
+  // 优先从注册表获取
+  const existing = DataServiceRegistry.get(key);
+  if (existing) {
+    logger.info(`[DataServiceFactory] 命中 DataServiceRegistry: ${key}`);
+    return existing;
+  }
   if (!provider) {
     throw new Error('[DataServiceFactory] 缺少 provider 参数，无法创建底层 client');
   }
@@ -54,7 +72,10 @@ function createBaseClient(config: DataServiceConfig): IDataService<BaseEntity> {
   if (!ClientClass) {
     throw new Error(`[DataServiceFactory] 未注册的底层 client: provider=${provider}, orm=${orm}`);
   }
-  return new ClientClass({ ...config, ...getDatabaseOptions(provider) });
+  const instance = new ClientClass({ ...config, ...getDatabaseOptions(provider) });
+  DataServiceRegistry.register(key, instance);
+  logger.info(`[DataServiceFactory] 新建并注册 DataService: ${key}`);
+  return instance;
 }
 
 /**
@@ -80,6 +101,9 @@ function createSyncClientByConfig(config: DataServiceConfig): IDataService<BaseE
   const onlineProvider = data.options?.onlineProvider || options.onlineProvider;
   const tempCacheProvider = data.options?.tempCacheProvider || options.tempCacheProvider;
 
+  // 获取全局唯一 NetworkManager 实例
+  const networkManager = createNetworkManager();
+
   // 1. 高级多级缓存链路（memoryCache → offlineStore → onlineClient）
   if (cacheProvider && offlineProvider && onlineProvider) {
     // memoryCache 必须为 IMemoryCache 实现，需类型断言或类型保护
@@ -90,8 +114,6 @@ function createSyncClientByConfig(config: DataServiceConfig): IDataService<BaseE
     const memoryCache = memoryCacheCandidate as unknown as IMemoryCache;
     const offlineStore = createBaseClient({ ...config, services: { ...config.services, data: { ...data, onlineProvider: offlineProvider } } });
     const onlineClient = createBaseClient({ ...config, services: { ...config.services, data: { ...data, onlineProvider } } });
-    const networkManager = getNetworkManager();
-    // 关键：SyncManager 必须用 services/data/sync/sync-manager 实现
     const syncManager = new SyncManager({
       client: offlineStore as any, // 需为 BaseSyncClient 实现
       entityTypes: config.services?.data?.entityTypes || [],
@@ -204,12 +226,11 @@ export class DataServiceFactory {
       if (isAdvancedHybrid) {
         // 工厂负责实例化所有底层 client 和管理器，全部通过 createBaseClient 保证一致性
         const syncClient = createSyncClientByConfig(config);
-        const networkManager = getNetworkManager();
         // === 新方式：根据 provider 组合与配置，自动推断同步链路，生成 SyncManagerOptions ===
         // ⚠️ 仅当 syncClient 为 BaseSyncClient 类型时才注入，否则跳过同步管理器注入
         let syncManager: SyncManager | undefined = undefined;
         if (syncClient && typeof (syncClient as any).syncEntities === 'function') {
-          const syncManagerOptions = buildSyncManagerOptions(config, syncClient as any, networkManager);
+          const syncManagerOptions = buildSyncManagerOptions(config, syncClient as any, createNetworkManager());
           syncManager = new SyncManager(syncManagerOptions);
         }
         // 读取 cacheProvider，支持环境变量/配置驱动
@@ -230,7 +251,7 @@ export class DataServiceFactory {
             syncClient as IDataService<BaseEntity>,
             syncClient as IDataService<BaseEntity>,
             syncManager,
-            networkManager,
+            createNetworkManager(),
             cacheTTL,
             config.services?.data?.entityTypes || []
           );

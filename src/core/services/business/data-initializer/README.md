@@ -244,3 +244,59 @@ await DataInitializerService.initialize({
   - A: 支持传入部分 mock/json/sql 数据，按需初始化。
 
 ---
+
+## 数据服务集成与数据初始化最佳实践
+
+### 1. 数据服务注册机统一目标数据库
+- 所有目标数据库（如 Drizzle ORM、SQLite、IndexedDB、Mock 等）都应通过 `DataServiceRegistry` 注册和获取，无需 adapter 感知底层实现。
+- 推荐在项目启动或测试 bootstrap 阶段注册工厂：
+
+```typescript
+DataServiceRegistry.register('default', () => new DrizzleSQLiteClient(...));
+```
+
+- 获取实例：
+```typescript
+const dbClient = DataServiceRegistry.get('default');
+```
+
+### 2. 数据初始化适配器注入 dbClient
+- 所有 DataInitializerAdapter（如 memory/json/sql）均应支持通过参数注入 dbClient：
+
+```typescript
+const adapter = new JsonDataInitializerAdapter({
+  dbClient,
+  jsonFilePath: './mock-data.json',
+});
+await adapter.initialize();
+```
+
+### 3. 推荐 DataInitializerService 自动 glue
+- 通过 ConfigService 自动获取当前环境、导入类型及参数。
+- 通过 DataServiceRegistry 获取目标 dbClient。
+- 通过 DataInitializerRegistry 获取合适的适配器。
+
+```typescript
+import { ConfigService } from '@/core/services/infrastructure/config/service/config-service';
+import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
+import { DataInitializerRegistry } from './registry/data-initializer-registry';
+
+const configService = ConfigService.getInstance();
+const dbKey = configService.get('DB_KEY') || 'default';
+const importType = configService.get('MOCK_DB_IMPORT_MODE') || 'json';
+const dbClient = DataServiceRegistry.get(dbKey);
+const adapter = DataInitializerRegistry.getAdapter(importType, {
+  dbClient,
+  // 其它参数如 jsonFilePath、sqlDir 等
+});
+await adapter.initialize();
+```
+
+### 4. 优势总结
+- 目标数据库的所有配置与实例获取全部通过数据服务注册机统一管理，adapter 只需注入 dbClient。
+- 配置灵活，支持多种导入类型与多种目标数据库。
+- 适配器无需感知底层 ORM/数据库类型，代码高度解耦。
+
+---
+
+如需批量适配更多数据源或扩展新 adapter，请确保其构造参数支持 dbClient 注入即可。

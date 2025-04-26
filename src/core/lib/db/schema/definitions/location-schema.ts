@@ -1,5 +1,7 @@
-import { TableSchema, ColumnType } from '../types';
-import { schemaRegistry } from '../index';
+import { TableSchema } from '../../types/database';
+import {ColumnType} from '../../types/common'
+
+import { SchemaRegistry as schemaRegistry } from '../schema-registry';
 
 export const locationSchema: TableSchema = {
   name: 'locations',

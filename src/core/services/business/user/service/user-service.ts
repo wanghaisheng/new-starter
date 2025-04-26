@@ -1,6 +1,7 @@
 import type { IUserRepository } from '@/core/lib/db/repositories/types/user-repository.types';
 import type { IUserService } from '../types/user-service';
 import type { User } from '@/core/lib/db/types/user.types';
+import type { QueryResult } from '@/core/lib/db/types/database';
 import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
 import { UserRepository } from '@/core/lib/db/repositories/impl/user-repository';
 
@@ -32,7 +33,7 @@ export class UserService implements IUserService {
     await this.userRepo.update(user.id, user);
   }
 
-  async getUsers(): Promise<User[]> {
+  async getUsers(): Promise<QueryResult<User>> {
     return await this.userRepo.findAll();
   }
 
@@ -63,13 +64,14 @@ export class UserService implements IUserService {
     await this.userRepo.delete(id);
   }
 
-  async getUsersByIds(ids: string[]): Promise<User[]> {
+  async getUsersByIds(ids: string[]): Promise<QueryResult<User>> {
+    // 如果底层有批量查询接口可用，否则循环聚合
     const users: User[] = [];
     for (const id of ids) {
       const user = await this.userRepo.findById(id);
       if (user) users.push(user);
     }
-    return users;
+    return { items: users, total: users.length };
   }
 
   async createMatch(ids: string[]): Promise<any> {
@@ -84,8 +86,10 @@ export class UserService implements IUserService {
     throw new Error('Not implemented');
   }
 
-  async getRecommendedUsers(options?: any): Promise<User[]> {
-    return [];
+  async getRecommendedUsers(options?: any): Promise<QueryResult<User>> {
+    // 假设有推荐逻辑，这里仅做示例
+    const result = await this.userRepo.findAll({ recommended: true }, options);
+    return result;
   }
 
   async sendMessage(matchId: string, senderId: string, receiverId: string, content: string, type?: string): Promise<any> {
@@ -96,8 +100,10 @@ export class UserService implements IUserService {
     throw new Error('Not implemented');
   }
 
-  async getUsersByTags?(tags: string[]): Promise<User[]> {
-    return [];
+  async getUsersByTags?(tags: string[]): Promise<QueryResult<User>> {
+    // 假设有标签查询逻辑
+    const result = await this.userRepo.findAll({ tags: tags as any });
+    return result;
   }
 
   async getUserByEmail(email: string): Promise<User | null> {

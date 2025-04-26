@@ -10,13 +10,12 @@ import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { registerCoreSchemas } from './core-schemas';
 import { schemaRegistry } from './schema-registry-singleton';
 import { TableConverter } from './table-converter';
-import { DatabaseType, TableSchema, ColumnDefinition, IndexDefinition, ISchemaRegistry } from './types';
+import {  TableSchema, ColumnDefinition, IndexDefinition, ISchemaRegistry } from '../types/database';
 import { VersionManager } from './version-manager';
 import { databaseVersions } from './versions';
 
 // 导出类型定义
 export type {
-  DatabaseType,
   TableSchema,
   ColumnDefinition,
   IndexDefinition,

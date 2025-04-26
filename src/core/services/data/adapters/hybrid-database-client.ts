@@ -52,10 +52,95 @@ export class HybridDatabaseClient extends BaseDatabaseClient<BaseEntity> impleme
     return this.mode === 'online' ? this.onlineClient : this.offlineClient;
   }
 
+  async findById(tableName: string, id: string): Promise<BaseEntity | null> {
+    // 合并离线和在线数据，优先 offline
+    if (typeof this.offlineClient.findById === 'function') {
+      const res = await this.offlineClient.findById(tableName, id);
+      if (res) return res;
+    }
+    if (typeof this.onlineClient.findById === 'function') {
+      return await this.onlineClient.findById(tableName, id);
+    }
+    return null;
+  }
+
+  async create(tableName: string, data: BaseEntity): Promise<BaseEntity> {
+    // 主方法，优先 offline
+    if (typeof this.offlineClient.create === 'function') {
+      const res = await this.offlineClient.create(tableName, data);
+      // 异步同步到 online
+      if (typeof this.onlineClient.create === 'function') {
+        this.onlineClient.create(tableName, data).catch(() => {});
+      }
+      return res;
+    }
+    if (typeof this.onlineClient.create === 'function') {
+      return await this.onlineClient.create(tableName, data);
+    }
+    throw new Error('No create method available');
+  }
+
   async findOne(tableName: string, id: string): Promise<BaseEntity | null> {
-    // 保证返回 BaseEntity | null
-    const result = await this.getCurrentClient().findOne(tableName, id);
-    return result ?? null;
+    return this.findById(tableName, id);
+  }
+
+  async insert(tableName: string, data: BaseEntity): Promise<BaseEntity> {
+    return this.create(tableName, data);
+  }
+
+  async createMany(tableName: string, data: BaseEntity[]): Promise<BaseEntity[]> {
+    // 优先 offline，异步同步 online
+    const results: BaseEntity[] = [];
+    for (const entity of data) {
+      if (typeof this.offlineClient.create === 'function') {
+        const res = await this.offlineClient.create(tableName, entity);
+        results.push(res);
+        if (typeof this.onlineClient.create === 'function') {
+          this.onlineClient.create(tableName, entity).catch(() => {});
+        }
+      }
+    }
+    return results;
+  }
+
+  async updateMany(tableName: string, ids: string[], updates: Partial<BaseEntity>): Promise<number> {
+    let count = 0;
+    for (const id of ids) {
+      await this.update(tableName, id, updates);
+      count++;
+    }
+    return count;
+  }
+
+  async deleteMany(tableName: string, ids: string[]): Promise<number> {
+    let count = 0;
+    for (const id of ids) {
+      await this.delete(tableName, id);
+      count++;
+    }
+    return count;
+  }
+
+  async findAll(tableName: string, filter?: Record<string, any>): Promise<BaseEntity[]> {
+    // 合并离线和在线数据，去重
+    const results: any[][] = [];
+    if (typeof this.offlineClient.findAll === 'function') {
+      results.push(await this.offlineClient.findAll(tableName, filter));
+    }
+    if (typeof this.onlineClient.findAll === 'function') {
+      results.push(await this.onlineClient.findAll(tableName, filter));
+    }
+    // 扁平化并去重（以 id 为主）
+    const flat = ([] as any[]).concat(...results);
+    const seen = new Set();
+    return flat.filter(item => {
+      const id = (item as any)?.id;
+      if (!id || !seen.has(id)) {
+        if (id) seen.add(id);
+        return true;
+      }
+      return false;
+    });
   }
 
   async query(tableName: string, options: QueryOptions): Promise<QueryResult<BaseEntity>> {
@@ -68,13 +153,7 @@ export class HybridDatabaseClient extends BaseDatabaseClient<BaseEntity> impleme
     return { items: Array.isArray(result) ? result : [], total: Array.isArray(result) ? result.length : 0 };
   }
 
-  async insert(tableName: string, data: Partial<BaseEntity>): Promise<BaseEntity> {
-    // 保证 insert 返回 BaseEntity
-    return this.getCurrentClient().insert(tableName, data);
-  }
-
   async update(tableName: string, id: string, data: Partial<BaseEntity>): Promise<void> {
-    // 保证 update 返回 void
     await this.getCurrentClient().update(tableName, id, data);
   }
 
@@ -157,36 +236,6 @@ export class HybridDatabaseClient extends BaseDatabaseClient<BaseEntity> impleme
     // 可选: 关闭底层 client 连接
     await this.offlineClient.disconnect?.();
     await this.onlineClient.disconnect?.();
-  }
-
-  async findById(tableName: string, id: string): Promise<BaseEntity | null> {
-    return this.findOne(tableName, id);
-  }
-
-  async findAll<T>(tableName: string, filter?: Record<string, any>): Promise<T[]> {
-    // 合并离线和在线数据，去重
-    const results: any[][] = [];
-    if (typeof this.offlineClient.findAll === 'function') {
-      results.push(await this.offlineClient.findAll(tableName, filter));
-    }
-    if (typeof this.onlineClient.findAll === 'function') {
-      results.push(await this.onlineClient.findAll(tableName, filter));
-    }
-    // 扁平化并去重（以 id 为主）
-    const flat = ([] as any[]).concat(...results);
-    const seen = new Set();
-    return flat.filter(item => {
-      const id = (item as any)?.id;
-      if (!id || !seen.has(id)) {
-        if (id) seen.add(id);
-        return true;
-      }
-      return false;
-    });
-  }
-
-  async create(tableName: string, data: Partial<BaseEntity>): Promise<BaseEntity> {
-    return this.insert(tableName, data);
   }
 
   async count(tableName: string, options?: QueryOptions): Promise<number> {

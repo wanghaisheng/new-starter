@@ -1,6 +1,9 @@
 import { BaseClient } from '../../clients/base-client';
-import { IBaseRepository } from '../../types/repository';
+import { IBaseRepository } from '../types/base-repository.types';
 import type { BaseEntity } from '../../types/base-entity';
+import type { QueryResult } from '../../types/database';
+import type { SortDirection } from '../../types/common';
+import { parseQueryOptions } from '../../types/database';
 
 /**
  * 通用仓储基类，封装基础 CRUD 操作（可被具体实体仓储继承）
@@ -27,10 +30,13 @@ export class BaseRepository<T extends BaseEntity> implements IBaseRepository<T> 
   }
 
   /** 查询所有实体，支持条件筛选、分页、排序 */
-  async findAll(filter?: Partial<T> & { _limit?: number; _offset?: number; _orderBy?: string }): Promise<T[]> {
-    // 透传 filter 到 client.findAll，支持高级筛选
-    const result = await this.client.findAll(this.table, filter);
-    return result as T[];
+  async findAll(
+    filter?: Partial<T>,
+    options?: { limit?: number; offset?: number; orderBy?: string | { field: string; direction: SortDirection } }
+  ): Promise<QueryResult<T>> {
+    const queryOptions = parseQueryOptions({ where: filter, ...options });
+    const result = await this.client.query(this.table, queryOptions);
+    return result;
   }
 
   /** 更新实体 */
@@ -46,8 +52,41 @@ export class BaseRepository<T extends BaseEntity> implements IBaseRepository<T> 
   }
 
   /** 通用查询接口（可用于复杂条件） */
-  async query(query: Record<string, any>): Promise<T[]> {
-    const result = await this.client.query(this.table, query);
-    return (result && (result as any).rows) ? (result as any).rows as T[] : [];
+  async query(
+    filter?: Partial<T>,
+    options?: { limit?: number; offset?: number; orderBy?: string | { field: string; direction: SortDirection } }
+  ): Promise<QueryResult<T>> {
+    const queryOptions = parseQueryOptions({ where: filter, ...options });
+    const result = await this.client.query(this.table, queryOptions);
+    return result;
+  }
+
+  /** 批量创建实体（默认串行实现，可被子类重写为批量操作） */
+  async createMany?(entities: T[]): Promise<T[]> {
+    const results: T[] = [];
+    for (const entity of entities) {
+      results.push(await this.create(entity));
+    }
+    return results;
+  }
+
+  /** 批量更新实体（默认串行实现，可被子类重写为批量操作） */
+  async updateMany?(ids: string[], updates: Partial<T>): Promise<number> {
+    let count = 0;
+    for (const id of ids) {
+      const updated = await this.update(id, updates);
+      if (updated) count++;
+    }
+    return count;
+  }
+
+  /** 批量删除实体（默认串行实现，可被子类重写为批量操作） */
+  async deleteMany?(ids: string[]): Promise<number> {
+    let count = 0;
+    for (const id of ids) {
+      const deleted = await this.delete(id);
+      if (deleted) count++;
+    }
+    return count;
   }
 }

@@ -1,6 +1,6 @@
 import { ISchemaRegistry, TableSchema } from '../types/database';
 
-export class SchemaRegistry implements ISchemaRegistry {
+export default class SchemaRegistry implements ISchemaRegistry {
   private static instance: SchemaRegistry;
   private schemas: Map<string, TableSchema>;
 

@@ -62,9 +62,71 @@ describe('UserRepository (KyselySQLiteClient)', () => {
     await repo.create({ ...MOCK_USERS[0], id: 'u6', email: 'a@kysely.com', phone: 'a' });
     await repo.create({ ...MOCK_USERS[1], id: 'u7', email: 'b@kysely.com', phone: 'b' });
     const all = await repo.findAll();
-    expect(all.length).toBeGreaterThanOrEqual(2);
-    const ids = all.map(u => u.id);
+    expect(Array.isArray(all.rows)).toBe(true);
+    expect(all.rows.length).toBeGreaterThanOrEqual(2);
+    const ids = all.rows.map((u: User) => u.id);
     expect(ids).toContain('u6');
     expect(ids).toContain('u7');
+  });
+
+  it('should createMany users', async () => {
+    const users = [
+      { ...MOCK_USERS[0], id: 'u8', email: 'u8@kysely.com', phone: 'multi1' },
+      { ...MOCK_USERS[1], id: 'u9', email: 'u9@kysely.com', phone: 'multi2' }
+    ];
+    if (repo.createMany) {
+      const created = await repo.createMany(users);
+      expect(Array.isArray(created)).toBe(true);
+      expect(created.length).toBe(2);
+      const all = await repo.findAll();
+      const ids = all.rows.map((u: User) => u.id);
+      expect(ids).toContain('u8');
+      expect(ids).toContain('u9');
+    } else {
+      throw new Error('createMany not implemented');
+    }
+  });
+
+  it('should updateMany users', async () => {
+    const users = [
+      { ...MOCK_USERS[0], id: 'u10', name: 'A', email: 'u10@kysely.com', phone: 'umany1' },
+      { ...MOCK_USERS[1], id: 'u11', name: 'B', email: 'u11@kysely.com', phone: 'umany2' }
+    ];
+    if (repo.createMany && repo.updateMany) {
+      await repo.createMany(users);
+      const updatedCount = await repo.updateMany(['u10', 'u11'], { name: 'Updated' });
+      expect(updatedCount).toBe(2);
+      const all = await repo.findAll();
+      for (const u of all.rows.filter((u: User) => ['u10','u11'].includes(u.id))) {
+        expect(u.name).toBe('Updated');
+      }
+    } else {
+      throw new Error('createMany or updateMany not implemented');
+    }
+  });
+
+  it('should deleteMany users', async () => {
+    const users = [
+      { ...MOCK_USERS[0], id: 'u12', email: 'u12@kysely.com', phone: 'dmany1' },
+      { ...MOCK_USERS[1], id: 'u13', email: 'u13@kysely.com', phone: 'dmany2' }
+    ];
+    if (repo.createMany && repo.deleteMany) {
+      await repo.createMany(users);
+      const deletedCount = await repo.deleteMany(['u12', 'u13']);
+      expect(deletedCount).toBe(2);
+      const all = await repo.findAll();
+      const ids = all.rows.map((u: User) => u.id);
+      expect(ids).not.toContain('u12');
+      expect(ids).not.toContain('u13');
+    } else {
+      throw new Error('createMany or deleteMany not implemented');
+    }
+  });
+
+  it('should query users with orderBy', async () => {
+    await repo.create({ ...MOCK_USERS[0], id: 'u14', name: 'Z', email: 'u14@kysely.com', phone: 'order1' });
+    await repo.create({ ...MOCK_USERS[1], id: 'u15', name: 'A', email: 'u15@kysely.com', phone: 'order2' });
+    const result = await repo.findAll({}, { orderBy: { field: 'name', direction: 'asc' } });
+    expect(result.rows[0].name <= result.rows[1].name).toBe(true);
   });
 });

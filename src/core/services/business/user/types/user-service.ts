@@ -1,4 +1,4 @@
-// 用户服务接口定义及适配器接口统一
+import type { QueryResult } from '@/core/lib/db/types/database';
 import type { User } from '@/core/lib/db/types/user.types';
 
 /**
@@ -13,20 +13,20 @@ export interface IUserAdapter {
   /** 更新用户资料（支持 tags/profile 字段） */
   updateUserProfile(id: string, updates: Partial<User>): Promise<User>;
   saveCurrentUser(user: User): Promise<void>;
-  getUsers(): Promise<User[]>;
+  getUsers(): Promise<QueryResult<User>>;
   saveUsers(users: User[]): Promise<void>;
   createUser(user: Partial<User>): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User>;
   syncOfflineProfileUpdates(): Promise<number>;
   deleteUser(id: string): Promise<void>;
-  getUsersByIds(ids: string[]): Promise<User[]>;
+  getUsersByIds(ids: string[]): Promise<QueryResult<User>>;
   createMatch(ids: string[]): Promise<any>;
   getMatches(id: string, options?: any): Promise<any[]>;
   deleteMatch(matchId: string): Promise<void>;
-  getRecommendedUsers(options?: any): Promise<User[]>;
+  getRecommendedUsers(options?: any): Promise<QueryResult<User>>;
   sendMessage(matchId: string, senderId: string, receiverId: string, content: string, type?: string): Promise<any>;
   markMessageAsRead(messageId: string): Promise<any>;
-  getUsersByTags?(tags: string[]): Promise<User[]>;
+  getUsersByTags?(tags: string[]): Promise<QueryResult<User>>;
 }
 
 /**

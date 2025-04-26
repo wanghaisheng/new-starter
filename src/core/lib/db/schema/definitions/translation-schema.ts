@@ -1,4 +1,7 @@
-import { TableSchema, ColumnType } from '../types';
+import {ColumnType} from '../../types/common'
+
+import { TableSchema } from '../../types/database';
+
 import { schemaRegistry } from '../index';
 
 export const translationSchema: TableSchema = {

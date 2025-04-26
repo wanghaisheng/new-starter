@@ -44,11 +44,15 @@ export class CustomCompositeAdapter implements IDataService<BaseEntity> {
   }
 
   /**
-   * findOne: 依次查找所有适配器，返回第一个命中的数据
+   * findById: 依次查找所有适配器，返回第一个命中的数据
    */
-  async findOne(tableName: string, id: string): Promise<BaseEntity | null> {
+  async findById(tableName: string, id: string): Promise<BaseEntity | null> {
     for (const adapter of this.adapters) {
-      if (typeof adapter.findOne === 'function') {
+      if (typeof adapter.findById === 'function') {
+        const result = await adapter.findById(tableName, id);
+        if (result !== null && result !== undefined) return result;
+      } else if (typeof adapter.findOne === 'function') {
+        // 兼容旧接口
         const result = await adapter.findOne(tableName, id);
         if (result !== null && result !== undefined) return result;
       }
@@ -57,18 +61,31 @@ export class CustomCompositeAdapter implements IDataService<BaseEntity> {
   }
 
   /**
-   * insert: 将数据插入所有适配器，返回第一个插入结果
+   * create: 将数据插入所有适配器，返回第一个插入结果
    */
-  async insert(tableName: string, data: Partial<BaseEntity>): Promise<BaseEntity> {
+  async create(tableName: string, data: BaseEntity): Promise<BaseEntity> {
     let inserted: BaseEntity | undefined;
     for (const adapter of this.adapters) {
-      if (typeof adapter.insert === 'function') {
+      if (typeof adapter.create === 'function') {
+        const res = await adapter.create(tableName, data);
+        if (inserted === undefined) inserted = res;
+      } else if (typeof adapter.insert === 'function') {
+        // 兼容旧接口
         const res = await adapter.insert(tableName, data);
         if (inserted === undefined) inserted = res;
       }
     }
-    if (inserted === undefined) throw new Error('No adapter could insert data');
+    if (inserted === undefined) throw new Error('No adapter could create data');
     return inserted;
+  }
+
+  // 兼容性补丁：findOne/insert 保留但内部调用新版方法
+  async findOne(tableName: string, id: string): Promise<BaseEntity | null> {
+    return this.findById(tableName, id);
+  }
+  async insert(tableName: string, data: Partial<BaseEntity>): Promise<BaseEntity> {
+    // 允许 Partial 但强转为 BaseEntity，兼容历史调用
+    return this.create(tableName, data as BaseEntity);
   }
 
   /**

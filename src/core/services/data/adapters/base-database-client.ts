@@ -39,13 +39,13 @@ export abstract class BaseDatabaseClient<T extends BaseEntity = BaseEntity>
     if (this.cacheEnabled) this.cache.clear();
   }
 
-  // Abstract methods for IDataService compliance (签名与 BaseClient 保持一致)
+  // Abstract methods for IDataService compliance
   abstract connect(): Promise<void>;
   abstract disconnect(): Promise<void>;
   abstract clear(): Promise<void>;
-  abstract findOne(tableName: string, id: string): Promise<T | null>;
+  abstract findById(tableName: string, id: string): Promise<T | null>;
   abstract query(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
-  abstract insert(tableName: string, data: Partial<T>): Promise<T>;
+  abstract create(tableName: string, data: T): Promise<T>;
   abstract update(tableName: string, id: string, data: Partial<T>): Promise<void>;
   abstract delete(tableName: string, id: string): Promise<void>;
   abstract beginTransaction(): Promise<void>;
@@ -57,6 +57,10 @@ export abstract class BaseDatabaseClient<T extends BaseEntity = BaseEntity>
   abstract isInitialized(): boolean;
   abstract getConfig(): any;
   abstract initialize(config?: DataServiceConfig): Promise<void>;
+  abstract createMany(tableName: string, data: T[]): Promise<T[]>;
+  abstract updateMany(tableName: string, ids: string[], updates: Partial<T>): Promise<number>;
+  abstract deleteMany(tableName: string, ids: string[]): Promise<number>;
+  abstract findAll(tableName: string, filter?: Record<string, any>): Promise<T[]>;
 
   async get(key: string): Promise<any> {
     // 默认内存缓存实现

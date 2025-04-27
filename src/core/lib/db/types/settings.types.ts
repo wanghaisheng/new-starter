@@ -1,4 +1,5 @@
 import { BaseEntity } from './base-entity';
+import { UserTheme } from './common';
 
 /**
  * 设置主类型
@@ -43,7 +44,7 @@ export interface SettingsUpdate {
  * 用户设置相关类型定义
  */
 export interface UserSettings {
-  theme: 'light' | 'dark';
+  theme: UserTheme;
   language: string;
   notificationsEnabled: boolean;
 }

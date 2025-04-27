@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
-import { createQuizReportAdapter, QuizReportAdapterType } from '@/core/services/business/quiz/factory/report-adapter-factory';
-import type { IQuizReportAdapter } from '@/core/services/business/quiz/types/quiz-service';
+import { createQuizReportAdapter, QuizReportAdapterType } from '@/core/services/business/deprecated/quiz/factory/report-adapter-factory';
+import type { IQuizReportAdapter } from '@/core/services/business/deprecated/quiz/types/quiz-service';
 
 /**
  * useQuizReportAdapter - 获取测评报告适配器实例（插件式，可扩展）

@@ -1,4 +1,5 @@
 import { IService, ServiceConfig } from '../types';
+import { SyncStatusEnum } from '@/core/lib/db/types/common';
 
 /**
  * 业务服务类型
@@ -71,7 +72,7 @@ export interface IPaymentService extends IService {
  */
 export interface ISyncService extends IService {
   sync(): Promise<void>;
-  getSyncStatus(): Promise<{ lastSync: Date; status: 'success' | 'error' | 'in_progress' }>;
+  getSyncStatus(): Promise<{ lastSync: Date; status: SyncStatusEnum }>;
   resolveConflicts(conflicts: any[]): Promise<void>;
 }
 
@@ -82,4 +83,4 @@ export interface ITestService extends IService {
   runTests(): Promise<{ passed: number; failed: number; results: any[] }>;
   generateTestReport(): Promise<string>;
   mockService(serviceType: string, mockImplementation: any): void;
-} 
+}

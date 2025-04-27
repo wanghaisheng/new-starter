@@ -100,7 +100,7 @@ describe('UserService (integration, sqlite-drizzle)', () => {
     await service.createUser(userA);
     await service.createUser(userB);
     const users = await service.getUsers();
-    const ids = users.map(u => u.id);
+    const ids = users.map((u: User) => u.id);
     expect(ids).toContain('u6');
     expect(ids).toContain('u7');
   });
@@ -114,5 +114,44 @@ describe('UserService (integration, sqlite-drizzle)', () => {
     // 这里通过直接 mock repo.create 返回 null 测试异常（略，实际集成场景很难出现）
     // await expect(service.createUser({})).rejects.toThrow('User create failed');
     expect(true).toBe(true);
+  });
+
+  it('should support batch create and get all users', async () => {
+    const users: User[] = [
+      { ...MOCK_USERS[0], id: 'u8', email: 'unique8@test.com', phone: 'u8' },
+      { ...MOCK_USERS[0], id: 'u9', email: 'unique9@test.com', phone: 'u9' },
+    ];
+    for (const user of users) {
+      await service.createUser(user);
+    }
+    const allUsers = await service.getUsers();
+    expect(allUsers.map((u: User) => u.id)).toEqual(expect.arrayContaining(['u8', 'u9']));
+  });
+
+  it('should update and then delete user, and get null after delete', async () => {
+    const user: User = { ...MOCK_USERS[0], id: 'u10', email: 'unique10@test.com', phone: 'u10', name: 'Old' };
+    await service.createUser(user);
+    await service.updateUserProfile('u10', { name: 'New' });
+    const updated = await service.getUserById('u10');
+    expect(updated?.name).toBe('New');
+    await service.deleteUser('u10');
+    const deleted = await service.getUserById('u10');
+    expect(deleted).toBeNull();
+  });
+
+  it('should not allow duplicate email or phone', async () => {
+    const user: User = { ...MOCK_USERS[0], id: 'u11', email: 'unique11@test.com', phone: 'u11' };
+    await service.createUser(user);
+    await expect(service.createUser({ ...user, id: 'u12' })).rejects.toThrow();
+    await expect(service.createUser({ ...user, id: 'u13', email: 'u13@test.com' })).rejects.toThrow();
+    await expect(service.createUser({ ...user, id: 'u14', phone: 'u14' })).rejects.toThrow();
+  });
+
+  it('should get user by id, email, and phone (integration)', async () => {
+    const user: User = { ...MOCK_USERS[0], id: 'u15', email: 'unique15@test.com', phone: 'u15' };
+    await service.createUser(user);
+    expect(await service.getUserById('u15')).toBeTruthy();
+    expect(await service.getUserByEmail('unique15@test.com')).toBeTruthy();
+    expect(await service.getUserByPhone('u15')).toBeTruthy();
   });
 });

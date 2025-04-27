@@ -13,7 +13,9 @@ export enum InfrastructureServiceType {
 /**
  * 环境
  */
-export type Environment = 'development' | 'production' | 'test';
+import { EnvStage } from '@/core/lib/db/types/common';
+
+export type Environment = EnvStage;
 
 // --- ServiceConfig ---
 /**

@@ -4,7 +4,7 @@ import {ColumnType} from '../../types/common'
 import { schemaRegistry } from '../index';
 
 export const globalConfigSchema: TableSchema = {
-  name: 'global-configs',
+  name: 'global_configs',
   columns: [
     { name: 'key', type: ColumnType.STRING, notNull: true },
     { name: 'value', type: ColumnType.JSON, notNull: true },

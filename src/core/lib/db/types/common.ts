@@ -51,6 +51,21 @@ export enum Platform {
   DESKTOP = 'desktop',
 }
 
+// ---- 平台类型 ----
+export enum AppPlatformEnum {
+  WEB = 'web',
+  ANDROID = 'android',
+  IOS = 'ios',
+  UNKNOWN = 'unknown',
+}
+
+// ---- 应用环境类型 ----
+export enum AppEnvironmentEnum {
+  DEVELOPMENT = 'development',
+  TEST = 'test',
+  PRODUCTION = 'production',
+}
+
 // ---- 认证类型 ----
 export enum AuthType {
   JWT = 'jwt',
@@ -182,6 +197,19 @@ export enum DatabaseErrorCode {
   UNSUPPORTED = 'UNSUPPORTED',
 }
 
+// ---- 基础设施服务类型 ----
+export enum InfrastructureServiceType {
+  LOGGER = 'logger',
+  DATABASE = 'database',
+  CACHE = 'cache',
+  QUEUE = 'queue',
+  STORAGE = 'storage',
+  CONFIG = 'config',
+  METRICS = 'metrics',
+  TRACING = 'tracing',
+  OTHER = 'other',
+}
+
 // ---- 临时/会话缓存 Provider ----
 export enum TempCacheProvider {
   MEMORY = 'memory',
@@ -253,38 +281,105 @@ export enum ExpiryStrategy {
   LRU = 'lru',
 }
 
+// ---- 网络服务提供方 ----
+export enum NetworkProviderType {
+  MOCK = 'mock',
+  BROWSER = 'browser',
+  CAPACITOR = 'capacitor',
+  DEFAULT = 'default',
+}
+
 // ---- 用户服务类型 ----
 export enum UserServiceType {
   MOCK = 'mock',
-  FIREBASE = 'firebase',
-}
-
-// ---- 消息服务类型 ----
-export enum MessageServiceType {
-  MOCK = 'mock',
-}
-
-// ---- 通知服务类型 ----
-export enum NotificationServiceType {
-  MOCK = 'mock',
-}
-
-// ---- 支付服务类型 ----
-export enum PaymentServiceType {
-  REVENUECAT = 'revenuecat',
-  MOCK = 'mock',
+  REMOTE = 'remote',
+  HYBRID = 'hybrid',
 }
 
 // ---- 测验服务类型 ----
 export enum QuizServiceType {
   MOCK = 'mock',
+  REMOTE = 'remote',
+  HYBRID = 'hybrid',
 }
 
 // ---- 认证服务类型 ----
 export enum AuthServiceType {
+  MOCK = 'mock',
+  PERSISTENT_MOCK = 'persistent-mock',
   FIREBASE = 'firebase',
-  NEXTAUTH = 'nextauth',
-  BETTERAUTH = 'betterauth',
+  BETTER = 'better',
+  HYBRID = 'hybrid',
+}
+
+// ---- 日志服务提供方 ----
+export enum LoggerProviderType {
+  MOCK = 'mock',
+  WINSTON = 'winston',
+  PINO = 'pino',
+  DEFAULT = 'default',
+}
+
+// ---- 匹配服务类型 ----
+export enum MatchServiceType {
+  MOCK = 'mock',
+  REMOTE = 'remote',
+  HYBRID = 'hybrid',
+  BRAND_A = 'brandA',
+  BRAND_B = 'brandB',
+}
+
+// ---- 通知服务类型 ----
+export enum NotificationServiceType {
+  MOCK = 'mock',
+  REMOTE = 'remote',
+  HYBRID = 'hybrid',
+}
+
+// ---- 支付服务类型 ----
+export enum PaymentServiceType {
+  REVENUECAT = 'revenuecat',
+  CAPACITOR_PURCHASES = 'capacitor-purchases',
+  STRIPE = 'stripe',
+  WECHAT = 'wechat',
+  MOCK = 'mock',
+}
+
+// ---- 用户主题 ----
+export enum UserTheme {
+  LIGHT = 'light',
+  DARK = 'dark',
+}
+
+// ---- 测验类型 ----
+export enum QuizTypeKey {
+  PERSONALITY = 'personality',
+  COMPATIBILITY = 'compatibility',
+  // ... 可补充其它类型
+}
+
+// ---- 邮件服务提供方 ----
+export enum EmailProvider {
+  MOCK = 'mock',
+  SMTP = 'smtp',
+  DEFAULT = 'default',
+}
+
+// ---- 预加载事件与状态 ----
+export enum PreloadEventEnum {
+  PRELOAD_START = 'preload:start',
+  PRELOAD_SUCCESS = 'preload:success',
+  PRELOAD_ERROR = 'preload:error',
+  CACHE_EXPIRED = 'cache:expired',
+  NETWORK_ONLINE = 'network:online',
+  NETWORK_OFFLINE = 'network:offline',
+}
+
+export enum PreloadStatusEnum {
+  IDLE = 'idle',
+  PRELOADING = 'preloading',
+  SUCCESS = 'success',
+  ERROR = 'error',
 }
 
 // ---- 环境变量相关枚举 ----
@@ -300,4 +395,60 @@ export enum EnvStage {
   LOCAL = 'local',
   DEV = 'dev',
   PROD = 'prod',
+}
+
+// ---- 用户性别 ----
+export enum Gender {
+  MALE = 'male',
+  FEMALE = 'female',
+  OTHER = 'other',
+}
+
+// ---- 用户提供方 ----
+export enum UserProvider {
+  EMAIL = 'email',
+  PHONE = 'phone',
+  GOOGLE = 'google',
+  FACEBOOK = 'facebook',
+  APPLE = 'apple',
+}
+
+// ---- 实体通用状态 ----
+export enum EntityStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  SUSPENDED = 'suspended',
+}
+
+// ---- 消息类型 ----
+export enum MessageType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  AUDIO = 'audio',
+  VIDEO = 'video',
+}
+
+// ---- 消息状态 ----
+export enum MessageStatus {
+  SENT = 'sent',
+  DELIVERED = 'delivered',
+  READ = 'read',
+  FAILED = 'failed',
+}
+
+// ---- 同步状态类型 ----
+export enum SyncStatusEnum {
+  SUCCESS = 'success',
+  ERROR = 'error',
+  IN_PROGRESS = 'in_progress',
+}
+
+// ---- 翻译服务类型 ----
+export enum TranslationServiceType {
+  MOCK = 'mock',
+  REMOTE = 'remote',
+  HYBRID = 'hybrid',
 }

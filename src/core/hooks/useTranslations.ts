@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { TranslationServiceRegistry } from '@/core/services/business/translation/registry/translation-service-registry';
+import { TranslationServiceRegistry } from '@/core/services/infrastructure/translation/registry/translation-service-registry';
 
 /**
  * useTranslations - 全局内容多语言 hook

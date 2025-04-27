@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { PaymentServiceRegistry } from '@/core/services/business/payment/registry/payment-service-registry';
-import type { PurchaseResult } from '@/core/services/business/payment/types/payment-service';
+import { PaymentServiceRegistry } from '@/core/services/infrastructure/payment/registry/payment-service-registry';
+import type { PurchaseResult } from '@/core/services/infrastructure/payment/types/payment-service';
 import { useToast } from './useToast';
 
 export function useRestorePurchases() {

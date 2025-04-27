@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageServiceRegistry } from '@/core/services/business/messages/registry/message-service-registry';
+import { MessageServiceRegistry } from '@/core/services/business/deprecated/messages/registry/message-service-registry';
 import type { Message } from '@/core/lib/db/types/message.types';
 import { useToast } from './useToast';
 

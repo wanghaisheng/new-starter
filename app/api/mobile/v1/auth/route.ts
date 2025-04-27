@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateRequest } from '@/app/api/_lib/utils/validation';
 import { APIResponseBuilder } from '@/app/api/_lib/utils/response';
-import { AuthService } from '@/core/services/business/auth/service/auth-service';
+import { AuthService } from '@/core/services/infrastructure/auth/service/auth-service';
 
 // POST /api/mobile/v1/auth/login - User login
 export async function POST(req: NextRequest) {

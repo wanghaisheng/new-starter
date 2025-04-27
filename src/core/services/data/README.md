@@ -1,5 +1,84 @@
 # 数据服务设计文档（2025重构版）
 
+> 本文档为 HeyTCM 项目数据服务（Data Service）分层及设计规范，配合 [../service-design-guidelines.md](../service-design-guidelines.md) 一起使用。
+> - 业务服务设计规范详见 [../business/README.md](../business/README.md)
+> - 基础服务设计规范详见 [../infrastructure/README.md](../infrastructure/README.md)
+
+---
+
+## 插件化注册表 + 工厂 + 适配器架构（强制要求）
+- 数据服务必须采用“插件化注册表 + 工厂 + 适配器 + 接口”分层模式。
+- 数据服务实例只能通过注册表（Registry）获取，禁止直接 new/Adapter/Factory。
+- 支持多 provider/多实例/动态扩展/运行时注册，满足 mock/remote/hybrid/多品牌等需求。
+- 注册表层应内置实例缓存，确保每类数据服务全局唯一（单例），避免重复创建和资源浪费。
+- 支持运行时注册新 Adapter，满足插件化、A/B 测试、品牌定制等需求。
+
+## 统一接口与类型安全
+- 数据服务接口建议以 `IDataService` 命名，类型定义集中在 `types/` 目录。
+- 注册表/工厂暴露的获取服务实例方法签名统一，推荐如下：
+  ```typescript
+  getProvider(
+    type: string,         // provider 类型（如 mock/remote/hybrid）
+    name?: string,        // 实例名，默认 'default'
+    options?: object      // 其它扩展参数
+  ): () => IDataService
+  ```
+  或
+  ```typescript
+  getService(name?: string, options?: object): IDataService
+  ```
+- hooks/页面/业务层只能通过注册表暴露的统一接口获取数据服务实例，严禁直接调用工厂、适配器或 new。
+- 所有数据服务实例必须满足接口类型约束，便于类型推断、自动补全和团队协作。
+
+## 标准数据服务接口方法（与 types/index.ts 保持一致）
+
+> 统一采用 `findById(tableName, id)`，避免歧义。所有方法参数与返回值类型严格参照 `src/core/services/data/types/index.ts`。
+
+```typescript
+// 泛型 T extends BaseEntity = any
+findById<T>(tableName: string, id: string): Promise<T | null>;
+query<T>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
+create<T>(tableName: string, data: T): Promise<T>;
+update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+delete(tableName: string, id: string): Promise<void>;
+
+// 批量/事务方法
+createMany<T>(tableName: string, data: T[]): Promise<T[]>;
+updateMany<T>(tableName: string, ids: string[], updates: Partial<T>): Promise<number>;
+deleteMany(tableName: string, ids: string[]): Promise<number>;
+batch(tableName: string, operations: any[]): Promise<void>;
+beginTransaction(): Promise<void>;
+commitTransaction(): Promise<void>;
+rollbackTransaction(): Promise<void>;
+
+// 能力/状态方法
+isInitialized(): boolean;
+getStats?(): Promise<any>;
+checkHealth?(): Promise<{ healthy: boolean; reason?: string }>;
+
+// 其它常用方法
+clear(): Promise<void>;
+get(key: string): Promise<any>;
+set(key: string, value: any): Promise<void>;
+
+// 详见 src/core/services/data/types/index.ts
+```
+
+- 所有方法均为泛型，类型安全。
+- query 的 options 类型为 QueryOptions，返回 QueryResult<T>。
+- update 返回 void（如需返回更新后实体，需自定义实现）。
+- 状态/能力方法建议统一用 isInitialized/checkHealth/getStats。
+- findOne 仅为部分适配器的兼容实现，主接口为 findById。
+
+---
+
+## 类型安全与泛型
+- 所有数据服务、工厂、注册表建议用泛型约束返回值和参数类型，提升类型推断和开发体验。
+  ```typescript
+  interface IDataService<T> { /* ... */ }
+  class DataServiceRegistry<T> { /* ... */ }
+  ```
+
 ---
 
 ## 一、架构模式与开发阶段选择
@@ -195,9 +274,9 @@ const syncStrategy = getConfig('SYNC_STRATEGY');
 
 | 能力方法 | 说明 | 阶段 | 当前实现情况 |
 |---|---|---|---|
-| findOne | 查询单条数据 | 基础 | 所有主流 Adapter 已实现 |
-| findAll | 查询多条数据 | 基础 | 所有主流 Adapter 已实现 |
-| insert | 插入数据 | 基础 | 所有主流 Adapter 已实现 |
+| findById | 查询单条数据 | 基础 | 所有主流 Adapter 已实现 |
+| query | 查询多条数据 | 基础 | 所有主流 Adapter 已实现 |
+| create | 插入数据 | 基础 | 所有主流 Adapter 已实现 |
 | update | 更新数据 | 基础 | 所有主流 Adapter 已实现 |
 | delete | 删除数据 | 基础 | 所有主流 Adapter 已实现 |
 | get/set | KV 读写 | 基础 | 多数 Adapter 已实现 |

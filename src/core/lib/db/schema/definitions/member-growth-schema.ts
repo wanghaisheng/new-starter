@@ -4,7 +4,7 @@ import {ColumnType} from '../../types/common'
 import { schemaRegistry } from '../index';
 
 export const memberGrowthSchema: TableSchema = {
-  name: 'member-growths',
+  name: 'member_growths',
   columns: [
     { name: 'id', type: ColumnType.STRING, notNull: true, primaryKey: true },
     { name: 'createdAt', type: ColumnType.STRING, notNull: true },

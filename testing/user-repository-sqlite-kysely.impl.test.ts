@@ -123,6 +123,29 @@ describe('UserRepository (KyselySQLiteClient)', () => {
     }
   });
 
+  it('should updateMany and deleteMany users', async () => {
+    const users = [
+      { ...MOCK_USERS[0], id: 'd1', email: 'd1@kysely.com', phone: 'd1' },
+      { ...MOCK_USERS[1], id: 'd2', email: 'd2@kysely.com', phone: 'd2' }
+    ];
+    if (repo.createMany && repo.updateMany && repo.deleteMany) {
+      await repo.createMany(users);
+      await repo.updateMany([users[0].id, users[1].id], { name: 'BatchKysely' });
+      const all = await repo.findAll();
+      expect(all.rows.every((u: User) => u.name === 'BatchKysely')).toBe(true);
+      await repo.deleteMany([users[0].id, users[1].id]);
+      const after = await repo.findAll();
+      expect((after.rows.map((u: User) => u.id) as string[]).includes('d1')).toBe(false);
+      expect((after.rows.map((u: User) => u.id) as string[]).includes('d2')).toBe(false);
+    }
+  });
+
+  it('should throw on duplicate email', async () => {
+    const user = { ...MOCK_USERS[0], id: 'dup1', email: 'dup@kysely.com', phone: 'dup1' };
+    await repo.create(user);
+    await expect(repo.create({ ...user, id: 'dup2' })).rejects.toThrow();
+  });
+
   it('should query users with orderBy', async () => {
     await repo.create({ ...MOCK_USERS[0], id: 'u14', name: 'Z', email: 'u14@kysely.com', phone: 'order1' });
     await repo.create({ ...MOCK_USERS[1], id: 'u15', name: 'A', email: 'u15@kysely.com', phone: 'order2' });

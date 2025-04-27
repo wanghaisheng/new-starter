@@ -1,8 +1,6 @@
 // 测评相关类型定义
 import { BaseEntity } from './base-entity';
-
-// QuizTypeKey 联合类型，所有 quiz 类型唯一 key
-export type QuizTypeKey = 'personality' | 'love' | 'career'; // TODO: 补全所有 quiz 类型 key
+import { QuizTypeKey } from './common';
 
 /**
  * 测评类型主类型

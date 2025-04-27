@@ -1,16 +1,16 @@
-import { AuthServiceFactory } from './auth/factory/auth-service-factory';
+import { AuthServiceFactory } from '../infrastructure/auth/factory/auth-service-factory';
 import { UserServiceFactory } from './user/factory/user-service-factory';
-import { MatchServiceRegistry } from './match/registry/match-service-registry';
-import { MessageServiceFactory } from './messages/factory/message-service-factory';
-import { QuizServiceFactory } from './quiz/factory/quiz-service-factory';
-import { NotificationServiceFactory } from './notifications/factory/notification-service-factory';
-import { PaymentService } from './payment/service/payment-service';
-import type { IAuthService } from './auth/types/auth-service';
+import { MatchServiceRegistry } from './deprecated/match/registry/match-service-registry';
+import { MessageServiceFactory } from './deprecated/messages/factory/message-service-factory';
+import { QuizServiceFactory } from './deprecated/quiz/factory/quiz-service-factory';
+import { NotificationServiceFactory } from '../infrastructure/notifications/factory/notification-service-factory';
+import { PaymentService } from '../infrastructure/payment/service/payment-service';
+import type { IAuthService } from '../infrastructure/auth/types/auth-service';
 import type { IUserService } from './user/types/user-service';
-import type { IMatchService } from './match/types/match-service';
-import type { IMessageService } from './messages/types/message-service';
-import type { IQuizService, IQuizAIService, IQuizReportService } from './quiz/types/quiz-service';
-import type { INotificationService } from './notifications/types/notification-service';
+import type { IMatchService } from './deprecated/match/types/match-service';
+import type { IMessageService } from './deprecated/messages/types/message-service';
+import type { IQuizService, IQuizAIService, IQuizReportService } from './deprecated/quiz/types/quiz-service';
+import type { INotificationService } from '../infrastructure/notifications/types/notification-service';
 import { DataServiceRegistry } from '../data/registry/data-service-registry';
 
 // AppService 统一管理所有业务服务实例，建议所有页面/组件仅通过 hooks 间接访问服务

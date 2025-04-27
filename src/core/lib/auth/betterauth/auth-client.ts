@@ -1,5 +1,5 @@
 import { createAuthClient } from "better-auth/client";
-import { AuthError, AuthSession } from "@/core/services/business/auth/types/auth-service";
+import { AuthError, AuthSession } from "@/core/services/infrastructure/auth/types/auth-service";
 import { User } from "@/core/lib/db/types/user";
 import { useCallback, useEffect, useState } from "react";
 

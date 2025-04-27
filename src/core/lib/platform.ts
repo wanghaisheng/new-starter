@@ -5,15 +5,17 @@
  * 支持检测 Web、Android、iOS 平台以及开发、测试和生产环境。
  */
 
+import { AppPlatformEnum, AppEnvironmentEnum } from '@/core/lib/db/types/common';
+
 /**
  * 平台类型
  */
-export type AppPlatform = 'web' | 'android' | 'ios' | 'unknown';
+export type AppPlatform = AppPlatformEnum;
 
 /**
  * 环境类型
  */
-export type AppEnvironment = 'development' | 'test' | 'production';
+export type AppEnvironment = AppEnvironmentEnum;
 
 /**
  * 检查是否在 Capacitor 环境中运行

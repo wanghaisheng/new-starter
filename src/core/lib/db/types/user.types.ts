@@ -2,7 +2,10 @@
 import { BaseEntity } from './base-entity';
 import { Location } from './location.types';
 import { Photo } from './photo.types';
-import { QuizType, QuizTypeKey } from './quiz.types';
+import { QuizType } from './quiz.types';
+import { Gender, UserProvider } from './common';
+import { QuizTypeKey } from './common';
+import { EntityStatus } from './common';
 
 /**
  * 用户实体接口
@@ -40,43 +43,118 @@ export interface User extends BaseEntity {
    * 八字命理标签与分析结果（用于智能匹配�?   */
   bazi?: Record<string, any>;
   
-  /** 
+  /**
    * 性别
-   * - male: 男�?   * - female: 女�?   * - other: 其他
    */
-  gender: 'male' | 'female' | 'other';
+  gender?: Gender;
   
-  /** 用户照片列表 */
-  photos: Photo[];
-  
-  /** 个人简介（可选） */
-  bio?: string;
-  
-  /** 兴趣爱好列表 */
+  /**
+   * 用户兴趣爱好列表
+   * 对应数据库 interests 字段，JSON 存储
+   */
   interests: string[];
-  
-  /** 职业（可选） */
-  occupation?: string;
-  
-  /** 教育背景（可选） */
-  education?: string;
-  
-  /** 用户位置信息 */
+
+  /**
+   * 用户照片列表
+   * 对应数据库 photos 字段，JSON 存储
+   */
+  photos: Photo[];
+
+  /**
+   * 用户位置
+   * 对应数据库 location 字段，JSON 存储
+   */
   location: Location;
-  
-  /** 偏好设置 */
+
+  /**
+   * 偏好设置
+   * 对应数据库 preferences 字段，JSON 存储
+   */
   preferences: UserPreferences;
-  
-  /** 隐私设置 */
+
+  /**
+   * 隐私设置
+   * 对应数据库 privacySettings 字段，JSON 存储
+   */
   privacySettings: PrivacySettings;
-  
-  /** 通知设置 */
+
+  /**
+   * 通知设置
+   * 对应数据库 notificationSettings 字段，JSON 存储
+   */
   notificationSettings: NotificationSettings;
 
-  /** 安全设置 */
+  /**
+   * 安全设置
+   * 对应数据库 securitySettings 字段，JSON 存储，可选
+   */
   securitySettings?: SecuritySettings;
-  
-  
+
+  /**
+   * 用户状态
+   */
+  status: EntityStatus;
+
+  /**
+   * 邮箱是否已验证
+   */
+  emailVerified?: boolean;
+
+  /**
+   * 手机号是否已验证
+   */
+  phoneVerified?: boolean;
+
+  /**
+   * 密码哈希
+   */
+  passwordHash?: string;
+
+  /**
+   * 认证提供方
+   */
+  provider?: UserProvider;
+
+  /**
+   * 显示名称
+   */
+  displayName?: string;
+
+  /**
+   * 头像URL
+   */
+  photoURL?: string;
+
+  /**
+   * 手机号码
+   */
+  phoneNumber?: string;
+
+  /**
+   * 未读通知数量
+   */
+  unreadNotifications?: number;
+
+  /**
+   * 用户标签
+   */
+  tags?: string[];
+
+  /**
+   * 用户画像/AI报告
+   */
+  profile?: any;
+
+  /**
+   * MBTI（十六型人格）类型
+   */
+  mbti?: string;
+
+  /**
+   * 扩展字段
+   */
+  ext?: Record<string, any>;
+
   /** 是否已验证账�?*/
   isVerified: boolean;
   
@@ -85,43 +163,7 @@ export interface User extends BaseEntity {
   
   /** 是否在线 */
   isOnline: boolean;
-  
-  /**
-   * 用户状�?   * - active: 活跃状�?   * - inactive: 不活跃状�?   * - suspended: 暂停/受限状�?   */
-  status: 'active' | 'inactive' | 'suspended';
 
-  /** 认证相关字段 */
-  /** 邮箱是否已验�?*/
-  emailVerified?: boolean;
-  /** 手机号是否已验证 */
-  phoneVerified?: boolean;
-  /** 密码哈希 */
-  passwordHash?: string;
-  /** 认证提供�?*/
-  provider?: 'email' | 'phone' | 'google' | 'facebook' | 'apple';
-  /** 显示名称 */
-  displayName?: string;
-  /** 头像URL */
-  photoURL?: string;
-  /** 手机号码 */
-  phoneNumber?: string;
-
-  /** 未读通知数量 */
-  unreadNotifications?: number;
-
-  /** 用户标签 */
-  tags?: string[];
-
-  /** 用户画像/AI报告 */
-  profile?: any;
-
-  /**
-   * MBTI（十六型人格）类�?   * 例如�?INTJ"�?ENFP" �?   * 用于智能匹配、兴趣画像等业务场景
-   */
-  mbti?: string;
-
-  /** 扩展字段 */
-  ext?: Record<string, any>;
 }
 
 /**
@@ -138,7 +180,7 @@ export interface UserPreferences {
   distance: number;
   
   /** 性别偏好 */
-  gender: ('male' | 'female' | 'other')[];
+  gender: (Gender)[];
   
   /** 感兴趣的话题/标签 */
   interests: string[];
@@ -234,7 +276,7 @@ export interface CreateUserData {
   nickname?: string;
   birthDate: string;
   birthTime?: string;
-  gender: 'male' | 'female' | 'other';
+  gender: Gender;
   bio?: string;
   photos?: Photo[];
   interests?: string[];
@@ -263,7 +305,7 @@ export interface UpdateUserData {
   preferences?: UserPreferences;
   notificationSettings?: NotificationSettings;
   isVerified?: boolean;
-  status?: 'active' | 'inactive' | 'suspended';
+  status?: EntityStatus;
 
   /** 扩展字段 */
   ext?: Record<string, any>;

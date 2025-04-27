@@ -1,5 +1,6 @@
 // 会员成长任务配置类型定义
 import { BaseEntity } from './base-entity';
+import { EntityStatus } from './common';
 
 /**
  * 会员成长任务主类型
@@ -7,7 +8,7 @@ import { BaseEntity } from './base-entity';
 export interface MemberGrowthTask extends BaseEntity {
   userId: string;
   taskId: string;
-  status: string;
+  status: EntityStatus;
   progress: number;
   /** 扩展字段 */
   ext?: Record<string, any>;

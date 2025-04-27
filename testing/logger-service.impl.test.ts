@@ -44,7 +44,7 @@ describe('LoggerService', () => {
 
   it('should return correct service type and config', () => {
     expect(logger.getServiceType()).toBe(InfrastructureServiceType.LOGGER);
-    expect(logger.getConfig()).toMatchObject({ id: 'logger', type: 'logger' });
+    expect(logger.getConfig()).toMatchObject({ id: 'logger', type: InfrastructureServiceType.LOGGER });
   });
 
   it('should not throw on log methods', () => {

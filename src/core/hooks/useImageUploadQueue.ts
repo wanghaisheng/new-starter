@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { getDefaultService, getImageAdapter } from '@/core/services/business/image/registry/image-service-registry';
+import { getDefaultService, getImageAdapter } from '@/core/services/infrastructure/image/registry/image-service-registry';
 
 // 统一通过工厂获取服务实例，支持配置和依赖注入
 export function useImageUploadQueue(type?: string, dependencies?: Record<string, any>) {

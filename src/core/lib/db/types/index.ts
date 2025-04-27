@@ -27,7 +27,6 @@ export type { BatchOperation as DatabaseBatchOperation } from './database';
 
 // 新增导出
 // export * from './database-error';
-export * from './database-logger';
 
 /**
  * 类型推断工具：获取表结构对应的类型定义

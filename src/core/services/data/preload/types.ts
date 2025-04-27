@@ -1,10 +1,6 @@
-export type PreloadEvent =
-  | 'preload:start'
-  | 'preload:success'
-  | 'preload:error'
-  | 'cache:expired'
-  | 'network:online'
-  | 'network:offline';
+import { PreloadEventEnum, PreloadStatusEnum } from '@/core/lib/db/types/common';
+
+export type PreloadEvent = PreloadEventEnum;
 
 export type PreloadCallback = (payload?: any) => void;
 
@@ -59,7 +55,7 @@ export interface PreloadCacheEntry<T = any> {
 }
 
 /** 预加载状态类型 */
-export type PreloadStatus = 'idle' | 'preloading' | 'success' | 'error';
+export type PreloadStatus = PreloadStatusEnum;
 
 /**
  * 统一的预加载结果类型

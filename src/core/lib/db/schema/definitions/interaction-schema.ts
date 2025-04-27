@@ -13,7 +13,7 @@ export const interactionSchema: TableSchema = {
     { name: 'targetUserId', type: ColumnType.STRING, notNull: true },
     { name: 'reason', type: ColumnType.STRING, notNull: true },
     { name: 'details', type: ColumnType.STRING, notNull: false },
-    { name: 'status', type: ColumnType.STRING, notNull: true },
+    { name: 'status', type: ColumnType.STRING, notNull: false },
     { name: 'resolution', type: ColumnType.JSON, notNull: false },
     { name: 'ext', type: ColumnType.JSON, notNull: false }
   ],

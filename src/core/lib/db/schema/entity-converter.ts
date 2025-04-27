@@ -1,17 +1,48 @@
 import { BaseEntity, CreateEntityData, UpdateEntityData, DatabaseRecord } from '@/core/lib/db/types/base-entity';
+import { TableSchema } from '../types/database';
+import { ColumnType } from '../types/common';
 
-import { TableSchema, ColumnType } from '../types/database';
+/**
+ * 类型安全的数据库读取后自动反序列化 JSON 字段
+ * @param value 数据库字段
+ * @param defaultValue 类型安全的默认值（如 []、{}、0、''）
+ */
+export function deserializeJsonField<T>(value: string | null | undefined, defaultValue: T): T {
+  if (value === null || value === undefined || value === 'null' || value === '') return defaultValue;
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed !== typeof defaultValue) return defaultValue;
+    return parsed as T;
+  } catch {
+    return defaultValue;
+  }
+}
 
-export class EntityConverter<T extends BaseEntity> {
+/**
+ * 类型安全判断是否为 Date 对象
+ */
+export function isDate(val: any): val is Date {
+  return typeof val === 'object' && val !== null && Object.prototype.toString.call(val) === '[object Date]' && !isNaN(val.getTime());
+}
+
+/**
+ * EntityConverter 支持类型安全的实体 <-> 数据库存储对象转换。
+ * 
+ * 泛型参数说明：
+ *   T - 业务实体类型（如 Match, User）
+ *   DB - 数据库存储类型（如 Match, User，或自定义 DbRecord 类型）
+ * 
+ * 推荐 DB 默认等于 T，除非有特殊需求。
+ */
+export class EntityConverter<T extends BaseEntity, DB = T> {
   constructor(private readonly schema: TableSchema) {}
 
   /**
    * 将实体数据转换为数据库格式
+   * 保证返回类型与 DB 一致，类型安全
    */
-  toDatabase<D extends CreateEntityData<T> | UpdateEntityData<T>>(data: D): Omit<T, keyof BaseEntity> {
+  toDatabase(data: T | Partial<T>): DB {
     const result: Record<string, any> = {};
-    console.log('[EntityConverter.toDatabase] 输入数据:', JSON.stringify(data));
-    // 只处理 schema.columns 中定义的字段
     for (const column of this.schema.columns) {
       let value = (data as any)[column.name];
       if (value === undefined) {
@@ -20,50 +51,47 @@ export class EntityConverter<T extends BaseEntity> {
       }
       switch (column.type) {
         case ColumnType.DATETIME:
-          result[column.name] = value instanceof Date ? value.toISOString() : value;
+          result[column.name] = isDate(value) ? value.toISOString() : value;
           break;
         case ColumnType.JSON:
           result[column.name] = typeof value === 'string' ? value : JSON.stringify(value);
           break;
         case ColumnType.BOOLEAN:
-          // SQLite 只接受 1/0，强制转换
           result[column.name] = value ? 1 : 0;
           break;
         default:
           result[column.name] = value;
       }
     }
-    // 打印所有字段类型和值
-    console.log('[EntityConverter.toDatabase] 字段类型:', Object.entries(result).map(([k,v]) => [k, typeof v, v]));
-    return result as Omit<T, keyof BaseEntity>;
+    return result as DB;
   }
 
   /**
-   * 将数据库数据转换为实体格式
+   * 将数据库格式数据转换为实体对象
+   * 保证返回类型与 T 一致，类型安全
    */
-  fromDatabase(data: Record<string, any>): T {
-    console.log('[EntityConverter.fromDatabase] 输入数据:', JSON.stringify(data));
-    const result: Record<string, any> = { ...data };
-    
-    // 遍历 schema 中定义的列
+  fromDatabase(record: DB): T {
+    const entity: Record<string, any> = {};
     for (const column of this.schema.columns) {
-      const value = result[column.name];
-      
-      // 如果值存在，根据列类型进行转换
-      if (value !== undefined) {
-        switch (column.type) {
-          case ColumnType.DATETIME:
-            result[column.name] = value instanceof Date ? value : new Date(value);
-            break;
-          case ColumnType.JSON:
-            result[column.name] = typeof value === 'string' ? JSON.parse(value) : value;
-            break;
-          default:
-            result[column.name] = value;
-        }
+      let value = (record as any)[column.name];
+      if (value === undefined || value === null) {
+        entity[column.name] = null;
+        continue;
+      }
+      switch (column.type) {
+        case ColumnType.DATETIME:
+          entity[column.name] = typeof value === 'string' ? value : value?.toISOString?.() ?? value;
+          break;
+        case ColumnType.JSON:
+          entity[column.name] = typeof value === 'string' ? deserializeJsonField(value, {}) : value;
+          break;
+        case ColumnType.BOOLEAN:
+          entity[column.name] = value === 1 || value === true;
+          break;
+        default:
+          entity[column.name] = value;
       }
     }
-    console.log('[EntityConverter.fromDatabase] 转换后:', JSON.stringify(result));
-    return result as T;
+    return entity as T;
   }
-} 
+}

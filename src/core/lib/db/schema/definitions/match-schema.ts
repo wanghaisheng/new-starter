@@ -3,6 +3,15 @@ import {ColumnType} from '../../types/common'
 
 import { schemaRegistry } from '../index';
 
+export enum EntityStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  SUSPENDED = 'suspended'
+}
+
 export const matchSchema: TableSchema = {
   name: 'matchs',
   columns: [
@@ -11,7 +20,7 @@ export const matchSchema: TableSchema = {
     { name: 'updatedAt', type: ColumnType.STRING, notNull: true },
     { name: 'userAId', type: ColumnType.STRING, notNull: true },
     { name: 'userBId', type: ColumnType.STRING, notNull: true },
-    { name: 'status', type: ColumnType.STRING, notNull: true },
+    { name: 'status', type: ColumnType.STRING, notNull: false },
     { name: 'ext', type: ColumnType.JSON, notNull: true }
   ],
   indexes: [

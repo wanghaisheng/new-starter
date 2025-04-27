@@ -1,4 +1,5 @@
 import { BaseEntity } from './base-entity';
+import { EntityStatus } from './common';
 
 /**
  * 匹配实体类型
@@ -7,7 +8,7 @@ export interface Match extends BaseEntity {
   id: string;
   userAId: string;
   userBId: string;
-  status: 'pending' | 'active' | 'closed' | string;
+  status: EntityStatus;
   createdAt: string;
   updatedAt: string;
   ext: Record<string, any>;
@@ -32,6 +33,6 @@ export interface CreateMatchData {
 }
 
 export interface UpdateMatchData {
-  status?: 'pending' | 'active' | 'closed' | string;
+  status?: EntityStatus;
   ext?: Record<string, any>;
 }

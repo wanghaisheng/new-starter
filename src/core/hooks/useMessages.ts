@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageServiceRegistry } from '@/core/services/business/messages/registry/message-service-registry';
+import { MessageServiceRegistry } from '@/core/services/business/deprecated/messages/registry/message-service-registry';
 import type { Message, CreateMessageData, UpdateMessageData } from '@/core/lib/db/types/message.types';
-import type { IMessageService } from '@/core/services/business/messages/types/message-service';
+import type { IMessageService } from '@/core/services/business/deprecated/messages/types/message-service';
 import { useToast } from './useToast';
 
 export interface UseMessagesResult {

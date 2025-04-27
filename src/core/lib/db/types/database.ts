@@ -60,6 +60,7 @@ import {
   DatabaseEvent,
   SyncState,
   DatabaseErrorCode,
+  EnvStage,
 } from './common';
 
 // ---- 类型定义区（接口、类型别名等） ----
@@ -311,7 +312,7 @@ export interface CursorOptions {
   endBefore?: any;
 }
 
-export type DatabaseEnvironment = 'mock' | 'local' | 'development' | 'production' | 'test';
+export type DatabaseEnvironment = EnvStage;
 
 export const SUPPORTED_ONLINE_STORAGE_TYPES = [
   'memory',

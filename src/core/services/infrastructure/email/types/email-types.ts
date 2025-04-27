@@ -1,5 +1,7 @@
 // email-types.ts
-export type EmailProviderType = 'mock' | 'smtp' | 'default' | string;
+import { EmailProvider } from '@/core/lib/db/types/common';
+
+export type EmailProviderType = typeof EmailProvider[keyof typeof EmailProvider];
 
 export interface EmailConfig {
   provider?: EmailProviderType;

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { DataInitializerService } from '@/core/services/business/data-initializer/data-initializer.service';
+import { DataInitializerService } from '@/core/services/infrastructure/data-initializer/data-initializer.service';
 
 // mock fs/promises
 vi.mock('fs', () => ({

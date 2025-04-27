@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { PaymentServiceRegistry } from '@/core/services/business/payment/registry/payment-service-registry';
+import { PaymentServiceRegistry } from '@/core/services/infrastructure/payment/registry/payment-service-registry';
 import { useToast } from './useToast';
-import type { Subscription } from '@/core/services/business/payment/types/payment-service';
+import type { Subscription } from '@/core/services/infrastructure/payment/types/payment-service';
 
 export function useSubscribe() {
   const [loading, setLoading] = useState(false);

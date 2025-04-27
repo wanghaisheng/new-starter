@@ -1,9 +1,11 @@
 // network-types.ts
 
-export type NetworkProviderType = 'mock' | 'browser' | 'capacitor' | 'default' | string;
+import { NetworkProviderType } from '@/core/lib/db/types/common';
+
+export type NetworkProviderTypeAlias = NetworkProviderType;
 
 export interface NetworkConfig {
-  provider?: NetworkProviderType;
+  provider?: NetworkProviderTypeAlias;
   [key: string]: any;
 }
 

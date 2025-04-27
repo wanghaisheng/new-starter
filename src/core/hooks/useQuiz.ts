@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { QuizServiceRegistry } from '@/core/services/business/quiz/registry/quiz-service-registry';
+import { QuizServiceRegistry } from '@/core/services/business/deprecated/quiz/registry/quiz-service-registry';
 import { DataServiceFactory } from '@/core/services/data/factory/data-service-factory';
-import type {  IQuizService } from '@/core/services/business/quiz/types/quiz-service';
+import type {  IQuizService } from '@/core/services/business/deprecated/quiz/types/quiz-service';
 import type { Quiz, QuizQuestion, QuizResult } from '@/core/lib/db/types/quiz.types';
 import { useToast } from './useToast';
 

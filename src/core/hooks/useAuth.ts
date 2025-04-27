@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AuthServiceFactory } from '@/core/services/business/auth/factory/auth-service-factory';
-import { AuthEventManager, AuthEventData } from '@/core/services/business/auth/factory/auth-events';
+import { AuthServiceFactory } from '@/core/services/infrastructure/auth/factory/auth-service-factory';
+import { AuthEventManager, AuthEventData } from '@/core/services/infrastructure/auth/factory/auth-events';
 import { useAuthStore } from '@/core/store/auth-store';
-import type { IAuthService, AuthUser, AuthResult } from '@/core/services/business/auth/types/auth-service';
+import type { IAuthService, AuthUser, AuthResult } from '@/core/services/infrastructure/auth/types/auth-service';
 import { useToast } from './useToast';
 
 /**

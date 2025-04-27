@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PaymentServiceRegistry } from '@/core/services/business/payment/registry/payment-service-registry';
+import { PaymentServiceRegistry } from '@/core/services/infrastructure/payment/registry/payment-service-registry';
 import type { Subscription } from '@/core/lib/db/types/payment.types';
 import { useToast } from './useToast';
 

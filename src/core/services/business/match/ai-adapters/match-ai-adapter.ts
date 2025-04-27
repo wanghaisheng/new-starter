@@ -1,4 +1,4 @@
-import { User } from '@/core/lib/db/types/user';
+import { User } from '@/core/lib/db/types/user.types';
 
 /**
  * 匹配算法适配器接口：统一地理、标签、八字、MBTI等算法入口
@@ -16,6 +16,10 @@ export interface IMatchAIAdapter {
   mbtiMatch(userAMBTI: string, userBMBTI: string): number;
   /** 随机匹配（兜底） */
   matchRandom(candidates: User[], limit?: number): User[];
+  /** 手机品牌筛选/加分 */
+  matchByPhoneBrand(user: User, candidates: User[], targetBrands?: string[]): User[];
+  /** 城市地理位置筛选 */
+  matchByCity(user: User, candidates: User[], targetCities?: string[]): User[];
   /**
    * 综合多机制智能匹配
    * @param user 当前用户
@@ -32,5 +36,9 @@ export interface IMatchAIAdapter {
     useMBTI?: boolean;
     mbtiType?: string;
     limit?: number;
+    /** 新增：手机品牌筛选 */
+    phoneBrands?: string[];
+    /** 新增：城市筛选 */
+    cities?: string[];
   }): User[];
 }

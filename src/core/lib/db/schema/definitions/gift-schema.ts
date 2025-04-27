@@ -1,5 +1,6 @@
 import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
+// import { EntityStatus } from '../../types/entity'; // 已移除无效引用
 
 import { schemaRegistry } from '../index';
 
@@ -12,7 +13,7 @@ export const giftSchema: TableSchema = {
     { name: 'name', type: ColumnType.STRING, notNull: true },
     { name: 'iconUrl', type: ColumnType.STRING, notNull: true },
     { name: 'value', type: ColumnType.NUMBER, notNull: true },
-    { name: 'status', type: ColumnType.STRING, notNull: true },
+    { name: 'status', type: ColumnType.STRING, notNull: false },
     { name: 'ext', type: ColumnType.JSON, notNull: true }
   ],
   indexes: [

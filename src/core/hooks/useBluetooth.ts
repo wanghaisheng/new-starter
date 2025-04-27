@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BluetoothServiceRegistry } from '@/core/services/business/phone/bluetooth/registry/bluetooth-service-registry';
-import type { IBluetoothService, BluetoothServiceType } from '@/core/services/business/phone/bluetooth/types/bluetooth-service';
+import { BluetoothServiceRegistry } from '@/core/services/infrastructure/phone/bluetooth/registry/bluetooth-service-registry';
+import type { IBluetoothService, BluetoothServiceType } from '@/core/services/infrastructure/phone/bluetooth/types/bluetooth-service';
 
 export interface UseBluetoothResult {
   bluetooth: IBluetoothService | null;

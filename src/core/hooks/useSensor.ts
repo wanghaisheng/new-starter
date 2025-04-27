@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { SensorServiceFactory } from '@/core/services/business/phone/sensor/factory/sensor-service-factory';
-import { SensorServiceRegistry } from '@/core/services/business/phone/sensor/registry/sensor-service-registry';
-import type { ISensorService, SensorServiceType } from '@/core/services/business/phone/sensor/types/sensor-service';
+import { SensorServiceFactory } from '@/core/services/infrastructure/phone/sensor/factory/sensor-service-factory';
+import { SensorServiceRegistry } from '@/core/services/infrastructure/phone/sensor/registry/sensor-service-registry';
+import type { ISensorService, SensorServiceType } from '@/core/services/infrastructure/phone/sensor/types/sensor-service';
 
 export interface UseSensorResult {
   sensor: ISensorService | null;

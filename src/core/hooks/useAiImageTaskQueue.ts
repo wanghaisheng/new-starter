@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { AiImageTask } from '@/core/services/business/ai-task/types/ai-task';
+import type { AiImageTask } from '@/core/services/infrastructure/ai-task/types/ai-task';
 
 // 扩展本地任务类型以支持 file 字段（仅前端）
 type LocalAiImageTask = AiImageTask & { file?: File };

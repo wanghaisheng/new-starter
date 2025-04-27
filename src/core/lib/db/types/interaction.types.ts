@@ -1,5 +1,6 @@
 // 互动相关类型定义
 import { BaseEntity } from './base-entity';
+import { EntityStatus } from './common';
 
 /**
  * 举报实体接口
@@ -10,7 +11,7 @@ export interface Report extends BaseEntity {
   targetUserId: string;
   reason: string;
   details?: string;
-  status: 'pending' | 'reviewed' | 'resolved';
+  status: EntityStatus;
   createdAt: string;
   updatedAt: string;
   resolution?: {

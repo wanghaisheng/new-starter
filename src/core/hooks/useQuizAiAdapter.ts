@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
-import { createQuizAiAdapter, QuizAiAdapterType } from '@/core/services/business/quiz/factory/ai-adapter-factory';
-import type { IQuizAiAdapter } from '@/core/services/business/quiz/types/quiz-service';
+import { createQuizAiAdapter, QuizAiAdapterType } from '@/core/services/business/deprecated/quiz/factory/ai-adapter-factory';
+import type { IQuizAiAdapter } from '@/core/services/business/deprecated/quiz/types/quiz-service';
 
 /**
  * useQuizAiAdapter - 获取 AI 适配器实例（插件式，可扩展）

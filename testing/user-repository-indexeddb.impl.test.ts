@@ -93,7 +93,7 @@ describe('UserRepository (IDataService, offline-indexeddb)', () => {
     const all = await repo.findAll();
     expect(Array.isArray(all)).toBe(true);
     expect(all.length).toBeGreaterThanOrEqual(2);
-    const ids = all.map(u => u.id);
+    const ids = all.rows.map((u: User) => u.id);
     expect(ids).toContain('u4');
     expect(ids).toContain('u5');
   });
@@ -114,5 +114,40 @@ describe('UserRepository (IDataService, offline-indexeddb)', () => {
     // 断言返回 true
     const delResult = await repo.delete('not-exist');
     expect(delResult).toBe(true);
+  });
+
+  it('should createMany and findAll users', async () => {
+    const users = [
+      { ...MOCK_USERS[0], id: 'b1', email: 'b1@test.com', phone: 'b1', googleId: 'g1' },
+      { ...MOCK_USERS[1], id: 'b2', email: 'b2@test.com', phone: 'b2', googleId: 'g2' }
+    ];
+    if (repo.createMany) {
+      await repo.createMany(users);
+      const all = await repo.findAll();
+      expect(all.rows.map<User, string>((u: User) => u.id)).toEqual(expect.arrayContaining(['b1', 'b2']));
+    }
+  });
+
+  it('should not allow duplicate email', async () => {
+    const user = { ...MOCK_USERS[0], id: 'dup1', email: 'dup@indexeddb.com', phone: 'dup1', googleId: 'gdup' };
+    await repo.create(user);
+    await expect(repo.create({ ...user, id: 'dup2' })).rejects.toThrow();
+  });
+
+  it('should updateMany and deleteMany users', async () => {
+    const users = [
+      { ...MOCK_USERS[0], id: 'd1', email: 'd1@indexeddb.com', phone: 'd1', googleId: 'gd1' },
+      { ...MOCK_USERS[1], id: 'd2', email: 'd2@indexeddb.com', phone: 'd2', googleId: 'gd2' }
+    ];
+    if (repo.createMany && repo.updateMany && repo.deleteMany) {
+      await repo.createMany(users);
+      await repo.updateMany([users[0].id, users[1].id], { name: 'BatchIndexed' });
+      const all = await repo.findAll();
+      expect(all.rows.every<User>((u: User) => u.name === 'BatchIndexed')).toBe(true);
+      await repo.deleteMany([users[0].id, users[1].id]);
+      const after = await repo.findAll();
+      expect(after.rows.map<User, string>((u: User) => u.id)).not.toContain('d1');
+      expect(after.rows.map<User, string>((u: User) => u.id)).not.toContain('d2');
+    }
   });
 });

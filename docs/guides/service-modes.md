@@ -46,6 +46,30 @@
 - 推荐根据 `NEXT_PUBLIC_DATA_MODE` 和 `NEXT_PUBLIC_ONLINE_DB_PROVIDER`/`NEXT_PUBLIC_OFFLINE_DB_PROVIDER` 自动选择 adapter。
 - mock 阶段用 mock-client，本地开发用 local-adapter/hybrid-adapter，生产用 remote-adapter/hybrid-adapter。
 - 支持 schema、mock 数据、同步、迁移等。
+- **标准接口方法（与实现 src/core/services/data/types/index.ts 保持一致）：**
+
+```typescript
+findById<T>(tableName: string, id: string): Promise<T | null>;
+query<T>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
+create<T>(tableName: string, data: T): Promise<T>;
+update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+delete(tableName: string, id: string): Promise<void>;
+// 批量/事务等扩展方法
+createMany<T>(tableName: string, data: T[]): Promise<T[]>;
+updateMany<T>(tableName: string, ids: string[], updates: Partial<T>): Promise<number>;
+deleteMany(tableName: string, ids: string[]): Promise<number>;
+batch(tableName: string, operations: any[]): Promise<void>;
+beginTransaction(): Promise<void>;
+commitTransaction(): Promise<void>;
+rollbackTransaction(): Promise<void>;
+// 能力/状态
+isInitialized(): boolean;
+getStats?(): Promise<any>;
+checkHealth?(): Promise<{ healthy: boolean; reason?: string }>;
+```
+- 所有方法均为泛型，类型安全。
+- options、QueryResult<T> 类型详见 data/types。
+- update 返回 void；findById 为主接口。
 
 ### 2. 业务服务层（Business Services）
 - 各业务服务（如用户、消息、支付等）应支持多 provider/adapter 类型，并能根据全局模式变量（如 `NEXT_PUBLIC_DATA_MODE`、`NEXT_PUBLIC_ENV_STAGE`、`NEXT_PUBLIC_PLATFORM`）自动切换。

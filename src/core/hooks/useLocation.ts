@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { LocationServiceRegistry } from '@/core/services/business/phone/location/registry/location-service-registry';
-import type { LocationServiceType } from '@/core/services/business/phone/location/types/location-service';
+import { LocationServiceRegistry } from '@/core/services/infrastructure/phone/location/registry/location-service-registry';
+import type { LocationServiceType } from '@/core/services/infrastructure/phone/location/types/location-service';
 import type { Location } from '@/core/lib/db/types/location';
 
 /**

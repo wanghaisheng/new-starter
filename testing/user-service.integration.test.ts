@@ -5,7 +5,7 @@ import { describe, it, beforeEach, expect, afterAll, beforeAll } from 'vitest';
 import { ConfigService } from '@/core/services/infrastructure/config/service/config-service';
 import { EnvConfigAdapter } from '@/core/services/infrastructure/config/adapters/env-config-adapter';
 import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
-import { UserRepository } from '@/core/lib/db/repositories/impl/user-repository';
+import { UserRepository } from '@/core/services/business/user/repository/user-repository';
 import { UserService } from '@/core/services/business/user/service/user-service';
 import { schemaRegistry } from '@/core/lib/db/schema/index';
 import userSchema from '@/core/lib/db/schema/definitions/user-schema';
@@ -118,5 +118,31 @@ describe('UserRepository + UserService 全链路集成', () => {
   it('异常分支: updateUserProfile not found', async () => {
     await expect(service.updateUserProfile('not-exist', { name: 'x' }))
       .rejects.toThrow('Update failed: users id=not-exist not found');
+  });
+
+  it('should batch create and delete users (integration)', async () => {
+    const users: User[] = [
+      { ...MOCK_USERS[0], id: 'int1', email: 'int1@test.com', phone: 'int1' },
+      { ...MOCK_USERS[1], id: 'int2', email: 'int2@test.com', phone: 'int2' }
+    ];
+    for (const user of users) {
+      await service.createUser(user);
+    }
+    let all = await service.getUsers();
+    expect(all.map((u: User) => u.id)).toEqual(expect.arrayContaining(['int1', 'int2']));
+    for (const user of users) {
+      await service.deleteUser(user.id);
+    }
+    all = await service.getUsers();
+    expect(all.map((u: User) => u.id)).not.toContain('int1');
+    expect(all.map((u: User) => u.id)).not.toContain('int2');
+  });
+
+  it('should not allow duplicate phone/email (integration)', async () => {
+    const user: User = { ...MOCK_USERS[0], id: 'int3', email: 'int3@test.com', phone: 'int3' };
+    await service.createUser(user);
+    await expect(service.createUser({ ...user, id: 'int4' })).rejects.toThrow();
+    await expect(service.createUser({ ...user, id: 'int5', email: 'int5@test.com' })).rejects.toThrow();
+    await expect(service.createUser({ ...user, id: 'int6', phone: 'int6' })).rejects.toThrow();
   });
 });

@@ -1,5 +1,6 @@
 // 皮肤商城配置类型定义
 import { BaseEntity } from './base-entity';
+import { EntityStatus } from './common';
 
 /**
  * 皮肤/主题主类型
@@ -8,7 +9,7 @@ export interface Skin extends BaseEntity {
   id: string;
   name: string;
   previewUrl: string;
-  status: 'active' | 'inactive' | string;
+  status: EntityStatus;
   createdAt: string;
   updatedAt: string;
   ext: Record<string, any>;
@@ -39,6 +40,6 @@ export interface SkinCreate {
 export interface SkinUpdate {
   name?: string;
   previewUrl?: string;
-  status?: 'active' | 'inactive' | string;
+  status?: EntityStatus;
   ext?: Record<string, any>;
 }

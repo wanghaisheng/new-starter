@@ -1,17 +1,18 @@
 import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
+// import { EntityStatus } from '../../types/entity'; // 已移除无效引用
 
 import { schemaRegistry } from '../index';
 
 export const memberGrowthTaskSchema: TableSchema = {
-  name: 'member-growth-tasks',
+  name: 'member_growth_tasks',
   columns: [
     { name: 'id', type: ColumnType.STRING, notNull: true, primaryKey: true },
     { name: 'createdAt', type: ColumnType.STRING, notNull: true },
     { name: 'updatedAt', type: ColumnType.STRING, notNull: true },
     { name: 'userId', type: ColumnType.STRING, notNull: true },
     { name: 'taskId', type: ColumnType.STRING, notNull: true },
-    { name: 'status', type: ColumnType.STRING, notNull: true },
+    { name: 'status', type: ColumnType.STRING, notNull: false },
     { name: 'progress', type: ColumnType.NUMBER, notNull: true },
     { name: 'ext', type: ColumnType.JSON, notNull: false }
   ],

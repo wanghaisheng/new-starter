@@ -1,4 +1,4 @@
-import { User } from '@/core/lib/db/types/user';
+import { User } from '@/core/lib/db/types/user.types';
 import { IMatchAIAdapter } from './match-ai-adapter';
 
 /**
@@ -28,7 +28,7 @@ export class DefaultMatchAIAdapter implements IMatchAIAdapter {
   }
 
   /**
-   * 八字五行全量匹配算法（融合自 BaziMatchAIAdapter）
+   * 八字五行全量匹配算法
    */
   baziMatchFull(userAProfile: any, userBProfile: any, options?: { genderA?: '男'|'女', genderB?: '男'|'女', weights?: Record<string, number> }): number {
     const wuxingMap: Record<string, '金'|'木'|'水'|'火'|'土'> = {
@@ -95,8 +95,6 @@ export class DefaultMatchAIAdapter implements IMatchAIAdapter {
 
   /**
    * 八字五行简化匹配算法
-   * 仅对主干五行（年柱、日柱）做简单五行相生相克评分
-   * 返回分值，分数越高越适合
    */
   baziMatchDetailed(userAProfile: any, userBProfile: any, options?: { weights?: Record<string, number> }): number {
     const wuxingMap: Record<string, '金'|'木'|'水'|'火'|'土'> = {
@@ -126,11 +124,19 @@ export class DefaultMatchAIAdapter implements IMatchAIAdapter {
     return score;
   }
 
-  /**
-   * MBTI 匹配评分算法
-   * 返回分值，分数越高越适合
-   * 支持完全一致、互补型（E/I、N/S、T/F、J/P 互补加分）、部分一致等
-   */
+  /** 手机品牌筛选/加分 */
+  matchByPhoneBrand(user: User, candidates: User[], targetBrands?: string[]): User[] {
+    if (!targetBrands || targetBrands.length === 0) return candidates;
+    return candidates.filter(u => u.phoneBrand && targetBrands.includes(u.phoneBrand));
+  }
+
+  /** 城市地理位置筛选 */
+  matchByCity(user: User, candidates: User[], targetCities?: string[]): User[] {
+    if (!targetCities || targetCities.length === 0) return candidates;
+    return candidates.filter(u => u.city && targetCities.includes(u.city));
+  }
+
+  /** MBTI 匹配评分算法 */
   mbtiMatch(typeA?: string, typeB?: string): number {
     if (!typeA || !typeB || typeA.length !== 4 || typeB.length !== 4) return 0;
     let score = 0;
@@ -149,9 +155,7 @@ export class DefaultMatchAIAdapter implements IMatchAIAdapter {
     return score;
   }
 
-  /**
-   * 计算两地距离（单位：km）
-   */
+  /** 计算两地距离（单位：km） */
   private calcDistance(locA: any, locB: any): number {
     if (!locA || !locB) return Infinity;
     const toRad = (d: number) => (d * Math.PI) / 180;
@@ -193,8 +197,18 @@ export class DefaultMatchAIAdapter implements IMatchAIAdapter {
     useMBTI?: boolean;
     mbtiType?: string;
     limit?: number;
+    phoneBrands?: string[];
+    cities?: string[];
   }): User[] {
     let pool = candidates;
+    // 手机品牌筛选
+    if (opts.phoneBrands && opts.phoneBrands.length > 0) {
+      pool = this.matchByPhoneBrand(user, pool, opts.phoneBrands);
+    }
+    // 城市筛选
+    if (opts.cities && opts.cities.length > 0) {
+      pool = this.matchByCity(user, pool, opts.cities);
+    }
     // 随机优先（如指定 useRandom）
     if (opts.useRandom) {
       return this.matchRandom(pool, opts.limit);
@@ -237,7 +251,9 @@ export class DefaultMatchAIAdapter implements IMatchAIAdapter {
     const noExcludeTags = !(opts.excludeTags && opts.excludeTags.length > 0);
     const noBazi = !opts.useBazi;
     const noMBTI = !opts.useMBTI;
-    if (noLocation && noIncludeTags && noExcludeTags && noBazi && noMBTI) {
+    const noPhoneBrands = !(opts.phoneBrands && opts.phoneBrands.length > 0);
+    const noCities = !(opts.cities && opts.cities.length > 0);
+    if (noLocation && noIncludeTags && noExcludeTags && noBazi && noMBTI && noPhoneBrands && noCities) {
       pool = this.matchRandom(pool, opts.limit);
       return pool;
     }

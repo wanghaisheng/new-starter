@@ -1,4 +1,5 @@
 import { BaseEntity } from './base-entity';
+import { MessageType, EntityStatus } from './common';
 
 /**
  * 消息实体类型
@@ -8,8 +9,8 @@ export interface Message extends BaseEntity {
   senderId: string;
   receiverId: string;
   content: string;
-  type: 'text' | 'image' | 'audio' | 'video' | string;
-  status: 'sent' | 'delivered' | 'read' | 'failed';
+  type: MessageType;
+  status: EntityStatus;
   createdAt: string;
   updatedAt: string;
   conversationId: string;
@@ -36,7 +37,7 @@ export interface CreateMessageData {
   senderId: string;
   receiverId: string;
   content: string;
-  type: 'text' | 'image';
+  type: MessageType;
   mediaUrl?: string;
   ext?: Record<string, any>;
 }
@@ -46,7 +47,7 @@ export interface CreateMessageData {
  */
 export interface UpdateMessageData {
   content?: string;
-  type?: 'text' | 'image';
+  type?: MessageType;
   mediaUrl?: string;
   ext?: Record<string, any>;
 }

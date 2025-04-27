@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { ISettingService } from '@/core/services/business/user/types/setting-service';
-import { SettingService, SettingServiceRegistry } from '@/core/services/business/user/service/setting-service';
+import { SettingService, SettingServiceRegistry } from '@/core/services/business/user/setting-service';
 import type { User, UserPreferences } from '@/core/lib/db/types/user.types';
 import type { PrivacySettings, NotificationSettings, SecuritySettings } from '@/core/lib/db/types/settings.types';
 import { useToast } from './useToast';

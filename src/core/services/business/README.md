@@ -1,221 +1,84 @@
-# 业务服务层（business）目录结构与最佳实践（2025修订）
+# 业务服务设计规范（2025重构实践）
 
-本文件夹聚合了新架构下所有核心业务服务，采用统一的工厂（Factory）、适配器（Adapter）、接口（Interface）、自动降级（Auto Downgrade）等模式，支持多实现、可扩展、易测试。
-
----
-
-## 目录结构说明
-
-```
-services/business/
-├── app-service.ts           # 新架构统一入口服务（全局初始化/管理）
-├── app-service-init.ts      # 入口初始化脚本及热更新逻辑
-├── types.ts                 # 通用类型定义
-├── <业务模块>/              # 如 user/match/messages/quiz 等
-│   ├── adapters/            # 多种业务实现（mock/remote/hybrid/品牌定制等）
-│   ├── factory/             # 工厂，负责实例创建和依赖注入
-│   ├── registry/            # 注册表，支持多 provider 动态注册（强制启用，所有业务服务必须通过注册表获取实例，支持多实例/多 provider 场景）
-│   ├── service/             # 聚合型/领域业务服务（可选）
-│   ├── types/               # 类型接口定义
-│   └── ...                  # 其它业务相关文件
-├── phone/                   # 端能力适配与远程配置
-├── tests/                   # 业务服务单元测试
-```
+> 本文档聚焦于业务服务（business service）分层、职责与最佳实践，所有内容以 src/core/services/business/user 等实际实现为标准。
+> 
+> - 数据服务设计规范详见 [../data/README.md](../data/README.md)
+> - 基础服务设计规范详见 [../infrastructure/README.md](../infrastructure/README.md)
 
 ---
 
-## 统一插件化服务架构规范（2025修订）
+## 一、分层定位与原则
 
-为适应多品牌、多供应商、多算法、多类型等业务扩展需求，所有业务服务（包括 user/match/messages/quiz/notification 等）推荐采用**“注册表+工厂函数”插件化模式**，实现高度灵活、可插拔、易扩展的服务架构。
+- **业务服务层（business）**：只负责领域业务逻辑聚合、编排、业务规则和跨模块协调，不直接实现或管理底层 provider/adapter/注册表/工厂。
+- **数据服务层（data）**：聚合多数据源和仓储，向业务服务提供统一数据访问接口。
+- **基础服务层（infrastructure）**：负责通用技术能力、三方服务、端适配、provider/mock/remote 等。
+- 业务服务通过依赖注入数据服务和基础服务能力实现解耦，严禁跨层直接依赖底层实现。
 
-### 1. 适配器注册表与工厂函数模式
-- 每个业务服务模块应包含一个 Factory 类，内部维护一个 `adapters` 注册表（Record<Type, FactoryFunction>）。
-- 所有 Adapter（实现类）通过静态 `registerAdapter(type, factory)` 注册到 Factory。
-- 通过 `getAdapter(type, options)` 获取对应类型的 Adapter 实例。
-- `createService({ type, options, ... })` 统一从注册表获取 Adapter，实例化 Service。
-- 支持运行时动态注册、第三方/业务方扩展、A/B 测试、Mock 注入等高级场景。
+---
 
-#### 推荐标准模板
+## 二、目录结构与职责示例
+
+```text
+src/core/services/business/user/
+├── service/             # 业务聚合服务实现（如 user-service.ts）
+├── types/               # 业务服务接口定义（如 user-service.ts）
+└── ...                  # 其它业务相关文件
+```
+- service/ 仅实现领域聚合逻辑，所有数据访问通过注入的数据服务/仓储接口完成。
+- types/ 只定义聚合服务接口，不包含 adapter/provider/工厂等插件化相关类型。
+
+---
+
+## 三、业务服务设计实践（以 user 为例）
+
+### 1. 接口定义（types/user-service.ts）
+
 ```typescript
-export class XxxServiceFactory {
-  private static adapters: Record<XxxServiceType, (options?: XxxServiceOptions) => IXxxAdapter> = {};
-
-  static registerAdapter(type: XxxServiceType, factory: (options?: XxxServiceOptions) => IXxxAdapter) {
-    this.adapters[type] = factory;
-  }
-
-  static getAdapter(type: XxxServiceType, options?: XxxServiceOptions): IXxxAdapter | undefined {
-    const factory = this.adapters[type];
-    return factory ? factory(options) : undefined;
-  }
-
-  static createService({ type = 'mock', options = {} }: { type?: XxxServiceType, options?: XxxServiceOptions } = {}): IXxxService {
-    this.registerAllAdapters();
-    return new XxxService(type, options);
-  }
-
-  static registerAllAdapters() {
-    this.registerAdapter('mock', () => new MockXxxAdapter());
-    this.registerAdapter('remote', () => new RemoteXxxAdapter());
-    // ...更多类型
-  }
+export interface IUserService {
+  getCurrentUser(): Promise<User | null>;
+  getUserById(id: string): Promise<User | null>;
+  updateUserProfile(id: string, updates: Partial<User>): Promise<User>;
+  saveCurrentUser(user: User): Promise<void>;
+  getUsers(): Promise<QueryResult<User>>;
+  saveUsers(users: User[]): Promise<void>;
+  createUser(user: Partial<User>): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User>;
+  syncOfflineProfileUpdates(): Promise<number>;
+  // ...如需聚合更多业务逻辑可继续扩展
 }
 ```
 
-### 2. 服务注册表 getProvider 统一规范
-
-所有 Registry 的 `getProvider` 方法应采用如下统一签名，保证 hooks 及服务层调用一致性：
+### 2. 业务服务实现（service/user-service.ts）
 
 ```typescript
-getProvider(
-  type: string,         // mock/remote/hybrid/brandA/brandB/自定义类型等
-  name?: string,        // 实例名，默认 'default'
-  dataService?: any,    // 可选，部分服务如 Match 需注入数据服务
-  options?: object      // 其它扩展参数，预留
-): () => IService
-```
-- hooks 层/业务调用层**只能通过该接口获取服务实例**，严禁直接 Factory。
-- 参数可选，不需要的传 undefined，内部自行判断。
-- 支持多 provider、多实例、运行时扩展。
+export class UserService implements IUserService {
+  private userRepo: IUserRepository;
+  private dataService: any;
 
----
-
-## 场景说明与最佳实践
-
-- **端能力/多品牌/多算法/多供应商场景**（如 Camera、Bluetooth、NFC、Quiz、Match、Message、Notification 等）强烈建议采用插件化注册表模式。
-- **业务实现单一、无扩展需求的服务**可保留 switch-case，但推荐统一注册表接口，便于后续扩展。
-- **所有新服务/新适配器**请通过 Factory 的 registerAdapter 注册，严禁硬编码在 createService/switch-case 中。
-
----
-
-其它目录结构、命名、接口等保持原有规范。
-
-如需详细插件化示例或批量重构建议，请参考各业务模块的 factory/registry 实现。
-
----
-
-## 命名规范与注册表说明
-
-### 1. Service Registry 统一命名
-- 所有业务服务注册表统一命名为：`xxx-service-registry.ts`
-  - 例如：`match-service-registry.ts`、`quiz-service-registry.ts`、`message-service-registry.ts`
-- 主要职责：
-  - 单例模式，统一管理/缓存/获取各业务服务实例（支持多类型、多实例、参数注入）。
-  - 提供 `createService`、`getService`、`getProvider`、`clear` 等方法，便于 hooks/页面/业务层统一获取服务实例。
-
-### 2. Provider/Adapter Registry 命名（如有必要）
-- 若需底层适配器/工厂注册表，命名为：`xxx-adapter-registry.ts` 或 `xxx-provider-registry.ts`
-  - 仅在底层有自定义适配器/工厂注册需求时使用。
-  - 推荐将 provider 注册能力合并进 service-registry，避免重复维护。
-
-### 3. 工厂 Factory 命名
-- 所有业务工厂统一命名为：`xxx-service-factory.ts`
-  - 例如：`match-service-factory.ts`、`quiz-service-factory.ts`
-- 主要职责：
-  - 负责实例化/适配/降级各类业务服务，不负责缓存。
-
-### 4. 推荐用法
-- 所有 hooks、页面、业务层统一通过 service-registry 获取服务实例，避免直接用工厂或底层 provider。
-- 便于 mock/多环境切换/扩展/测试。
-
-### 5. 目录结构建议
-```
-registry/
-  match-service-registry.ts
-  quiz-service-registry.ts
-  message-service-registry.ts
-factory/
-  match-service-factory.ts
-  quiz-service-factory.ts
-  ...
-```
-
----
-
-如有特殊适配器/工厂注册场景，优先合并进 service-registry，保持命名和用法一致，便于团队协作和维护。
-
----
-
-## 业务服务分层示意
-
-```mermaid
-flowchart TD
-  Page/Hook --> Registry --> Factory --> Adapter --> API/DB
-  Registry --> Service(业务聚合层，可选)
-  Service --> Adapter
-```
-
----
-
-（详细接口、注册表、工厂、适配器最佳实践见各业务模块 types/、registry/、factory/、adapters/ 子目录注释与实现）
-
----
-
-## 统一工厂-注册表-适配器-接口-最佳实践
-
-> **设计升级说明（2025）**：自本次重构起，业务服务层**强制启用注册表（registry）机制**，所有 hooks/service/业务入口必须通过注册表统一获取服务实例。注册表支持多实例、多 provider 动态注册与切换，满足多租户、A/B 测试、品牌定制等复杂场景。工厂负责实例创建，注册表负责实例生命周期与多实例管理。
-
-### 1. 注册表（Registry）职责
-- 所有业务服务实例必须通过注册表（如 `UserServiceRegistry`、`MatchServiceRegistry`）统一注册、获取与管理，禁止直接 new 或直接通过工厂获取。
-- 注册表支持多实例（如 `default`、`brandA`、`tenantB`）、多 provider（mock/remote/hybrid/定制）动态注册与切换。
-- 注册表负责实例生命周期管理、缓存复用、自动降级、依赖注入等。
-- hooks 层、service 层、页面等所有调用方**必须**通过注册表获取服务实例。
-- 典型用法：
-  ```typescript
-  // 注册服务实例（如在入口初始化或切换环境时）
-  UserServiceRegistry.getInstance().createService('remote', apiBaseUrl, 'default');
-  UserServiceRegistry.getInstance().createService('mock', undefined, 'test');
-  // 获取服务实例
-  const userService = UserServiceRegistry.getInstance().getService('remote', 'default');
-  ```
-
-### 2. 工厂（Factory）职责
-- 工厂类（如 `UserServiceFactory`）负责实例的实际创建，封装依赖注入、provider 选择、自动降级等逻辑。
-- 工厂方法签名统一，注册表内部调用工厂进行实例化，外部禁止直接调用工厂。
-
-### 3. 适配器（Adapter）职责
-- 每种类型（mock/remote/hybrid）均有独立适配器，全部实现统一的 Service Interface（如 `IMatchService`）。
-- 适配器构造函数参数风格统一，依赖均为可选（如 `dataService?: IDataService`），内部方法需校验依赖。
-- 适配器只关心自身数据来源和业务逻辑，不暴露外部依赖细节。
-
-### 4. Service Interface 规范
-- 所有业务服务均定义统一接口（如 `IMatchService`），上层调用只依赖接口，不关心具体实现。
-- 典型接口示例：
-  ```typescript
-  export interface IMatchService {
-    getUserMatches(userId: string): Promise<Match[]>;
-    // ... 其他业务方法
+  constructor(dataService: IDataService, userRepo: IUserRepository) {
+    this.dataService = dataService;
+    this.userRepo = userRepo;
   }
-  ```
 
-### 5. hooks 层实践
-- hooks 层**必须通过注册表获取服务实例**，严禁直接 new/工厂调用，保证解耦、可测试和多 provider 场景兼容。
-
-### 6. 目录结构与命名规范
-- 每个业务模块分为 factory、adapters、types、service、api、worker 等子目录，保持分层清晰。
-- 所有类型定义统一放在 types 子目录。
-
----
-
-## 重要注意事项（2025修订）
-- hooks/页面严禁直接实例化 Service/Adapter，必须通过注册表方法获取实例。
-- 工厂方法签名、适配器参数风格、注册表机制保持全局统一，便于维护和扩展。
-- 如遇特殊业务无 mock/remote/hybrid 类型，需说明原因并保持接口一致。
-- 详细实现可参考 `match/factory/match-service-factory.ts` 与 `hooks/useMatches.ts`.
+  async getCurrentUser(): Promise<User | null> {
+    return await this.userRepo.findById('current');
+  }
+  // ...其余方法同接口定义
+}
+```
+- 业务服务通过构造函数依赖注入数据服务和仓储接口，便于测试和解耦。
+- 不涉及 provider/adapter/工厂/注册表等插件化逻辑。
 
 ---
 
-> ⚠️ 本目录所有业务服务设计、分层架构、接口、工厂/注册表、状态输出、性能与安全等规范请统一参考 [../../service-design-guidelines.md](../../service-design-guidelines.md)。
-> 
-> **服务运行模式（Service Modes）与 provider/adapter 类型适配规范请统一参考 [../../../docs/guides/service-modes.md](../../../docs/guides/service-modes.md)。**
-> 
-> - 业务服务需支持 online-only、offline-only、hybrid 三种模式，适配 mock、local、remote、hybrid-adapter 等多类型 provider。
-> - 详细适配原则、环境变量建议、各开发阶段推荐模式详见 service-modes.md。
-> - 如有特殊补充仅在此说明，其余请勿重复维护。
+## 四、最佳实践与注意事项
+
+- 业务服务只负责领域逻辑聚合与编排，所有底层能力通过依赖注入获取。
+- 禁止在业务服务层实现/管理 provider/adapter/工厂/注册表等插件化能力。
+- 业务服务接口和实现应聚焦于领域模型和业务规则，便于团队协作和自动化测试。
+- 如需扩展业务逻辑，仅在业务服务层聚合，不影响底层实现。
+- 业务服务变更需同步更新 types/ 和 service/，保持类型安全和一致性。
 
 ---
-> ⚠️ 本目录环境模式与环境变量配置请统一参考 [../../../docs/guides/environment-modes.md](../../../docs/guides/environment-modes.md)。
-> - 多环境适配、环境变量说明、配置示例详见 environment-modes.md。
 
----
-如需详细模板、最佳实践、或批量生成脚本，请参考各业务子目录 README 或联系维护者。
+> 如需了解数据服务和基础服务的插件化、注册表、工厂等架构模式，请参阅对应目录下 README。

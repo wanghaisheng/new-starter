@@ -1,4 +1,5 @@
 import { BaseEntity } from './base-entity';
+import { EntityStatus } from './common';
 
 /**
  * 照片主类型
@@ -15,7 +16,7 @@ export interface Photo extends BaseEntity {
   order?: number;
   caption?: string;
   tags?: string[];
-  status?: 'pending' | 'approved' | 'rejected' | string;
+  status?: EntityStatus;
   createdAt: string;
   updatedAt: string;
   ext?: Record<string, any>;
@@ -47,7 +48,7 @@ export interface PhotoUpdate {
   order?: number;
   caption?: string;
   tags?: string[];
-  status?: 'pending' | 'approved' | 'rejected' | string;
+  status?: EntityStatus;
   ext?: Record<string, any>;
 }
 

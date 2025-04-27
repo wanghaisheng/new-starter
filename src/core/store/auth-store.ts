@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AuthUser } from '@/core/services/business/auth/types/auth-service';
+import type { AuthUser } from '@/core/services/infrastructure/auth/types/auth-service';
 
 interface AuthStoreState {
   user: AuthUser | null;

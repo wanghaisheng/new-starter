@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { NFCServiceFactory } from '@/core/services/business/phone/nfc/factory/nfc-service-factory';
-import { NFCServiceRegistry } from '@/core/services/business/phone/nfc/registry/nfc-service-registry';
-import type { INFCService, NFCServiceType } from '@/core/services/business/phone/nfc/types/nfc-service';
+import { NFCServiceFactory } from '@/core/services/infrastructure/phone/nfc/factory/nfc-service-factory';
+import { NFCServiceRegistry } from '@/core/services/infrastructure/phone/nfc/registry/nfc-service-registry';
+import type { INFCService, NFCServiceType } from '@/core/services/infrastructure/phone/nfc/types/nfc-service';
 
 export interface UseNFCResult {
   nfc: INFCService | null;

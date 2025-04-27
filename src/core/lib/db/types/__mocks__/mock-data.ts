@@ -1,6 +1,6 @@
 // 全局 mock 数据定义，供所有测试/仓储/服务/页面复用
 import type { User } from '../user.types';
-import type { Location } from '../location';
+import type { Location } from '../location.types';
 import type { Photo } from '../photo.types';
 import type { Match } from '../match.types';
 import type { Message } from '../message.types';

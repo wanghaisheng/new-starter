@@ -3,6 +3,8 @@ import {ColumnType} from '../../types/common'
 
 import { schemaRegistry } from '../index';
 
+// import { EntityStatus } from '../../types/entity-status'; // 已移除无效引用
+
 export const skinSchema: TableSchema = {
   name: 'skins',
   columns: [
@@ -11,7 +13,7 @@ export const skinSchema: TableSchema = {
     { name: 'updatedAt', type: ColumnType.STRING, notNull: true },
     { name: 'name', type: ColumnType.STRING, notNull: true },
     { name: 'previewUrl', type: ColumnType.STRING, notNull: true },
-    { name: 'status', type: ColumnType.STRING, notNull: true },
+    { name: 'status', type: ColumnType.STRING, notNull: false },
     { name: 'ext', type: ColumnType.JSON, notNull: true }
   ],
   indexes: [

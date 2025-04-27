@@ -1,5 +1,6 @@
 // 礼物商城配置类型定义
 import { BaseEntity } from './base-entity';
+import { EntityStatus } from './common';
 
 /**
  * 礼物主类型
@@ -9,7 +10,7 @@ export interface Gift extends BaseEntity {
   name: string;
   iconUrl: string;
   value: number;
-  status: 'active' | 'inactive' | string;
+  status: EntityStatus;
   createdAt: string;
   updatedAt: string;
   ext: Record<string, any>;
@@ -42,7 +43,7 @@ export interface GiftUpdate {
   name?: string;
   iconUrl?: string;
   value?: number;
-  status?: 'active' | 'inactive' | string;
+  status?: EntityStatus;
   ext?: Record<string, any>;
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { CameraServiceFactory } from '@/core/services/business/phone/camera/factory/camera-service-factory';
-import { CameraServiceRegistry } from '@/core/services/business/phone/camera/registry/camera-service-registry';
-import type { ICameraService, CameraServiceType } from '@/core/services/business/phone/camera/types/camera-service';
+import { CameraServiceFactory } from '@/core/services/infrastructure/phone/camera/factory/camera-service-factory';
+import { CameraServiceRegistry } from '@/core/services/infrastructure/phone/camera/registry/camera-service-registry';
+import type { ICameraService, CameraServiceType } from '@/core/services/infrastructure/phone/camera/types/camera-service';
 
 export interface UseCameraResult {
   camera: ICameraService | null;

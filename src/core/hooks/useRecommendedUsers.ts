@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MatchServiceRegistry } from '@/core/services/business/match/registry/match-service-registry';
+import { MatchServiceRegistry } from '@/core/services/business/deprecated/match/registry/match-service-registry';
 import type { User } from '@/core/lib/db/types/user.types';
 import { useToast } from './useToast';
 

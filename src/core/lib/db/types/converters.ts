@@ -1,5 +1,9 @@
+// 此文件已废弃，所有实体-数据库转换请统一使用 src/core/lib/db/schema/entity-converter.ts
+// 如有历史依赖，请迁移到 EntityConverter 工具类
+
 import { BaseEntity, DatabaseRecord } from './base-entity';
-import { User } from './user.types';
+import { TableSchema } from './database';
+import { ColumnType } from './common';
 
 /**
  * 提供在各种实体表示形式之间转换的函数
@@ -10,35 +14,64 @@ import { User } from './user.types';
  */
 
 /**
- * 将实体转换为数据库记录
- * @param entity 实体对象
- * @returns 数据库记录对象
+ * 类型安全的数据库读取后自动反序列化 JSON 字段
+ * @param value 数据库字段
+ * @param defaultValue 类型安全的默认值（如 []、{}、0、''）
  */
-export function toRecord<T extends BaseEntity>(entity: T): DatabaseRecord {
-  const record: Record<string, any> = {
-    ...entity,
-    createdAt: entity.createdAt,
-    updatedAt: entity.updatedAt
-  };
-  return record as DatabaseRecord;
-}
-/**
- * 将用户实体转换为数据库记录
- * @param user 用户实体对象
- * @returns 数据库记录对象
- */
-export function userToRecord(user: User): DatabaseRecord {
-  return {
-    ...toRecord(user),
-    birthDate: user.birthDate instanceof Date ? user.birthDate.toISOString() : user.birthDate,
-    lastActive: user.lastActive instanceof Date ? user.lastActive.toISOString() : user.lastActive,
-    photos: Array.isArray(user.photos) ? JSON.stringify(user.photos) : user.photos,
-    interests: Array.isArray(user.interests) ? JSON.stringify(user.interests) : user.interests,
-    location: typeof user.location === 'object' ? JSON.stringify(user.location) : user.location,
-    preferences: typeof user.preferences === 'object' ? JSON.stringify(user.preferences) : user.preferences
-  };
+export function deserializeJsonField<T>(value: string | null | undefined, defaultValue: T): T {
+  if (value === null || value === undefined || value === 'null' || value === '') return defaultValue;
+  try {
+    const parsed = JSON.parse(value);
+    // 保证类型安全：如果解析结果类型与默认值类型不一致，返回默认值
+    if (typeof parsed !== typeof defaultValue) return defaultValue;
+    return parsed as T;
+  } catch {
+    return defaultValue;
+  }
 }
 
 /**
- * 其它实体的 toRecord 函数请参照上面写法，确保日期、对象、数组字段均做类型安全处理
+ * 类型安全判断是否为 Date 对象
  */
+function isDate(val: any): val is Date {
+  return typeof val === 'object' && val !== null && Object.prototype.toString.call(val) === '[object Date]' && !isNaN(val.getTime());
+}
+
+/**
+ * 通用实体转数据库记录（schema驱动，类型安全）
+ * @param entity 业务实体对象
+ * @param schema 表结构定义（TableSchema）
+ */
+export function entityToRecord<T extends BaseEntity>(entity: T, schema: TableSchema): DatabaseRecord {
+  const record: Record<string, any> = {};
+  for (const column of schema.columns) {
+    let value = (entity as any)[column.name];
+    if (value === undefined) {
+      record[column.name] = null;
+      continue;
+    }
+    switch (column.type) {
+      case ColumnType.JSON:
+        record[column.name] = typeof value === 'string' ? value : JSON.stringify(value);
+        break;
+      case ColumnType.BOOLEAN:
+        // SQLite 只接受 1/0，强制转换
+        record[column.name] = value ? 1 : 0;
+        break;
+      case ColumnType.DATETIME:
+        record[column.name] = isDate(value) ? value.toISOString() : value;
+        break;
+      default:
+        record[column.name] = value;
+    }
+  }
+  return record as DatabaseRecord;
+}
+
+/**
+ * 兼容历史单实体 toRecord（不推荐新用）
+ */
+export function userToRecord(user: any): DatabaseRecord {
+  // 建议直接用 entityToRecord(user, userSchema)
+  return entityToRecord(user, (globalThis as any).userSchema);
+}

@@ -1,17 +1,8 @@
 // logger-types.ts
 
-// === 原基础设施类型迁移自 types.ts ===
-export type InfrastructureServiceType =
-  | 'logger'
-  | 'database'
-  | 'cache'
-  | 'queue'
-  | 'storage'
-  | 'config'
-  | 'metrics'
-  | 'tracing'
-  | 'other';
+import { InfrastructureServiceType, LoggerProviderType } from '@/core/lib/db/types/common';
 
+// === 原基础设施类型迁移自 types.ts ===
 export interface InfrastructureServiceConfig {
   type: InfrastructureServiceType;
   name?: string;
@@ -40,3 +31,5 @@ export interface ILoggerService {
   getServiceType(): InfrastructureServiceType;
   getConfig(): InfrastructureServiceConfig;
 }
+
+export type LoggerProviderTypeAlias = LoggerProviderType;

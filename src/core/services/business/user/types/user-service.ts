@@ -1,5 +1,6 @@
 import type { QueryResult } from '@/core/lib/db/types/database';
 import type { User } from '@/core/lib/db/types/user.types';
+import { UserServiceType } from '@/core/lib/db/types/common';
 
 /**
  * 用户适配器接口（所有实现必须实现本接口，禁止本地重复定义）
@@ -36,7 +37,7 @@ export interface IUserService extends IUserAdapter {
 }
 
 // Service 工厂类型定义
-export type UserServiceType = 'mock' | 'remote' | 'hybrid';
+export type UserServiceTypeAlias = UserServiceType;
 export interface UserServiceOptions {
   apiBaseUrl?: string;
 }

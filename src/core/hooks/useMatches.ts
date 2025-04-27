@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MatchServiceRegistry } from '@/core/services/business/match/registry/match-service-registry';
+import { MatchServiceRegistry } from '@/core/services/business/deprecated/match/registry/match-service-registry';
 import type { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/match.types';
 import type { User } from '@/core/lib/db/types/user.types';
-import type { IMatchService, MatchServiceOptions } from '@/core/services/business/match/types/match-service';
+import type { IMatchService, MatchServiceOptions } from '@/core/services/business/deprecated/match/types/match-service';
 import { useToast } from './useToast';
 import { DataServiceFactory } from '@/core/services/data/factory/data-service-factory';
 

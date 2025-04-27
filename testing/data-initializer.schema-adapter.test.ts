@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SchemaDataInitializerAdapter } from '@/core/services/business/data-initializer/adapters/schema-adapter';
+import { SchemaDataInitializerAdapter } from '@/core/services/infrastructure/data-initializer/adapters/schema-adapter';
 
 // mock fs/promises
 vi.mock('fs', () => ({

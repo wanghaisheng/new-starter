@@ -55,7 +55,34 @@
 
 ---
 
-## 三、典型初始化流程（伪代码）
+## 三、标准数据服务接口方法（与实现 src/core/services/data/types/index.ts 保持一致）
+
+```typescript
+findById<T>(tableName: string, id: string): Promise<T | null>;
+query<T>(tableName: string, options: QueryOptions): Promise<QueryResult<T>>;
+create<T>(tableName: string, data: T): Promise<T>;
+update<T>(tableName: string, id: string, data: Partial<T>): Promise<void>;
+delete(tableName: string, id: string): Promise<void>;
+// 批量/事务等扩展方法
+createMany<T>(tableName: string, data: T[]): Promise<T[]>;
+updateMany<T>(tableName: string, ids: string[], updates: Partial<T>): Promise<number>;
+deleteMany(tableName: string, ids: string[]): Promise<number>;
+batch(tableName: string, operations: any[]): Promise<void>;
+beginTransaction(): Promise<void>;
+commitTransaction(): Promise<void>;
+rollbackTransaction(): Promise<void>;
+// 能力/状态
+isInitialized(): boolean;
+getStats?(): Promise<any>;
+checkHealth?(): Promise<{ healthy: boolean; reason?: string }>;
+```
+- 所有方法均为泛型，类型安全。
+- options、QueryResult<T> 类型详见 data/types。
+- update 返回 void；findById 为主接口。
+
+---
+
+## 四、典型初始化流程（伪代码）
 
 ```typescript
 // 以混合模式为例
@@ -74,7 +101,7 @@ async function initializeDbIfNeeded() {
 
 ---
 
-## 四、最佳实践与注意事项
+## 五、最佳实践与注意事项
 
 - **保持 mock/测试/生产环境的 schema 和数据结构一致**，避免环境切换时出错。
 - **本地存储建议加版本号与迁移机制**，如 IndexedDB/SQLite schema migration。
@@ -84,7 +111,7 @@ async function initializeDbIfNeeded() {
 
 ---
 
-## 五、常见问题
+## 六、常见问题
 
 - **如何新增本地 mock 表/数据？**
   - 在 `db/data/` 下增加 mock 文件并聚合导出，或生成 json/sql 文件。

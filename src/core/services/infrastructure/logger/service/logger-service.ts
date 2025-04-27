@@ -1,5 +1,6 @@
 // logger-service.ts
-import { LogLevel, ILoggerService, InfrastructureServiceType, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
+import { LogLevel, ILoggerService, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
+import { InfrastructureServiceType } from '@/core/lib/db/types/common';
 import { createLogger, format, transports } from 'winston';
 
 const { combine, timestamp, json } = format;
@@ -16,7 +17,7 @@ export class LoggerService implements ILoggerService {
   private logLevel: LogLevel = 'INFO';
 
   private constructor() {
-    this.config = { id: 'logger', type: 'logger' };
+    this.config = { id: 'logger', type: InfrastructureServiceType.LOGGER };
   }
 
   async initialize(): Promise<void> { this._isInitialized = true; }

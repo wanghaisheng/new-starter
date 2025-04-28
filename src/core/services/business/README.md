@@ -4,6 +4,7 @@
 > 
 > - 数据服务设计规范详见 [../data/README.md](../data/README.md)
 > - 基础服务设计规范详见 [../infrastructure/README.md](../infrastructure/README.md)
+> - 类型安全策略与最佳实践详见 [类型安全策略与渐进式架构协同指南](../../../docs/guides/type-safety-strategy.md)
 
 ---
 
@@ -22,14 +23,40 @@
 src/core/services/business/user/
 ├── service/             # 业务聚合服务实现（如 user-service.ts）
 ├── types/               # 业务服务接口定义（如 user-service.ts）
+├── types/index.ts       # 类型统一出口（推荐维护所有业务相关类型、枚举的统一导出）
 └── ...                  # 其它业务相关文件
 ```
 - service/ 仅实现领域聚合逻辑，所有数据访问通过注入的数据服务/仓储接口完成。
 - types/ 只定义聚合服务接口，不包含 adapter/provider/工厂等插件化相关类型。
+- 推荐在 types/index.ts 维护统一类型和枚举出口，便于业务服务和外部模块统一引入。
 
 ---
 
-## 三、业务服务设计实践（以 user 为例）
+## 三、类型统一入口与通用枚举引入实践
+
+### 1. 类型统一入口示例（types/index.ts）
+
+```typescript
+// 统一导出本业务所有类型和通用枚举
+export * from './user-service';
+import * from '@/core/lib/db/types/common'; // 引入db下全局的通用业务枚举
+// ...可继续扩展其它类型
+```
+
+- 推荐所有业务相关类型、接口、通用枚举均通过 types/index.ts 统一导出，便于团队协作和 IDE 智能提示。
+- 通用枚举（如业务状态、性别、标签类型等）建议集中在 common/enums 目录下维护，并通过统一入口导入。
+
+### 2. 业务服务中引入类型与枚举
+
+```typescript
+import type { IUserService, User, MatchType, GenderEnum } from '../types';
+```
+
+- 通过统一入口导入类型和枚举，提升代码一致性和可维护性。
+
+---
+
+## 四、业务服务设计实践（以 user 为例）
 
 ### 1. 接口定义（types/user-service.ts）
 
@@ -71,11 +98,13 @@ export class UserService implements IUserService {
 
 ---
 
-## 四、最佳实践与注意事项
+## 五、最佳实践与注意事项
 
 - 业务服务只负责领域逻辑聚合与编排，所有底层能力通过依赖注入获取。
 - 禁止在业务服务层实现/管理 provider/adapter/工厂/注册表等插件化能力。
 - 业务服务接口和实现应聚焦于领域模型和业务规则，便于团队协作和自动化测试。
+- 类型、枚举统一出口有助于团队协作和代码一致性，建议所有业务服务目录下均维护 types/index.ts。
+- 通用枚举建议集中在 src/core/lib/db/types/common，便于复用和统一管理。
 - 如需扩展业务逻辑，仅在业务服务层聚合，不影响底层实现。
 - 业务服务变更需同步更新 types/ 和 service/，保持类型安全和一致性。
 

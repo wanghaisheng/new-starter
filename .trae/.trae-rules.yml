@@ -6,6 +6,24 @@ dynamic_rules:
   template_dir: docs/templates/
   auto_discovery: true
 
+doc_references:
+  - path: docs/guides/config-service-guide.md
+    description: 配置服务（ConfigService）使用与最佳实践，定义全局环境变量、动态业务配置、远程参数等核心规范。
+  - path: docs/guides/environment-modes.md
+    description: 环境模式与环境变量规范，明确 mock、local、dev、prod 等环境的定义与配置建议。
+  - path: docs/guides/environment-variables.md
+    description: 环境变量与配置项一览，涵盖数据库、缓存、通用配置等所有关键环境变量。
+  - path: docs/guides/progressive-adapter-strategy.md
+    description: 渐进式适配器策略，指导配置、服务、数据存储等多层的弹性升级与切换。
+  - path: docs/guides/service-modes.md
+    description: 服务层运行模式与 Provider/Adapter 命名规范，统一服务层开发标准。
+  - path: docs/guides/type-safety-strategy.md
+    description: 类型安全策略与渐进式架构协同指南，确保多端协作与类型安全落地。
+  - path: guideline.md
+    description: 全栈启动项目完整规则集，涵盖项目初始化、结构、开发与协作规范。
+  - path: vibe-coding-guide.md
+    description: Vibe Coding 开发指南，AI 辅助开发流程与最佳实践。
+
 rule_groups:
   # 核心开发流程规则（直接从README文档提取）
   core_workflow:
@@ -32,17 +50,63 @@ rule_groups:
     source: docs/README.md
     sections:
       - "服务层架构"
-      - "关键服务"
-    priority: 95
-    applies: ["service", "api"]
-
-  # 环境配置规则
-  environment_config:
-    source: docs/README.md
-    sections:
-      - "环境配置"
+      - "服务模式"
+      - "适配器策略"
     priority: 90
-    applies: ["environment", "config"]
+    applies: ["service", "adapter"]
+
+  # 类型安全与协作规范
+  type_safety:
+    source: docs/guides/type-safety-strategy.md
+    sections:
+      - "类型安全策略落地实践"
+    priority: 90
+    applies: ["type-safety", "architecture"]
+
+  # 环境与配置规范
+  environment_config:
+    source: docs/guides/environment-modes.md
+    sections:
+      - "环境模式定义"
+      - "环境变量与配置建议"
+    priority: 90
+    applies: ["env", "config"]
+
+  # 配置服务与适配器策略
+  config_service:
+    source: docs/guides/config-service-guide.md
+    sections:
+      - "核心理念与架构"
+      - "典型用法"
+    priority: 85
+    applies: ["config", "adapter"]
+
+  # 渐进式适配器与服务模式
+  progressive_adapter:
+    source: docs/guides/progressive-adapter-strategy.md
+    sections:
+      - "核心理念"
+      - "典型应用场景"
+    priority: 85
+    applies: ["adapter", "service-mode"]
+
+  # 项目通用规范
+  project_guideline:
+    source: guideline.md
+    sections:
+      - "项目初始化与环境设置"
+      - "项目结构"
+    priority: 80
+    applies: ["all"]
+
+  # AI 辅助开发流程
+  vibe_coding:
+    source: vibe-coding-guide.md
+    sections:
+      - "开发流程概述"
+      - "AI 辅助开发阶段"
+    priority: 80
+    applies: ["ai", "workflow"]
 
   # 动态模板规则（按需加载）
   templates:

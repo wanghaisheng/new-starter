@@ -1,5 +1,5 @@
 import { describe, it, beforeEach, expect, afterAll, beforeAll } from 'vitest';
-import { UserService } from '@/core/services/business/user/service/user-service';
+import { UserService } from '@/core/services/business/user/user-service';
 import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
 import { schemaRegistry } from '@/core/lib/db/schema/index';
 import userSchema from '@/core/lib/db/schema/definitions/user-schema';

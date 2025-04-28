@@ -8,6 +8,7 @@ import type { UserPreferences, NotificationSettings, PrivacySettings, SecuritySe
 import type { QuizType, Quiz, QuizQuestion, QuizAnswer, QuizResult, QuizProgress, QuizMatchRule } from '../quiz.types';
 import type { Notification } from '../notification.types';
 import type { Settings, UserSettings } from '../settings.types';
+import { DbProvider, SyncStrategy, DataMode, DbOrm, LogLevel, AppEnvironmentEnum } from '../common';
 
 export const MOCK_LOCATIONS: Location[] = [
   { latitude: 0, longitude: 0, city: 'Beijing', country: 'CN' },
@@ -323,5 +324,83 @@ export const MOCK_USER_SETTINGS: UserSettings[] = [
     notificationsEnabled: false,
   },
 ];
+
+// 八字分析结构化样本（来自 bazi-example.json）
+export const MOCK_BAZI_ANALYSIS = {
+  user_info: {
+    birthdate: {
+      lunar: '1986年九月初三',
+      solar: '1986年10月6日',
+      time: '子时（23:00-01:00）'
+    },
+    gender: '未提供',
+    location: '未提供'
+  },
+  bazi_analysis: {
+    four_pillars: {
+      year_pillar: '丙寅（火木）',
+      month_pillar: '戊戌（土土）',
+      day_pillar: '甲午（木火）',
+      hour_pillar: '甲子（木水）'
+    },
+    five_elements: {
+      distribution: {
+        wood: 4,
+        fire: 4,
+        earth: 4,
+        metal: 1,
+        water: 2
+      },
+      imbalance: {
+        strong_elements: ['木', '火', '土'],
+        weak_elements: ['金', '水'],
+        critical_weakness: '金（最弱）'
+      }
+    },
+    health_tendency: {
+      excess_symptoms: [
+        '肝火旺（急躁、失眠）',
+        '心火盛（口腔溃疡）',
+      ],
+      deficiency_symptoms: [
+        '肺弱（易感冒、咳嗽）',
+        '肾虚（怕冷、精力不足）'
+      ]
+    },
+    remedial_actions: {
+      priority: '补金、辅补水',
+      metal_enhancement: {
+        diet: ['银耳', '梨', '百合', '白萝卜'],
+        accessories: ['银饰', '铂金', '白色水晶'],
+        directions: ['西方']
+      },
+      water_support: {
+        diet: ['黑豆', '黑芝麻', '海带'],
+        lifestyle: ['多饮水', '养鱼', '靠近水域'],
+        colors: ['黑色', '蓝色']
+      },
+      balance_advice: {
+        avoid: ['熬夜', '辛辣食物', '红色/绿色过量使用'],
+        recommend: ['山药健脾胃', '冥想降心火']
+      }
+    },
+    fortune_timing: {
+      auspicious_period: '2023-2032年金水运（如庚子、辛丑年）',
+      caution_years: ['2025乙巳年（火旺）', '2026丙午年（火旺）']
+    }
+  },
+  summary: '八字木火土过旺，需重点补金补水，调和能量失衡。建议结合出生地点与性别细化分析。',
+  details: '详见 bazi-example.json，包含完整表格与建议说明。'
+};
+
+// ===== 通用数据库配置 Mock，用于测试 =====
+export const MOCK_DB_CONFIG = {
+  provider: DbProvider.MOCK,
+  syncStrategy: SyncStrategy.MANUAL,
+  dataMode: DataMode.OFFLINE,
+  orm: DbOrm.FAKE,
+  logLevel: LogLevel.DEBUG,
+  environment: AppEnvironmentEnum.TEST,
+};
 
 // 可扩展更多实体的 mock 数据，如 Quiz、Notification、Settings 等

@@ -14,7 +14,7 @@ export class EmailFactory {
     provider =
       config.provider ||
       (configService?.get?.(CONFIG_KEYS.EMAIL_PROVIDER)) ||
-      process.env[CONFIG_KEYS.EMAIL_PROVIDER] ||
+      getConfigService().get(CONFIG_KEYS.EMAIL_PROVIDER) ||
       'default';
 
     if (!provider) provider = 'default';

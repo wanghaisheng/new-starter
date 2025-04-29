@@ -1,5 +1,7 @@
 // EmailService 实现
-import { IEmailService, InfrastructureServiceType, InfrastructureServiceConfig, EmailOptions } from '@/core/services/infrastructure/types';
+import { IEmailService, InfrastructureServiceConfig, EmailOptions } from '@/core/services/infrastructure/types';
+import { InfrastructureServiceType } from '@/core/lib/db/types/common';
+import { getConfigService } from '@/core/services/infrastructure/config';
 
 export class EmailService implements IEmailService {
   private static instance: EmailService;
@@ -23,7 +25,7 @@ export class EmailService implements IEmailService {
 
   async sendEmail(options: EmailOptions): Promise<void> {
     // 可根据环境扩展真实/模拟发送
-    if (process.env.NODE_ENV === 'development') {
+    if (getConfigService().get('NODE_ENV') === 'development') {
       console.log('开发环境：模拟发送邮件', options);
     } else {
       // 真实邮件发送逻辑

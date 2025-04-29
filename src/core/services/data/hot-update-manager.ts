@@ -1,5 +1,5 @@
 // 热更新管理器：自动桥接 ConfigService 与 DataServiceRegistry
-import { configService } from '@/core/services/infrastructure/config';
+import { getConfigService } from '@/core/services/infrastructure/config';
 import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
 import { DataServiceFactory } from '@/core/services/data/factory/data-service-factory';
 
@@ -14,7 +14,7 @@ const keysToWatch = [
 // 主服务 key（可根据实际业务调整）
 const SERVICE_KEY = 'main-db';
 
-function buildConfigFromService(configService: typeof import('@/core/services/infrastructure/config').configService) {
+function buildConfigFromService(configService: ReturnType<typeof getConfigService>) {
   // TODO: 根据实际业务拼装 DataServiceConfig
   return {
     mode: 'hybrid',
@@ -30,6 +30,7 @@ function buildConfigFromService(configService: typeof import('@/core/services/in
 }
 
 // 自动监听关键配置项
+const configService = getConfigService();
 keysToWatch.forEach(key => {
   configService.subscribe(key, () => {
     const oldInstance = DataServiceRegistry.get(SERVICE_KEY);

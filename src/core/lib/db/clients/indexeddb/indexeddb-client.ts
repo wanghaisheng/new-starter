@@ -8,6 +8,7 @@ import { schemaRegistry } from '@/core/lib/db/schema/schema-registry-singleton';
 import { ClientRegistry } from '@/core/services/data/adapters/client-registry';
 import { ColumnType } from '@/core/lib/db/types/common';
 import { TableSchema } from '@/core/lib/db/types/database';
+import { createDatabaseError } from '@/core/lib/db/types/database';
 
 /**
  * 优化版 IndexedDB 数据库客户端
@@ -229,11 +230,11 @@ export class IndexedDBClient<T extends BaseEntity> extends BaseClient<T> {
           await this.create(tableName, op.data);
           break;
         case 'update':
-          if (!('id' in op)) throw new Error('Batch update operation missing id');
+          if (!('id' in op)) throw createDatabaseError(DatabaseErrorCode.INVALID_ARGUMENT, 'Batch update operation missing id');
           await this.update(tableName, (op as any).id, op.data);
           break;
         case 'delete':
-          if (!('id' in op)) throw new Error('Batch delete operation missing id');
+          if (!('id' in op)) throw createDatabaseError(DatabaseErrorCode.INVALID_ARGUMENT, 'Batch delete operation missing id');
           await this.delete(tableName, (op as any).id);
           break;
       }

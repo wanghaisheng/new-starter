@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageServiceRegistry } from '@/core/services/business/deprecated/messages/registry/message-service-registry';
 import type { Message, CreateMessageData, UpdateMessageData } from '@/core/lib/db/types/message.types';
-import type { IMessageService } from '@/core/services/business/deprecated/messages/types/message-service';
 import { useToast } from './useToast';
+import { useService } from '@/src/providers/ServiceProvider';
 
 export interface UseMessagesResult {
   messages: Message[];
@@ -24,23 +23,29 @@ export function useMessages(conversationId: string): UseMessagesResult {
   const [error, setError] = useState<null | { type: string; message: string }>(null);
   const [empty, setEmpty] = useState(false);
   const { triggerToast } = useToast();
-  const serviceRef = useRef<IMessageService | null>(null);
   const pageRef = useRef<number>(1);
   const pageSizeRef = useRef<number>(20);
+  const { userService } = useService(); 
+  const messageService = userService.getMessageService?.(); 
 
   useEffect(() => {
-    // 统一通过 Registry 获取服务实例，参数类型安全
-    const allowedTypes = ['mock', 'remote', 'hybrid', 'advanced-hybrid'] as const;
-    type MessageServiceType = typeof allowedTypes[number];
-    const envType = process.env.NEXT_PUBLIC_MESSAGE_SERVICE_TYPE;
-    const type: MessageServiceType = allowedTypes.includes(envType as MessageServiceType)
-      ? (envType as MessageServiceType)
-      : (process.env.NODE_ENV === 'development' ? 'mock' : 'remote');
-    const provider = MessageServiceRegistry.getInstance().getProvider(type, 'default');
-    serviceRef.current = provider ? provider() : null;
-  }, []);
+    messageService?.getConversationMessages({
+      conversationId,
+      page: pageRef.current,
+      pageSize: pageSizeRef.current,
+    }).then(msgs => {
+      setMessages(msgs);
+      setEmpty(msgs.length === 0);
+    }).catch(err => {
+      setError({ type: 'fetch', message: err?.message || '获取消息失败' });
+      setMessages([]);
+      setEmpty(true);
+      triggerToast(err?.message || '获取消息失败');
+    }).finally(() => {
+      setLoading(false);
+    });
+  }, [messageService, conversationId, triggerToast]);
 
-  // 事件回调 useCallback 保证引用稳定
   const handleMessageEvent = useCallback((data: { type: string; payload?: any }) => {
     switch (data.type) {
       case 'update':
@@ -65,8 +70,7 @@ export function useMessages(conversationId: string): UseMessagesResult {
     setLoading(true);
     setError(null);
     try {
-      if (!serviceRef.current) throw new Error('服务未初始化');
-      const msgs = await serviceRef.current.getConversationMessages({
+      const msgs = await messageService?.getConversationMessages({
         conversationId,
         page: params?.page || pageRef.current,
         pageSize: params?.pageSize || pageSizeRef.current,
@@ -81,14 +85,13 @@ export function useMessages(conversationId: string): UseMessagesResult {
     } finally {
       setLoading(false);
     }
-  }, [conversationId, triggerToast]);
+  }, [messageService, conversationId, triggerToast]);
 
   const sendMessage = useCallback(async (data: CreateMessageData) => {
     setLoading(true);
     setError(null);
     try {
-      if (!serviceRef.current) throw new Error('服务未初始化');
-      const msg = await serviceRef.current.sendMessage({ ...data, conversationId });
+      const msg = await messageService?.sendMessage({ ...data, conversationId });
       await fetchMessages();
       return msg;
     } catch (err: any) {
@@ -104,8 +107,7 @@ export function useMessages(conversationId: string): UseMessagesResult {
     setLoading(true);
     setError(null);
     try {
-      if (!serviceRef.current) throw new Error('服务未初始化');
-      const msg = await serviceRef.current.updateMessage(messageId, data);
+      const msg = await messageService?.updateMessage(messageId, data);
       await fetchMessages();
       return msg;
     } catch (err: any) {
@@ -121,8 +123,7 @@ export function useMessages(conversationId: string): UseMessagesResult {
     setLoading(true);
     setError(null);
     try {
-      if (!serviceRef.current) throw new Error('服务未初始化');
-      await serviceRef.current.deleteMessage(messageId);
+      await messageService?.deleteMessage(messageId);
       await fetchMessages();
     } catch (err: any) {
       setError({ type: 'delete', message: err?.message || '删除消息失败' });
@@ -134,11 +135,6 @@ export function useMessages(conversationId: string): UseMessagesResult {
   }, [fetchMessages, triggerToast]);
 
   const reloadMessages = fetchMessages;
-
-  useEffect(() => {
-    fetchMessages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
 
   return {
     messages,

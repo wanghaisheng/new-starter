@@ -1,5 +1,15 @@
 import { BaseEntity } from './base-entity';
-import { MessageType, EntityStatus } from './common';
+import { EntityStatus } from './common';
+
+/**
+ * 消息类型枚举
+ */
+export enum MessageType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  VIDEO = 'video',
+  // 可扩展更多类型，如 AUDIO = 'audio', FILE = 'file'
+}
 
 /**
  * 消息实体类型
@@ -30,17 +40,31 @@ export interface MessageThread {
 }
 
 /**
- * 消息创建类型（用于发送消息）
+ * 基础消息数据类型
  */
-export interface CreateMessageData {
+export interface CreateMessageDataBase {
   conversationId: string;
   senderId: string;
   receiverId: string;
   content: string;
   type: MessageType;
-  mediaUrl?: string;
   ext?: Record<string, any>;
 }
+
+/**
+ * 多媒体消息类型（图片/视频）
+ */
+export interface CreateMediaMessageData extends CreateMessageDataBase {
+  type: MessageType.IMAGE | MessageType.VIDEO;
+  mediaFile: Buffer | Uint8Array | Blob;
+  filename: string;
+  contentType: string;
+}
+
+/**
+ * 消息创建类型（用于发送消息）
+ */
+export type CreateMessageData = CreateMessageDataBase | CreateMediaMessageData;
 
 /**
  * 消息更新类型（用于编辑消息）

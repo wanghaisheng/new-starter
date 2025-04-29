@@ -1,6 +1,6 @@
 // MockEmailAdapter: 测试/Mock 邮件适配器实现
-import { IEmailService, EmailOptions, InfrastructureServiceType, InfrastructureServiceConfig } from '../../types';
-
+import { IEmailService, EmailOptions, InfrastructureServiceConfig } from '../../types';
+import { InfrastructureServiceType } from '@/core/lib/db/types/common';
 export class MockEmailAdapter implements IEmailService {
   private static instance: MockEmailAdapter;
   private _isInitialized = false;

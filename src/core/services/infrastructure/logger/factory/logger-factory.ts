@@ -50,9 +50,9 @@ export class LoggerFactory {
       (configService?.get?.('LOGGER_PROVIDER')) ||
       (configService?.get?.('NEXT_PUBLIC_LOGGER_PROVIDER')) ||
       (configService?.get?.('NEXT_PUBLIC_LOG_STORAGE_PROVIDER')) ||
-      process.env.NEXT_PUBLIC_LOG_STORAGE_PROVIDER ||
-      process.env.NEXT_PUBLIC_LOGGER_PROVIDER ||
-      process.env.LOGGER_PROVIDER ||
+      getConfigService().get('NEXT_PUBLIC_LOG_STORAGE_PROVIDER') ||
+      getConfigService().get('NEXT_PUBLIC_LOGGER_PROVIDER') ||
+      getConfigService().get('LOGGER_PROVIDER') ||
       'default';
 
     if (!provider) provider = 'default';

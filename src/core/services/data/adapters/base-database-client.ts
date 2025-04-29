@@ -2,7 +2,7 @@ import { BaseClient } from '@/core/lib/db/clients/base-client';
 import type { IDataService, DataServiceConfig, IDataServiceEvent, IDataServiceEventListenerMap } from '../types';
 import type { BaseEntity } from '@/core/lib/db/types/base-entity';
 import type { QueryOptions, QueryResult } from '@/core/lib/db/types/database';
-import type { DatabaseEvent } from '@/core/lib/db/types/common';
+import type { DatabaseEventCode } from '@/core/lib/db/types/common';
 
 // 事件与缓存机制基类，继承底层 BaseClient
 export abstract class BaseDatabaseClient<T extends BaseEntity = BaseEntity>

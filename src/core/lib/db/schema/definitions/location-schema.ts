@@ -1,7 +1,7 @@
 import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
 
-import { SchemaRegistry as schemaRegistry } from '../schema-registry';
+import { schemaRegistry } from '../schema-registry-singleton';
 
 export const locationSchema: TableSchema = {
   name: 'locations',

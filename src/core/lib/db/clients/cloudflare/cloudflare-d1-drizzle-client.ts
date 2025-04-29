@@ -2,7 +2,7 @@ import { eq, and, or, sql } from 'drizzle-orm';
 import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
 
 import { BaseClient } from '@/core/lib/db/clients/base-client';
-import { DatabaseErrorCode } from '@/core/lib/db/types/database-error';
+import { DatabaseErrorCode } from '@/core/lib/db/types/common';
 import { drizzleSchema } from '@/core/lib/db/schema/drizzle-schema';
 import { User, Match, Message } from '@/core/lib/db/types';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';

@@ -5,9 +5,10 @@ import {
   DatabaseConfig,
   StorageStats,
   DatabaseError,
-  DatabaseErrorCode,
-  DatabaseEvent
+  createDatabaseError,
+  DatabaseErrorCode
 } from '@/core/lib/db/types/database';
+import {DatabaseEventCode} from "@/core/lib/db/types/common"
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { BaseClient } from '@/core/lib/db/clients/base-client';
 
@@ -66,17 +67,22 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
       this.logger.info('CapacitorSQLiteClient 初始化完成');
     } catch (err) {
       this.logger.error('CapacitorSQLiteClient 初始化失败', err);
-      throw err;
+      throw createDatabaseError(DatabaseErrorCode.INITIALIZATION_ERROR, `Failed to open database: ${err}`, err);
     }
   }
 
   async close(): Promise<void> {
     if (this.db) {
-      await this.db.close();
-      await this.sqlite?.closeConnection(this.dbName, false);
-      this.db = undefined;
-      this.initialized = false;
-      this.logger.info('CapacitorSQLiteClient 已关闭');
+      try {
+        await this.db.close();
+        await this.sqlite?.closeConnection(this.dbName, false);
+        this.db = undefined;
+        this.initialized = false;
+        this.logger.info('CapacitorSQLiteClient 已关闭');
+      } catch (err) {
+        this.logger.error('CapacitorSQLiteClient 关闭失败', err);
+        throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, `Failed to close database: ${err}`, err);
+      }
     }
   }
 
@@ -90,7 +96,7 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
 
   async findById(tableName: string, id: string): Promise<T | null> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     // 使用 run 执行参数绑定的 select
     const sql = `SELECT * FROM ${tableName} WHERE id = ?`;
     const res = await this.db.query(sql.replace('?', `'${id}'`));
@@ -102,7 +108,7 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
 
   async getStats(): Promise<StorageStats> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     // SQLite 无法直接获取文件大小，需借助 Capacitor Filesystem 插件或平台 API
     // 这里只返回 0，实际项目可根据 dbPath 查询文件大小
     return { totalSize: 0, availableSpace: 0, usedSpace: 0 };
@@ -110,7 +116,7 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
 
   async getDatabaseVersion(): Promise<number> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     // 通过 PRAGMA user_version 获取版本号
     const res = await this.db.query('PRAGMA user_version');
     return res.values?.[0]?.user_version ?? 1;
@@ -118,14 +124,14 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
 
   async getTableNames(): Promise<string[]> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     const res = await this.db.query(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`);
     return (res.values ?? []).map((row: any) => row.name);
   }
 
   async clear(): Promise<void> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     const tableNames = await this.getTableNames();
     for (const table of tableNames) {
       await this.db.execute(`DELETE FROM "${table}"`);
@@ -135,7 +141,7 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
 
   async findAll(tableName: string, filter?: Record<string, any>): Promise<T[]> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     let sql = `SELECT * FROM ${tableName}`;
     if (filter && Object.keys(filter).length > 0) {
       const where = Object.keys(filter).map(k => `${k} = '${filter[k]}'`).join(' AND ');
@@ -147,7 +153,7 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
 
   async count(tableName: string, filter?: Record<string, any>): Promise<number> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     let sql = `SELECT COUNT(*) as count FROM ${tableName}`;
     if (filter && Object.keys(filter).length > 0) {
       const where = Object.keys(filter).map(k => `${k} = '${filter[k]}'`).join(' AND ');
@@ -159,19 +165,19 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
 
   async beginTransaction(): Promise<void> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     await this.db.execute('BEGIN TRANSACTION');
   }
 
   async commitTransaction(): Promise<void> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     await this.db.execute('COMMIT');
   }
 
   async rollbackTransaction(): Promise<void> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     await this.db.execute('ROLLBACK');
   }
 
@@ -182,16 +188,16 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
   }
 
   // 简单事件监听实现
-  protected eventListeners: Map<DatabaseEvent, Function[]> = new Map();
+  protected eventListeners: Map<DatabaseEventCode, Function[]> = new Map();
 
-  async addEventListener(event: DatabaseEvent, listener: Function): Promise<void> {
+  async addEventListener(event: DatabaseEventCode, listener: Function): Promise<void> {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event)!.push(listener);
   }
 
-  async removeEventListener(event: DatabaseEvent, listener: Function): Promise<void> {
+  async removeEventListener(event: DatabaseEventCode, listener: Function): Promise<void> {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       const idx = listeners.indexOf(listener);
@@ -201,46 +207,62 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
 
   async executeRawQuery(query: string, params?: any[]): Promise<any> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     // 只支持无参数的原生 SQL 查询
     if (/^select/i.test(query.trim())) {
       const res = await this.db.query(query);
       return res.values;
     } else {
-      await this.db.execute(query);
-      return undefined;
+      try {
+        await this.db.execute(query);
+        return undefined;
+      } catch (err) {
+        throw createDatabaseError(DatabaseErrorCode.QUERY_ERROR, `Failed to execute SQL: ${err}`, err);
+      }
     }
   }
 
   async create(tableName: string, data: T): Promise<T> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     const fields = Object.keys(data);
     const placeholders = fields.map(() => '?').join(',');
     const sql = `INSERT INTO ${tableName} (${fields.join(',')}) VALUES (${placeholders})`;
-    await this.db.run(sql, Object.values(data));
-    return data;
+    try {
+      await this.db.run(sql, Object.values(data));
+      return data;
+    } catch (err) {
+      throw createDatabaseError(DatabaseErrorCode.QUERY_ERROR, `Failed to execute SQL: ${err}`, err);
+    }
   }
 
   async update(tableName: string, id: string, data: Partial<T>): Promise<void> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     const fields = Object.keys(data);
     const setClause = fields.map(k => `${k} = ?`).join(',');
     const sql = `UPDATE ${tableName} SET ${setClause} WHERE id = ?`;
-    await this.db.run(sql, [...Object.values(data), id]);
+    try {
+      await this.db.run(sql, [...Object.values(data), id]);
+    } catch (err) {
+      throw createDatabaseError(DatabaseErrorCode.QUERY_ERROR, `Failed to execute SQL: ${err}`, err);
+    }
   }
 
   async delete(tableName: string, id: string): Promise<void> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     const sql = `DELETE FROM ${tableName} WHERE id = ?`;
-    await this.db.run(sql, [id]);
+    try {
+      await this.db.run(sql, [id]);
+    } catch (err) {
+      throw createDatabaseError(DatabaseErrorCode.QUERY_ERROR, `Failed to execute SQL: ${err}`, err);
+    }
   }
 
   async query(tableName: string, options: QueryOptions): Promise<QueryResult<T>> {
     this.checkInitialized();
-    if (!this.db) throw new Error('DB not initialized');
+    if (!this.db) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     // 只支持无过滤条件的全表查询，如需复杂查询请扩展
     const res = await this.db.query(`SELECT * FROM ${tableName}`);
     return { items: (res.values ?? []) as T[], total: res.values?.length ?? 0 };
@@ -272,6 +294,6 @@ export class CapacitorSQLiteClient<T extends BaseEntity = any> extends BaseClien
   getConfig(): DatabaseConfig { return this.config; }
 
   protected checkInitialized(): void {
-    if (!this.initialized) throw new Error('CapacitorSQLiteClient not initialized');
+    if (!this.initialized) throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
   }
 }

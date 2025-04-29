@@ -1,11 +1,14 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import React from 'react';
 import { IonPage, IonContent, IonTabBar, IonTabButton, IonIcon, IonLabel, IonTabs, IonRouterOutlet } from '@ionic/react';
 import { homeOutline, chatbubbleEllipsesOutline, personOutline, settingsOutline } from 'ionicons/icons';
 import { usePathname, useRouter } from 'next/navigation';
-import { Providers } from '@/src/providers';
+// 动态导入 IonicProvider，禁止 SSR
+const IonicProvider = dynamic(() => import('@/providers/ionic').then(mod => mod.IonicProvider), { ssr: false });
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
+import { useTranslations } from 'next-intl';
 
 // 集中配置公开页面白名单
 const PUBLIC_ROUTES = [
@@ -28,6 +31,7 @@ export default function MobileLayout({
 
   const pathname = usePathname();
   const router = useRouter();
+  const t = useTranslations();
 
   // 判断当前路径是否在公开页面白名单，测试阶段可全公开
   const isPublic = ALL_PUBLIC || PUBLIC_ROUTES.some(route => pathname.startsWith(route));
@@ -37,7 +41,7 @@ export default function MobileLayout({
   }
 
   return (
-    <Providers>
+    <IonicProvider>
       <IonPage>
         <IonContent>
           {children}
@@ -61,6 +65,6 @@ export default function MobileLayout({
           </IonTabButton>
         </IonTabBar>
       </IonPage>
-    </Providers>
+    </IonicProvider>
   );
 }

@@ -1,5 +1,6 @@
 import pino, { Logger as PinoLogger, LoggerOptions as PinoLoggerOptions } from 'pino';
-import { LogLevel, ILoggerService, InfrastructureServiceType, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
+import { LogLevel, ILoggerService, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
+import { InfrastructureServiceType } from '@/core/lib/db/types/common';
 
 /**
  * Pino 日志适配器，兼容 ILoggerService，支持 JSON 格式、动态 level、结构化日志。

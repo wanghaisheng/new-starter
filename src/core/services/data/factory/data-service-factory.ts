@@ -3,6 +3,7 @@ import { HybridDatabaseClient } from '../adapters/hybrid-database-client';
 import { AdvancedHybridDatabaseClient } from '../adapters/advanced-hybrid-database-client';
 import { MockHybridDatabaseClient } from '../adapters/mock-hybrid-database-client';
 import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
+import { getConfigService } from '@/core/services/infrastructure/config';
 import { getAdapter } from '@/core/services/infrastructure/config/registry/config-registry';
 import { parseEnum } from '@/core/services/infrastructure/config/parse-enum';
 import type { ConfigSchema } from '@/core/services/infrastructure/config/config-types';
@@ -25,7 +26,7 @@ import { createNetworkManager } from '@/core/services/infrastructure/network/net
 // 程序启动后优先初始化配置服务，并输出日志
 const logger = LoggerService.getInstance();
 logger.info('[DataServiceFactory] 初始化配置服务...');
-const configService = getAdapter('configService'); // 或 ConfigService.getInstance()
+const configService = getConfigService();
 logger.info('[DataServiceFactory] 配置服务已初始化');
 if (!configService) {
   throw new Error('[DataServiceFactory] configService 未注册或初始化失败');
@@ -49,9 +50,6 @@ function getDatabaseOptions(adapter: string): any {
   }
 }
 
-/**
- * 动态创建底层数据库 client（支持 provider + orm 组合）
- */
 function createBaseClient(config: DataServiceConfig): IDataService<BaseEntity> {
   const provider = config.services.data.onlineProvider ?? 'unknown-provider';
   const orm = config.services.data.orm || 'native';
@@ -78,20 +76,6 @@ function createBaseClient(config: DataServiceConfig): IDataService<BaseEntity> {
   return instance;
 }
 
-/**
- * 根据配置自动判断同步场景并组装对应的 SyncClient
- * - memoryCache: 纯内存缓存（IMemoryCache 实现，需 provider=memory）
- * - offlineStore: 本地持久化存储（如 IndexedDB、SQLite）
- * - onlineClient: 远端数据库（如 Supabase、Firebase）
- *
- * 返回值类型兼容 IDataService<BaseEntity>，便于适配工厂主流程
- *
- * 支持场景：
- * 1. 高级多级缓存（memoryCache→offlineStore→onlineClient）
- * 2. 普通混合同步（offlineStore→onlineClient）
- * 3. 单一缓存/临时链路（仅 memory/redis/localstorage 等）
- * 4. 仅在线/仅离线
- */
 function createSyncClientByConfig(config: DataServiceConfig): IDataService<BaseEntity> {
   const data = config.services?.data || {};
   const options = data.options || {};
@@ -168,10 +152,6 @@ function createSyncClientByConfig(config: DataServiceConfig): IDataService<BaseE
   throw new Error('[createSyncClientByConfig] 无法根据配置推断同步链路，请检查 provider 配置（需至少指定 onlineProvider 或 offlineProvider）');
 }
 
-/**
- * 数据服务工厂，根据环境变量/配置动态创建实例
- * DataMode 仅支持 online/offline/hybrid，特殊 hybrid 变体通过环境变量/配置推理
- */
 export class DataServiceFactory {
   static createService(config: DataServiceConfig): IDataService<BaseEntity> {
     const logger = LoggerService.getInstance();
@@ -180,9 +160,9 @@ export class DataServiceFactory {
 
     // mock hybrid: 测试/演练环境优先
     const isMock = options.enableMock === true
-      || process.env.NODE_ENV === 'test'
-      || process.env.NEXT_PUBLIC_AUTH_TYPE === 'mock'
-      || process.env.NEXT_PUBLIC_USER_SERVICE_TYPE === 'mock';
+      || getConfigService().get('NODE_ENV') === 'test'
+      || getConfigService().get('NEXT_PUBLIC_AUTH_TYPE') === 'mock'
+      || getConfigService().get('NEXT_PUBLIC_USER_SERVICE_TYPE') === 'mock';
     if (isMock) {
       return new MockHybridDatabaseClient(config);
     }
@@ -220,9 +200,9 @@ export class DataServiceFactory {
         || options.conflictDetection === true
         || options.distributed === true
         || options.failoverStrategy === 'auto'
-        || process.env.CACHE_STRATEGY === 'memory'
-        || process.env.CACHE_STRATEGY === 'redis'
-        || process.env.ADVANCED_HYBRID === 'true';
+        || getConfigService().get('CACHE_STRATEGY') === 'memory'
+        || getConfigService().get('CACHE_STRATEGY') === 'redis'
+        || getConfigService().get('ADVANCED_HYBRID') === 'true';
       if (isAdvancedHybrid) {
         // 工厂负责实例化所有底层 client 和管理器，全部通过 createBaseClient 保证一致性
         const syncClient = createSyncClientByConfig(config);

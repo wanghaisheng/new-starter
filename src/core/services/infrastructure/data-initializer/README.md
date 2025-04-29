@@ -26,18 +26,30 @@
 import { DataInitializerService } from './data-initializer.service';
 
 const initializer = new DataInitializerService({
-  env: process.env.NODE_ENV, // 'mock' | 'local' | 'prod'
-  dbConfig: { ... },         // 数据库 client 配置
-  // type: 'memory' | 'json' | 'sql'，可省略自动识别
-  // jsonFilePath / sqlDir 可选
+  // 推荐通过 getConfigService() 获取全局配置
+  mode: 'memory' | 'json' | 'sql', // 可选，自动识别，建议通过配置服务统一管理
+  config: { ... },                 // 数据库 client 配置，建议通过配置服务统一获取
+  // 其它可选参数如 jsonFilePath、sqlDir
 });
 await initializer.initialize();
 const dbClient = initializer.getClient();
 ```
 
-### 2. 环境变量与自动切换
-- 支持通过 `NODE_ENV`、`MOCK_DB_IMPORT_MODE` 等变量自动切换数据导入方式。
+### 2. 配置与环境变量管理
+
+- 强烈建议通过 `getConfigService()` 获取所有环境变量和初始化配置，禁止直接读取 process.env。
+- 支持通过配置服务统一管理 `NEXT_PUBLIC_DB_TYPE`、`NEXT_PUBLIC_DB_INIT_MODE` 等变量，实现自动切换数据导入方式。
 - 业务 service 层无需关心数据来源，全部通过 dbClient 统一访问。
+
+### 3. 参数说明
+
+| 字段   | 类型                  | 说明                                        |
+|--------|-----------------------|---------------------------------------------|
+| mode   | string                | 初始化模式（memory/json/sql/schema），可省略自动识别 |
+| config | object                | 数据库 client 配置，建议通过配置服务统一获取      |
+| ...    | 其它                  | 如 jsonFilePath、sqlDir 等，适配不同数据源      |
+
+> 推荐所有配置、模式、路径均通过配置服务（getConfigService）统一管理，便于多环境切换和维护。
 
 ---
 
@@ -63,12 +75,12 @@ const dbClient = initializer.getClient();
 
 ---
 
-## 四、最佳实践
+## 四、最佳实践与注意事项
 
-- 所有表结构和 mock 数据应与生产环境 schema 保持同步，避免测试/生产不一致。
-- 推荐在 CI/CD 或开发启动脚本中自动初始化数据，保证环境一致性。
-- 扩展新数据源/适配器时，仅需实现 `IDataInitializerAdapter` 并注册到工厂/注册表。
-- 业务 hooks 与 service 层全部通过注册表获取实例，禁止直接 new。
+- 推荐所有初始化参数、数据库配置均通过 getConfigService() 统一获取。
+- 禁止直接读取 process.env，所有环境变量应通过配置服务注入。
+- 文档示例参数命名与实际实现保持一致（mode/config）。
+- initialize() 方法返回数据库 client 实例，可直接用于后续业务操作。
 
 ---
 
@@ -77,7 +89,7 @@ const dbClient = initializer.getClient();
 - **如何新增 mock 表/数据？**
   - 在 `db/data/` 下新增 mock 文件并在 `index.ts` 聚合即可。
 - **如何切换数据导入方式？**
-  - 通过构造参数 `type` 或设置环境变量 `MOCK_DB_IMPORT_MODE`。
+  - 通过构造参数 `mode` 或设置环境变量 `MOCK_DB_IMPORT_MODE`。
 - **如何保证表结构和数据一致？**
   - 统一维护 schema 和数据源，定期自动校验和导出。
 
@@ -121,10 +133,10 @@ const dbClient = initializer.getClient();
 import { DataInitializerService } from './data-initializer.service';
 
 const initializer = new DataInitializerService({
-  env: 'mock', // mock | local | prod
-  dbConfig: { /* ... */ },
-  // type: 'memory' | 'json' | 'sql'，可省略自动识别
-  // jsonFilePath / sqlDir 可选
+  // 推荐通过 getConfigService() 获取全局配置
+  mode: 'memory' | 'json' | 'sql', // 可选，自动识别，建议通过配置服务统一管理
+  config: { ... },                 // 数据库 client 配置，建议通过配置服务统一获取
+  // 其它可选参数如 jsonFilePath、sqlDir
 });
 await initializer.initialize();
 const dbClient = initializer.getClient();
@@ -148,7 +160,7 @@ const dbClient = initializer.getClient();
 ## 九、常见问题与典型场景
 
 - 如何在不同模式下切换数据初始化方式？
-  - 通过 DataInitializerService 的 type/env 参数或环境变量自动切换。
+  - 通过 DataInitializerService 的 mode 参数或环境变量自动切换。
 - 如何保证本地、云端数据一致？
   - 混合模式下需定期同步，并处理冲突。
 - 如何新增 mock 数据表/数据？
@@ -199,49 +211,68 @@ async function initializeClientDbIfNeeded() {
 
 ---
 
-## 四、架构集成与高级用法
+## 四、架构升级：配置驱动与工厂注册表模式（2025）
 
-### 1. 与数据服务/仓储层的解耦协作
-- DataInitializerService 不直接操作底层数据库 client，也不关心具体环境（mock/local/dev/prod）或 adapter/provider 的选择。
-- 初始化服务通过数据服务工厂/注册表获取已选好的数据服务实例（如 IndexedDB/SQLite/Supabase/Mock 等），由数据服务屏蔽环境和底层实现细节。
-- 所有数据写入、建表、批量导入均通过仓储层（Repository）完成，保证类型安全、校验和业务一致性。
+为提升可维护性与扩展性，数据初始化服务已支持“配置驱动 + 工厂 + 适配器注册表”架构，具体如下：
 
-#### 典型调用链示例
-```typescript
-import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
-import { UserRepository } from '@/core/lib/db/repositories/user.repository';
-import { DataInitializerService } from './data-initializer.service';
+### 1. 统一初始化配置（推荐范式）
 
-const dataService = DataServiceRegistry.getInstance(); // 已按环境自动选择 adapter
-const userRepository = new UserRepository(dataService);
+可在 `src/core/services/infrastructure/data-initializer/config.ts` 或环境变量中集中配置：
 
-await DataInitializerService.initialize({
-  repositories: { userRepository },
-  mockData: { users: mockUsers },
-  // 其它参数如 env、mode ...
-});
-// DataInitializerService 内部通过 userRepository.bulkInsert(mockUsers) 完成写入
+```ts
+export const DATA_INIT_CONFIG = {
+  dbType: process.env.NEXT_PUBLIC_DB_TYPE || 'sqlite',
+  adapterType: process.env.NEXT_PUBLIC_DB_INIT_MODE || 'schema',
+  tables: [
+    { name: 'users', defaultData: [/* ... */] },
+    { name: 'settings', defaultData: [/* ... */] },
+    // ...更多表
+  ],
+  jsonFilePath: './mock-data.json',
+  sqlDir: './mock-sql',
+};
 ```
 
-### 2. 支持多环境/多模式/多数据源的初始化策略
-- 初始化服务自动通过配置服务（configService）获取当前环境模式（如 ENV_STAGE、DATA_MODE、ONLINE_DB、OFFLINE_DB），无需手动指定。
-- 支持 memory、json、sql、云端拉取等多种初始化方式，自动适配当前运行环境。
-- 可配置“首次初始化、重置数据、导入导出、数据迁移”等高级能力。
-- 详细策略参见 [环境模式](../../../../docs/guides/environment-modes.md)、[服务模式](../../../../docs/guides/service-modes.md)、[数据初始化模式](../../../../docs/guides/data-initialization-modes.md)。
+### 2. 工厂与适配器注册表
 
-### 3. 设计原则与最佳实践
-- 初始化服务与数据服务、仓储层完全解耦，便于测试、扩展和维护。
-- 所有 mock 数据、schema、初始化脚本集中管理，便于多端/多环境一致性。
-- 推荐所有业务数据初始化均通过仓储层批量写入，避免直连数据库 client。
-- 初始化流程应具备幂等性和可重入性。
+- 通过 `DataInitializerFactory.createAdapter(config)` 根据配置自动选择适配器（schema/json/memory/sql）。
+- 所有适配器通过 `DataInitializerRegistry` 注册，支持自定义扩展。
+- 适配器需实现统一接口（initialize、getClient）。
 
-### 4. FAQ
-- **Q: DataInitializerService 如何屏蔽环境和底层数据库选择？**
-  - A: 通过数据服务工厂/注册表获取实例，adapter/provider 选择全部由数据服务层自动完成。
-- **Q: 如何保证 mock、本地、云端等多环境下初始化一致？**
-  - A: 初始化服务统一走仓储层和数据服务，所有数据源和表结构集中管理，流程自动适配。
-- **Q: 可以只初始化部分表/数据吗？**
-  - A: 支持传入部分 mock/json/sql 数据，按需初始化。
+### 3. 初始化流程升级
+
+- 主流程：
+  1. 选择适配器并建表/迁移（schema/sql），或批量导入数据（json/memory）。
+  2. 检查每个表是否为空，自动插入 defaultData（如有配置）。
+  3. 支持多数据源灵活切换。
+- 业务 service 层无需关心底层实现，全部通过统一接口访问。
+
+### 4. 扩展适配器/数据源
+
+- 新增适配器时，实现 `IDataInitializerAdapter` 并注册到 `DataInitializerRegistry`。
+- 可扩展 RESTful 批量导入、远程数据拉取等更多初始化方式。
+
+### 5. 示例代码
+
+```ts
+import { DataInitializerService } from './data-initializer.service';
+import { DATA_INIT_CONFIG } from './config';
+
+const initializer = new DataInitializerService(DATA_INIT_CONFIG);
+await initializer.initialize();
+const dbClient = initializer.getClient();
+// ...后续业务代码
+```
+
+---
+
+> **升级亮点**：
+> - 支持集中配置所有初始化表和默认数据
+> - 工厂+注册表模式，适配器可扩展
+> - 环境变量/配置驱动，适配多场景
+> - 初始化流程自动化、可插拔
+
+如需自定义初始化流程或适配器，请参考 `src/core/services/infrastructure/data-initializer/factory/` 及 `registry/` 目录实现。
 
 ---
 
@@ -277,11 +308,11 @@ await adapter.initialize();
 - 通过 DataInitializerRegistry 获取合适的适配器。
 
 ```typescript
-import { ConfigService } from '@/core/services/infrastructure/config/service/config-service';
+import { getConfigService } from '@/core/services/infrastructure/config';
 import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
 import { DataInitializerRegistry } from './registry/data-initializer-registry';
 
-const configService = ConfigService.getInstance();
+const configService = getConfigService();
 const dbKey = configService.get('DB_KEY') || 'default';
 const importType = configService.get('MOCK_DB_IMPORT_MODE') || 'json';
 const dbClient = DataServiceRegistry.get(dbKey);

@@ -1,5 +1,6 @@
 // SmtpEmailAdapter: 真实 SMTP 邮件服务适配器
-import { IEmailService, EmailOptions, InfrastructureServiceType, InfrastructureServiceConfig } from '@/core/services/infrastructure/types';
+import { IEmailService, EmailOptions, InfrastructureServiceConfig } from '@/core/services/infrastructure/types';
+import { InfrastructureServiceType } from '@/core/lib/db/types/common';
 
 export class SmtpEmailAdapter implements IEmailService {
   private static instance: SmtpEmailAdapter;

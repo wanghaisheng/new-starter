@@ -1,10 +1,10 @@
 // mock-translation-service-adapter.ts
 import type { ITranslationAdapter } from '../types/translation-service';
-import { ConfigService } from '@/core/services/infrastructure/config/service/config-service';
+import { getConfigService } from '@/core/services/infrastructure/config';
 
 export class MockTranslationServiceAdapter implements ITranslationAdapter {
   async getTranslationsByKeys(keys: string[], locale?: string) {
-    const config = ConfigService.getInstance();
+    const config = getConfigService();
     const mockData = config.get<{ key: string; locale: string; value: string }[]>('translationMockData') || [];
     const lang = locale || 'zh';
     const result: { [key: string]: string } = {};

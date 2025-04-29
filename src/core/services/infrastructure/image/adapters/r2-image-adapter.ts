@@ -2,6 +2,7 @@ import { PutObjectCommand, S3Client, HeadObjectCommand, DeleteObjectCommand } fr
 import type { IImageService, ImageUploadResult, ImageInfo } from '../types/image-service';
 import { EventEmitter } from 'events';
 import type { NotificationService } from '../../notifications/service/notification-service';
+import { getConfigService } from '@/core/services/infrastructure/config';
 
 // 队列与持久化相关类型
 export interface UploadTask {
@@ -211,15 +212,15 @@ export class R2ImageAdapter implements IImageService {
 
   constructor(notificationService?: NotificationService) {
     this.s3 = new S3Client({
-      region: process.env.R2_REGION || 'auto',
-      endpoint: process.env.R2_ENDPOINT,
+      region: getConfigService().get('R2_REGION') || 'auto',
+      endpoint: getConfigService().get('R2_ENDPOINT'),
       credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+        accessKeyId: getConfigService().get('R2_ACCESS_KEY_ID')!,
+        secretAccessKey: getConfigService().get('R2_SECRET_ACCESS_KEY')!,
       },
     });
-    this.bucket = process.env.R2_BUCKET!;
-    this.publicBaseUrl = process.env.R2_PUBLIC_BASE_URL!;
+    this.bucket = getConfigService().get('R2_BUCKET')!;
+    this.publicBaseUrl = getConfigService().get('R2_PUBLIC_BASE_URL')!;
     this.imageUploadQueueService = new ImageUploadQueueService(this, 1, notificationService);
   }
 

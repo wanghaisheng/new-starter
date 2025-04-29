@@ -1,5 +1,6 @@
 // import { IDatabaseClient, DatabaseConfig } from '@/core/lib/db/interfaces';
 import { QueryOptions, QueryResult } from '@/core/lib/db/types/database';
+import { createDatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database';
 import fs from 'fs/promises';
 
 /**
@@ -71,7 +72,7 @@ export class JsonDatabaseClient implements IDatabaseClient {
   async update(collection: string, id: string, data: Partial<BaseEntity>): Promise<BaseEntity> {
     const now = new Date().toISOString();
     const idx = (this.data[collection] ?? []).findIndex((item: BaseEntity) => item.id === id);
-    if (idx === -1) throw new Error('Not found');
+    if (idx === -1) throw createDatabaseError(DatabaseErrorCode.RECORD_NOT_FOUND, 'Not found');
     this.data[collection][idx] = {
       ...this.data[collection][idx],
       ...data,

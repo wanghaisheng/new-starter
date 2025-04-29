@@ -1,5 +1,6 @@
 // NetworkService 实现
-import { INetworkService, InfrastructureServiceType, InfrastructureServiceConfig, RequestOptions, Response, RequestInterceptor } from '@/core/services/infrastructure/types';
+import { INetworkService, InfrastructureServiceConfig, RequestOptions, Response, RequestInterceptor } from '@/core/services/infrastructure/types';
+import { InfrastructureServiceType } from '@/core/lib/db/types/common';
 
 export class NetworkService implements INetworkService {
   private static instance: NetworkService;
@@ -32,4 +33,3 @@ export class NetworkService implements INetworkService {
   addInterceptor(interceptor: RequestInterceptor): void {}
   removeInterceptor(interceptor: RequestInterceptor): void {}
 }
-

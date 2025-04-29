@@ -31,3 +31,7 @@ export class NetworkRegistry {
     return Object.keys(this.adapters) as NetworkProviderType[];
   }
 }
+
+// 网络服务注册表/工厂
+export { createNetworkManager as getNetworkManager } from '../network-manager';
+// 可在此统一聚合更多网络相关导出

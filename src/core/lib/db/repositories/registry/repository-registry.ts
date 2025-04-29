@@ -1,7 +1,7 @@
 /**
  * 仓储注册表：集中注册与获取所有仓储实例，支持多实现/多环境自动切换
  */
-import { ConfigService } from '@/core/services/infrastructure/config/service/config-service';
+import { getConfigService } from '@/core/services/infrastructure/config';
 import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 import { DataMode } from '@/core/lib/db/types/common';
 import { DataServiceRegistry } from '@/core/services/data/registry/data-service-registry';
@@ -11,7 +11,6 @@ import { DataServiceRegistry } from '@/core/services/data/registry/data-service-
 import '../factory/auto-register-adapters';
 // 自动引入 RepositoryMap 类型声明（由脚本自动生成，保证类型安全）
 import { RepositoryKey, RepositoryMap } from './repository-map';
-import { createConfigService } from '@/core/services/infrastructure/config/registry/config-registry';
 
 function parseDataMode(modeStr?: string): DataMode {
   switch (modeStr) {
@@ -30,12 +29,12 @@ function parseDataMode(modeStr?: string): DataMode {
 
 class RepositoryRegistry {
   private registry = new Map<RepositoryKey, any>();
-  private configService: ConfigService;
+  private configService: any;
   private logger: LoggerService;
 
-  constructor(configService?: ConfigService, logger?: LoggerService) {
+  constructor(configService?: any, logger?: LoggerService) {
     // 支持注入或默认全局单例
-    this.configService = configService || ConfigService.getInstance();
+    this.configService = configService || getConfigService();
     this.logger = logger || LoggerService.getInstance();
   }
 
@@ -63,7 +62,7 @@ class RepositoryRegistry {
     envStage?: string;
     dataMode?: DataMode;
     platform?: string;
-    configService?: ReturnType<typeof getConfigService>;
+    configService?: any;
     clientMap?: {
       indexeddb?: any;
       sqlite?: any;
@@ -136,7 +135,7 @@ class RepositoryRegistry {
     envStage?: string;
     dataMode?: DataMode;
     platform?: string;
-    configService?: ReturnType<typeof getConfigService>;
+    configService?: any;
     clientMap?: Partial<RepositoryMap>;
     logger?: any;
   } = {}) {

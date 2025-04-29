@@ -1,6 +1,6 @@
 import type { IDatabaseClient } from '@/core/lib/db/interfaces';
 import type { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database';
-import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
+import { createDatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database';
 import { Logger } from '@/core/lib/utils/logger';
 
 /**
@@ -47,11 +47,7 @@ export class SupabaseClient implements IDatabaseClient {
       this.logger.info('Supabase client initialized');
     } catch (error) {
       this.logger.error('Failed to initialize Supabase client:', error);
-      throw new DatabaseError(
-        'Failed to initialize Supabase client',
-        DatabaseErrorCode.INITIALIZATION_ERROR,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.INITIALIZATION_FAILED, 'Failed to initialize Supabase client', error);
     }
   }
 
@@ -61,10 +57,7 @@ export class SupabaseClient implements IDatabaseClient {
 
   public async clear(): Promise<void> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
     // Supabase does not support clearing the entire database
     this.logger.warn('Clearing Supabase database is not supported');
@@ -72,10 +65,7 @@ export class SupabaseClient implements IDatabaseClient {
 
   public async findById<T>(collection: string, id: string): Promise<T | null> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
@@ -92,20 +82,13 @@ export class SupabaseClient implements IDatabaseClient {
       return data as T;
     } catch (error) {
       this.logger.error(`Failed to find record by id ${id} in collection ${collection}:`, error);
-      throw new DatabaseError(
-        `Failed to find record by id ${id}`,
-        DatabaseErrorCode.OPERATION_FAILED,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, `Failed to find record by id ${id}`, error);
     }
   }
 
   public async findAll<T>(collection: string, filter?: Record<string, any>): Promise<T[]> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
@@ -126,20 +109,13 @@ export class SupabaseClient implements IDatabaseClient {
       return data as T[];
     } catch (error) {
       this.logger.error(`Failed to find records in collection ${collection}:`, error);
-      throw new DatabaseError(
-        'Failed to find records',
-        DatabaseErrorCode.OPERATION_FAILED,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, 'Failed to find records', error);
     }
   }
 
   public async create<T>(collection: string, data: Partial<T>): Promise<T> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
@@ -156,20 +132,13 @@ export class SupabaseClient implements IDatabaseClient {
       return result as T;
     } catch (error) {
       this.logger.error(`Failed to create record in collection ${collection}:`, error);
-      throw new DatabaseError(
-        'Failed to create record',
-        DatabaseErrorCode.OPERATION_FAILED,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, 'Failed to create record', error);
     }
   }
 
   public async update<T>(collection: string, id: string, data: Partial<T>): Promise<T> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
@@ -187,20 +156,13 @@ export class SupabaseClient implements IDatabaseClient {
       return result as T;
     } catch (error) {
       this.logger.error(`Failed to update record ${id} in collection ${collection}:`, error);
-      throw new DatabaseError(
-        'Failed to update record',
-        DatabaseErrorCode.OPERATION_FAILED,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, 'Failed to update record', error);
     }
   }
 
   public async delete(collection: string, id: string): Promise<boolean> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
@@ -216,20 +178,13 @@ export class SupabaseClient implements IDatabaseClient {
       return true;
     } catch (error) {
       this.logger.error(`Failed to delete record ${id} from collection ${collection}:`, error);
-      throw new DatabaseError(
-        'Failed to delete record',
-        DatabaseErrorCode.OPERATION_FAILED,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, 'Failed to delete record', error);
     }
   }
 
   public async query<T>(collection: string, options: QueryOptions): Promise<QueryResult<T>> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
@@ -270,20 +225,13 @@ export class SupabaseClient implements IDatabaseClient {
       };
     } catch (error) {
       this.logger.error(`Failed to execute query on collection ${collection}:`, error);
-      throw new DatabaseError(
-        'Failed to execute query',
-        DatabaseErrorCode.QUERY_ERROR,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, 'Failed to execute query', error);
     }
   }
 
   public async count(collection: string, filter?: Record<string, any>): Promise<number> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
@@ -304,40 +252,26 @@ export class SupabaseClient implements IDatabaseClient {
       return count || 0;
     } catch (error) {
       this.logger.error(`Failed to count records in collection ${collection}:`, error);
-      throw new DatabaseError(
-        'Failed to count records',
-        DatabaseErrorCode.QUERY_ERROR,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, 'Failed to count records', error);
     }
   }
 
   public async beginTransaction(): Promise<void> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
       this.transaction = await this.client.rpc('begin_transaction');
     } catch (error) {
       this.logger.error('Failed to begin transaction:', error);
-      throw new DatabaseError(
-        'Failed to begin transaction',
-        DatabaseErrorCode.TRANSACTION_ERROR,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.TRANSACTION_FAILED, 'Failed to begin transaction', error);
     }
   }
 
   public async commitTransaction(): Promise<void> {
     if (!this.transaction) {
-      throw new DatabaseError(
-        'No active transaction',
-        DatabaseErrorCode.NO_ACTIVE_TRANSACTION
-      );
+      throw createDatabaseError(DatabaseErrorCode.NO_ACTIVE_TRANSACTION, 'No active transaction');
     }
 
     try {
@@ -345,20 +279,13 @@ export class SupabaseClient implements IDatabaseClient {
       this.transaction = null;
     } catch (error) {
       this.logger.error('Failed to commit transaction:', error);
-      throw new DatabaseError(
-        'Failed to commit transaction',
-        DatabaseErrorCode.TRANSACTION_COMMIT_ERROR,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.TRANSACTION_FAILED, 'Failed to commit transaction', error);
     }
   }
 
   public async rollbackTransaction(): Promise<void> {
     if (!this.transaction) {
-      throw new DatabaseError(
-        'No active transaction',
-        DatabaseErrorCode.NO_ACTIVE_TRANSACTION
-      );
+      throw createDatabaseError(DatabaseErrorCode.NO_ACTIVE_TRANSACTION, 'No active transaction');
     }
 
     try {
@@ -366,20 +293,13 @@ export class SupabaseClient implements IDatabaseClient {
       this.transaction = null;
     } catch (error) {
       this.logger.error('Failed to rollback transaction:', error);
-      throw new DatabaseError(
-        'Failed to rollback transaction',
-        DatabaseErrorCode.TRANSACTION_ROLLBACK_ERROR,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.TRANSACTION_FAILED, 'Failed to rollback transaction', error);
     }
   }
 
   public async batch<T>(tableName: string, operations: BatchOperation<T>[]): Promise<void> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
@@ -396,20 +316,13 @@ export class SupabaseClient implements IDatabaseClient {
       }
     } catch (error) {
       this.logger.error('Failed to execute batch operations:', error);
-      throw new DatabaseError(
-        'Failed to execute batch operations',
-        DatabaseErrorCode.OPERATION_FAILED,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, 'Failed to execute batch operations', error);
     }
   }
 
   public async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
-      );
+      throw createDatabaseError(DatabaseErrorCode.CLIENT_NOT_INITIALIZED, 'Client not initialized');
     }
 
     try {
@@ -425,11 +338,7 @@ export class SupabaseClient implements IDatabaseClient {
       return data as R[];
     } catch (error) {
       this.logger.error('Failed to execute raw query:', error);
-      throw new DatabaseError(
-        'Failed to execute raw query',
-        DatabaseErrorCode.QUERY_ERROR,
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.OPERATION_FAILED, 'Failed to execute raw query', error);
     }
   }
 } 

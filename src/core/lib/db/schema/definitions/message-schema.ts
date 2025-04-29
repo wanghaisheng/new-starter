@@ -2,7 +2,7 @@ import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
 import { EntityStatus } from '../../types/entity-status'
 
-import { schemaRegistry } from '../index';
+import { schemaRegistry } from '../schema-registry-singleton';
 
 export const messageSchema: TableSchema = {
   name: 'messages',

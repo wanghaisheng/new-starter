@@ -2,9 +2,7 @@ import { SQLiteDBConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { StorageStats } from '@/core/lib/db/types/database';
-import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database-error';
-import type { DatabaseLogger } from '@/core/lib/db/types/database-logger';
-import { getDatabaseLogger } from '@/core/lib/db/types/database-logger';
+import { DatabaseErrorCode } from '@/core/lib/db/types/common';
 
 export interface StorageConfig {
   maxSize: number; // 最大存储空间（字节）

@@ -1,5 +1,4 @@
 import { IDataInitializerAdapter } from '../types/data-initializer-adapter';
-import { IDatabaseClient } from '@/core/lib/db/interfaces';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -15,7 +14,10 @@ export class SchemaDataInitializerAdapter implements IDataInitializerAdapter {
     this.sqlDir = config.sqlDir;
   }
 
-  async initialize() {
+  async initialize(options?: { mode?: 'structure' | 'full'; tables?: string[]; reset?: boolean }) {
+    // options.mode: 'structure' 仅建表, 'full' 建表+默认数据
+    // options.tables: 指定表名
+    // options.reset: true=重置(清空), false=增量
     if (this.sqlDir) {
       // SQL 文件批量建表
       const files = await fs.readdir(this.sqlDir);
@@ -29,15 +31,20 @@ export class SchemaDataInitializerAdapter implements IDataInitializerAdapter {
           }
         }
       }
+      // SQL 脚本不支持默认数据导入（如需支持可扩展）
       return;
     }
     // ORM 自动建表/迁移
     if (typeof (this.dbClient as any).initSchema === 'function') {
-      await (this.dbClient as any).initSchema();
+      await (this.dbClient as any).initSchema(options?.tables);
     } else if (typeof (this.dbClient as any).migrate === 'function') {
-      await (this.dbClient as any).migrate();
+      await (this.dbClient as any).migrate(options?.tables);
     } else {
       throw new Error('[SchemaDataInitializerAdapter] dbClient 不支持 schema 初始化方法');
+    }
+    // 默认数据导入
+    if (options?.mode === 'full' && typeof (this.dbClient as any).importDefaultData === 'function') {
+      await (this.dbClient as any).importDefaultData(options?.tables, options?.reset);
     }
   }
 

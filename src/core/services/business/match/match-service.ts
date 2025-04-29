@@ -2,9 +2,11 @@ import { MatchRepository } from '@/core/lib/db/repositories/impl/match-repositor
 import { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/match.types';
 import { User } from '@/core/lib/db/types/user.types';
 import { IDataService } from '@/core/services/data/types';
-import { IMatchAIAdapter } from '@/core/services/business/match/ai-adapters/match-ai-adapter';
-import { DefaultMatchAIAdapter } from '@/core/services/business/match/ai-adapters/default-match-ai-adapter';
+import type { IMatchStrategy } from '@/core/services/business/match/ai-adapters/match-ai-adapter';
+import { CompositeMatchAdapter } from '@/core/services/business/match/ai-adapters/composite-match-adapter';
 import { UserService } from '@/core/services/business/user/user-service';
+import type { MatchPreference } from './match-preference.types';
+import { createDynamicCompositeAdapter } from '@/core/services/business/match/ai-adapters/dynamic-strategy';
 
 /**
  * 类型安全 MatchService（新架构）
@@ -34,15 +36,28 @@ export interface MatchUsersOptions {
   baseFilter?: UserBaseFilter;
 }
 
+export interface MatchOptions extends Partial<MatchPreference> {
+  // 可扩展临时参数，如本次匹配特有的过滤条件等
+}
+
 export class MatchService {
   private matchRepo: MatchRepository;
-  private aiAdapter: IMatchAIAdapter;
+  private aiAdapter: IMatchStrategy;
   private userService: UserService;
+  private configService: any; // 系统级配置服务
+  private settingService: any; // 用户级配置服务（如有）
 
-  constructor(dataService: IDataService, aiAdapter?: IMatchAIAdapter, userService?: UserService) {
+  /**
+   * @param configService 系统级配置服务，决定本系统支持哪些匹配算法（如 'location', 'tag', 'mbti' 等）
+   * @param settingService 用户级配置服务（如有）
+   */
+  constructor(dataService: IDataService, configService: any, userService?: UserService, settingService?: any) {
     this.matchRepo = new MatchRepository(dataService);
-    this.aiAdapter = aiAdapter || new DefaultMatchAIAdapter();
+    this.configService = configService;
+    this.settingService = settingService;
     this.userService = userService!;
+    // 默认初始化，实际匹配时可动态调整
+    this.aiAdapter = createDynamicCompositeAdapter(this.configService, null, null);
   }
 
   /**
@@ -89,23 +104,25 @@ export class MatchService {
   }
 
   /**
-   * 综合多机制智能匹配
-   * @param userId 当前用户ID
-   * @param opts 组合算法参数，支持地理、标签、MBTI、八字、随机等
-   * @returns 推荐用户列表，已按算法策略排序和裁剪
-   *
-   * 推荐扩展方式：
-   * - 业务层可根据用户类型/每日推荐数动态设置 opts.limit
-   * - 新增算法只需扩展 aiAdapter 和 opts 参数，无需修改业务层
+   * 综合多机制智能匹配（主入口）
+   * 支持根据用户偏好和临时选项动态调整算法顺序和内容
    */
-  async matchUsers(userId: string, opts: MatchUsersOptions): Promise<User[]> {
+  async matchUsers(userId: string, options?: MatchOptions, preference?: MatchPreference): Promise<User[]> {
+    // 1. 获取用户全局匹配偏好（如未传入则需从 DB/Service 获取）
+    let mergedPreference: MatchPreference = { ...(preference || {}) };
+    if (options) {
+      mergedPreference = { ...mergedPreference, ...options };
+    }
+    // 2. 获取候选人列表（可根据 mergedPreference.baseFilter 透传基础过滤条件）
+    const candidates = await this.matchRepo.getRecommendedUsers(userId, mergedPreference.baseFilter);
+    // 3. 获取当前用户信息
     const user = await this.userService.getUserById(userId);
-    if (!user) return [];
-    // 可根据用户类型/每日推荐数动态设置 limit
-    // 例如：opts.limit = user.isVip ? 50 : 10;
-    const { items: candidates } = await this.userService.getRecommendedUsers(opts.baseFilter);
-    // 统一调用 AI Adapter，所有算法策略均收敛于此
-    return this.aiAdapter.matchUsers(user, candidates, opts);
+    if (!user) throw new Error('User not found');
+    // 支持 options 直接传入 matchPreference/tempOpts，也兼容无类型定义时的动态对象
+    const matchPreference = (options as any)?.matchPreference || (await this.settingService?.getMatchPreference?.(user.id));
+    const tempOpts = (options as any)?.tempOpts || {};
+    const aiAdapter = createDynamicCompositeAdapter(this.configService, matchPreference, tempOpts);
+    return aiAdapter.matchUsers(user, candidates, options);
   }
 
   /**

@@ -4,6 +4,7 @@ import { MockConfigAdapter } from '@/core/services/infrastructure/config/adapter
 import { RemoteConfigAdapter } from '@/core/services/infrastructure/config/adapters/remote-config-adapter';
 import { IConfigAdapter } from '@/core/services/infrastructure/config/types/config-adapter';
 import { ConfigService } from '../service/config-service';
+import { getConfigService } from '@/core/services/infrastructure/config';
 // 移除 logger 相关依赖，防止循环依赖
 // import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 import { parseEnum } from '@/core/services/infrastructure/config/parse-enum';
@@ -40,19 +41,22 @@ export function detectProvider(): ConfigProviderType {
     }
   }
   // 2. 启动参数/环境变量
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env.NEXT_PUBLIC_CONFIG_PROVIDER) {
-      return parseEnum(ConfigProviderType, process.env.NEXT_PUBLIC_CONFIG_PROVIDER, ConfigProviderType.DEFAULT, 'ConfigRegistry.detectProvider');
-    }
-    if (process.env.CONFIG_ADAPTER) {
-      return parseEnum(ConfigProviderType, process.env.CONFIG_ADAPTER, ConfigProviderType.DEFAULT, 'ConfigRegistry.detectProvider');
-    }
-    if (process.env.ENV_STAGE === 'mock' || process.env.DATA_MODE === 'offline-only') {
-      return ConfigProviderType.MOCK;
-    }
-    if (process.env.ENV_STAGE === 'remote') {
-      return ConfigProviderType.REMOTE;
-    }
+  const configService = getConfigService();
+  const configProvider = configService.get?.('NEXT_PUBLIC_CONFIG_PROVIDER');
+  if (configProvider) {
+    return parseEnum(ConfigProviderType, configProvider, ConfigProviderType.DEFAULT, 'ConfigRegistry.detectProvider');
+  }
+  const configAdapter = configService.get?.('CONFIG_ADAPTER');
+  if (configAdapter) {
+    return parseEnum(ConfigProviderType, configAdapter, ConfigProviderType.DEFAULT, 'ConfigRegistry.detectProvider');
+  }
+  const envStage = configService.get?.('ENV_STAGE');
+  const dataMode = configService.get?.('DATA_MODE');
+  if (envStage === 'mock' || dataMode === 'offline-only') {
+    return ConfigProviderType.MOCK;
+  }
+  if (envStage === 'remote') {
+    return ConfigProviderType.REMOTE;
   }
   // 3. fallback
   return ConfigProviderType.ENV;

@@ -1,6 +1,6 @@
 import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
-import { schemaRegistry } from '../index';
+import { schemaRegistry } from '../schema-registry-singleton';
 
 export const userSchema: TableSchema = {
   name: 'users',

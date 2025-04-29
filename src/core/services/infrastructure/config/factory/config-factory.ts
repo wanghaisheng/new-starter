@@ -96,21 +96,25 @@ export function detectProvider(): ConfigProviderType {
     }
   }
   if (typeof process !== 'undefined' && process.env) {
+    // TODO(process-env-migration): Replace all process.env direct reads with getConfigService().get()
     if (process.env.NEXT_PUBLIC_CONFIG_PROVIDER) {
       const p = process.env.NEXT_PUBLIC_CONFIG_PROVIDER;
       return (Object.values(ConfigProviderType) as string[]).includes(p)
         ? (p as ConfigProviderType)
         : ConfigProviderType.DEFAULT;
     }
+    // TODO(process-env-migration): Replace all process.env direct reads with getConfigService().get()
     if (process.env.CONFIG_ADAPTER) {
       const p = process.env.CONFIG_ADAPTER;
       return (Object.values(ConfigProviderType) as string[]).includes(p)
         ? (p as ConfigProviderType)
         : ConfigProviderType.DEFAULT;
     }
+    // TODO(process-env-migration): Replace all process.env direct reads with getConfigService().get()
     if (process.env.ENV_STAGE === 'mock' || process.env.DATA_MODE === 'offline-only') {
       return ConfigProviderType.MOCK;
     }
+    // TODO(process-env-migration): Replace all process.env direct reads with getConfigService().get()
     if (process.env.ENV_STAGE === 'remote') {
       return ConfigProviderType.REMOTE;
     }

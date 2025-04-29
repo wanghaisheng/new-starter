@@ -2,7 +2,7 @@ import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
 // import { EntityStatus } from '../../types/entity'; // 已移除无效引用
 
-import { schemaRegistry } from '../index';
+import { schemaRegistry } from '../schema-registry-singleton';
 
 export const memberGrowthTaskSchema: TableSchema = {
   name: 'member_growth_tasks',

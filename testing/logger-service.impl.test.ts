@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
-import { InfrastructureServiceType } from '@/core/services/infrastructure/logger/types/logger-types';
+import { InfrastructureServiceType } from '@/core/lib/db/types/common';
 
 // 捕获 console 输出辅助
 function captureConsole(fn: () => void) {

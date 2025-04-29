@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MatchServiceRegistry } from '@/core/services/business/deprecated/match/registry/match-service-registry';
 import type { Match, CreateMatchData, UpdateMatchData } from '@/core/lib/db/types/match.types';
 import type { User } from '@/core/lib/db/types/user.types';
 import type { IMatchService, MatchServiceOptions } from '@/core/services/business/deprecated/match/types/match-service';
 import { useToast } from './useToast';
 import { DataServiceFactory } from '@/core/services/data/factory/data-service-factory';
+import { useService } from '@/providers/ServiceProvider';
 
 export interface UseMatchesResult {
   matches: Match[];
@@ -28,18 +28,9 @@ export function useMatches(options: MatchServiceOptions & { userId: string }): U
   const [error, setError] = useState<null | { type: string; message: string }>(null);
   const [empty, setEmpty] = useState(false);
   const { triggerToast } = useToast();
-  const serviceRef = useRef<IMatchService | null>(null);
+  const { matchService } = useService();
 
   useEffect(() => {
-    const dataService = DataServiceFactory.createService();
-    // 直接透传 options，registry 内部自动分流
-    const provider = MatchServiceRegistry.getInstance().getProvider(
-      (options.provider as any) || 'remote',
-      'default',
-      dataService,
-      options
-    );
-    serviceRef.current = provider ? provider() : null;
     if (options.userId) getUserMatches(options.userId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(options)]);
@@ -48,9 +39,9 @@ export function useMatches(options: MatchServiceOptions & { userId: string }): U
     setLoading(true);
     setError(null);
     try {
-      if (!serviceRef.current) throw new Error('服务未初始化');
+      if (!matchService) throw new Error('服务未初始化');
       // 修复：getUserMatches 只传 1 个参数
-      const data = await serviceRef.current.getUserMatches(uid);
+      const data = await matchService.getUserMatches(uid);
       setMatches(data);
       setEmpty(data.length === 0);
       return data;
@@ -62,14 +53,14 @@ export function useMatches(options: MatchServiceOptions & { userId: string }): U
     } finally {
       setLoading(false);
     }
-  }, [triggerToast]);
+  }, [triggerToast, matchService]);
 
   const createMatch = useCallback(async (data: CreateMatchData) => {
     setLoading(true);
     setError(null);
     try {
-      if (!serviceRef.current) throw new Error('服务未初始化');
-      const match = await serviceRef.current.createMatch(data);
+      if (!matchService) throw new Error('服务未初始化');
+      const match = await matchService.createMatch(data);
       await getUserMatches(options.userId);
       return match;
     } catch (err: any) {
@@ -79,14 +70,14 @@ export function useMatches(options: MatchServiceOptions & { userId: string }): U
     } finally {
       setLoading(false);
     }
-  }, [getUserMatches, options.userId, triggerToast]);
+  }, [getUserMatches, options.userId, triggerToast, matchService]);
 
   const updateMatch = useCallback(async (matchId: string, data: UpdateMatchData) => {
     setLoading(true);
     setError(null);
     try {
-      if (!serviceRef.current) throw new Error('服务未初始化');
-      const match = await serviceRef.current.updateMatch(matchId, data);
+      if (!matchService) throw new Error('服务未初始化');
+      const match = await matchService.updateMatch(matchId, data);
       await getUserMatches(options.userId);
       return match;
     } catch (err: any) {
@@ -96,14 +87,14 @@ export function useMatches(options: MatchServiceOptions & { userId: string }): U
     } finally {
       setLoading(false);
     }
-  }, [getUserMatches, options.userId, triggerToast]);
+  }, [getUserMatches, options.userId, triggerToast, matchService]);
 
   const deleteMatch = useCallback(async (matchId: string) => {
     setLoading(true);
     setError(null);
     try {
-      if (!serviceRef.current) throw new Error('服务未初始化');
-      await serviceRef.current.deleteMatch(matchId);
+      if (!matchService) throw new Error('服务未初始化');
+      await matchService.deleteMatch(matchId);
       await getUserMatches(options.userId);
     } catch (err: any) {
       setError({ type: 'delete', message: err?.message || '删除匹配失败' });
@@ -112,7 +103,7 @@ export function useMatches(options: MatchServiceOptions & { userId: string }): U
     } finally {
       setLoading(false);
     }
-  }, [getUserMatches, options.userId, triggerToast]);
+  }, [getUserMatches, options.userId, triggerToast, matchService]);
 
   const refresh = useCallback(async (uid: string) => {
     await getUserMatches(uid);

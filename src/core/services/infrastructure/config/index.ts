@@ -1,6 +1,6 @@
 // config/index.ts
-import { createConfigAdapter } from './factory/config-factory';
-import { ConfigService } from './service/config-service';
+import { createConfigService, ConfigProviderType } from './registry/config-registry';
+import type { ConfigService } from './service/config-service';
 import type { IConfigAdapter } from './types/config-adapter';
 
 let configService: ConfigService | undefined;
@@ -10,12 +10,11 @@ let configAdapter: IConfigAdapter | undefined;
  * 异步初始化 configService 和 configAdapter
  * 用法：await initConfig();
  */
-export async function initConfig() {
-  configAdapter = await createConfigAdapter(undefined, undefined);
-  if (typeof configAdapter.initialize === 'function') {
-    await configAdapter.initialize(); // 确保环境变量同步到 store
-  }
-  configService = new ConfigService(configAdapter); // 每次都 new 新实例，避免单例缓存
+export async function initConfig(providerType?: ConfigProviderType) {
+  // 通过工厂方法创建 ConfigService 实例（自动选择适配器/来源）
+  configService = createConfigService(providerType ?? ConfigProviderType.DEFAULT);
+  // 兼容旧逻辑，如需 adapter 可从 configService 取出
+  configAdapter = (configService as any)?.adapter ?? undefined;
   return { configService, configAdapter };
 }
 

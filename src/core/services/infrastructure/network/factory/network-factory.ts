@@ -20,8 +20,8 @@ export class NetworkFactory {
     provider =
       config.provider ||
       (configService?.get?.(CONFIG_KEYS.NETWORK_PROVIDER)) ||
-      process.env[CONFIG_KEYS.NETWORK_PROVIDER] ||
-      process.env[CONFIG_KEYS.NEXT_PUBLIC_NETWORK_PROVIDER] ||
+      getConfigService().get(CONFIG_KEYS.NETWORK_PROVIDER) ||
+      getConfigService().get(CONFIG_KEYS.NEXT_PUBLIC_NETWORK_PROVIDER) ||
       'default';
 
     if (!provider) provider = 'default';

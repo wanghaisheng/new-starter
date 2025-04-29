@@ -172,7 +172,7 @@ export enum QueryOperator {
 }
 
 // ---- 数据库事件与错误码 ----
-export enum DatabaseEvent {
+export enum DatabaseEventCode {
   INITIALIZED = 'initialized',
   CLOSED = 'closed',
   ERROR = 'error',
@@ -181,8 +181,20 @@ export enum DatabaseEvent {
   CONFLICT = 'conflict',
   UPDATED = 'updated',
 }
+
 export enum DatabaseErrorCode {
   UNKNOWN = 'UNKNOWN',
+  INITIALIZATION_ERROR = 'INITIALIZATION_ERROR',
+  CLIENT_NOT_INITIALIZED = 'CLIENT_NOT_INITIALIZED',
+  OPERATION_FAILED = 'OPERATION_FAILED',
+  QUERY_ERROR = 'QUERY_ERROR',
+  TRANSACTION_ERROR = 'TRANSACTION_ERROR',
+  NO_ACTIVE_TRANSACTION = 'NO_ACTIVE_TRANSACTION',
+  TRANSACTION_COMMIT_ERROR = 'TRANSACTION_COMMIT_ERROR',
+  TRANSACTION_ROLLBACK_ERROR = 'TRANSACTION_ROLLBACK_ERROR',
+  UPGRADE_IN_PROGRESS = 'UPGRADE_IN_PROGRESS',
+  NO_UPGRADE_IN_PROGRESS = 'NO_UPGRADE_IN_PROGRESS',
+  VERSION_NOT_FOUND = 'VERSION_NOT_FOUND',
   NOT_FOUND = 'NOT_FOUND',
   CONFLICT = 'CONFLICT',
   VALIDATION = 'VALIDATION',
@@ -207,6 +219,8 @@ export enum InfrastructureServiceType {
   CONFIG = 'config',
   METRICS = 'metrics',
   TRACING = 'tracing',
+  EMAIL = 'email',
+  NETWORK = 'network',
   OTHER = 'other',
 }
 
@@ -327,6 +341,17 @@ export enum MatchServiceType {
   HYBRID = 'hybrid',
   BRAND_A = 'brandA',
   BRAND_B = 'brandB',
+}
+
+// ---- 匹配服务选项类型 ----
+export enum MatchServiceTypeOptions {
+  RANDOM = 'random',
+  MBTI = 'mbti',
+  LOCATION = 'location',
+  TAG = 'tag',
+  BAZI = 'bazi',
+  MOCK = 'mock',
+  // ...可扩展其它原子算法类型
 }
 
 // ---- 通知服务类型 ----
@@ -451,4 +476,41 @@ export enum TranslationServiceType {
   MOCK = 'mock',
   REMOTE = 'remote',
   HYBRID = 'hybrid',
+}
+
+// ---- 数据初始化模式 ----
+export enum DbInitMode {
+  SCHEMA = 'schema',
+  JSON = 'json',
+  MEMORY = 'memory',
+  SQL = 'sql',
+}
+
+// ---- 消息服务增强器类型 ----
+export enum MessageEnhancerType {
+  AI = 'ai',
+  AUDIT = 'audit',
+  CONTENT_SAFETY = 'contentSafety',
+  ENCRYPTION = 'encryption',
+  I18N = 'i18n',
+  MEDIA = 'media',
+  MULTI_DEVICE_SYNC = 'multiDeviceSync',
+  PRIORITY_GROUP = 'priorityGroup',
+  RECALL_EDIT = 'recallEdit',
+  TEEN_SAFETY = 'teenSafety',
+}
+
+// ---- Quiz 支持类型 ----
+export enum QuizType {
+  MBTI = 'mbti',
+  TCM = 'tcm',
+  BAZI = 'bazi',
+  CUSTOM = 'custom',
+}
+
+// ---- Quiz 高级特性 ----
+export enum QuizEnhancerType {
+  BASIC_REPORT = 'basicReport',
+  AI_ANALYSIS = 'aiAnalysis',
+  // 可扩展更多特性
 }

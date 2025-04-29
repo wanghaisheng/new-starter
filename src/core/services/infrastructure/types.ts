@@ -2,18 +2,12 @@
 /**
  * 基础设施服务类型
  */
-export enum InfrastructureServiceType {
-  NETWORK = 'network',
-  LOGGER = 'logger',
-  EMAIL = 'email',
-  CONFIG = 'config',
-}
 
 // --- Environment Type ---
 /**
  * 环境
  */
-import { EnvStage } from '@/core/lib/db/types/common';
+import { EnvStage, InfrastructureServiceType } from '@/core/lib/db/types/common';
 
 export type Environment = EnvStage;
 

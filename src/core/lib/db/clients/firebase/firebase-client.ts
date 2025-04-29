@@ -32,14 +32,13 @@ import {
 } from 'firebase/firestore';
 
 import { BaseClient } from '@/core/lib/db/clients/base-client';
-import { DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
+import { DatabaseErrorCode,DatabaseEventCode } from '@/core/lib/db/types/common';
 import { IDatabaseClient, IDatabaseTransaction } from '@/core/lib/db/interfaces';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import {
   BatchOperation, 
   QueryOptions, 
   QueryResult,
-  DatabaseEvent,
 } from '@/core/lib/db/types/database';
 import { Match } from '@/core/lib/db/types/match';
 import { Message } from '@/core/lib/db/types/message';
@@ -58,6 +57,9 @@ import {
   BatchProcessorOptions,
   BatchProcessResult
 } from './firebase-helpers';
+
+import { createDatabaseError } from '@/core/lib/db/types/database';
+import { DatabaseErrorCode } from '@/core/lib/db/types/common';
 
 /**
  * Firebase 数据库客户端类
@@ -151,7 +153,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       this.logger.info('Firebase 客户端初始化完成');
     } catch (error) {
       this.logger.error('初始化 Firebase 客户端失败', error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.INITIALIZATION_ERROR,
         '初始化 Firebase 客户端失败',
         error
@@ -184,7 +186,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       this.logger.info('Firebase 客户端已关闭');
     } catch (error) {
       this.logger.error('关闭 Firebase 客户端失败', error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
         '关闭 Firebase 客户端失败',
         error
@@ -219,7 +221,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       this.logger.info('Firebase 数据库已清空');
     } catch (error) {
       this.logger.error('清空 Firebase 数据库失败', error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
         '清空 Firebase 数据库失败',
         error
@@ -271,7 +273,11 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       }
     } catch (error) {
       this.logger.error(`清空集合 ${tableName} 失败`, error);
-      throw error;
+      throw createDatabaseError(
+        DatabaseErrorCode.OPERATION_FAILED,
+        `清空集合 ${tableName} 失败`,
+        error
+      );
     }
   }
   
@@ -297,7 +303,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       } as T;
     } catch (error) {
       this.logger.error(`查找实体失败 (${tableName}/${id})`, error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.QUERY_ERROR,
         `查找实体失败 (${tableName}/${id})`,
         error
@@ -342,7 +348,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       return entityWithTimestamps as T;
     } catch (error) {
       this.logger.error(`创建实体失败 (${tableName})`, error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
         `创建实体失败 (${tableName})`,
         error
@@ -371,7 +377,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       await updateDoc(docRef, updateData);
     } catch (error) {
       this.logger.error(`更新实体失败 (${tableName}/${id})`, error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
         `更新实体失败 (${tableName}/${id})`,
         error
@@ -392,7 +398,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       await deleteDoc(docRef);
     } catch (error) {
       this.logger.error(`删除实体失败 (${tableName}/${id})`, error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
         `删除实体失败 (${tableName}/${id})`,
         error
@@ -428,7 +434,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       };
     } catch (error) {
       this.logger.error(`查询失败 (${tableName})`, error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.QUERY_ERROR,
         `查询失败 (${tableName})`,
         error
@@ -450,7 +456,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       return result.total;
     } catch (error) {
       this.logger.error(`计数失败 (${tableName})`, error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.QUERY_ERROR,
         `计数失败 (${tableName})`,
         error
@@ -465,7 +471,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
     this.checkInitialized();
     
     if (this.transactionActive) {
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.TRANSACTION_ERROR,
         '已有活动事务'
       );
@@ -548,7 +554,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       }
     } catch (error) {
       this.logger.error(`批量操作失败 (${tableName})`, error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
         `批量操作失败 (${tableName})`,
         error
@@ -564,7 +570,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
   public async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
     this.checkInitialized();
     
-    throw this.createError(
+    throw createDatabaseError(
       DatabaseErrorCode.OPERATION_FAILED,
       'Firebase 不支持原始 SQL 查询'
     );
@@ -598,7 +604,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
           
           findAll: async <T extends BaseEntity>(tableName: string, filter?: Record<string, any>): Promise<T[]> => {
             // Firestore 事务不支持直接执行查询
-            throw this.createError(
+            throw createDatabaseError(
               DatabaseErrorCode.OPERATION_FAILED,
               '事务中不支持 findAll 操作'
             );
@@ -636,7 +642,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
           
           query: async <T extends BaseEntity>(tableName: string, options: QueryOptions): Promise<QueryResult<T>> => {
             // Firestore 事务不支持直接执行查询
-            throw this.createError(
+            throw createDatabaseError(
               DatabaseErrorCode.OPERATION_FAILED,
               '事务中不支持 query 操作'
             );
@@ -661,14 +667,14 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
           },
           
           executeRawQuery: async <T>(query: string, params?: any[]): Promise<T[]> => {
-            throw this.createError(
+            throw createDatabaseError(
               DatabaseErrorCode.OPERATION_FAILED,
               '事务中不支持原始查询'
             );
           },
           
           count: async (tableName: string, filter?: Record<string, any>): Promise<number> => {
-            throw this.createError(
+            throw createDatabaseError(
               DatabaseErrorCode.OPERATION_FAILED,
               '事务中不支持 count 操作'
             );
@@ -679,7 +685,7 @@ export class FirebaseClient extends BaseClient implements IDatabaseClient {
       });
     } catch (error) {
       this.logger.error('事务执行失败', error);
-      throw this.createError(
+      throw createDatabaseError(
         DatabaseErrorCode.TRANSACTION_ERROR,
         '事务执行失败',
         error

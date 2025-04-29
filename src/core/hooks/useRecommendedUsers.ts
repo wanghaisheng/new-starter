@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MatchServiceRegistry } from '@/core/services/business/deprecated/match/registry/match-service-registry';
+import { useService } from '@/providers/ServiceProvider';
 import type { User } from '@/core/lib/db/types/user.types';
 import { useToast } from './useToast';
 
@@ -23,11 +23,11 @@ export function useRecommendedUsers(currentUser: User | null) {
   const [error, setError] = useState<null | { type: string; message: string }>(null);
   const [empty, setEmpty] = useState(false);
   const { triggerToast } = useToast();
-  const matchServiceRef = useRef<any>(null);
+  const { matchService } = useService();
+  const matchServiceRef = useRef<any>(matchService);
 
   useEffect(() => {
-    const provider = MatchServiceRegistry.getInstance().getProvider('remote', 'default');
-    matchServiceRef.current = provider ? provider() : null;
+    matchServiceRef.current = matchService;
     fetchRecommendedUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);

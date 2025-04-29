@@ -57,7 +57,7 @@ import {
   DataMode,
   SortDirection,
   QueryOperator,
-  DatabaseEvent,
+  DatabaseEventCode,
   SyncState,
   DatabaseErrorCode,
   EnvStage,

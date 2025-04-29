@@ -1,7 +1,7 @@
 import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
 
-import { schemaRegistry } from '../index';
+import { schemaRegistry } from '../schema-registry-singleton';
 
 // import { EntityStatus } from '../../types/entity-status'; // 已移除无效引用
 

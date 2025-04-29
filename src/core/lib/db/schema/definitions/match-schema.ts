@@ -1,7 +1,7 @@
 import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
 
-import { schemaRegistry } from '../index';
+import { schemaRegistry } from '../schema-registry-singleton';
 
 export enum EntityStatus {
   ACTIVE = 'active',
@@ -13,7 +13,7 @@ export enum EntityStatus {
 }
 
 export const matchSchema: TableSchema = {
-  name: 'matchs',
+  name: 'matches',
   columns: [
     { name: 'id', type: ColumnType.STRING, notNull: true, primaryKey: true },
     { name: 'createdAt', type: ColumnType.STRING, notNull: true },

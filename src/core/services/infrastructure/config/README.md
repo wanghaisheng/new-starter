@@ -87,7 +87,46 @@ useEffect(() => {
 
 ---
 
-## 四、useConfig 说明
+## 四、配置服务统一调用入口说明（2025 更新）
+
+### 1. 推荐调用方式
+
+本项目所有服务、工厂、业务代码应统一通过 `@/core/services/infrastructure/config/index.ts` 提供的全局入口调用配置服务。严禁直接 new 实例或手动管理单例。
+
+#### 初始化（仅需一次，通常在 app 启动/入口文件）
+```ts
+import { initConfig } from '@/core/services/infrastructure/config';
+
+await initConfig(); // 初始化全局配置服务（自动选择 provider，可选参数指定类型）
+```
+
+#### 获取配置服务实例（全局单例）
+```ts
+import { getConfigService } from '@/core/services/infrastructure/config';
+
+const configService = getConfigService();
+const apiBaseUrl = configService.get('API_BASE_URL');
+```
+
+### 2. 典型用法
+- 数据服务、数据库初始化、各业务服务均通过 getConfigService() 获取配置。
+- 推荐所有配置相关依赖注入、工厂、注册表等均只依赖 getConfigService，不直接依赖某具体实现。
+- 支持多环境、mock、热更新、provider 切换等高级特性。
+
+### 3. 相关 API
+- `initConfig(providerType?)`：异步初始化配置服务，可指定 provider 类型。
+- `getConfigService()`：获取已初始化的全局配置服务实例。
+- `getConfigAdapter()`：获取底层适配器实例。
+- `resetConfig()`：测试环境重置。
+
+### 4. 注意事项
+- 未调用 initConfig() 前调用 getConfigService() 会抛出异常。
+- 仅需在入口初始化一次，后续全局获取。
+- 绝对路径导入，禁止相对路径。
+
+---
+
+## 五、useConfig 说明
 
 单变量响应式订阅 hooks。
 
@@ -102,7 +141,7 @@ const { value, loading, error, refresh } = useConfig(CONFIG_KEYS.API_BASE_URL);
 
 ---
 
-## 五、架构演进与适配器扩展
+## 六、架构演进与适配器扩展
 
 - 支持 EnvConfigAdapter（本地 .env）、RemoteConfigAdapter（远程中心）、CompositeAdapter（多源融合）等多种实现。
 - 新增适配器仅需实现 IConfigAdapter 接口并注册，无需改动业务代码。
@@ -110,7 +149,7 @@ const { value, loading, error, refresh } = useConfig(CONFIG_KEYS.API_BASE_URL);
 
 ---
 
-## 六、最佳实践与注意事项
+## 七、最佳实践与注意事项
 
 - 禁止业务直接访问 process.env，统一通过 configService/useConfig/useConfigContext。
 - 新增变量/适配器时同步更新 config-keys.ts、config-types.ts、README.md、environment-variables.md。
@@ -120,7 +159,7 @@ const { value, loading, error, refresh } = useConfig(CONFIG_KEYS.API_BASE_URL);
 
 ---
 
-## 七、进阶能力
+## 八、进阶能力
 
 - 支持变量变更订阅、批量订阅、全局 Context、运行时热更新、远程推送。
 - 适配器可扩展为支持 WebSocket、轮询、云厂商配置中心等多种远程变更机制。
@@ -128,7 +167,7 @@ const { value, loading, error, refresh } = useConfig(CONFIG_KEYS.API_BASE_URL);
 
 ---
 
-## 八、云端配置中心技术选型与对比
+## 九、云端配置中心技术选型与对比
 
 本项目支持多种主流配置中心的对接与热更新，推荐选型如下：
 

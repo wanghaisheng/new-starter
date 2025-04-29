@@ -1,5 +1,6 @@
 import type { ISensorService, SensorProviderType, SensorServiceOptions } from '../types/sensor-service';
 import { SensorServiceFactory } from '../factory/sensor-service-factory';
+import { getConfigService } from '@/core/services/infrastructure/config';
 
 export interface SensorServiceConfig {
   environment?: string;
@@ -20,10 +21,14 @@ export class SensorServiceRegistry {
 
   createService(config: Partial<SensorServiceConfig> = {}): ISensorService {
     // 自动判定环境并降级
-    const env = config.environment || (typeof process !== 'undefined' && process.env.NODE_ENV) || 'production';
+    const env = config.environment || getConfigService().get('NODE_ENV') || 'production';
     let type = config.type;
     if (!type) {
-      if (env === 'test' || env === 'development' || (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_USE_MOCK === 'true')) {
+      if (
+        env === 'test' ||
+        env === 'development' ||
+        getConfigService().get('NEXT_PUBLIC_USE_MOCK') === 'true'
+      ) {
         type = 'mock';
       } else {
         type = 'web';
@@ -66,9 +71,6 @@ export class SensorServiceRegistry {
     SensorServiceRegistry.registerAdapter('capacitor', () => SensorServiceFactory.createService({ type: 'capacitor' }));
   }
 
-  /**
-   * 统一 getProvider 签名，供 hooks/业务层调用
-   */
   getProvider(
     type: SensorProviderType = 'capacitor',
     name: string = 'default',
@@ -78,10 +80,6 @@ export class SensorServiceRegistry {
     return () => this.createService({ environment: type, name, type, options });
   }
 
-  /**
-   * 获取默认实例（兼容 hooks 统一调用）
-   * 优先 remote，其次 hybrid，其次 mock
-   */
   getDefaultService(_dataService?: unknown): ISensorService {
     return (
       this.getService('remote', 'default') ||

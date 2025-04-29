@@ -13,6 +13,7 @@ import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useApi } from '@/core/hooks/useApi';
 import { apiClient } from '@/utils/api-client';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
+import { MatchPreferenceButton } from './MatchPreferenceButton';
 
 // Add utility function to calculate age from birthDate
 const calculateAge = (birthDate: Date): number => {
@@ -229,6 +230,8 @@ export default function DiscoverPage() {
   return (
     <IonPage>
       <IonContent className="bg-[#0f172a]">
+        {/* 匹配优先项设置按钮 */}
+        <MatchPreferenceButton />
         {showMatch ? (
           <div className="fixed inset-0 bg-opacity-90 bg-gray-900 z-50 flex items-center justify-center">
             <div className="text-center p-6 max-w-sm mx-auto">

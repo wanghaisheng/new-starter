@@ -19,7 +19,7 @@ import {
 import { chevronBackOutline } from 'ionicons/icons';
 import { useSubscribe } from '@/core/hooks/useSubscribe';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
-import { useLocale } from '@/core/providers/LocaleProvider';
+import { useLocale } from '@/core/lib/i18n/hooks';
 import { useTranslations } from '@/core/hooks/useTranslations';
 
 const plans = [

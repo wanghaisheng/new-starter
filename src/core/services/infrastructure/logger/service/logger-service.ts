@@ -2,10 +2,11 @@
 import { LogLevel, ILoggerService, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
 import { InfrastructureServiceType } from '@/core/lib/db/types/common';
 import { createLogger, format, transports } from 'winston';
+import { getConfigService } from '@/core/services/infrastructure/config';
 
 const { combine, timestamp, json } = format;
 const logger = createLogger({
-  level: process.env.LOG_LEVEL || 'INFO',
+  level: getConfigService().get('LOG_LEVEL') || 'INFO',
   format: combine(timestamp(), json()),
   transports: [new transports.Console()]
 });

@@ -118,6 +118,14 @@ export const NETWORK_KEYS = {
   NETWORK_PROVIDER: 'NETWORK_PROVIDER', // 后端/Node 环境变量
 };
 
+// 数据初始化相关
+export const DB_INIT_KEYS = {
+  NEXT_PUBLIC_DB_INIT_MODE: 'NEXT_PUBLIC_DB_INIT_MODE', // schema/json/memory/sql
+  NEXT_PUBLIC_DB_INIT_SOURCE: 'NEXT_PUBLIC_DB_INIT_SOURCE', // ./mock-data.json、./mock-sql、memory、remote
+  NEXT_PUBLIC_DB_INIT_LOAD_DEFAULT: 'NEXT_PUBLIC_DB_INIT_LOAD_DEFAULT', // true/false
+  NEXT_PUBLIC_DB_INIT_TABLES: 'NEXT_PUBLIC_DB_INIT_TABLES', // users,settings,... 可选
+};
+
 // 配置服务 provider 类型（枚举，已迁移至 common.ts）
 export { ConfigProviderType } from '@/core/lib/db/types/common';
 
@@ -146,5 +154,6 @@ export const CONFIG_KEYS = {
   ...NETWORK_KEYS,
   ...EMAIL_KEYS,
   ...CONFIG_CENTER_KEYS,
+  ...DB_INIT_KEYS,
   NEXT_PUBLIC_ENTITY_TYPES: 'NEXT_PUBLIC_ENTITY_TYPES',
 };

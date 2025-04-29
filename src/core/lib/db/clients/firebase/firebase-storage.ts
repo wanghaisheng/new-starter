@@ -7,7 +7,8 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject,
          listAll, getMetadata, updateMetadata, FirebaseStorage, 
          StorageReference, UploadResult, StorageError } from 'firebase/storage';
 
-import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/errors/database-error';
+import { createDatabaseError } from '@/core/lib/db/types/database';
+import { DatabaseErrorCode } from '@/core/lib/db/types/common';
 import { DatabaseLogger, getDatabaseLogger } from '@/core/lib/db/errors/database-logger';
 
 import { FirebaseConfig } from './firebase-config';
@@ -124,11 +125,7 @@ export class FirebaseStorageService {
       }
     } catch (error) {
       this.logger.error('Failed to initialize Cloud Storage', error);
-      throw new DatabaseError(
-        'Failed to initialize Cloud Storage', 
-        DatabaseErrorCode.INITIALIZATION_ERROR, 
-        error
-      );
+      throw createDatabaseError(DatabaseErrorCode.INITIALIZATION_ERROR, 'Failed to initialize Cloud Storage', error);
     }
   }
   
@@ -154,10 +151,7 @@ export class FirebaseStorageService {
       }
       
       if (fileSize > this.maxUploadSize) {
-        throw new DatabaseError(
-          `File size (${fileSize} bytes) exceeds maximum allowed size (${this.maxUploadSize} bytes)`,
-          DatabaseErrorCode.INVALID_DATA
-        );
+        throw createDatabaseError(DatabaseErrorCode.INVALID_DATA, `File size (${fileSize} bytes) exceeds maximum allowed size (${this.maxUploadSize} bytes)`);
       }
       
       // 创建 Storage 引用
@@ -312,6 +306,6 @@ export class FirebaseStorageService {
         break;
     }
     
-    return new DatabaseError(message, errorCode, error);
+    return createDatabaseError(errorCode, message, error);
   }
 } 

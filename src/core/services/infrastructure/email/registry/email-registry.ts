@@ -5,6 +5,7 @@ import { SmtpEmailAdapter } from '../adapters/smtp-email-adapter';
 import { SendgridEmailAdapter } from '../adapters/sendgrid-email-adapter';
 import { ResendEmailAdapter } from '../adapters/resend-email-adapter';
 import { AliyunEmailAdapter } from '../adapters/aliyun-email-adapter';
+import { getConfigService } from '@/core/services/infrastructure/config';
 
 export class EmailRegistry {
   private static adapters: Record<EmailProviderType, (config?: EmailConfig) => IEmailService> = {
@@ -32,7 +33,7 @@ export class EmailRegistry {
 }
 
 export function getEmailService(): IEmailService {
-  const provider = process.env.EMAIL_PROVIDER || 'default';
+  const provider = getConfigService().get('EMAIL_PROVIDER') || 'default';
   if (EmailRegistry.isAdapterRegistered(provider)) {
     return EmailRegistry.getAdapter(provider)!;
   } else {

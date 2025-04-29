@@ -80,7 +80,64 @@ mockGet.mockImplementation((key: ConfigKey) => {
 
 ---
 
-## 五、延伸阅读
+## 五、工厂注册与环境适配机制（进阶）
+
+### 1. 如何使用工厂注册和环境适配能力
+
+#### 1.1 应用入口初始化（推荐做法）
+```typescript
+import { initConfig } from '@/core/services/infrastructure/config';
+
+// 在 SSR 启动、Next.js _app.tsx 或 CoreInitializer.tsx 最早期调用
+await initConfig(); // 自动探测环境变量并加载合适的 provider
+```
+- 只需初始化一次，后续所有业务代码、Provider、hook 都能安全访问配置服务。
+
+#### 1.2 获取全局配置服务实例
+```typescript
+import { getConfigService } from '@/core/services/infrastructure/config';
+
+const configService = getConfigService();
+const apiBaseUrl = configService.get('NEXT_PUBLIC_API_BASE_URL');
+```
+- 推荐所有业务代码、Provider、hook 都通过 getConfigService() 获取实例。
+
+#### 1.3 动态切换/多实例（高级用法）
+```typescript
+import { createConfigService, ConfigProviderType } from '@/core/services/infrastructure/config/registry/config-registry';
+
+const mockService = createConfigService(ConfigProviderType.MOCK);
+const remoteService = createConfigService(ConfigProviderType.REMOTE);
+```
+- 适用于测试、沙箱、mock、灰度等场景，互不影响主实例。
+
+#### 1.4 用户主动刷新配置
+```typescript
+const configService = getConfigService();
+await configService.refresh(); // 拉取最新配置，无需重启
+```
+- 支持远程/本地配置的热更新。
+
+### 2. 插件化工厂与自动兜底
+- ConfigService 采用注册表+工厂模式，所有配置适配器（env/mock/remote等）通过注册表集中管理。
+- 未配置 provider 环境变量时，系统自动 fallback 到 ENV（本地 .env/process.env），保证任何环境下都可用。
+
+### 3. 动态切换与热重载
+- 通过 `initConfig()` 或工厂方法，支持按需切换 provider 类型，适配多环境/多租户/灰度场景。
+- 用户更新配置后，可通过 `configService.refresh()` 或重新初始化，自动拉取最新配置，无需重启。
+
+### 4. 单例与多实例管理
+- 应用入口只需初始化一次（推荐在 CoreInitializer/_app.tsx），全局通过 getConfigService() 获取单例。
+- 如需隔离/多实例，可用 `createConfigService` 工厂方法，支持测试、沙箱、mock 等高级用法。
+
+### 5. 典型风险与排查建议
+- 若在 initConfig 前调用 getConfigService，会抛异常，务必保证初始化顺序。
+- 不要直接 new ConfigService，必须走工厂方法，保证类型安全和插件化。
+- 新增适配器只需注册到 registry，无需修改主流程。
+
+---
+
+## 六、延伸阅读
 - [config-keys.ts 设计说明](../../src/core/services/infrastructure/config/config-keys.ts)
 - [ConfigProvider 实现原理](../../src/core/services/infrastructure/config/ConfigProvider.tsx)
 - [配置服务 FAQ 与风险应急](../planning.md)

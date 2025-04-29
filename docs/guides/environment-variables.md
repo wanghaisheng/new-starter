@@ -649,3 +649,28 @@ switch (dbOrm) {
 - 充分利用配置服务，提升代码健壮性与可维护性。
 
 ---
+
+## 数据初始化相关环境变量（2025 新增）
+
+| 变量名                              | 典型值                      | 说明                                    |
+|-------------------------------------|-----------------------------|-----------------------------------------|
+| NEXT_PUBLIC_DB_INIT_MODE            | schema/json/memory/sql      | 数据初始化模式，决定用 DDL、JSON、mock-data 还是 SQL 脚本 |
+| NEXT_PUBLIC_DB_INIT_SOURCE          | ./mock-data.json/./mock-sql | 默认数据来源路径或类型                   |
+| NEXT_PUBLIC_DB_INIT_LOAD_DEFAULT    | true/false                  | 冷启动时是否自动加载默认/假数据          |
+| NEXT_PUBLIC_DB_INIT_TABLES          | users,settings,...          | 需初始化的表（逗号分隔，留空为全部）      |
+
+- 推荐全部通过 ConfigService 统一访问，禁止业务代码硬编码。
+- 配合 `NEXT_PUBLIC_DATA_MODE`、`MOCK_DB_MODE` 等变量，可灵活控制开发/测试/演示/生产环境下的数据初始化行为。
+- 示例：
+  ```env
+  NEXT_PUBLIC_DB_INIT_MODE=json
+  NEXT_PUBLIC_DB_INIT_SOURCE=./mock-data.json
+  NEXT_PUBLIC_DB_INIT_LOAD_DEFAULT=true
+  NEXT_PUBLIC_DB_INIT_TABLES=users,settings
+  ```
+- 典型场景：
+  - 冷启动自动导入 mock/演示数据
+  - 测试环境批量导入 JSON 或 SQL 脚本
+  - 生产环境仅初始化表结构，不导入假数据
+
+---

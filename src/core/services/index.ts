@@ -4,7 +4,7 @@
 // 业务服务统一建议通过 hooks + registry/provider 获取
 // 如需全局导出，建议只导出 registry/factory，不导出具体 service 实例
 // 示例：
-export * from './business/user/registry/user-service-registry';
+// export * from './business/user/registry/user-service-registry';
 export * from './infrastructure/image/registry/image-service-registry';
 export * from './data/factory/data-service-factory';
 export * from './infrastructure/network/service/network-service';

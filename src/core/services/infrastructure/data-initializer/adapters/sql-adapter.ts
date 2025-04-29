@@ -12,7 +12,8 @@ export class SqlDataInitializerAdapter implements IDataInitializerAdapter {
     this.sqlDir = config.sqlDir || './mock-sql';
   }
 
-  async initialize() {
+  async initialize(options?: { mode?: 'structure' | 'full'; tables?: string[]; reset?: boolean }) {
+    // 目前 SQL 脚本仅支持建表与结构初始化，不区分 structure/full
     const files = await fs.readdir(this.sqlDir);
     for (const file of files) {
       if (file.endsWith('.sql')) {
@@ -22,6 +23,7 @@ export class SqlDataInitializerAdapter implements IDataInitializerAdapter {
         }
       }
     }
+    // 如需支持数据导入，可扩展 .insert.sql 或特殊格式
   }
 
   getClient() {

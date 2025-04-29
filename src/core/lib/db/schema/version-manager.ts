@@ -1,4 +1,5 @@
-import { createDatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database';
+import { DatabaseErrorCode } from '@/core/lib/db/types/common';
+import { createDatabaseError } from '@/core/lib/db/types/database';
 
 import { databaseVersions, getLatestVersion, getUpgradeStatements, validateVersion } from './versions';
 

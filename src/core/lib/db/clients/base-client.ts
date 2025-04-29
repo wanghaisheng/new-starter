@@ -1,6 +1,6 @@
 console.log('base-client loaded');
-
-import { QueryOptions, QueryResult, BatchOperation, DatabaseEvent, DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database';
+import {DatabaseErrorCode,DatabaseEventCode} from "@/core/lib/db/types/common"
+import { QueryOptions, QueryResult, BatchOperation, DatabaseError, createDatabaseError } from '@/core/lib/db/types/database';
 import { BaseEntity } from '@/core/lib/db/types/base-entity';
 import { LoggerService } from '@/core/services/infrastructure/logger/service/logger-service';
 import type { ILoggerService } from '@/core/services/infrastructure/logger';
@@ -131,14 +131,9 @@ export abstract class BaseClient<
    * @returns 数据库错误对象
    */
   protected createError(code: DatabaseErrorCode | string, message: string, details?: any): DatabaseError {
-    const error = { code, message, details } as DatabaseError;
-    
-    // 记录错误信息
     this.logger.error(message, { code, details });
-    
-    // 触发错误事件（参数类型为 DatabaseError）
+    const error = createDatabaseError(code, message, details);
     this.emit('error' as E, ...([error] as Parameters<L[E]>));
-    
     return error;
   }
 

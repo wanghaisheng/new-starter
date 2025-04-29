@@ -5,6 +5,8 @@ import { RepositoryFactoryRegistry } from '../factory/repository-factory';
 import { EntityConverter } from '@/core/lib/db/schema/entity-converter';
 import { matchSchema } from '@/core/lib/db/schema/definitions/match-schema';
 import { SortDirection } from '@/core/lib/db/types/common';
+import type { User } from '@/core/lib/db/types/user.types';
+import type { UserBaseFilter } from '@/core/services/business/match/match-service';
 
 const matchConverter = new EntityConverter<Match>(matchSchema);
 
@@ -74,6 +76,23 @@ export class MatchRepository extends BaseRepository<Match, Match> {
     const dbRecord = this.converter.toDatabase(data as Match);
     await this.client.update(this.table, id, dbRecord);
     return this.findById(id);
+  }
+
+  /**
+   * 获取推荐用户列表（可根据基础过滤条件筛选）
+   * 注意：实际推荐逻辑建议迁移到 UserRepository 或推荐服务
+   */
+  async getRecommendedUsers(userId: string, baseFilter?: UserBaseFilter): Promise<User[]> {
+    // 假设 this.client.query('users', ...) 能查 user 表
+    const where: any = { id: { $ne: userId } }; // 排除自己
+    if (baseFilter?.gender) where.gender = baseFilter.gender;
+    if (baseFilter?.city) where.city = baseFilter.city;
+    if (baseFilter?.ageRange) {
+      where.age = { $gte: baseFilter.ageRange[0], $lte: baseFilter.ageRange[1] };
+    }
+    // ...可扩展其它筛选条件
+    const results = await this.client.query('users', { where });
+    return results?.items || [];
   }
 }
 

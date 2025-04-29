@@ -3,7 +3,10 @@ import { pgTable, uuid, varchar, timestamp, jsonb } from 'drizzle-orm/pg-core';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
-import { DatabaseType, TableSchema } from './types';
+import { TableSchema } from '../types/database';
+
+// 兼容旧代码，定义 DatabaseType 字面量类型
+export type DatabaseType = 'sqlite' | 'mysql' | 'postgres';
 
 export class TableConverter {
   /**

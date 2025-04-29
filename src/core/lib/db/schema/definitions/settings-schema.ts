@@ -1,10 +1,10 @@
 import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
 
-import { schemaRegistry } from '../index';
+import { schemaRegistry } from '../schema-registry-singleton';
 
 export const settingsSchema: TableSchema = {
-  name: 'settingss',
+  name: 'settings',
   columns: [
     { name: 'id', type: ColumnType.STRING, notNull: true, primaryKey: true },
     { name: 'createdAt', type: ColumnType.STRING, notNull: true },

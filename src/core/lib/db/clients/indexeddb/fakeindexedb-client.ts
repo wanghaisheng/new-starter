@@ -14,9 +14,9 @@ import {
   DatabaseConfig,
   OfflineStorageConfig,
   DatabaseError,
-  DatabaseErrorCode,
-  DatabaseEvent
 } from '@/core/lib/db/types/database';
+import {DatabaseErrorCode,DatabaseEventCode} from "@/core/lib/db/types/common"
+import { createDatabaseError } from '@/core/lib/db/types/database';
 import { BaseClient } from '@/core/lib/db/clients/base-client';
 import { schemaRegistry } from '@/core/lib/db/schema/schema-registry-singleton';
 import { ClientRegistry } from '@/core/services/data/adapters/client-registry';
@@ -65,11 +65,7 @@ export class FakeIndexedDBClient<T extends BaseEntity> extends BaseClient {
 
   // ---- 修正 createError 为 protected，兼容基类 ----
   protected createError(code: DatabaseErrorCode | string, message: string, details?: any): DatabaseError {
-    const error = new Error(message) as DatabaseError;
-    error.name = 'DatabaseError';
-    error.code = code;
-    if (details) error.details = details;
-    return error;
+    return createDatabaseError(code, message, details);
   }
 
   async create(tableName: string, data: T): Promise<void> {
@@ -190,16 +186,16 @@ export class FakeIndexedDBClient<T extends BaseEntity> extends BaseClient {
   }
 
   // ---- 事件监听实现（protected 对齐基类）----
-  protected eventListeners: Map<DatabaseEvent, Function[]> = new Map();
+  protected eventListeners: Map<DatabaseEventCode, Function[]> = new Map();
 
-  async addEventListener(event: DatabaseEvent, listener: Function): Promise<void> {
+  async addEventListener(event: DatabaseEventCode, listener: Function): Promise<void> {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event)!.push(listener);
   }
 
-  async removeEventListener(event: DatabaseEvent, listener: Function): Promise<void> {
+  async removeEventListener(event: DatabaseEventCode, listener: Function): Promise<void> {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       const idx = listeners.indexOf(listener);

@@ -8,6 +8,7 @@ import { BaseClient } from '@/core/lib/db/clients/base-client';
 import { ColumnType } from '@/core/lib/db/types/common';
 import { TableSchema } from '@/core/lib/db/types/database';
 import { ClientRegistry } from '@/core/services/data/adapters/client-registry';
+import { createDatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database';
 
 /**
  * DrizzleSQLiteClient: 基于 drizzle-orm 的 SQLite Client
@@ -68,7 +69,7 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
     const schema = this.schemasByName[tableName];
     if (!schema) {
       console.error('[DrizzleSQLiteClient.prepareRow] Schema not found for tableName:', tableName, '| schemasByName keys:', Object.keys(this.schemasByName));
-      throw new Error(`[DrizzleSQLiteClient.prepareRow] Schema not found for tableName: ${tableName}`);
+      throw createDatabaseError(DatabaseErrorCode.RECORD_NOT_FOUND, `Schema not found for tableName: ${tableName}`);
     }
     const row: Record<string, any> = { ...data };
     const invalidFields: { name: string; value: any; type: string }[] = [];
@@ -154,7 +155,7 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
   async query(tableName: string, options: any): Promise<{ items: T[]; data?: T[] }> {
     this.checkInitialized();
     const table = this.tables[tableName];
-    if (!table) throw new Error(`Table not found: ${tableName}`);
+    if (!table) throw createDatabaseError(DatabaseErrorCode.RECORD_NOT_FOUND, `Table not found: ${tableName}`);
     let query: any = this.drizzleDb.select().from(table);
     if (options?.where) {
       const schema = this.schemasByName[tableName];
@@ -215,7 +216,7 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
   async findById(tableName: string, id: string): Promise<T | null> {
     this.checkInitialized();
     const table = this.tables[tableName];
-    if (!table) throw new Error(`Table not found: ${tableName}`);
+    if (!table) throw createDatabaseError(DatabaseErrorCode.RECORD_NOT_FOUND, `Table not found: ${tableName}`);
     const result = await this.drizzleDb.select().from(table).where(sql`id = ${id}`).all();
     return Array.isArray(result) && result.length > 0 ? (result[0] as T) : null;
   }
@@ -223,7 +224,7 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
   async create(tableName: string, data: T): Promise<T> {
     this.checkInitialized();
     const table = this.tables[tableName];
-    if (!table) throw new Error(`Table not found: ${tableName}`);
+    if (!table) throw createDatabaseError(DatabaseErrorCode.RECORD_NOT_FOUND, `Table not found: ${tableName}`);
     const row = this.prepareRow(tableName, data as any);
     await this.drizzleDb.insert(table).values(row).run();
     return row as T;
@@ -232,11 +233,11 @@ export class DrizzleSQLiteClient<T extends BaseEntity> extends BaseClient<T> {
   async update(tableName: string, id: string, data: Partial<T>): Promise<void> {
     this.checkInitialized();
     const table = this.tables[tableName];
-    if (!table) throw new Error(`Table not found: ${tableName}`);
+    if (!table) throw createDatabaseError(DatabaseErrorCode.RECORD_NOT_FOUND, `Table not found: ${tableName}`);
     const row = this.prepareRow(tableName, data as any);
     const result = await this.drizzleDb.update(table).set(row).where(sql`id = ${id}`).run();
     if (!result || result.changes === 0) {
-      throw new Error(`Update failed: ${tableName} id=${id} not found`);
+      throw createDatabaseError(DatabaseErrorCode.RECORD_NOT_FOUND, `Update failed: ${tableName} id=${id} not found`);
     }
   }
 

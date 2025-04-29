@@ -1,6 +1,7 @@
 // winston-adapter.ts
 import winston, { Logger as WinstonLogger, LoggerOptions } from 'winston';
-import { LogLevel, ILoggerService, InfrastructureServiceType, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
+import { LogLevel, ILoggerService, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
+import { InfrastructureServiceType } from '@/core/lib/db/types/common';
 
 /**
  * Winston 日志适配器，兼容 ILoggerService，支持多 transport、格式化、动态 level。

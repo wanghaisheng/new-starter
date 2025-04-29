@@ -1,5 +1,6 @@
 import type { QueryOptions, QueryResult, BatchOperation } from '@/core/lib/db/types/database';
-import { DatabaseError, DatabaseErrorCode } from '@/core/lib/db/types/database-error';
+import { createDatabaseError } from '@/core/lib/db/types/database';
+import { DatabaseErrorCode } from '@/core/lib/db/types/common';
 import { Logger } from '@/core/lib/utils/logger';
 import { Pool, PoolClient } from 'pg';
 
@@ -62,9 +63,9 @@ export class PostgresClient {
       this.logger.info('PostgreSQL client initialized');
     } catch (error) {
       this.logger.error('Failed to initialize PostgreSQL client:', error);
-      throw new DatabaseError(
-        'Failed to initialize PostgreSQL client',
+      throw createDatabaseError(
         DatabaseErrorCode.INITIALIZATION_ERROR,
+        'Failed to initialize PostgreSQL client',
         error
       );
     }
@@ -77,9 +78,9 @@ export class PostgresClient {
 
   public async clear(): Promise<void> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -96,19 +97,19 @@ export class PostgresClient {
       client.release();
     } catch (error) {
       this.logger.error('Failed to clear database:', error);
-      throw new DatabaseError(
-        'Failed to clear database',
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
+        'Failed to clear database',
         error
       );
     }
   }
 
-  public async findById(tableName: string, id: string): Promise<BaseEntity | null> {
+  public async findById(tableName: string, id: string): Promise<any | null> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -120,19 +121,19 @@ export class PostgresClient {
       return result.rows[0] || null;
     } catch (error) {
       this.logger.error(`Failed to find record by id ${id} in collection ${tableName}:`, error);
-      throw new DatabaseError(
-        `Failed to find record by id ${id}`,
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
+        `Failed to find record by id ${id}`,
         error
       );
     }
   }
 
-  public async findAll(tableName: string, filter?: Record<string, any>): Promise<BaseEntity[]> {
+  public async findAll(tableName: string, filter?: Record<string, any>): Promise<any[]> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -153,19 +154,19 @@ export class PostgresClient {
       return result.rows;
     } catch (error) {
       this.logger.error(`Failed to find records in collection ${tableName}:`, error);
-      throw new DatabaseError(
-        'Failed to find records',
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
+        'Failed to find records',
         error
       );
     }
   }
 
-  public async create(tableName: string, data: BaseEntity): Promise<BaseEntity> {
+  public async create(tableName: string, data: any): Promise<any> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -182,19 +183,19 @@ export class PostgresClient {
       return result.rows[0];
     } catch (error) {
       this.logger.error(`Failed to create record in collection ${tableName}:`, error);
-      throw new DatabaseError(
-        'Failed to create record',
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
+        'Failed to create record',
         error
       );
     }
   }
 
-  public async update(tableName: string, id: string, data: Partial<BaseEntity>): Promise<void> {
+  public async update(tableName: string, id: string, data: Partial<any>): Promise<void> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -208,9 +209,9 @@ export class PostgresClient {
       );
     } catch (error) {
       this.logger.error(`Failed to update record ${id} in collection ${tableName}:`, error);
-      throw new DatabaseError(
-        'Failed to update record',
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
+        'Failed to update record',
         error
       );
     }
@@ -218,9 +219,9 @@ export class PostgresClient {
 
   public async delete(tableName: string, id: string): Promise<void> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -231,19 +232,19 @@ export class PostgresClient {
       );
     } catch (error) {
       this.logger.error(`Failed to delete record ${id} from collection ${tableName}:`, error);
-      throw new DatabaseError(
-        'Failed to delete record',
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
+        'Failed to delete record',
         error
       );
     }
   }
 
-  public async query(tableName: string, options: QueryOptions): Promise<QueryResult<BaseEntity>> {
+  public async query(tableName: string, options: QueryOptions): Promise<QueryResult<any>> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -286,9 +287,9 @@ export class PostgresClient {
       };
     } catch (error) {
       this.logger.error(`Failed to execute query on collection ${tableName}:`, error);
-      throw new DatabaseError(
-        'Failed to execute query',
+      throw createDatabaseError(
         DatabaseErrorCode.QUERY_ERROR,
+        'Failed to execute query',
         error
       );
     }
@@ -296,9 +297,9 @@ export class PostgresClient {
 
   public async count(tableName: string, filter?: Record<string, any>): Promise<number> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -319,9 +320,9 @@ export class PostgresClient {
       return parseInt(result.rows[0].count);
     } catch (error) {
       this.logger.error(`Failed to count records in collection ${tableName}:`, error);
-      throw new DatabaseError(
-        'Failed to count records',
+      throw createDatabaseError(
         DatabaseErrorCode.QUERY_ERROR,
+        'Failed to count records',
         error
       );
     }
@@ -329,9 +330,9 @@ export class PostgresClient {
 
   public async beginTransaction(): Promise<void> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -340,9 +341,9 @@ export class PostgresClient {
       await this.transaction.query('BEGIN');
     } catch (error) {
       this.logger.error('Failed to begin transaction:', error);
-      throw new DatabaseError(
-        'Failed to begin transaction',
+      throw createDatabaseError(
         DatabaseErrorCode.TRANSACTION_ERROR,
+        'Failed to begin transaction',
         error
       );
     }
@@ -350,9 +351,9 @@ export class PostgresClient {
 
   public async commitTransaction(): Promise<void> {
     if (!this.transaction) {
-      throw new DatabaseError(
-        'No active transaction',
-        DatabaseErrorCode.NO_ACTIVE_TRANSACTION
+      throw createDatabaseError(
+        DatabaseErrorCode.NO_ACTIVE_TRANSACTION,
+        'No active transaction'
       );
     }
 
@@ -362,9 +363,9 @@ export class PostgresClient {
       this.transaction = null;
     } catch (error) {
       this.logger.error('Failed to commit transaction:', error);
-      throw new DatabaseError(
-        'Failed to commit transaction',
+      throw createDatabaseError(
         DatabaseErrorCode.TRANSACTION_COMMIT_ERROR,
+        'Failed to commit transaction',
         error
       );
     }
@@ -372,9 +373,9 @@ export class PostgresClient {
 
   public async rollbackTransaction(): Promise<void> {
     if (!this.transaction) {
-      throw new DatabaseError(
-        'No active transaction',
-        DatabaseErrorCode.NO_ACTIVE_TRANSACTION
+      throw createDatabaseError(
+        DatabaseErrorCode.NO_ACTIVE_TRANSACTION,
+        'No active transaction'
       );
     }
 
@@ -384,19 +385,19 @@ export class PostgresClient {
       this.transaction = null;
     } catch (error) {
       this.logger.error('Failed to rollback transaction:', error);
-      throw new DatabaseError(
-        'Failed to rollback transaction',
+      throw createDatabaseError(
         DatabaseErrorCode.TRANSACTION_ROLLBACK_ERROR,
+        'Failed to rollback transaction',
         error
       );
     }
   }
 
-  public async batch(tableName: string, operations: BatchOperation<BaseEntity>[]): Promise<void> {
+  public async batch(tableName: string, operations: BatchOperation<any>[]): Promise<void> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -419,9 +420,9 @@ export class PostgresClient {
     } catch (error) {
       await this.rollbackTransaction();
       this.logger.error('Failed to execute batch operations:', error);
-      throw new DatabaseError(
-        'Failed to execute batch operations',
+      throw createDatabaseError(
         DatabaseErrorCode.OPERATION_FAILED,
+        'Failed to execute batch operations',
         error
       );
     }
@@ -429,9 +430,9 @@ export class PostgresClient {
 
   public async executeRawQuery<R>(query: string, params?: any[]): Promise<R[]> {
     if (!this.initialized) {
-      throw new DatabaseError(
-        'Client not initialized',
-        DatabaseErrorCode.CLIENT_NOT_INITIALIZED
+      throw createDatabaseError(
+        DatabaseErrorCode.CLIENT_NOT_INITIALIZED,
+        'Client not initialized'
       );
     }
 
@@ -440,9 +441,9 @@ export class PostgresClient {
       return result.rows as R[];
     } catch (error) {
       this.logger.error('Failed to execute raw query:', error);
-      throw new DatabaseError(
-        'Failed to execute raw query',
+      throw createDatabaseError(
         DatabaseErrorCode.QUERY_ERROR,
+        'Failed to execute raw query',
         error
       );
     }

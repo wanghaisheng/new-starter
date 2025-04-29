@@ -1,6 +1,7 @@
 // mock-adapter.ts
 import { LogLevel } from '@/core/services/infrastructure/logger/types/logger-types';
-import { ILoggerService, InfrastructureServiceType, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
+import { ILoggerService, InfrastructureServiceConfig } from '@/core/services/infrastructure/logger/types/logger-types';
+import { InfrastructureServiceType } from '@/core/lib/db/types/common';
 
 export class MockLoggerAdapter implements ILoggerService {
   private static instance: MockLoggerAdapter;

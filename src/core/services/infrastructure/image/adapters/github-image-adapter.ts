@@ -1,4 +1,5 @@
 import type { IImageService, ImageUploadResult, ImageInfo, ImageUploadQueueEventType, ImageUploadQueueEvent } from '../types/image-service';
+import { getConfigService } from '@/core/services/infrastructure/config';
 
 /**
  * GitHub 图床适配器
@@ -8,11 +9,11 @@ import type { IImageService, ImageUploadResult, ImageInfo, ImageUploadQueueEvent
 export class GithubImageAdapter implements IImageService {
   private listeners: Partial<Record<ImageUploadQueueEventType, ((evt: ImageUploadQueueEvent) => void)[]>> = {};
   constructor(
-    private token: string = (typeof process !== 'undefined' && process.env.GITHUB_TOKEN) || '',
-    private repo: string = (typeof process !== 'undefined' && process.env.GITHUB_REPO) || '', // 格式：owner/repo
-    private branch: string = (typeof process !== 'undefined' && process.env.GITHUB_BRANCH) || 'main',
-    private path: string = (typeof process !== 'undefined' && process.env.GITHUB_PATH) || '',
-    private rawBase: string = (typeof process !== 'undefined' && process.env.GITHUB_RAW_BASE) || 'https://raw.githubusercontent.com',
+    private token: string = getConfigService().get('GITHUB_TOKEN') || '',
+    private repo: string = getConfigService().get('GITHUB_REPO') || '',
+    private branch: string = getConfigService().get('GITHUB_BRANCH') || 'main',
+    private path: string = getConfigService().get('GITHUB_PATH') || '',
+    private rawBase: string = getConfigService().get('GITHUB_RAW_BASE') || 'https://raw.githubusercontent.com',
   ) {}
 
   async uploadImage(file: Buffer | Uint8Array | Blob, filename: string, contentType: string): Promise<ImageUploadResult> {

@@ -3,20 +3,27 @@ import { IAuthService } from '../types/auth-service';
 import { MockAuthService } from '../adapters/mock/mock-auth-service';
 import { HybridAuthService } from '../adapters/hybrid-auth-service';
 import { PersistentMockAuthService } from '../adapters/mock/persistent-mock-auth-service';
-import { configService } from '@/core/services/infrastructure/config';
+import { getConfigService } from '@/core/services/infrastructure/config';
 import { AuthServiceType } from '@/core/lib/db/types/common';
 
 // 自动根据环境变量决定默认类型
 function getDefaultAuthType(): AuthServiceType {
+  let configService: any;
+  try {
+    configService = getConfigService();
+  } catch (e) {
+    // 配置服务未初始化，不能初始化认证服务，抛出更明确错误
+    throw new Error('[auth-service-factory] ConfigService must be initialized before AuthService. 请确保 initConfig() 已完成后再初始化认证服务。');
+  }
   const authType = configService.get('NEXT_PUBLIC_AUTH_TYPE');
   if (authType) {
     return authType as AuthServiceType;
   }
   const nodeEnv = configService.get('NODE_ENV');
   if (nodeEnv === 'production') {
-    return AuthServiceType.firebase;
+    return AuthServiceType.FIREBASE;
   }
-  return AuthServiceType.mock;
+  return AuthServiceType.MOCK;
 }
 
 export class AuthServiceFactory {
@@ -32,21 +39,21 @@ export class AuthServiceFactory {
     const resolvedType = type || getDefaultAuthType();
     console.log('[DEBUG][auth-service-factory] 创建 auth 类型:', resolvedType);
     switch(resolvedType) {
-      case AuthServiceType.persistentMock:
+      case AuthServiceType.PERSISTENT_MOCK:
         return new PersistentMockAuthService();
-      case AuthServiceType.firebase: {
+      case AuthServiceType.FIREBASE: {
         // 动态 require，避免 mock 环境下 firebase-adapter 被静态 import
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { FirebaseAuthAdapter } = require('../adapters/firebase/firebase-auth-service');
         return new FirebaseAuthAdapter();
       }
-      case AuthServiceType.better: {
+      case AuthServiceType.BETTER: {
         // 动态 require，避免 mock 环境下 better-auth-adapter 被静态 import
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { BetterAuthService } = require('../adapters/better/better-auth-service');
         return new BetterAuthService();
       }
-      case AuthServiceType.hybrid: return new HybridAuthService();
+      case AuthServiceType.HYBRID: return new HybridAuthService();
       default: return new MockAuthService();
     }
   }
@@ -71,23 +78,23 @@ export class AuthServiceFactoryRegistry {
     const key = `${config.environment}:${config.name}`;
     if (this.registry[key]) return this.registry[key];
     let service: IAuthService;
-    console.log('[DEBUG][auth-service-factory] 创建 auth 类型:', config.type ?? (config.environment === 'production' ? AuthServiceType.firebase : AuthServiceType.mock));
-    switch (config.type ?? (config.environment === 'production' ? AuthServiceType.firebase : AuthServiceType.mock)) {
-      case AuthServiceType.firebase: {
+    console.log('[DEBUG][auth-service-factory] 创建 auth 类型:', config.type ?? (config.environment === 'production' ? AuthServiceType.FIREBASE : AuthServiceType.MOCK));
+    switch (config.type ?? (config.environment === 'production' ? AuthServiceType.FIREBASE : AuthServiceType.MOCK)) {
+      case AuthServiceType.FIREBASE: {
         // 动态 require，避免 mock 环境下 firebase-adapter 被静态 import
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { FirebaseAuthAdapter } = require('../adapters/firebase/firebase-auth-service');
         service = new FirebaseAuthAdapter();
         break;
       }
-      case AuthServiceType.better: {
+      case AuthServiceType.BETTER: {
         // 动态 require，避免 mock 环境下 better-auth-adapter 被静态 import
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { BetterAuthService } = require('../adapters/better/better-auth-service');
         service = new BetterAuthService();
         break;
       }
-      case AuthServiceType.hybrid: service = new HybridAuthService(); break;
+      case AuthServiceType.HYBRID: service = new HybridAuthService(); break;
       default: service = new MockAuthService();
     }
     this.registry[key] = service;

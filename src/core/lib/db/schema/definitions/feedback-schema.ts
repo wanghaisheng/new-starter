@@ -1,7 +1,7 @@
 import { TableSchema } from '../../types/database';
 import {ColumnType} from '../../types/common'
 
-import { schemaRegistry } from '../index';
+import { schemaRegistry } from '../schema-registry-singleton';
 
 export const feedbackSchema: TableSchema = {
   name: 'feedbacks',

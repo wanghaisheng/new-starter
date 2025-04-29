@@ -17,12 +17,13 @@ import {
   ConfigProviderType,
   AuthServiceType,
   UserServiceType,
-  MessageServiceType,
   NotificationServiceType,
   PaymentServiceType,
   QuizServiceType,
   CacheStrategy,
-  ExpiryStrategy
+  ExpiryStrategy,
+  DbInitMode,
+  MatchServiceType // 新增匹配服务类型枚举
 } from '@/core/lib/db/types/common';
 
 export interface ConfigSchema {
@@ -99,7 +100,6 @@ export interface ConfigSchema {
   NEXT_PUBLIC_AUTH_TYPE?: AuthType | string;
   NEXT_PUBLIC_AUTH_SERVICE_TYPE?: AuthServiceType | string;
   NEXT_PUBLIC_USER_SERVICE_TYPE?: UserServiceType | string;
-  NEXT_PUBLIC_MESSAGE_SERVICE_TYPE?: MessageServiceType | string;
   NEXT_PUBLIC_NOTIFICATION_SERVICE_TYPE?: NotificationServiceType | string;
   NEXT_PUBLIC_PAYMENT_SERVICE_TYPE?: PaymentServiceType | string;
   NEXT_PUBLIC_QUIZ_SERVICE_TYPE?: QuizServiceType | string;
@@ -129,4 +129,15 @@ export interface ConfigSchema {
    * 需同步的实体类型列表（如 ['users', 'orders']），用于 SyncManager
    */
   NEXT_PUBLIC_ENTITY_TYPES?: string[];
+
+  NEXT_PUBLIC_MATCH_SERVICE_TYPE?: MatchServiceType[] | string[] | string;
+  NEXT_PUBLIC_MATCH_POOL_SIZE?: number | string;
+  NEXT_PUBLIC_MATCH_AI_MODEL?: string;
+  NEXT_PUBLIC_MATCH_REFRESH_INTERVAL?: number | string;
+
+  // 数据初始化相关变量
+  NEXT_PUBLIC_DB_INIT_MODE?: DbInitMode | string;
+  NEXT_PUBLIC_DB_INIT_SOURCE?: string;
+  NEXT_PUBLIC_DB_INIT_LOAD_DEFAULT?: boolean | string;
+  NEXT_PUBLIC_DB_INIT_TABLES?: string;
 }

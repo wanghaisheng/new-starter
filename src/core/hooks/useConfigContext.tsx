@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { configEventBus } from '@/core/services/infrastructure/config/events/config-events';
-import { getConfigService } from '@/core/services/infrastructure/config/registry/config-registry';
+import { getConfigService } from '@/core/services/infrastructure/config';
 import type { ConfigKey } from '@/core/services/infrastructure/config/config-keys';
 
 interface ConfigContextValue {

@@ -1,5 +1,6 @@
 import type { ICameraService, CameraServiceType, CameraServiceOptions } from '../types/camera-service';
 import { CameraServiceFactory } from '../factory/camera-service-factory';
+import { getConfigService } from '@/core/services/infrastructure/config';
 
 export interface CameraServiceConfig {
   environment?: string;
@@ -8,10 +9,6 @@ export interface CameraServiceConfig {
   options?: CameraServiceOptions;
 }
 
-/**
- * 插件化注册表+工厂函数模式
- * 统一 getProvider 签名，支持多实例、运行时扩展、自动降级
- */
 export class CameraServiceRegistry {
   private static instance: CameraServiceRegistry;
   private registry: Record<string, ICameraService> = {};
@@ -22,14 +19,16 @@ export class CameraServiceRegistry {
     return this.instance;
   }
 
-  /**
-   * 统一工厂方法，支持自动环境判定与降级
-   */
   createService(config: Partial<CameraServiceConfig> = {}): ICameraService {
-    const env = config.environment || (typeof process !== 'undefined' && process.env.NODE_ENV) || 'production';
+    // 自动判定环境并降级
+    const env = config.environment || getConfigService().get('NODE_ENV') || 'production';
     let type = config.type;
     if (!type) {
-      if (env === 'test' || env === 'development' || (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_USE_MOCK === 'true')) {
+      if (
+        env === 'test' ||
+        env === 'development' ||
+        getConfigService().get('NEXT_PUBLIC_USE_MOCK') === 'true'
+      ) {
         type = 'mock';
       } else {
         type = 'web';
@@ -40,7 +39,7 @@ export class CameraServiceRegistry {
     if (this.registry[key]) return this.registry[key];
     let service: ICameraService;
     try {
-      const adapter = CameraServiceRegistry.adapters[type];
+      const adapter = CameraServiceRegistry.adapters[type!];
       service = adapter ? adapter() : CameraServiceFactory.createService({ type, options: config.options });
     } catch (e) {
       // web/capacitor 创建失败兜底为 mock
@@ -55,15 +54,10 @@ export class CameraServiceRegistry {
     return service;
   }
 
-  getService(environment: string, name: string = 'default'): ICameraService | undefined {
+  getService(environment: string, name: string): ICameraService | undefined {
     return this.registry[`${environment}:${name}`];
   }
-
   clear() { this.registry = {}; }
-
-  /**
-   * 插件化适配器注册
-   */
   static registerAdapter(type: CameraServiceType, factory: () => ICameraService) {
     this.adapters[type] = factory;
   }
@@ -72,27 +66,20 @@ export class CameraServiceRegistry {
     return factory ? factory() : undefined;
   }
   static registerAllAdapters() {
-    this.registerAdapter('web', () => CameraServiceFactory.createService({ type: 'web' }));
-    this.registerAdapter('capacitor', () => CameraServiceFactory.createService({ type: 'capacitor' }));
-    this.registerAdapter('mock', () => CameraServiceFactory.createService({ type: 'mock' }));
+    CameraServiceRegistry.registerAdapter('mock', () => CameraServiceFactory.createService({ type: 'mock' }));
+    CameraServiceRegistry.registerAdapter('web', () => CameraServiceFactory.createService({ type: 'web' }));
+    CameraServiceRegistry.registerAdapter('capacitor', () => CameraServiceFactory.createService({ type: 'capacitor' }));
   }
 
-  /**
-   * 统一 getProvider 签名，供 hooks/业务层调用
-   */
   getProvider(
     type: CameraServiceType = 'capacitor',
     name: string = 'default',
     _dataService?: unknown,
     options?: CameraServiceOptions
   ): () => ICameraService {
-    return () => this.createService({ type, name, options });
+    return () => this.createService({ environment: type, name, type, options });
   }
 
-  /**
-   * 获取默认实例（兼容 hooks 统一调用）
-   * 优先 remote，其次 hybrid，其次 mock
-   */
   getDefaultService(_dataService?: unknown): ICameraService {
     return (
       this.getService('remote', 'default') ||

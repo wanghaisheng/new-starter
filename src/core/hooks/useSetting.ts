@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import type { ISettingService } from '@/core/services/business/user/types/setting-service';
-import { SettingService, SettingServiceRegistry } from '@/core/services/business/user/setting-service';
 import type { User, UserPreferences } from '@/core/lib/db/types/user.types';
-import type { PrivacySettings, NotificationSettings, SecuritySettings } from '@/core/lib/db/types/settings.types';
+import type { PrivacySettings, NotificationSettings, SecuritySettings } from '@/core/lib/db/types/user.types';
 import { useToast } from './useToast';
+import { useService } from '@/providers/ServiceProvider';
 
 // TODO: Replace direct SettingService instantiation with Registry if/when available
 
@@ -13,16 +13,15 @@ export function useSetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [theme, setTheme] = useState<any>(null); // Replace 'any' with a Theme type if available
   const { triggerToast } = useToast();
-
-  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
-  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
+  const { settingService } = useService();
 
   const updateTheme = useCallback(
     async (themeValue: any) => {
       setLoading(true);
       setError(null);
       try {
-        const updated = await service.updateTheme(userId, themeValue);
+        if (!settingService) throw new Error('设置服务未初始化');
+        const updated = await settingService.updateTheme(userId, themeValue);
         setTheme(updated);
         setEmpty(!updated);
         triggerToast('主题设置已更新');
@@ -37,7 +36,7 @@ export function useSetting(userId: string) {
         setLoading(false);
       }
     },
-    [service, userId, triggerToast]
+    [settingService, userId, triggerToast]
   );
 
   // Optionally, add more setting operations (privacy, notifications, etc.)
@@ -58,8 +57,7 @@ export function useLanguageSetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [language, setLanguage] = useState<string>('en');
   const { triggerToast } = useToast();
-  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
-  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
+  const { settingService } = useService();
 
   // 加载语言设置（可扩展为实际后端获取）
   const loadLanguage = useCallback(async (user?: User) => {
@@ -83,8 +81,9 @@ export function useLanguageSetting(userId: string) {
     setLoading(true);
     setError(null);
     try {
+      if (!settingService) throw new Error('设置服务未初始化');
       // 这里假设 updateAccount 支持 language 字段
-      const updated = await service.updateAccount({ ...user, preferences: { ...user.preferences, language: newLang } });
+      const updated = await settingService.updateAccount({ ...user, preferences: { ...user.preferences, language: newLang } });
       setLanguage(newLang);
       setEmpty(false);
       triggerToast('语言设置已更新');
@@ -97,7 +96,7 @@ export function useLanguageSetting(userId: string) {
     } finally {
       setLoading(false);
     }
-  }, [service, triggerToast]);
+  }, [settingService, triggerToast]);
 
   return {
     language,
@@ -116,8 +115,7 @@ export function useContactSetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [contact, setContact] = useState<User | null>(null);
   const { triggerToast } = useToast();
-  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
-  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
+  const { settingService } = useService();
 
   const loadContact = useCallback(async (user?: User) => {
     if (!user) return;
@@ -139,7 +137,8 @@ export function useContactSetting(userId: string) {
     setLoading(true);
     setError(null);
     try {
-      const updated = await service.updateAccount({ ...user, ...updates });
+      if (!settingService) throw new Error('设置服务未初始化');
+      const updated = await settingService.updateAccount({ ...user, ...updates });
       setContact(updated);
       setEmpty(false);
       triggerToast('联系方式已更新');
@@ -152,7 +151,7 @@ export function useContactSetting(userId: string) {
     } finally {
       setLoading(false);
     }
-  }, [service, triggerToast]);
+  }, [settingService, triggerToast]);
 
   return {
     contact,
@@ -171,8 +170,7 @@ export function useDiscoverySetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const { triggerToast } = useToast();
-  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
-  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
+  const { settingService } = useService();
 
   const loadDiscovery = useCallback(async (user?: User) => {
     if (!user) return;
@@ -194,7 +192,8 @@ export function useDiscoverySetting(userId: string) {
     setLoading(true);
     setError(null);
     try {
-      const updated = await service.updateAccount({ ...user, preferences: { ...user.preferences, ...updates } });
+      if (!settingService) throw new Error('设置服务未初始化');
+      const updated = await settingService.updateAccount({ ...user, preferences: { ...user.preferences, ...updates } });
       setPreferences(updated.preferences);
       setEmpty(false);
       triggerToast('发现设置已更新');
@@ -207,7 +206,7 @@ export function useDiscoverySetting(userId: string) {
     } finally {
       setLoading(false);
     }
-  }, [service, triggerToast]);
+  }, [settingService, triggerToast]);
 
   return {
     preferences,
@@ -226,8 +225,7 @@ export function usePrivacySetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [privacy, setPrivacy] = useState<PrivacySettings | null>(null);
   const { triggerToast } = useToast();
-  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
-  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
+  const { settingService } = useService();
 
   const defaultPrivacy: PrivacySettings = {
     showProfileToEveryone: true,
@@ -273,11 +271,12 @@ export function usePrivacySetting(userId: string) {
     setLoading(true);
     setError(null);
     try {
+      if (!settingService) throw new Error('设置服务未初始化');
       const updated: PrivacySettings = {
         ...defaultPrivacy,
         ...updates,
       };
-      const updatedUser = await service.updateAccount({ ...user, privacySettings: updated });
+      const updatedUser = await settingService.updateAccount({ ...user, privacySettings: updated });
       setPrivacy(updated);
       setEmpty(false);
       triggerToast('隐私设置已更新');
@@ -290,7 +289,7 @@ export function usePrivacySetting(userId: string) {
     } finally {
       setLoading(false);
     }
-  }, [service, triggerToast]);
+  }, [settingService, triggerToast]);
 
   return {
     privacy,
@@ -309,8 +308,7 @@ export function useNotificationSetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [notification, setNotification] = useState<NotificationSettings | null>(null);
   const { triggerToast } = useToast();
-  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
-  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
+  const { settingService } = useService();
 
   const defaultNotification: NotificationSettings = {
     newMatches: true,
@@ -350,11 +348,12 @@ export function useNotificationSetting(userId: string) {
     setLoading(true);
     setError(null);
     try {
+      if (!settingService) throw new Error('设置服务未初始化');
       const updated: NotificationSettings = {
         ...defaultNotification,
         ...updates,
       };
-      const updatedUser = await service.updateAccount({ ...user, notificationSettings: updated });
+      const updatedUser = await settingService.updateAccount({ ...user, notificationSettings: updated });
       setNotification(updated);
       setEmpty(false);
       triggerToast('通知设置已更新');
@@ -367,7 +366,7 @@ export function useNotificationSetting(userId: string) {
     } finally {
       setLoading(false);
     }
-  }, [service, triggerToast]);
+  }, [settingService, triggerToast]);
 
   return {
     notification,
@@ -386,8 +385,7 @@ export function useSecuritySetting(userId: string) {
   const [empty, setEmpty] = useState(false);
   const [security, setSecurity] = useState<SecuritySettings | null>(null);
   const { triggerToast } = useToast();
-  // 统一通过 Registry 获取服务实例，禁止 Factory 直连
-  const service: ISettingService = SettingServiceRegistry.getInstance().getDefaultService?.();
+  const { settingService } = useService();
 
   const defaultSecurity: SecuritySettings = {
     twoFactorEnabled: false,
@@ -420,11 +418,12 @@ export function useSecuritySetting(userId: string) {
     setLoading(true);
     setError(null);
     try {
+      if (!settingService) throw new Error('设置服务未初始化');
       const updated: SecuritySettings = {
         ...defaultSecurity,
         ...updates,
       };
-      const updatedUser = await service.updateAccount({ ...user, securitySettings: updated });
+      const updatedUser = await settingService.updateAccount({ ...user, securitySettings: updated });
       const sec: SecuritySettings = {
         ...defaultSecurity,
         ...updatedUser.securitySettings,
@@ -441,7 +440,7 @@ export function useSecuritySetting(userId: string) {
     } finally {
       setLoading(false);
     }
-  }, [service, triggerToast]);
+  }, [settingService, triggerToast]);
 
   return {
     security,

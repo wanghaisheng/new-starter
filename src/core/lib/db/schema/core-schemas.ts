@@ -1,6 +1,7 @@
-import { TableSchema, ColumnType } from './types';
+import { TableSchema } from '../types/database';
+import { ColumnType } from '../types/common';
 
-import { schemaRegistry } from './index';
+import { schemaRegistry } from './schema-registry-singleton';
 
 /**
  * 自动扫描 definitions 目录下所有 *-schema.ts 文件并注册所有表结构
@@ -38,8 +39,9 @@ export function registerCoreSchemas(): void {
     console.log('注册后的模式列表:', finalSchemas.join(', '));
     
     // 检查是否有任何模式仍然缺失
-    const coreSchemas = schemaContext.keys().map((key: string) => key.replace(/-schema\.ts$/, ''));
-    const stillMissingSchemas = coreSchemas.filter((name: string) => !finalSchemas.includes(name));
+    // 修复：用 schema.name 复数名对比，不再用文件名（单数）
+    const expectedSchemaNames = schemas.map((schema: TableSchema) => schema.name);
+    const stillMissingSchemas = expectedSchemaNames.filter((name: string) => !finalSchemas.includes(name));
     if (stillMissingSchemas.length > 0) {
       console.error(`警告: 以下核心模式注册失败: ${stillMissingSchemas.join(', ')}`);
       console.error('这可能会导致应用程序无法正常工作，请检查模式定义文件');

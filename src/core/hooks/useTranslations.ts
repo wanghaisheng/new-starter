@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { TranslationServiceRegistry } from '@/core/services/infrastructure/translation/registry/translation-service-registry';
+import { useService } from '@/providers/ServiceProvider';
 
 /**
  * useTranslations - 全局内容多语言 hook
@@ -9,8 +9,8 @@ import { TranslationServiceRegistry } from '@/core/services/infrastructure/trans
  * @returns { loading, error, empty, data, get, fetch } - data 为 { [key]: value } 映射
  */
 export function useTranslations(keys: string | string[], locale?: string) {
-  // 统一通过 Registry 获取服务实例
-  const translationService = TranslationServiceRegistry.getInstance().getDefaultService();
+  // 统一通过 ServiceProvider 获取服务实例
+  const { translationService } = useService();
 
   const {
     loading,

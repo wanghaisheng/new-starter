@@ -63,8 +63,39 @@
 
 | 变量名                          | 典型值                 | 说明                       |
 |----------------------------------|------------------------|----------------------------|
-| NEXT_PUBLIC_AUTH_TYPE            | firebase/mock          | 认证方式（前端可见）       |
-| NEXT_PUBLIC_AUTH_SERVICE_TYPE    | firebase/betterauth    | 认证服务类型               |
+| NEXT_PUBLIC_AUTH_STRATEGY        | jwt/oauth/session/mock | 认证策略类型               |
+| NEXT_PUBLIC_AUTH_PROVIDER        | firebase/betterauth    | 认证服务提供者             |
+| NEXT_PUBLIC_SOCIAL_LOGIN_PROVIDERS | google,facebook,apple | 支持的社交登录提供者       |
+| NEXT_PUBLIC_GOOGLE_CLIENT_ID     | ...                    | Google OAuth 客户端ID      |
+| NEXT_PUBLIC_GOOGLE_CLIENT_SECRET | ...                    | Google OAuth 客户端密钥    |
+| NEXT_PUBLIC_FACEBOOK_APP_ID      | ...                    | Facebook App ID            |
+| NEXT_PUBLIC_FACEBOOK_APP_SECRET  | ...                    | Facebook App 密钥          |
+| NEXT_PUBLIC_APPLE_TEAM_ID        | ...                    | Apple 团队ID               |
+| NEXT_PUBLIC_APPLE_KEY_ID         | ...                    | Apple 密钥ID               |
+| NEXT_PUBLIC_APPLE_PRIVATE_KEY    | ...                    | Apple 私钥                 |
+| NEXT_PUBLIC_SESSION_DURATION     | 1d                    | 会话有效期                 |
+| NEXT_PUBLIC_SESSION_REFRESH      | 30m                   | 会话刷新间隔               |
+| NEXT_PUBLIC_SESSION_COOKIE_NAME  | auth_session           | 会话 cookie 名称           |
+| NEXT_PUBLIC_SESSION_COOKIE_DOMAIN | .example.com          | 会话 cookie 域            |
+| NEXT_PUBLIC_SESSION_COOKIE_SECURE | true                  | 会话 cookie 安全标志       |
+| NEXT_PUBLIC_TOKEN_EXPIRY         | 7d                    | token 有效期               |
+| NEXT_PUBLIC_TOKEN_REFRESH        | 1d                    | token 刷新间隔             |
+| NEXT_PUBLIC_TOKEN_ALGORITHM      | HS256                 | token 签名算法             |
+| NEXT_PUBLIC_TOKEN_SECRET         | ...                   | token 签名密钥             |
+| NEXT_PUBLIC_AUTH_RATE_LIMIT      | 100/hour              | 认证请求频率限制           |
+| NEXT_PUBLIC_LOGIN_ATTEMPTS       | 5                     | 登录尝试次数限制           |
+| NEXT_PUBLIC_LOCKOUT_DURATION     | 15m                   | 锁定时长                   |
+| NEXT_PUBLIC_PASSWORD_MIN_LENGTH  | 8                     | 密码最小长度               |
+| NEXT_PUBLIC_PASSWORD_MAX_LENGTH  | 128                   | 密码最大长度               |
+| NEXT_PUBLIC_PASSWORD_REQUIRE_UPPERCASE | true | 密码必须包含大写字母     |
+| NEXT_PUBLIC_PASSWORD_REQUIRE_LOWERCASE | true | 密码必须包含小写字母     |
+| NEXT_PUBLIC_PASSWORD_REQUIRE_NUMBER | true | 密码必须包含数字         |
+| NEXT_PUBLIC_PASSWORD_REQUIRE_SPECIAL | true | 密码必须包含特殊字符     |
+| NEXT_PUBLIC_CORS_ORIGINS         | http://localhost:3000,https://example.com | CORS 允许的源 |
+| NEXT_PUBLIC_CORS_METHODS         | GET,POST,PUT,DELETE   | CORS 允许的方法           |
+| NEXT_PUBLIC_CORS_HEADERS         | Content-Type,Authorization | CORS 允许的头部 |
+| NEXT_PUBLIC_XSS_PROTECTION       | true                  | XSS 防护启用状态           |
+| NEXT_PUBLIC_CONTENT_SECURITY_POLICY | default-src 'self' | 内容安全策略        |
 | NEXT_PUBLIC_USER_SERVICE_TYPE    | mock                   | 用户服务类型               |
 | NEXT_PUBLIC_MESSAGE_SERVICE_TYPE | mock                   | 消息服务类型               |
 | NEXT_PUBLIC_NOTIFICATION_SERVICE_TYPE | mock              | 通知服务类型               |
@@ -72,6 +103,71 @@
 | NEXT_PUBLIC_QUIZ_SERVICE_TYPE    | mock                   | 测验服务类型               |
 | NEXT_PUBLIC_BETTER_AUTH_API_URL  | https://auth.xxx.com   | BetterAuth API 地址        |
 | BETTER_AUTH_SECRET               | ...                    | BetterAuth 服务端密钥      |
+
+### 认证配置示例
+
+#### 1. 开发环境（Mock）
+```bash
+NEXT_PUBLIC_AUTH_STRATEGY=mock
+NEXT_PUBLIC_AUTH_PROVIDER=mock
+NEXT_PUBLIC_SOCIAL_LOGIN_PROVIDERS=mock
+NEXT_PUBLIC_SESSION_DURATION=1d
+NEXT_PUBLIC_TOKEN_EXPIRY=7d
+NEXT_PUBLIC_PASSWORD_MIN_LENGTH=8
+```
+
+#### 2. 生产环境（JWT + Firebase）
+```bash
+NEXT_PUBLIC_AUTH_STRATEGY=jwt
+NEXT_PUBLIC_AUTH_PROVIDER=firebase
+NEXT_PUBLIC_SOCIAL_LOGIN_PROVIDERS=google,facebook
+NEXT_PUBLIC_SESSION_DURATION=1d
+NEXT_PUBLIC_SESSION_REFRESH=30m
+NEXT_PUBLIC_TOKEN_EXPIRY=7d
+NEXT_PUBLIC_TOKEN_REFRESH=1d
+NEXT_PUBLIC_AUTH_RATE_LIMIT=100/hour
+NEXT_PUBLIC_LOGIN_ATTEMPTS=5
+NEXT_PUBLIC_LOCKOUT_DURATION=15m
+```
+
+#### 3. 本地开发（OAuth）
+```bash
+NEXT_PUBLIC_AUTH_STRATEGY=oauth
+NEXT_PUBLIC_AUTH_PROVIDER=mock
+NEXT_PUBLIC_SOCIAL_LOGIN_PROVIDERS=google
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=your-google-client-secret
+NEXT_PUBLIC_SESSION_DURATION=1d
+NEXT_PUBLIC_SESSION_COOKIE_SECURE=false
+```
+
+#### 4. 企业级安全配置
+```bash
+NEXT_PUBLIC_AUTH_STRATEGY=jwt
+NEXT_PUBLIC_AUTH_PROVIDER=custom
+NEXT_PUBLIC_PASSWORD_MIN_LENGTH=12
+NEXT_PUBLIC_PASSWORD_MAX_LENGTH=64
+NEXT_PUBLIC_PASSWORD_REQUIRE_UPPERCASE=true
+NEXT_PUBLIC_PASSWORD_REQUIRE_LOWERCASE=true
+NEXT_PUBLIC_PASSWORD_REQUIRE_NUMBER=true
+NEXT_PUBLIC_PASSWORD_REQUIRE_SPECIAL=true
+NEXT_PUBLIC_CORS_ORIGINS=https://your-domain.com
+NEXT_PUBLIC_XSS_PROTECTION=true
+NEXT_PUBLIC_CONTENT_SECURITY_POLICY="default-src 'self'"
+```
+
+> **说明：**
+> - `NEXT_PUBLIC_AUTH_STRATEGY`: 定义认证机制（jwt/oauth/session），用于选择认证方式
+> - `NEXT_PUBLIC_AUTH_PROVIDER`: 定义认证服务提供者（firebase/betterauth/mock），用于选择具体实现
+> - `NEXT_PUBLIC_SOCIAL_LOGIN_PROVIDERS`: 逗号分隔的社交登录提供者列表（google/facebook/apple）
+> - 社交登录配置：
+>   - Google: 需要配置 `GOOGLE_CLIENT_ID` 和 `GOOGLE_CLIENT_SECRET`
+>   - Facebook: 需要配置 `FACEBOOK_APP_ID` 和 `FACEBOOK_APP_SECRET`
+>   - Apple: 需要配置 `APPLE_TEAM_ID`、`APPLE_KEY_ID` 和 `APPLE_PRIVATE_KEY`
+> - 会话管理配置：控制用户会话时长、刷新间隔和 cookie 设置
+> - token 管理配置：控制 token 的有效期、刷新间隔和签名算法
+> - 安全配置：包括密码策略、CORS 设置、XSS 保护和内容安全策略
+> - 两者组合使用，例如：`strategy=jwt` + `provider=firebase` 表示使用 JWT 认证机制的 Firebase 实现
 
 ---
 
@@ -93,6 +189,22 @@
 | 变量名                | 典型值 | 说明                |
 |-----------------------|--------|---------------------|
 | NEXT_PUBLIC_PUSH_APP_KEY | ...  | 推送服务AppKey      |
+
+---
+
+## 业务服务配置
+
+| 变量名                             | 典型值                          | 说明                       |
+|-------------------------------------|---------------------------------|----------------------------|
+| NEXT_PUBLIC_MESSAGE_TYPE           | text/image/video/system         | 消息类型，对应 MessageType 枚举 |
+| NEXT_PUBLIC_MESSAGE_FEATURES       | ai,audit,encryption,i18n        | 消息特性，逗号分隔，对应 MessageFeature 枚举 |
+| NEXT_PUBLIC_MESSAGE_ADAPTERS       | mock/remote/hybrid              | 消息适配器类型，对应 MessageAdapterType 枚举 |
+| NEXT_PUBLIC_QUIZ_TYPE              | mbti/tcm/bazi/custom            | 测验类型，对应 QuizType 枚举 |
+| NEXT_PUBLIC_QUIZ_FEATURES          | basicReport,aiAnalysis          | 测验特性，逗号分隔，对应 QuizEnhancerType 枚举 |
+| NEXT_PUBLIC_MATCH_TYPE             | random,mbti,location,tag        | 匹配类型，对应 MatchServiceTypeOptions 枚举 |
+| NEXT_PUBLIC_MATCH_ENHANCER_LIST    | ai,location,preference          | 匹配增强器列表，逗号分隔 |
+| NEXT_PUBLIC_ONBOARD_TYPE           | default/abtest/custom           | 引导类型 |
+| NEXT_PUBLIC_ONBOARD_FEATURES       | abtest,grayrelease,i18n         | 引导特性，逗号分隔 |
 
 ---
 
@@ -249,7 +361,7 @@
 #### （1）全局 mock 测试
 - **典型配置**：
   - `NEXT_PUBLIC_PROVIDER_TYPE=mock`
-  - `NEXT_PUBLIC_AUTH_SERVICE_TYPE=mock`
+  - `NEXT_PUBLIC_AUTH_PROVIDER=mock`
   - `NEXT_PUBLIC_USER_SERVICE_TYPE=mock`
   - ...
 - **场景说明**：
@@ -261,7 +373,7 @@
 - **典型配置**：
   - `NEXT_PUBLIC_PROVIDER_TYPE=local`
   - `NEXT_PUBLIC_DATABASE_PROVIDER=sqlite`
-  - `NEXT_PUBLIC_AUTH_SERVICE_TYPE=mock`（或 local）
+  - `NEXT_PUBLIC_AUTH_PROVIDER=mock`（或 local）
 - **场景说明**：
   - 前后端本地联调，部分服务走本地实现，部分可继续 mock。
 - **注意事项**：
@@ -270,7 +382,7 @@
 #### （3）远程生产环境
 - **典型配置**：
   - `NEXT_PUBLIC_PROVIDER_TYPE=remote`
-  - `NEXT_PUBLIC_AUTH_SERVICE_TYPE=firebase`
+  - `NEXT_PUBLIC_AUTH_PROVIDER=firebase`
   - `NEXT_PUBLIC_USER_SERVICE_TYPE=remote`
   - `NEXT_PUBLIC_DATABASE_PROVIDER=drizzle`
 - **场景说明**：
@@ -628,6 +740,262 @@ switch (dbOrm) {
 ---
 
 **配置服务（ConfigService）本身的 provider 变量说明**
+- **核心变量**：
+  - `NEXT_PUBLIC_CONFIG_PROVIDER`：配置服务/参数中心类型（如 consul/etcd/ssm/localfile）。
+- **用法说明**：
+  - 决定配置服务（ConfigService）本身的后端实现来源，可支持本地文件、远程参数中心、云服务等多种模式，适配不同部署和运维需求。
+  - 典型应用场景：
+    - 本地开发/单机：`NEXT_PUBLIC_CONFIG_PROVIDER=localfile`
+    - 云端/多环境：`NEXT_PUBLIC_CONFIG_PROVIDER=consul`、`etcd`、`ssm` 等
+  - 业务代码通过配置服务统一读取所有环境变量和 provider 配置，确保类型安全、自动补全和多端一致性。
+- **最佳实践**：
+  - 配置服务 provider 变量与其他 provider 变量（如数据库、缓存、文件等）同等重要，需在 `.env.example`、`config-keys.ts`、`config-types.ts`、文档全链路声明和同步。
+  - 推荐所有配置项都通过配置服务访问，禁止直读 process.env 或硬编码。
+
+---
+
+**最佳实践与建议：**
+- 变量命名、类型、用途全链路同步（`.env.example`、`config-keys.ts`、`config-types.ts`、文档）。
+- 新增/变更 provider 或环境变量需同步所有相关配置和文档。
+- 多端/PWA 场景下建议详细测试 provider 切换、离线恢复、同步冲突等边界。
+- 充分利用配置服务，提升代码健壮性与可维护性。
+
+---
+
+**配置服务（ConfigService）本身的 provider 变量说明**
+- **核心变量**：
+  - `NEXT_PUBLIC_CONFIG_PROVIDER`：配置服务/参数中心类型（如 consul/etcd/ssm/localfile）。
+- **用法说明**：
+  - 决定配置服务（ConfigService）本身的后端实现来源，可支持本地文件、远程参数中心、云服务等多种模式，适配不同部署和运维需求。
+  - 典型应用场景：
+    - 本地开发/单机：`NEXT_PUBLIC_CONFIG_PROVIDER=localfile`
+    - 云端/多环境：`NEXT_PUBLIC_CONFIG_PROVIDER=consul`、`etcd`、`ssm` 等
+  - 业务代码通过配置服务统一读取所有环境变量和 provider 配置，确保类型安全、自动补全和多端一致性。
+- **最佳实践**：
+  - 配置服务 provider 变量与其他 provider 变量（如数据库、缓存、文件等）同等重要，需在 `.env.example`、`config-keys.ts`、`config-types.ts`、文档全链路声明和同步。
+  - 推荐所有配置项都通过配置服务访问，禁止直读 process.env 或硬编码。
+
+---
+
+**最佳实践与建议：**
+- 变量命名、类型、用途全链路同步（`.env.example`、`config-keys.ts`、`config-types.ts`、文档）。
+- 新增/变更 provider 或环境变量需同步所有相关配置和文档。
+- 多端/PWA 场景下建议详细测试 provider 切换、离线恢复、同步冲突等边界。
+- 充分利用配置服务，提升代码健壮性与可维护性。
+
+---
+
+## 数据初始化相关环境变量（2025 新增）
+
+| 变量名                              | 典型值                      | 说明                                    |
+|-------------------------------------|-----------------------------|-----------------------------------------|
+| NEXT_PUBLIC_DB_INIT_MODE            | schema/json/memory/sql      | 数据初始化模式，决定用 DDL、JSON、mock-data 还是 SQL 脚本 |
+| NEXT_PUBLIC_DB_INIT_SOURCE          | ./mock-data.json/./mock-sql | 默认数据来源路径或类型                   |
+| NEXT_PUBLIC_DB_INIT_LOAD_DEFAULT    | true/false                  | 冷启动时是否自动加载默认/假数据          |
+| NEXT_PUBLIC_DB_INIT_TABLES          | users,settings,...          | 需初始化的表（逗号分隔，留空为全部）      |
+
+- 推荐全部通过 ConfigService 统一访问，禁止业务代码硬编码。
+- 配合 `NEXT_PUBLIC_DATA_MODE`、`MOCK_DB_MODE` 等变量，可灵活控制开发/测试/演示/生产环境下的数据初始化行为。
+- 示例：
+  ```env
+  NEXT_PUBLIC_DB_INIT_MODE=json
+  NEXT_PUBLIC_DB_INIT_SOURCE=./mock-data.json
+  NEXT_PUBLIC_DB_INIT_LOAD_DEFAULT=true
+  NEXT_PUBLIC_DB_INIT_TABLES=users,settings
+  ```
+- 典型场景：
+  - 冷启动自动导入 mock/演示数据
+  - 测试环境批量导入 JSON 或 SQL 脚本
+  - 生产环境仅初始化表结构，不导入假数据
+
+---
+
+### 6. 消息与测验等业务服务插件化配置
+
+| 变量名                        | 典型值                        | 说明                                      |
+|-------------------------------|-------------------------------|-------------------------------------------|
+| NEXT_PUBLIC_MESSAGE_TYPE      | text/image/audio/custom       | 消息类型，支持多模态扩展                  |
+| NEXT_PUBLIC_MESSAGE_FEATURES  | reply,forward,edit,delete     | 消息功能开关，逗号分隔多选                |
+| NEXT_PUBLIC_MESSAGE_ADAPTERS  | mock,websocket,rest,custom    | 消息服务适配器类型，支持插件化            |
+| NEXT_PUBLIC_QUIZ_TYPE         | single,multi,fill,custom      | 测验题型，支持自定义扩展                  |
+| NEXT_PUBLIC_QUIZ_FEATURES     | timer,random,review,explain   | 测验功能开关，逗号分隔多选                |
+| NEXT_PUBLIC_MATCH_TYPE        | random,rank,team,custom       | 匹配模式类型，支持多种业务场景            |
+| NEXT_PUBLIC_ONBOARD_TYPE      | simple,guide,quiz,custom      | 新手引导/入职流程类型，支持自定义         |
+
+> - 以上变量均支持通过逗号分隔配置多种类型或功能，便于插件化和灵活切换。
+> - 可选值仅为推荐，实际可根据业务需求扩展。
+> - 需同步 .env.example、config-keys.ts、config-types.ts 保持一致。
+
+- 各 Provider 类型变量可单独配置，支持不同服务独立切换（如数据 mock+认证 firebase）。
+- `NEXT_PUBLIC_PROVIDER_TYPE` 可作为全局默认值，业务 Provider 变量可覆盖细分服务。
+
+### 3. 应用场景与配置示例
+
+#### （1）全局 mock 测试
+- **典型配置**：
+  - `NEXT_PUBLIC_PROVIDER_TYPE=mock`
+  - `NEXT_PUBLIC_AUTH_PROVIDER=mock`
+  - `NEXT_PUBLIC_USER_SERVICE_TYPE=mock`
+  - ...
+- **场景说明**：
+  - 前端 UI/交互开发阶段，无需后端，所有服务走前端 mock provider。
+- **注意事项**：
+  - 适合快速原型、UI 测试，数据不落地。
+
+#### （2）本地联调
+- **典型配置**：
+  - `NEXT_PUBLIC_PROVIDER_TYPE=local`
+  - `NEXT_PUBLIC_DATABASE_PROVIDER=sqlite`
+  - `NEXT_PUBLIC_AUTH_PROVIDER=mock`（或 local）
+- **场景说明**：
+  - 前后端本地联调，部分服务走本地实现，部分可继续 mock。
+- **注意事项**：
+  - 支持断点调试、离线测试。
+
+#### （3）远程生产环境
+- **典型配置**：
+  - `NEXT_PUBLIC_PROVIDER_TYPE=remote`
+  - `NEXT_PUBLIC_AUTH_PROVIDER=firebase`
+  - `NEXT_PUBLIC_USER_SERVICE_TYPE=remote`
+  - `NEXT_PUBLIC_DATABASE_PROVIDER=drizzle`
+- **场景说明**：
+  - 所有服务对接云端生产环境，数据、认证、消息等全部走远程 provider。
+- **注意事项**：
+  - 需保证 provider 配置与后端服务一致。
+
+#### （4）混合/降级模式
+- **典型配置**：
+  - `NEXT_PUBLIC_PROVIDER_TYPE=hybrid`
+  - `NEXT_PUBLIC_DATABASE_PROVIDER=sqlite`（或 supabase、firebase 等具体数据库实现）
+  - `NEXT_PUBLIC_USER_SERVICE_TYPE=mock`（如部分服务降级）
+- **场景说明**：
+  - 业务主流程走远程服务，部分功能可降级为本地/mock，提升容错性。
+- **注意事项**：
+  - 需在代码中处理 provider 切换和降级逻辑。
+  - `drizzle` 实际为 ORM 框架，不是具体数据库实现，数据库类变量建议填写具体实现（如 sqlite、supabase、firebase 等），`drizzle` 仅用于指定 ORM 层。
+
+### 4. 实际代码用法示例
+
+```typescript
+// 统一获取 provider 类型，决定服务注册/实例化方式
+const providerType = configService.get(CONFIG_KEYS.NEXT_PUBLIC_PROVIDER_TYPE);
+const userServiceType = configService.get(CONFIG_KEYS.NEXT_PUBLIC_USER_SERVICE_TYPE) || providerType;
+
+switch (userServiceType) {
+  case 'mock':
+    // 注册 mock user service
+    break;
+  case 'remote':
+    // 注册远程 user service
+    break;
+  case 'local':
+    // 注册本地 user service
+    break;
+}
+```
+
+### 5. 最佳实践与注意事项
+
+- 推荐用 `NEXT_PUBLIC_PROVIDER_TYPE` 设全局默认，细分服务变量可覆盖，提升灵活性。
+- 业务代码统一通过配置服务获取 provider 类型，避免硬编码。
+- 新增/变更 provider 类型需同步所有相关配置文件和文档。
+- 复杂场景下建议详细测试 provider 切换、离线恢复、同步冲突等边界情况。
+
+---
+
+## 存储相关配置服务与演进式策略
+
+本节结合“演进式策略”视角，按项目不同生命周期阶段，说明各类存储相关环境变量的推荐使用方式及变量搭配，帮助团队灵活适配不同需求与技术演进。
+
+#### 1. 单一主库/最简阶段（原型开发、早期 MVP）
+- **核心变量**：
+  - `NEXT_PUBLIC_ONLINE_DB_PROVIDER`（如 supabase、firebase 等）
+  - `NEXT_PUBLIC_DB_ORM`（如 drizzle）
+- **用法说明**：
+  - 仅配置主数据库 provider 和 ORM，适合纯在线、云端场景。
+  - 代码示例：
+    ```typescript
+    const dbProvider = configService.get(CONFIG_KEYS.NEXT_PUBLIC_ONLINE_DB_PROVIDER);
+    const dbOrm = configService.get(CONFIG_KEYS.NEXT_PUBLIC_DB_ORM);
+    ```
+- **适用场景**：
+  - 云端原型、SaaS、后台管理等。
+
+#### 2. 支持离线/混合阶段（功能增强、移动端适配）
+- **新增变量**：
+  - `NEXT_PUBLIC_OFFLINE_DB_PROVIDER`（如 indexeddb、sqlite）
+  - `NEXT_PUBLIC_ENABLE_OFFLINE`、`NEXT_PUBLIC_ENABLE_HYBRID`
+- **用法说明**：
+  - 配合 `NEXT_PUBLIC_DATA_MODE` 控制数据访问模式，支持 hybrid（本地+远程）和 offline-only。
+  - 代码示例：
+    ```typescript
+    const offlineDbProvider = configService.get(CONFIG_KEYS.NEXT_PUBLIC_OFFLINE_DB_PROVIDER);
+    const dataMode = configService.get(CONFIG_KEYS.NEXT_PUBLIC_DATA_MODE);
+    ```
+- **适用场景**：
+  - 移动端、弱网、需要离线能力的业务。
+
+#### 3. 多层存储/高阶阶段（性能优化、业务扩展）
+- **新增变量**：
+  - `NEXT_PUBLIC_CACHE_PROVIDER`（如 redis、localstorage）
+  - `NEXT_PUBLIC_FILE_STORAGE_PROVIDER`、`NEXT_PUBLIC_LOG_STORAGE_PROVIDER` 等
+- **用法说明**：
+  - 结合缓存、文件、日志等 provider，提升性能与业务弹性。
+  - 代码示例：
+    ```typescript
+    const cacheProvider = configService.get(CONFIG_KEYS.NEXT_PUBLIC_CACHE_PROVIDER);
+    const fileStorageProvider = configService.get(CONFIG_KEYS.NEXT_PUBLIC_FILE_STORAGE_PROVIDER);
+    ```
+- **适用场景**：
+  - 需要缓存、归档、日志等多存储层次的复杂应用。
+
+#### 4. 多环境/灰度/降级治理阶段（大规模运维、持续演进）
+- **综合变量**：
+  - `NEXT_PUBLIC_ENV_STAGE`、`NEXT_PUBLIC_PROVIDER_TYPE`、`NEXT_PUBLIC_DATA_MODE` 等
+  - 各 provider 变量均可按环境、平台动态切换
+- **用法说明**：
+  - 通过配置服务统一分发，支持多环境、灰度发布、服务降级、mock/真实混用等。
+  - 代码示例：
+    ```typescript
+    const envStage = configService.get(CONFIG_KEYS.NEXT_PUBLIC_ENV_STAGE);
+    const providerType = configService.get(CONFIG_KEYS.NEXT_PUBLIC_PROVIDER_TYPE);
+    // 动态切 provider
+    ```
+- **适用场景**：
+  - 多端/PWA 场景下建议详细测试 provider 切换、离线恢复、同步冲突等边界。
+
+---
+
+**最佳实践与建议：**
+- **渐进增强**：初期只需配置主数据库 provider，后续可按需扩展缓存、文件、日志等 provider，无需大改架构。
+- **向后兼容**：新 provider 变量上线时，配置服务可同时兼容旧变量，逐步引导业务迁移。
+- **多环境适配**：支持通过 ENV_STAGE、DATA_MODE 等变量动态切换 provider，满足 mock、本地、生产等多环境需求。
+- **配置变更同步**：每次新增/变更 provider 变量，需同步 `.env.example`、`config-keys.ts`、`config-types.ts` 和文档，确保一致性。
+- **灰度与降级**：可通过 provider 变量灵活实现服务降级、灰度发布、mock/真实混用等场景。
+- **统一访问**：业务代码统一通过配置服务读取各 provider 变量，避免魔法字符串和硬编码。
+
+---
+
+## PWA 场景下的变量协同与注意事项
+- `NODE_ENV` 决定基础构建优化与调试能力。
+- `ENV_STAGE` 决定 API、provider、mock/真实等业务切换。
+- `PLATFORM` 决定本地能力、UI/交互适配、推送等。
+- `DATA_MODE` 决定数据主流程，影响 provider 选择与同步策略。
+- provider 变量（如 ONLINE_DB_PROVIDER、OFFLINE_DB_PROVIDER、DB_ORM 等）需与上述环境变量协同配置，确保多端一致性和最佳体验。
+- 业务代码应统一通过配置服务获取所有变量，禁止硬编码。
+
+---
+
+**最佳实践与建议：**
+- 变量命名、类型、用途全链路同步（`.env.example`、`config-keys.ts`、`config-types.ts`、文档）。
+- 新增/变更 provider 或环境变量需同步所有相关配置和文档。
+- 多端/PWA 场景下建议详细测试 provider 切换、离线恢复、同步冲突等边界。
+- 充分利用配置服务，提升代码健壮性与可维护性。
+
+---
+
+## 配置服务（ConfigService）本身的 provider 变量说明
+
 - **核心变量**：
   - `NEXT_PUBLIC_CONFIG_PROVIDER`：配置服务/参数中心类型（如 consul/etcd/ssm/localfile）。
 - **用法说明**：

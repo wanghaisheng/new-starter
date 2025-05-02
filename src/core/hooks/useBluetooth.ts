@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BluetoothServiceRegistry } from '@/core/services/infrastructure/phone/bluetooth/registry/bluetooth-service-registry';
+import { useBluetoothService } from '@/providers/ServiceProvider';
 import type { IBluetoothService, BluetoothServiceType } from '@/core/services/infrastructure/phone/bluetooth/types/bluetooth-service';
 
 export interface UseBluetoothResult {
@@ -30,9 +30,10 @@ export function useBluetooth(options?: {
     setError(null);
     setEmpty(false);
     try {
-      BluetoothServiceRegistry.registerAllAdapters(); // 确保已注册所有适配器
-      const instance = BluetoothServiceRegistry.getInstance().createService({ environment, name, type });
-      await instance.initialize();
+      // 使用ServiceProvider提供的钩子获取服务实例
+      const instance = useBluetoothService();
+      if (!instance) throw new Error('Bluetooth 服务实例获取失败');
+      // 服务已在ServiceProvider中初始化，无需再次初始化
       setBluetooth(instance);
       setEmpty(false);
     } catch (e: any) {
@@ -42,7 +43,7 @@ export function useBluetooth(options?: {
     } finally {
       setIsLoading(false);
     }
-  }, [environment, name, type]);
+  }, []);
 
   useEffect(() => {
     initBluetooth();

@@ -171,3 +171,46 @@
 ---
 
 如需迁移模板、自动化脚本或接口示例，请在本文件下补充。
+
+
+# 消息服务架构说明
+
+## 适配器（Adapter）与增强器（Enhancer）职责
+
+- **适配器（Adapter）**：每种消息类型（如文本、图片、音频等）应有一个主适配器，负责该类型消息的核心处理、分发与主流程控制。适配器聚焦于消息的基本生命周期管理、类型判定、路由分发等主流程逻辑。
+- **增强器（Enhancer）**：作为可选的功能插件链，增强器对主流程进行功能增强，例如 AI 智能处理、内容安全检测、加密、国际化、多媒体处理、优先级分组、撤回编辑、青少年安全等。增强器链可按需动态组合，增强主适配器的能力。
+
+> 适配器与增强器应职责分明：适配器主导消息类型的主流程，增强器专注于附加功能。
+
+## 初始化流程配置示例
+
+```ts
+const messageType = configService.get('NEXT_PUBLIC_MESSAGE_TYPE') || MessageType.TEXT;
+const enhancerRaw = configService.get('NEXT_PUBLIC_MESSAGE_FEATURES') || [];
+const enhancerList = Array.isArray(enhancerRaw)
+  ? enhancerRaw
+  : typeof enhancerRaw === 'string'
+    ? enhancerRaw.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+const enhancerMap = {
+  [MessageEnhancerType.AI]: () => new AIEnhancer(),
+  [MessageEnhancerType.CONTENT_SAFETY]: () => new ContentSafetyEnhancer(),
+  // ... 其他增强器
+};
+const enhancers = enhancerList.map(key => enhancerMap[key as MessageEnhancerType]?.()).filter(Boolean);
+const messageConfig: MessageServiceConfig = { messageType, features: enhancerList };
+const messageRepository = new MessageRepository(dataService);
+const messageService = new MessageService(
+  messageRepository,
+  messageConfig,
+  enhancers,
+);
+```
+
+- 通过配置 `messageType` 选择主适配器，`enhancerList` 动态组合增强器。
+- 每种消息类型可扩展独立适配器，增强器链可灵活插拔。
+
+## 推荐实践
+- 明确区分适配器（主流程）与增强器（功能插件）的职责。
+- 适配器负责不同消息类型的主流程实现，增强器负责功能增强。
+- 初始化时根据配置动态组合，便于业务扩展和团队协作。

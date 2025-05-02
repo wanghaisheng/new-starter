@@ -1,17 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 import type {  IPaymentService } from '@/core/services/infrastructure/payment/types/payment-service';
-import { PaymentServiceRegistry } from '@/core/services/infrastructure/payment/registry/payment-service-registry';
+import { usePaymentService } from '@/providers/ServiceProvider';
 import type { Product, PurchaseResult, Subscription } from '@/core/lib/db/types/payment.types';
 
-// 支持环境变量自动适配不同支付服务类型（如 revenuecat/capacitor-purchases/stripe/wechat）
-const getPaymentServiceType = () => {
-  if (typeof window !== 'undefined') {
-    return (
-      process.env.NEXT_PUBLIC_PAYMENT_SERVICE_TYPE as 'revenuecat' | 'capacitor-purchases' | 'stripe' | 'wechat' | undefined
-    ) || 'revenuecat';
-  }
-  return 'revenuecat';
-};
+
 
 export function usePayment() {
   const [loading, setLoading] = useState(false);
@@ -24,10 +16,10 @@ export function usePayment() {
   const [purchaseResult, setPurchaseResult] = useState<PurchaseResult | null>(null);
   const [empty, setEmpty] = useState(false);
 
-  // 统一通过 PaymentServiceRegistry 获取服务实例
+  // 统一通过 ServiceProvider 获取服务实例
   const serviceRef = useRef<IPaymentService>();
   if (!serviceRef.current) {
-    serviceRef.current = PaymentServiceRegistry.getInstance().createService(getPaymentServiceType());
+    serviceRef.current = usePaymentService();
   }
 
   const fetchProducts = useCallback(async () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PaymentServiceRegistry } from '@/core/services/infrastructure/payment/registry/payment-service-registry';
+import { usePaymentService } from '@/providers/ServiceProvider';
 import type { Subscription } from '@/core/lib/db/types/payment.types';
 import { useToast } from './useToast';
 
@@ -10,8 +10,8 @@ export function useMemberCenter() {
   const [empty, setEmpty] = useState(false);
   const { triggerToast } = useToast();
 
-  // 通过 Registry 获取服务实例
-  const service = PaymentServiceRegistry.getInstance().getDefaultService?.();
+  // 使用ServiceProvider获取服务实例
+  const service = usePaymentService();
 
   const fetchSubscriptions = useCallback(async () => {
     setLoading(true);

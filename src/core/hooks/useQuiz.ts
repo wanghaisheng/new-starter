@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { QuizServiceRegistry } from '@/core/services/business/deprecated/quiz/registry/quiz-service-registry';
-import { DataServiceFactory } from '@/core/services/data/factory/data-service-factory';
+import { useQuizService } from '@/providers/ServiceProvider';
 import type {  IQuizService } from '@/core/services/business/deprecated/quiz/types/quiz-service';
 import type { Quiz, QuizQuestion, QuizResult } from '@/core/lib/db/types/quiz.types';
 import { useToast } from './useToast';
@@ -23,16 +22,9 @@ export function useQuizzes(): UseQuizzesResult {
   const serviceRef = useRef<IQuizService | null>(null);
 
   useEffect(() => {
-    // 统一通过 Registry 获取服务实例，参数类型安全
-    const allowedTypes = ['mock', 'remote', 'hybrid'] as const;
-    type QuizServiceType = typeof allowedTypes[number];
-    const envType = process.env.NEXT_PUBLIC_QUIZ_SERVICE_TYPE;
-    const type: QuizServiceType = allowedTypes.includes(envType as QuizServiceType)
-      ? (envType as QuizServiceType)
-      : (process.env.NODE_ENV === 'development' ? 'mock' : 'remote');
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
-    const provider = QuizServiceRegistry.getInstance().getProvider(type, apiBaseUrl, 'default');
-    serviceRef.current = provider ? provider() : null;
+    // 使用ServiceProvider提供的钩子获取服务实例
+    const quizService = useQuizService();
+    serviceRef.current = quizService;
     fetchQuizzes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -78,16 +70,9 @@ export function useQuizQuestions(quizId: string): UseQuizQuestionsResult {
   const serviceRef = useRef<IQuizService | null>(null);
 
   useEffect(() => {
-    // 统一通过 Registry 获取服务实例
-    const allowedTypes = ['mock', 'remote', 'hybrid'] as const;
-    type QuizServiceType = typeof allowedTypes[number];
-    const envType = process.env.NEXT_PUBLIC_QUIZ_SERVICE_TYPE;
-    const type: QuizServiceType = allowedTypes.includes(envType as QuizServiceType)
-      ? (envType as QuizServiceType)
-      : (process.env.NODE_ENV === 'development' ? 'mock' : 'remote');
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
-    const provider = QuizServiceRegistry.getInstance().getProvider(type, apiBaseUrl, 'default');
-    serviceRef.current = provider ? provider() : null;
+    // 使用ServiceProvider提供的钩子获取服务实例
+    const quizService = useQuizService();
+    serviceRef.current = quizService;
     fetchQuestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId]);
@@ -127,16 +112,9 @@ export function useQuizResult(userId: string, quizId: string): UseQuizResultResu
   const serviceRef = useRef<IQuizService | null>(null);
 
   useEffect(() => {
-    // 统一通过 Registry 获取服务实例
-    const allowedTypes = ['mock', 'remote', 'hybrid'] as const;
-    type QuizServiceType = typeof allowedTypes[number];
-    const envType = process.env.NEXT_PUBLIC_QUIZ_SERVICE_TYPE;
-    const type: QuizServiceType = allowedTypes.includes(envType as QuizServiceType)
-      ? (envType as QuizServiceType)
-      : (process.env.NODE_ENV === 'development' ? 'mock' : 'remote');
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
-    const provider = QuizServiceRegistry.getInstance().getProvider(type, apiBaseUrl, 'default');
-    serviceRef.current = provider ? provider() : null;
+    // 使用ServiceProvider提供的钩子获取服务实例
+    const quizService = useQuizService();
+    serviceRef.current = quizService;
     fetchResult();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, quizId]);

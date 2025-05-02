@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { initializeCoreServices } from "@/core/services/init";
-import { initAppService } from '@/core/services/business/app-service-init';
+import { initAppService } from '@/core/services/business/app-service-init-legacy';
 // import { LocaleProvider } from '@/core/providers/LocaleProvider';
 // 已废弃 LocaleProvider，国际化由全局 I18nProvider 提供，如需 locale hooks 请用 '@/core/lib/i18n/hooks'
 

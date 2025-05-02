@@ -1,80 +1,111 @@
 // 认证服务注册表/单例工厂，支持多类型多实例注册与获取，并内置适配器注册机制
 import type { IAuthService } from '../types/auth-service';
-import { AuthServiceFactory, AuthServiceType, AuthServiceOptions } from '../factory/auth-service-factory';
+import { AuthServiceFactory } from '../factory/auth-service-factory';
 import { MockAuthService } from '../adapters/mock/mock-auth-service';
 import { HybridAuthService } from '../adapters/hybrid-auth-service';
+import { AuthStrategy, AuthProvider } from '@/core/lib/db/types/common';
+import { AUTH_KEYS } from '@/core/services/infrastructure/config/config-keys';
 
 export interface AuthServiceConfig {
   environment: string;
   name: string;
-  type: 'mock'|'firebase'|'better'|'hybrid';
+  strategy: AuthStrategy;
+  provider: AuthProvider;
 }
 
 export class AuthServiceRegistry {
   private static instance: AuthServiceRegistry;
   private registry: Record<string, IAuthService> = {};
-  private static adapters: Partial<Record<AuthServiceType, () => IAuthService>> = {};
+  private static adapters: Partial<Record<AuthStrategy, () => IAuthService>> = {};
 
   static getInstance() {
     if (!this.instance) this.instance = new AuthServiceRegistry();
     return this.instance;
   }
 
-  getProvider(type: AuthServiceType = 'mock', name: string = 'default', dataService?: any, options?: AuthServiceOptions): () => IAuthService {
-    return () => this.createService(type, name, dataService, options);
+  getProvider(
+    strategy: AuthStrategy = AuthStrategy.Mock,
+    provider: AuthProvider = AuthProvider.Mock,
+    name: string = 'default',
+    dataService?: any,
+    options?: { [key: string]: any }
+  ): () => IAuthService {
+    return () => this.createService(strategy, provider, name, dataService, options);
   }
 
-  createService(type: AuthServiceType = 'mock', name: string = 'default', dataService?: any, options?: AuthServiceOptions): IAuthService {
-    const key = `${type}:${name}`;
+  createService(
+    strategy: AuthStrategy = AuthStrategy.Mock,
+    provider: AuthProvider = AuthProvider.Mock,
+    name: string = 'default',
+    dataService?: any,
+    options?: { [key: string]: any }
+  ): IAuthService {
+    const key = `${strategy}:${name}`;
     if (this.registry[key]) return this.registry[key];
-    const adapter = AuthServiceRegistry.adapters[type];
+    const adapter = AuthServiceRegistry.adapters[strategy];
     const service = adapter
       ? adapter()
-      : AuthServiceFactory.createService({ type, dataService, options });
+      : AuthServiceFactory.createService({
+          strategy,
+          provider,
+          dataService,
+          options
+        });
     this.registry[key] = service;
     return service;
   }
 
-  getService(type: AuthServiceType, name: string = 'default'): IAuthService | undefined {
-    return this.registry[`${type}:${name}`];
-  }
-
-  static registerAdapter(type: AuthServiceType, factory: () => IAuthService): void {
-    this.adapters[type] = factory;
-  }
-  static getAdapter(type: AuthServiceType): (() => IAuthService) | undefined {
-    return this.adapters[type];
-  }
-  static unregisterAdapter(type: AuthServiceType): void {
-    delete this.adapters[type];
-  }
-
-  getDefaultService(dataService?: any, options?: AuthServiceOptions): IAuthService {
-    return (
-      this.getService('firebase') ||
-      this.getService('hybrid') ||
-      this.getService('better') ||
-      this.getService('mock') ||
-      this.createService('mock', 'default', dataService, options)
-    );
-  }
-
-  clear() {
-    this.registry = {};
-  }
-
   static registerAllAdapters() {
-    AuthServiceRegistry.registerAdapter('mock', () => new MockAuthService());
-    // 动态 require better-auth-service，仅在需要时加载
-    AuthServiceRegistry.registerAdapter('better', () => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+    AuthServiceRegistry.registerAdapter(AuthStrategy.Mock, () => new MockAuthService());
+    AuthServiceRegistry.registerAdapter(AuthStrategy.jwt, () => {
+      // 动态 require，避免 mock 环境下 firebase-adapter 被静态 import
+      const { FirebaseAuthAdapter } = require('../adapters/firebase/firebase-auth-service');
+      return new FirebaseAuthAdapter();
+    });
+    AuthServiceRegistry.registerAdapter(AuthStrategy.OAuth, () => {
+      // 动态 require，避免 mock 环境下 better-auth-adapter 被静态 import
       const { BetterAuthService } = require('../adapters/better/better-auth-service');
       return new BetterAuthService();
     });
-    AuthServiceRegistry.registerAdapter('hybrid', () => new HybridAuthService());
-    AuthServiceRegistry.registerAdapter('firebase', () => AuthServiceFactory.createService({ type: 'firebase' }));
+    AuthServiceRegistry.registerAdapter(AuthStrategy.Session, () => new HybridAuthService());
+  }
+}
+}
+
+  clear(): void {
+    this.registry = {};
   }
 }
 
-// 用法：在应用初始化时调用 AuthServiceRegistry.registerAllAdapters()
-// AuthServiceRegistry.registerAllAdapters();
+  getService(strategy: AuthStrategy, name: string = 'default'): IAuthService | undefined {
+    return this.registry[`${strategy}:${name}`];
+  }
+
+  static registerAdapter(strategy: AuthStrategy, factory: () => IAuthService): void {
+    AuthServiceRegistry.adapters[strategy] = factory;
+  }
+
+  static getAdapter(strategy: AuthStrategy): (() => IAuthService) | undefined {
+    return AuthServiceRegistry.adapters[strategy];
+  }
+
+  static unregisterAdapter(strategy: AuthStrategy): void {
+    delete AuthServiceRegistry.adapters[strategy];
+  }
+
+  getDefaultService(dataService?: any, options?: { [key: string]: any }): IAuthService {
+    // 从配置服务获取认证策略和提供者
+    const configService = AuthServiceFactory.getConfigService();
+    const resolvedStrategy = configService.get(AUTH_KEYS.NEXT_PUBLIC_AUTH_STRATEGY) 
+      ?? AuthStrategy.Mock;
+
+    const resolvedProvider = configService.get(AUTH_KEYS.NEXT_PUBLIC_AUTH_PROVIDER) 
+      ?? AuthProvider.Mock;
+
+    return this.createService(resolvedStrategy, resolvedProvider, 'default', dataService, options);
+  }
+
+  clear(): void {
+    this.registry = {};
+  }
+}

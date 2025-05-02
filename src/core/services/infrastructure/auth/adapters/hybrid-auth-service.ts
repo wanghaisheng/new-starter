@@ -2,10 +2,31 @@
 import { IAuthAdapter, AuthUser, AuthResult } from '../types/auth-service';
 import { MockAuthService } from './mock/mock-auth-service';
 import { FirebaseAuthAdapter } from './firebase/firebase-auth-service';
+import { AuthStrategy } from '@/core/lib/db/types/common';
 
 export class HybridAuthService implements IAuthAdapter {
   private mock = new MockAuthService();
   private remote: FirebaseAuthAdapter;
+  private strategy: AuthStrategy = AuthStrategy.Session;
+  private dataService: any;
+  private options: { [key: string]: any } = {};
+
+  /**
+   * 配置认证服务
+   */
+  configure(config: {
+    strategy: AuthStrategy;
+    dataService?: any;
+    options?: { [key: string]: any }
+  }) {
+    this.strategy = config.strategy;
+    this.dataService = config.dataService;
+    this.options = config.options || {};
+    
+    // 将配置传递给子服务
+    this.mock.configure(config);
+    this.remote.configure(config);
+  }
 
   async initialize() {
     await this.mock.initialize();

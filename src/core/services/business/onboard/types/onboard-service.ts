@@ -34,4 +34,51 @@ export interface IOnboardService {
     platform?: string;
     [key: string]: any;
   }): Promise<OnboardStep[]>;
+
+  /**
+   * 跳转到指定步骤
+   * @param currentStep 当前步骤索引
+   * @param targetStep 目标步骤索引
+   * @returns OnboardStep 或异常结构
+   */
+  goToStep(currentStep: number, targetStep: number, options?: any): Promise<OnboardStep | IOnboardError>;
+
+  /**
+   * 下一步
+   * @param currentStep 当前步骤索引
+   * @returns OnboardStep 或异常结构
+   */
+  nextStep(currentStep: number, options?: any): Promise<OnboardStep | IOnboardError>;
+
+  /**
+   * 上一步
+   * @param currentStep 当前步骤索引
+   * @returns OnboardStep 或异常结构
+   */
+  prevStep(currentStep: number, options?: any): Promise<OnboardStep | IOnboardError>;
+
+  /**
+   * 上报引导状态
+   * @param status 状态内容
+   * @returns 状态上报结果或异常结构
+   */
+  reportStatus(status: any, options?: any): Promise<IReportResult | IOnboardError>;
+}
+
+/**
+ * Onboard 异常返回结构
+ */
+export interface IOnboardError {
+  code: string;
+  message: string;
+  detail?: any;
+}
+
+/**
+ * 状态上报返回结构
+ */
+export interface IReportResult {
+  success: boolean;
+  message?: string;
+  [key: string]: any;
 }

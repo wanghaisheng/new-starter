@@ -5,8 +5,9 @@ import { IDataService } from '@/core/services/data/types';
 import type { IMatchStrategy } from '@/core/services/business/match/ai-adapters/match-ai-adapter';
 import { CompositeMatchAdapter } from '@/core/services/business/match/ai-adapters/composite-match-adapter';
 import { UserService } from '@/core/services/business/user/user-service';
-import type { MatchPreference } from './match-preference.types';
+import type { MatchPreference } from '@/core/lib/db/types/match-preference.types';
 import { createDynamicCompositeAdapter } from '@/core/services/business/match/ai-adapters/dynamic-strategy';
+import { getEnhancers } from './enhancers';
 
 /**
  * 类型安全 MatchService（新架构）
@@ -108,21 +109,28 @@ export class MatchService {
    * 支持根据用户偏好和临时选项动态调整算法顺序和内容
    */
   async matchUsers(userId: string, options?: MatchOptions, preference?: MatchPreference): Promise<User[]> {
-    // 1. 获取用户全局匹配偏好（如未传入则需从 DB/Service 获取）
     let mergedPreference: MatchPreference = { ...(preference || {}) };
     if (options) {
       mergedPreference = { ...mergedPreference, ...options };
     }
-    // 2. 获取候选人列表（可根据 mergedPreference.baseFilter 透传基础过滤条件）
     const candidates = await this.matchRepo.getRecommendedUsers(userId, mergedPreference.baseFilter);
-    // 3. 获取当前用户信息
     const user = await this.userService.getUserById(userId);
     if (!user) throw new Error('User not found');
-    // 支持 options 直接传入 matchPreference/tempOpts，也兼容无类型定义时的动态对象
     const matchPreference = (options as any)?.matchPreference || (await this.settingService?.getMatchPreference?.(user.id));
     const tempOpts = (options as any)?.tempOpts || {};
     const aiAdapter = createDynamicCompositeAdapter(this.configService, matchPreference, tempOpts);
-    return aiAdapter.matchUsers(user, candidates, options);
+    let result = aiAdapter.matchUsers(user, candidates, options);
+    // 动态组合增强器处理
+    const enhancerList = this.configService?.matchEnhancerList || ['deduplicate', 'sort'];
+    const enhancers = getEnhancers(enhancerList);
+    let context = { ...options, ...matchPreference, ...tempOpts };
+    for (const enhancer of enhancers) {
+      // 支持异步增强器
+      if (typeof enhancer.enhance === 'function') {
+        result = await enhancer.enhance(result, context);
+      }
+    }
+    return result;
   }
 
   /**

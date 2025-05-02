@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { PaymentServiceRegistry } from '@/core/services/infrastructure/payment/registry/payment-service-registry';
+import { usePaymentService } from '@/providers/ServiceProvider';
 import { useToast } from './useToast';
 import type { Subscription } from '@/core/services/infrastructure/payment/types/payment-service';
 
@@ -10,8 +10,8 @@ export function useSubscribe() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const { triggerToast } = useToast();
 
-  // 通过 Registry 获取服务实例，禁止 Factory 直连
-  const service = PaymentServiceRegistry.getInstance().getDefaultService?.();
+  // 使用ServiceProvider获取服务实例
+  const service = usePaymentService();
 
   const subscribe = useCallback(async (planId: string) => {
     setLoading(true);

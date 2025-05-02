@@ -1,6 +1,7 @@
 // 持久化 mock 认证服务（localStorage 版）
 // 用于 mock 阶段需要登录态持久化的场景
 import { IAuthAdapter, AuthUser, AuthResult } from '../../types/auth-service';
+import { AuthStrategy } from '@/core/lib/db/types/common';
 
 const STORAGE_KEY = 'mock_auth_user';
 
@@ -14,6 +15,23 @@ export class PersistentMockAuthService implements IAuthAdapter {
       if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
       else localStorage.removeItem(STORAGE_KEY);
     }
+  }
+
+  private strategy: AuthStrategy = AuthStrategy.Mock;
+  private dataService: any;
+  private options: { [key: string]: any } = {};
+
+  /**
+   * 配置认证服务
+   */
+  configure(config: {
+    strategy: AuthStrategy;
+    dataService?: any;
+    options?: { [key: string]: any }
+  }) {
+    this.strategy = config.strategy;
+    this.dataService = config.dataService;
+    this.options = config.options || {};
   }
 
   async initialize() { /* 可选：初始化逻辑 */ }

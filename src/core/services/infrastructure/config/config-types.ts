@@ -6,7 +6,6 @@ import {
   DbOrm,
   LogLevel,
   Platform,
-  AuthType,
   NodeEnv,
   EnvStage,
   OnlineDbProvider,
@@ -15,7 +14,8 @@ import {
   SyncStrategy,
   CacheProvider,
   ConfigProviderType,
-  AuthServiceType,
+  AuthStrategy,
+  AuthProvider,
   UserServiceType,
   NotificationServiceType,
   PaymentServiceType,
@@ -23,7 +23,11 @@ import {
   CacheStrategy,
   ExpiryStrategy,
   DbInitMode,
-  MatchServiceType // 新增匹配服务类型枚举
+  MatchServiceType,
+  SocialLoginProvider,
+  SessionConfig,
+  TokenConfig,
+  SecurityConfig
 } from '@/core/lib/db/types/common';
 
 export interface ConfigSchema {
@@ -97,8 +101,32 @@ export interface ConfigSchema {
   NEXT_PUBLIC_BUILD_NUMBER?: string | number;
   NEXT_PUBLIC_USE_MOCK_NETWORK?: boolean | 'true' | 'false';
   NEXT_PUBLIC_USE_MOCK_DB?: boolean | 'true' | 'false';
-  NEXT_PUBLIC_AUTH_TYPE?: AuthType | string;
-  NEXT_PUBLIC_AUTH_SERVICE_TYPE?: AuthServiceType | string;
+  NEXT_PUBLIC_AUTH_STRATEGY?: AuthStrategy | string;
+  NEXT_PUBLIC_AUTH_PROVIDER?: AuthProvider | string;
+  NEXT_PUBLIC_SOCIAL_LOGIN_PROVIDERS?: SocialLoginProvider[] | string;
+  NEXT_PUBLIC_SESSION_DURATION?: string;
+  NEXT_PUBLIC_SESSION_REFRESH?: string;
+  NEXT_PUBLIC_SESSION_COOKIE_NAME?: string;
+  NEXT_PUBLIC_SESSION_COOKIE_DOMAIN?: string;
+  NEXT_PUBLIC_SESSION_COOKIE_SECURE?: boolean | 'true' | 'false';
+  NEXT_PUBLIC_TOKEN_EXPIRY?: string;
+  NEXT_PUBLIC_TOKEN_REFRESH?: string;
+  NEXT_PUBLIC_TOKEN_ALGORITHM?: string;
+  NEXT_PUBLIC_TOKEN_SECRET?: string;
+  NEXT_PUBLIC_AUTH_RATE_LIMIT?: string;
+  NEXT_PUBLIC_LOGIN_ATTEMPTS?: number | string;
+  NEXT_PUBLIC_LOCKOUT_DURATION?: string;
+  NEXT_PUBLIC_PASSWORD_MIN_LENGTH?: number | string;
+  NEXT_PUBLIC_PASSWORD_MAX_LENGTH?: number | string;
+  NEXT_PUBLIC_PASSWORD_REQUIRE_UPPERCASE?: boolean | 'true' | 'false';
+  NEXT_PUBLIC_PASSWORD_REQUIRE_LOWERCASE?: boolean | 'true' | 'false';
+  NEXT_PUBLIC_PASSWORD_REQUIRE_NUMBER?: boolean | 'true' | 'false';
+  NEXT_PUBLIC_PASSWORD_REQUIRE_SPECIAL?: boolean | 'true' | 'false';
+  NEXT_PUBLIC_CORS_ORIGINS?: string;
+  NEXT_PUBLIC_CORS_METHODS?: string;
+  NEXT_PUBLIC_CORS_HEADERS?: string;
+  NEXT_PUBLIC_XSS_PROTECTION?: boolean | 'true' | 'false';
+  NEXT_PUBLIC_CONTENT_SECURITY_POLICY?: string;
   NEXT_PUBLIC_USER_SERVICE_TYPE?: UserServiceType | string;
   NEXT_PUBLIC_NOTIFICATION_SERVICE_TYPE?: NotificationServiceType | string;
   NEXT_PUBLIC_PAYMENT_SERVICE_TYPE?: PaymentServiceType | string;
@@ -140,4 +168,27 @@ export interface ConfigSchema {
   NEXT_PUBLIC_DB_INIT_SOURCE?: string;
   NEXT_PUBLIC_DB_INIT_LOAD_DEFAULT?: boolean | string;
   NEXT_PUBLIC_DB_INIT_TABLES?: string;
+  // 业务服务配置项
+  NEXT_PUBLIC_MESSAGE_TYPE?: string; // 消息类型，对应 MessageType 枚举
+  NEXT_PUBLIC_MESSAGE_FEATURES?: string; // 消息特性，对应 MessageFeature 枚举，逗号分隔
+  NEXT_PUBLIC_MESSAGE_ADAPTERS?: string; // 消息适配器类型，对应 MessageAdapterType 枚举
+  MESSAGE_REPOSITORY_MAP?: Record<string, any>; // 消息仓储映射
+  
+  NEXT_PUBLIC_QUIZ_TYPE?: string; // 测验类型，对应 QuizType 枚举
+  NEXT_PUBLIC_QUIZ_FEATURES?: string; // 测验特性，对应 QuizEnhancerType 枚举，逗号分隔
+  QUIZ_ADAPTER_MAP?: Record<string, any>; // 测验适配器映射
+  
+  NEXT_PUBLIC_MATCH_TYPE?: string; // 匹配类型，对应 MatchServiceTypeOptions 枚举
+  NEXT_PUBLIC_MATCH_ENHANCER_LIST?: string[] | string; // 匹配增强器列表
+  MATCH_ENHANCER_LIST?: string[] | string; // 匹配增强器列表（内部使用）
+  DATA_SERVICE?: any; // 匹配数据服务
+  USER_SERVICE?: any; // 匹配用户服务
+  SETTING_SERVICE?: any; // 匹配设置服务
+  
+  NEXT_PUBLIC_ONBOARD_TYPE?: string; // 引导类型
+  NEXT_PUBLIC_ONBOARD_FEATURES?: string; // 引导特性，逗号分隔
+  ONBOARD_ADAPTER_MAP?: Record<string, any>; // 引导适配器映射
+  ONBOARD_TYPE?: string; // 引导类型（内部使用）
+  ONBOARD_FEATURES?: string; // 引导特性（内部使用）
+  ONBOARD_OPTIONS?: Record<string, any>; // 引导选项
 }

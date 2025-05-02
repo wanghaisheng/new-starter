@@ -66,12 +66,64 @@ export enum AppEnvironmentEnum {
   PRODUCTION = 'production',
 }
 
-// ---- 认证类型 ----
-export enum AuthType {
-  JWT = 'jwt',
-  OAUTH = 'oauth',
-  SESSION = 'session',
-  MOCK = 'mock',
+// ---- 认证策略类型 ----
+export enum AuthStrategy {
+  jwt = 'jwt',
+  OAuth = 'oauth',
+  Session = 'session',
+  Mock = 'mock',
+}
+
+// ---- 认证服务提供者 ----
+export enum AuthProvider {
+  Mock = 'auth-service-mock',
+  PersistentMock = 'auth-service-persistent-mock',
+  Firebase = 'auth-service-firebase',
+  Better = 'auth-service-better',
+  Hybrid = 'auth-service-hybrid',
+  Custom = 'auth-service-custom',
+}
+
+// ---- 社交登录提供者 ----
+export enum SocialLoginProvider {
+  Google = 'google',
+  Facebook = 'facebook',
+  Apple = 'apple',
+  Mock = 'mock',
+}
+
+// ---- 会话配置 ----
+export enum SessionConfig {
+  Duration = 'duration',
+  Refresh = 'refresh',
+  CookieName = 'cookie_name',
+  CookieDomain = 'cookie_domain',
+  CookieSecure = 'cookie_secure',
+}
+
+// ---- token 配置 ----
+export enum TokenConfig {
+  Expiry = 'expiry',
+  Refresh = 'refresh',
+  Algorithm = 'algorithm',
+}
+
+// ---- 安全配置 ----
+export enum SecurityConfig {
+  RateLimit = 'rate_limit',
+  LoginAttempts = 'login_attempts',
+  LockoutDuration = 'lockout_duration',
+  PasswordMinLength = 'password_min_length',
+  PasswordMaxLength = 'password_max_length',
+  PasswordRequireUppercase = 'password_require_uppercase',
+  PasswordRequireLowercase = 'password_require_lowercase',
+  PasswordRequireNumber = 'password_require_number',
+  PasswordRequireSpecial = 'password_require_special',
+  CorsOrigins = 'cors_origins',
+  CorsMethods = 'cors_methods',
+  CorsHeaders = 'cors_headers',
+  XssProtection = 'xss_protection',
+  ContentSecurityPolicy = 'content_security_policy',
 }
 
 // ---- 列类型 ----
@@ -317,14 +369,7 @@ export enum QuizServiceType {
   HYBRID = 'hybrid',
 }
 
-// ---- 认证服务类型 ----
-export enum AuthServiceType {
-  MOCK = 'mock',
-  PERSISTENT_MOCK = 'persistent-mock',
-  FIREBASE = 'firebase',
-  BETTER = 'better',
-  HYBRID = 'hybrid',
-}
+
 
 // ---- 日志服务提供方 ----
 export enum LoggerProviderType {
@@ -454,6 +499,35 @@ export enum MessageType {
   IMAGE = 'image',
   AUDIO = 'audio',
   VIDEO = 'video',
+  FILE = 'file',
+  SYSTEM = 'system',
+  CUSTOM = 'custom',
+}
+
+// ---- 消息特性 ----
+export enum MessageFeature {
+  RECALL = 'recall',
+  EDIT = 'edit',
+  REACTION = 'reaction',
+  FORWARD = 'forward',
+  PIN = 'pin',
+  QUOTE = 'quote',
+  THREAD = 'thread',
+  ENCRYPTION = 'encryption',
+  AI = 'ai',
+  AUDIT = 'audit',
+  MULTI_DEVICE_SYNC = 'multiDeviceSync',
+  PRIORITY_GROUP = 'priorityGroup',
+  TEEN_SAFETY = 'teenSafety',
+}
+
+// ---- 消息适配器类型 ----
+export enum MessageAdapterType {
+  MOCK = 'mock',
+  REMOTE = 'remote',
+  LOCAL = 'local',
+  HYBRID = 'hybrid',
+  CUSTOM = 'custom',
 }
 
 // ---- 消息状态 ----

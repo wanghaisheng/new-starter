@@ -1,7 +1,15 @@
+import { AuthStrategy } from '@/core/lib/db/types/common';
+
 // 认证服务接口定义（所有适配器必须实现）
 export interface IAuthService {
   /** 初始化服务（如远程SDK、缓存等） */
   initialize(): Promise<void>;
+  /** 配置认证服务 */
+  configure(config: {
+    strategy: AuthStrategy;
+    dataService?: any;
+    options?: { [key: string]: any }
+  }): void;
   /** 邮箱登录 */
   loginWithEmail(email: string, password: string): Promise<AuthResult>;
   /** 手机号登录 */

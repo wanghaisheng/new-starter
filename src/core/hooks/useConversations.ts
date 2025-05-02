@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageServiceRegistry } from '@/core/services/business/deprecated/messages/registry/message-service-registry';
+import { useMessageService } from '@/providers/ServiceProvider';
 import type { Message } from '@/core/lib/db/types/message.types';
 import { useToast } from './useToast';
 
@@ -44,18 +44,10 @@ export function useConversations(userId: string): UseConversationsResult {
   const serviceRef = useRef<IConversationService | null>(null);
 
   useEffect(() => {
-    const allowedTypes = ['mock', 'remote', 'hybrid'] as const;
-    type MessageServiceType = typeof allowedTypes[number];
-    let type: MessageServiceType = 'remote';
-    const envType = process.env.NEXT_PUBLIC_MESSAGE_SERVICE_TYPE;
-    if (allowedTypes.includes(envType as MessageServiceType)) {
-      type = envType as MessageServiceType;
-    } else if (process.env.NODE_ENV === 'development') {
-      type = 'mock';
-    }
-    // 强类型：只允许 IMessageService，若无则置为 null
-    const provider = MessageServiceRegistry.getInstance().getProvider(type);
-    serviceRef.current = provider ? provider() : null;
+    // 使用ServiceProvider提供的钩子获取服务实例
+    const messageService = useMessageService();
+    // 将服务实例保存到ref中
+    serviceRef.current = messageService;
     if (userId) fetchConversations(userId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);

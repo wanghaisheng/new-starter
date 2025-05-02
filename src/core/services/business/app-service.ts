@@ -20,6 +20,18 @@ export interface AppServiceConfig {
   messageService?: MessageService;
   quizService?: QuizService;
   userService?: UserService;
+  onboardService?: any;
+  configService?: any;
+  messageRepositoryMap?: any;
+  quizAdapterMap?: any;
+  onboardAdapterMap?: any;
+  dataService?: any;
+  settingService?: any;
+  // 新增插件式能力和更多业务服务类型支持
+  messageEnhancerMap?: any;
+  quizEnhancerMap?: any;
+  matchEnhancerMap?: any;
+  onboardEnhancerMap?: any;
   [key: string]: any;
 }
 
@@ -55,6 +67,9 @@ export class AppService {
     this._matchService = config.matchService;
     this._messageService = config.messageService;
     this._quizService = config.quizService;
+    // 新增 onboardService 支持
+    (this as any)._onboardService = config.onboardService;
+    // 可扩展更多业务服务和插件式能力注入
     this.initialized = true;
   }
 
@@ -65,4 +80,6 @@ export class AppService {
   public getMatchService(): MatchService | undefined { return this._matchService; }
   public getMessageService(): MessageService | undefined { return this._messageService; }
   public getQuizService(): QuizService | undefined { return this._quizService; }
+  // 新增 onboardService 导出
+  public getOnboardService(): any { return (this as any)._onboardService; }
 }

@@ -2,7 +2,7 @@ import type { OnboardStep } from '@/core/lib/db/types/onboard.types';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/core/hooks/useToast';
-import { OnboardServiceRegistry } from '@/core/services/business/onboard/registry/onboard-service-registry';
+import { useOnboardService } from '@/providers/ServiceProvider';
 
 export function useOnboard(options?: { locale?: string; abTestGroup?: string; platform?: string }) {
   const [steps, setSteps] = useState<OnboardStep[]>([]);
@@ -17,7 +17,9 @@ export function useOnboard(options?: { locale?: string; abTestGroup?: string; pl
     let isMounted = true;
     setLoading(true);
     setError(null);
-    OnboardServiceRegistry.getDefaultService()
+    // 使用ServiceProvider提供的钩子获取服务实例
+    const onboardService = useOnboardService();
+    onboardService
       .getSteps(options)
       .then(data => {
         if (!isMounted) return;

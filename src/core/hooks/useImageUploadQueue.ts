@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { getDefaultService, getImageAdapter } from '@/core/services/infrastructure/image/registry/image-service-registry';
+import { useImageService } from '@/providers/ServiceProvider';
 
 // 统一通过工厂获取服务实例，支持配置和依赖注入
 export function useImageUploadQueue(type?: string, dependencies?: Record<string, any>) {
-  // 优先 type 指定，否则默认
-  const serviceRef = useRef(
-    type ? getImageAdapter(type) : getDefaultService()
-  );
+  // 使用ServiceProvider获取图片服务实例
+  const imageService = useImageService();
+  const serviceRef = useRef(imageService);
   const [progress, setProgress] = useState<Record<string, any>>({});
   const [failed, setFailed] = useState<any[]>([]);
 

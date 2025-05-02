@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { NFCServiceFactory } from '@/core/services/infrastructure/phone/nfc/factory/nfc-service-factory';
-import { NFCServiceRegistry } from '@/core/services/infrastructure/phone/nfc/registry/nfc-service-registry';
+import { useNFCService } from '@/providers/ServiceProvider';
 import type { INFCService, NFCServiceType } from '@/core/services/infrastructure/phone/nfc/types/nfc-service';
 
 export interface UseNFCResult {
@@ -24,11 +23,10 @@ export function useNFC(options?: {
     setError(null);
     setEmpty(false);
     try {
-      // 推荐统一通过 Registry 获取服务实例
-      const registry = NFCServiceRegistry.getInstance();
-      const instance = registry.getDefaultService?.() || registry.createService?.(type) || null;
+      // 使用ServiceProvider提供的钩子获取服务实例
+      const instance = useNFCService();
       if (!instance) throw new Error('NFC 服务实例获取失败');
-      await instance.initialize();
+      // 服务已在ServiceProvider中初始化，无需再次初始化
       setNfc(instance);
       setEmpty(false);
     } catch (e: any) {
@@ -38,7 +36,7 @@ export function useNFC(options?: {
     } finally {
       setIsLoading(false);
     }
-  }, [type]);
+  }, []);
 
   useEffect(() => {
     initNFC();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AuthServiceFactory } from '@/core/services/infrastructure/auth/factory/auth-service-factory';
+import { useAuthService } from '@/providers/ServiceProvider';
 import { AuthEventManager, AuthEventData } from '@/core/services/infrastructure/auth/factory/auth-events';
 import { useAuthStore } from '@/core/store/auth-store';
 import type { IAuthService, AuthUser, AuthResult } from '@/core/services/infrastructure/auth/types/auth-service';
@@ -52,16 +52,8 @@ export function useAuth(): UseAuthResult {
   useEffect(() => {
     const initProvider = async () => {
       try {
-        const rawType = process.env.NEXT_PUBLIC_AUTH_SERVICE_TYPE;
-        let type: 'mock'|'firebase'|'better'|'hybrid' = 'mock';
-        if (rawType === 'firebase' || rawType === 'better' || rawType === 'hybrid') {
-          type = rawType;
-        } else {
-          type = 'mock';
-        }
-        console.log('[DEBUG][useAuth] 当前 auth 类型:', type, '环境变量:', process.env.NEXT_PUBLIC_AUTH_SERVICE_TYPE);
-        // 工厂/适配器模式，便于 mock/remote 切换
-        const provider = AuthServiceFactory.createService(type);
+        // 使用ServiceProvider提供的钩子获取服务实例
+        const provider = useAuthService();
         setAuthProvider(provider);
         // 获取支持的认证方式
         if (provider && typeof (provider as any).getEnabledMethods === 'function') {

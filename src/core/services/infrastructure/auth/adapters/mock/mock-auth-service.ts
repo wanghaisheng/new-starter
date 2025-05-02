@@ -2,9 +2,27 @@ console.log('[DEBUG][mock-auth-service] 文件被加载');
 
 // mock 认证服务适配器，便于本地开发与单元测试
 import { IAuthAdapter, AuthUser, AuthResult } from '../../types/auth-service';
+import { AuthStrategy } from '@/core/lib/db/types/common';
 
 export class MockAuthService implements IAuthAdapter {
   private user: AuthUser | null = null;
+  private strategy: AuthStrategy = AuthStrategy.Mock;
+  private dataService: any;
+  private options: { [key: string]: any } = {};
+
+  /**
+   * 配置认证服务
+   */
+  configure(config: {
+    strategy: AuthStrategy;
+    dataService?: any;
+    options?: { [key: string]: any }
+  }) {
+    this.strategy = config.strategy;
+    this.dataService = config.dataService;
+    this.options = config.options || {};
+  }
+
   /**
    * 初始化 mock 认证服务
    * mock: 不进行任何操作

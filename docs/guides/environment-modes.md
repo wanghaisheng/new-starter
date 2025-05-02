@@ -36,6 +36,7 @@
 ## 三、各环境下的推荐配置与行为
 
 - **mock**
+   是否可以使用msw完全模拟离线存储 在线存储两类后端服务接口 包括http graphql trpc
   - 全部服务采用 mock provider，数据本地存储，适合前端快速开发/演示/单测
   - 通常对应 `NEXT_PUBLIC_DATA_MODE=offline`
 - **local**

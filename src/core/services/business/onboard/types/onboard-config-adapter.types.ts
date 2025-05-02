@@ -1,4 +1,4 @@
-import { OnboardConfig } from "./onboard.types";
+import { OnboardConfig } from "@/core/lib/db/types/onboard.types";
 
 /**
  * IOnboardConfigAdapter - 新手引导配置适配器接口

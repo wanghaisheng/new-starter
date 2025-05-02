@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { CameraServiceFactory } from '@/core/services/infrastructure/phone/camera/factory/camera-service-factory';
-import { CameraServiceRegistry } from '@/core/services/infrastructure/phone/camera/registry/camera-service-registry';
+import { useCameraService } from '@/providers/ServiceProvider';
 import type { ICameraService, CameraServiceType } from '@/core/services/infrastructure/phone/camera/types/camera-service';
 
 export interface UseCameraResult {
@@ -24,11 +23,10 @@ export function useCamera(options?: {
     setError(null);
     setEmpty(false);
     try {
-      // 推荐统一通过 Registry 获取服务实例
-      const registry = CameraServiceRegistry.getInstance();
-      const instance = registry.getDefaultService?.() || registry.createService?.({ type }) || null;
+      // 使用ServiceProvider提供的钩子获取服务实例
+      const instance = useCameraService();
       if (!instance) throw new Error('Camera 服务实例获取失败');
-      await instance.initialize();
+      // 服务已在ServiceProvider中初始化，无需再次初始化
       setCamera(instance);
       setEmpty(false);
     } catch (e: any) {
@@ -38,7 +36,7 @@ export function useCamera(options?: {
     } finally {
       setIsLoading(false);
     }
-  }, [type]);
+  }, []);
 
   useEffect(() => {
     initCamera();

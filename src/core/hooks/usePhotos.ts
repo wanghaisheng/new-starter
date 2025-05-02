@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Photo } from '@/core/lib/db/types/photo.types';
-import { PhotoServiceRegistry } from '@/core/services/business/photo/registry/photo-service-registry';
+import { useService } from '@/providers/ServiceProvider';
 
 interface UsePhotosResult {
   photos: Photo[];
@@ -17,7 +17,8 @@ export function usePhotos(userId: string): UsePhotosResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<null | { type: string; message: string }>(null);
   const [empty, setEmpty] = useState(false);
-  const photoService = PhotoServiceRegistry.getDefaultService();
+  const { userService } = useService();
+  const photoService = userService.getPhotoService?.();
 
   const fetchPhotos = async () => {
     setLoading(true);

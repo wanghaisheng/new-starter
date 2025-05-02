@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { SensorServiceFactory } from '@/core/services/infrastructure/phone/sensor/factory/sensor-service-factory';
-import { SensorServiceRegistry } from '@/core/services/infrastructure/phone/sensor/registry/sensor-service-registry';
+import { useSensorService } from '@/providers/ServiceProvider';
 import type { ISensorService, SensorServiceType } from '@/core/services/infrastructure/phone/sensor/types/sensor-service';
 
 export interface UseSensorResult {
@@ -24,11 +23,10 @@ export function useSensor(options?: {
     setError(null);
     setEmpty(false);
     try {
-      // 推荐统一通过 Registry 获取服务实例
-      const registry = SensorServiceRegistry.getInstance();
-      const instance = registry.getDefaultService?.() || registry.createService?.(type) || null;
+      // 使用ServiceProvider提供的钩子获取服务实例
+      const instance = useSensorService();
       if (!instance) throw new Error('Sensor 服务实例获取失败');
-      await instance.initialize();
+      // 服务已在ServiceProvider中初始化，无需再次初始化
       setSensor(instance);
       setEmpty(false);
     } catch (e: any) {
@@ -38,7 +36,7 @@ export function useSensor(options?: {
     } finally {
       setIsLoading(false);
     }
-  }, [type]);
+  }, []);
 
   useEffect(() => {
     initSensor();

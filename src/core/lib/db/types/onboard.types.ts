@@ -1,9 +1,14 @@
+import {BaseEntity} from "./base-entity";
+/**
+ * IOnboardService - 新手引导服务接口
+ * 定义了获取新手引导配置的方法
+ */
 /**
  * OnboardStep - 新手引导步骤类型
  * 用于描述每一页引导内容（标题、描述、图片等）
  * 扩展建议：支持富媒体、动画、交互行为、远程配置等
  */
-export interface OnboardStep {
+export interface OnboardStep  extends BaseEntity {
   /** 步骤标题 */
   title: string;
   /** 步骤描述 */
@@ -31,7 +36,7 @@ export interface OnboardStep {
  * OnboardConfig - 新手引导整体配置（可选）
  * 支持多语言、分组、A/B 测试、远程动态内容等扩展
  */
-export interface OnboardConfig {
+export interface OnboardConfig extends BaseEntity{
   steps: OnboardStep[];
   locale?: string;
   abTestGroup?: string;

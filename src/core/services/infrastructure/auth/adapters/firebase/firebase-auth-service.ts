@@ -1,6 +1,7 @@
 // Firebase 认证服务适配器，实现 IAuthAdapter，适用于生产环境
 import { IAuthAdapter, AuthUser, AuthResult } from '../../types/auth-service';
 import { FirebaseAuthService } from '@/core/lib/auth/firebase/firebase-auth-service';
+import { AuthStrategy } from '@/core/lib/db/types/common';
 
 // 判断环境变量，决定是否启用 Firebase
 const isMockEnv = typeof process !== 'undefined' && (
@@ -23,6 +24,9 @@ function fixAuthUser(user: any): AuthUser {
 
 export class FirebaseAuthAdapter implements IAuthAdapter {
   private firebaseAuth: FirebaseAuthService | null = null;
+  private strategy: AuthStrategy = AuthStrategy.jwt;
+  private dataService: any;
+  private options: { [key: string]: any } = {};
 
   constructor() {
     if (!isMockEnv) {
@@ -34,6 +38,31 @@ export class FirebaseAuthAdapter implements IAuthAdapter {
         appId: '',
         emulatorPort: 0
       });
+    }
+  }
+
+  /**
+   * 配置认证服务
+   */
+  configure(config: {
+    strategy: AuthStrategy;
+    dataService?: any;
+    options?: { [key: string]: any }
+  }) {
+    this.strategy = config.strategy;
+    this.dataService = config.dataService;
+    this.options = config.options || {};
+
+    // 配置 Firebase 服务
+    if (this.firebaseAuth) {
+      const firebaseConfig = {
+        apiKey: this.options.apiKey || '',
+        authDomain: this.options.authDomain || '',
+        projectId: this.options.projectId || '',
+        appId: this.options.appId || '',
+        emulatorPort: this.options.emulatorPort || 0
+      };
+      this.firebaseAuth.configure(firebaseConfig);
     }
   }
 

@@ -4,9 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
-import { User } from '@/core/lib/db/types/user';
-import { Photo } from '@/core/lib/db/types/photo';
-import { Match } from '@/core/lib/db/types/match';
+import { User, Photo, Match } from '@/core/lib/db/types';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
@@ -14,6 +12,7 @@ import { useApi } from '@/core/hooks/useApi';
 import { apiClient } from '@/utils/api-client';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 import { MatchPreferenceButton } from './MatchPreferenceButton';
+import { useTranslations } from 'next-intl';
 
 // Add utility function to calculate age from birthDate
 const calculateAge = (birthDate: Date): number => {
@@ -31,6 +30,7 @@ const calculateAge = (birthDate: Date): number => {
 export default function DiscoverPage() {
   useRequireAuth();
   const router = useRouter();
+  const t = useTranslations();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -40,7 +40,7 @@ export default function DiscoverPage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
 
-  // 统一通过 useApi + apiClient 获取推荐用户
+
   const {
     data: users,
     loading: isLoading,

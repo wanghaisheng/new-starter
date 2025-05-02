@@ -33,9 +33,11 @@ import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useContactSetting } from '@/core/hooks/useSetting';
+import { useTranslations } from 'next-intl';
 
 export default function ContactSettingsPage() {
   const router = useRouter();
+  const t = useTranslations();
   const { user, loading: userLoading, updateError } = useUser();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -234,4 +236,4 @@ export default function ContactSettingsPage() {
       />
     </IonPage>
   );
-} 
+}

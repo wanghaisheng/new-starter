@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQuizQuestions } from '@/core/hooks/useQuiz';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
+import { useQuizService } from '@/providers/ServiceProvider';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
@@ -20,6 +21,8 @@ export default function TestPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  
+  const quizService = useQuizService();
   
   const testId = params.id as string;
   
@@ -57,8 +60,7 @@ export default function TestPage() {
     } else {
       // 提交所有答案
       try {
-        // const quizService = QuizServiceFactory.create(new RemoteQuizAdapter());
-        // await quizService.submitAnswers(testId, newAnswers); // 需后端支持
+        await quizService.submitAnswers(testId, newAnswers); // 需后端支持
         // 清理本地进度
         if (typeof window !== 'undefined') {
           localStorage.removeItem(progressKey);

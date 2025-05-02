@@ -43,10 +43,12 @@ import { useSecuritySetting } from '@/core/hooks/useSetting';
 import { SecuritySettings } from '@/core/types/settings';
 import { FormSaveButton } from '@/core/components/form/FormSaveButton';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
+import { useTranslations } from 'next-intl';
 
 export default function SecuritySettingsPage() {
   useRequireAuth();
   const router = useRouter();
+  const t = useTranslations();
   const { user, loading: userLoading, updateError } = useUser();
   const { triggerToast, showToast, toastMessage, setShowToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);

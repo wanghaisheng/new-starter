@@ -10,10 +10,12 @@ import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
+import { useTranslations } from 'next-intl';
 
 export default function MatchesPage() {
   useRequireAuth();
   const router = useRouter();
+  const t = useTranslations();
   const { matches, matchedUsers, loading, error, getUserMatches, getMatchedUsers } = useMatches();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -126,4 +128,4 @@ export default function MatchesPage() {
       />
     </IonPage>
   );
-} 
+}

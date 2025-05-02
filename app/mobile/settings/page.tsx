@@ -49,10 +49,12 @@ import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useApi } from '@/core/hooks/useApi';
 import { apiClient } from '@/utils/api-client';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
+import { useTranslations } from 'next-intl';
 
 export default function SettingsPage() {
   useRequireAuth();
   const router = useRouter();
+  const t = useTranslations();
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [showToast, setShowToast] = useState(false);

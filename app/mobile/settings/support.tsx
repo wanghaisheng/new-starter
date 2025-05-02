@@ -1,8 +1,10 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonButton
 } from '@ionic/react';
+import { useTranslations } from 'next-intl';
 
 export default function SettingsSupport() {
+  const t = useTranslations();
   return (
     <IonPage>
       <IonHeader>

@@ -19,13 +19,13 @@ import {
   IonList,
   IonAlert
 } from '@ionic/react';
-import { getSettingService } from '@/core/services/setting-service';
+import { useSettingService } from '@/providers/ServiceProvider';
 import { useToast } from '@/core/hooks/useToast';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { FormSaveButton } from '@/core/components/form/FormSaveButton';
 import { useAuth } from '@/core/hooks/useAuth';
 import { useUser } from '@/core/hooks/useUser';
-import { User } from '@/core/lib/db/types/user';
+import { User } from '@/core/lib/db/types/user.types';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
@@ -34,7 +34,7 @@ import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 export default function AccountSettingsPage() {
   useRequireAuth();
   const router = useRouter();
-  const settingService = getSettingService();
+  const settingService = useSettingService();
   const { triggerToast, showToast, toastMessage, setShowToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);

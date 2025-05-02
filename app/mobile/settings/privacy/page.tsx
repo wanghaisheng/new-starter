@@ -28,10 +28,12 @@ import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { PrivacySettings } from '@/core/types/settings';
+import { useTranslations } from 'next-intl';
 
 export default function PrivacySettingsPage() {
   useRequireAuth();
   const router = useRouter();
+  const t = useTranslations();
   const { user, loading: userLoading, updateError } = useUser();
   const { triggerToast, showToast, toastMessage, setShowToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);

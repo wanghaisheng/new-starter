@@ -14,8 +14,7 @@ import {
   IonFooter
 } from '@ionic/react';
 import { useParams } from 'next/navigation';
-import { User } from '@/core/lib/db/types/user';
-import { Match } from '@/core/lib/db/types/match';
+import { User, Match } from '@/core/lib/db/types';
 import { useUser } from '@/core/hooks/useUser';
 import { useMatches } from '@/core/hooks/useMatches';
 import { useMessages } from '@/core/hooks/useMessages';

@@ -40,9 +40,11 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { FormSaveButton } from '@/core/components/form/FormSaveButton';
 import { ThemeSettings } from '@/core/types/settings';
 import { useSetting } from '@/core/hooks/useSetting';
+import { useTranslations } from 'next-intl';
 
 export default function ThemeSettingsPage() {
   const router = useRouter();
+  const t = useTranslations();
   const { user, loading, updateError } = useUser();
   const { triggerToast, showToast, toastMessage, setShowToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);

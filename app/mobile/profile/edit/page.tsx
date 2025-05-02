@@ -28,7 +28,7 @@ import { CreatePhotoData } from '@/core/lib/db/types/photo';
 import { useUser } from '@/core/hooks/useUser';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
-import { CameraServiceFactory } from '@/core/services/infrastructure/phone/camera/factory/camera-service-factory';
+import { useCameraService } from '@/providers/ServiceProvider';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 
 export default function EditProfilePage() {
@@ -39,7 +39,7 @@ export default function EditProfilePage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [newInterest, setNewInterest] = useState('');
-  const cameraService = CameraServiceFactory.create();
+  const cameraService = useCameraService();
 
   useEffect(() => {
     if (!user) loadUserData();
@@ -298,4 +298,4 @@ export default function EditProfilePage() {
       />
     </IonPage>
   );
-} 
+}

@@ -27,9 +27,11 @@ import {
   logoTwitter
 } from 'ionicons/icons';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { useTranslations } from 'next-intl';
 
 export default function AboutSettingsPage() {
   const router = useRouter();
+  const t = useTranslations();
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0';
   const buildNumber = process.env.NEXT_PUBLIC_BUILD_NUMBER || '1';
 
@@ -152,4 +154,4 @@ export default function AboutSettingsPage() {
       <BottomNavBar />
     </IonPage>
   );
-} 
+}

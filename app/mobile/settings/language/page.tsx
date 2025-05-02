@@ -28,9 +28,11 @@ import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useLanguageSetting } from '@/core/hooks/useSetting';
+import { useTranslations } from 'next-intl';
 
 export default function LanguageSettingsPage() {
   const router = useRouter();
+  const t = useTranslations();
   const { user, loading, updateError } = useUser();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');

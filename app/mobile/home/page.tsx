@@ -4,9 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
 import Image from 'next/image';
-import { User } from '@/core/lib/db/types/user';
-import { Photo } from '@/core/lib/db/types/photo';
-import { Match } from '@/core/lib/db/types/match';
+import { User, Photo, Match } from '@/core/lib/db/types';
 import { useAuth } from '@/core/hooks/useAuth';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
@@ -14,6 +12,7 @@ import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
 import { useMatches } from '@/core/hooks/useMatches';
 import { useRequireAuth } from '@/core/hooks/useRequireAuth';
 import { useRecommendedUsers } from '@/core/hooks/useRecommendedUsers';
+import { useTranslations } from 'next-intl';
 
 // Add utility function to calculate age from birthDate
 const calculateAge = (birthDate: Date): number => {
@@ -31,6 +30,7 @@ const calculateAge = (birthDate: Date): number => {
 export default function HomePage() {
   useRequireAuth();
   const router = useRouter();
+  const t = useTranslations();
   const { user: currentUser } = useAuth();
   const { users, loading, error, empty } = useRecommendedUsers(currentUser);
   const { matches, createMatch, loading: matchesLoading, error: matchesError } = useMatches(currentUser?.id);

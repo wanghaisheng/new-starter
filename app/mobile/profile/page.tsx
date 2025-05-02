@@ -19,9 +19,11 @@ import { useUser } from '@/core/hooks/useUser';
 import { LoadingSpinner } from '@/core/components/ui/LoadingSpinner';
 import { ErrorDisplay } from '@/core/components/ui/ErrorDisplay';
 import BottomNavBar from '@/mobile/components/navigation/BottomNavBar';
+import { useTranslations } from 'next-intl';
 
 export default function ProfilePage() {
   const router = useRouter();
+  const t = useTranslations();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
